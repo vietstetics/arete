@@ -742,64 +742,63 @@ textarea{font-family:inherit;resize:none}
           <div class="mm-view fr">
             <div class="mm-view-l">Front</div>
             <svg class="mm-svg" viewBox="0 0 120 310" xmlns="http://www.w3.org/2000/svg">
-              <!-- Body base: head, neck, torso, arms, legs -->
+              <!-- Body base: organic human silhouette -->
               <circle cx="60" cy="22" r="18" fill="#1C1C22" stroke="#2A2A32" stroke-width="1.2"/>
-              <rect x="53" y="38" width="14" height="12" rx="5" fill="#1C1C22"/>
-              <!-- Torso -->
-              <path d="M42,36 L20,50 L8,72 L8,140 Q10,152 18,156 L18,162 L22,168 L98,168 L102,162 L102,156 Q110,152 112,140 L112,72 L100,50 L78,36 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <!-- Upper arms -->
-              <rect x="4" y="52" width="18" height="84" rx="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="98" y="52" width="18" height="84" rx="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <!-- Forearms -->
-              <rect x="5" y="138" width="16" height="42" rx="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="99" y="138" width="16" height="42" rx="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <!-- Upper legs -->
-              <rect x="18" y="168" width="28" height="82" rx="10" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="74" y="168" width="28" height="82" rx="10" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <!-- Lower legs -->
-              <rect x="20" y="252" width="24" height="50" rx="9" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="76" y="252" width="24" height="50" rx="9" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M54,39 C53,42 53,46 54,49 L66,49 C67,46 67,42 66,39 Z" fill="#1C1C22"/>
+              <path d="M44,36 C36,38 26,44 18,52 C12,58 8,66 8,76 C8,96 8,116 10,132 C12,142 14,150 16,158 L20,164 L22,168 L98,168 L100,164 C104,150 108,142 110,132 C112,116 112,96 112,76 C112,66 108,58 102,52 C94,44 84,38 76,36 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <!-- Upper arms (tapered organic paths) -->
+              <path d="M4,52 C3,68 3,88 5,110 C6,120 6,126 7,136 L21,136 C22,126 22,120 21,110 C22,88 22,68 21,52 C17,50 8,50 4,52 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M116,52 C117,68 117,88 115,110 C114,120 114,126 113,136 L99,136 C98,126 98,120 99,110 C98,88 98,68 99,52 C103,50 112,50 116,52 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <!-- Forearms (tapered to wrist) -->
+              <path d="M7,136 C6,150 7,164 9,178 L10,181 L20,181 L21,178 C22,164 22,150 21,136 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M113,136 C114,150 113,164 111,178 L110,181 L100,181 L99,178 C98,164 98,150 99,136 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <!-- Thighs (tapered toward knee) -->
+              <path d="M18,168 C17,184 15,210 16,230 C17,238 18,244 20,252 L42,252 C44,244 45,238 45,230 C46,210 45,184 46,168 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M102,168 C103,184 105,210 104,230 C103,238 102,244 100,252 L78,252 C76,244 75,238 74,230 C74,210 75,184 74,168 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <!-- Calves (bulge at mid-calf, taper to ankle) -->
+              <path d="M20,252 C17,262 14,274 16,286 C18,292 20,298 22,302 L38,302 C40,298 42,292 44,286 C46,274 43,262 40,252 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M100,252 C103,262 106,274 104,286 C102,292 100,298 98,302 L82,302 C80,298 78,292 76,286 C74,274 77,262 80,252 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
               <!-- Feet -->
-              <rect x="16" y="298" width="30" height="10" rx="5" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="74" y="298" width="30" height="10" rx="5" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M19,300 C17,303 14,306 13,308 L43,308 C44,306 44,303 42,300 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M101,300 C103,303 106,306 107,308 L77,308 C76,306 76,303 78,300 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
 
               <!-- MUSCLES FRONT -->
               <!-- Left deltoid — GREEN -->
-              <ellipse class="mr" data-m="shoulders" cx="14" cy="70" rx="13" ry="11" transform="rotate(-20 14 70)" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="shoulders" cx="12" cy="70" rx="12" ry="13" transform="rotate(-15 12 70)" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Right deltoid — GREEN -->
-              <ellipse class="mr" data-m="shoulders" cx="106" cy="70" rx="13" ry="11" transform="rotate(20 106 70)" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="shoulders" cx="108" cy="70" rx="12" ry="13" transform="rotate(15 108 70)" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Left pec — RED -->
-              <ellipse class="mr" data-m="chest" cx="36" cy="88" rx="22" ry="18" fill="#F87171" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="chest" cx="34" cy="88" rx="20" ry="18" fill="#F87171" fill-opacity=".88"/>
               <!-- Right pec — RED -->
-              <ellipse class="mr" data-m="chest" cx="84" cy="88" rx="22" ry="18" fill="#F87171" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="chest" cx="86" cy="88" rx="20" ry="18" fill="#F87171" fill-opacity=".88"/>
               <!-- Pec divider -->
               <line x1="60" y1="50" x2="60" y2="108" stroke="#1C1C22" stroke-width="1.8"/>
-              <!-- ABS — GREY (no data) -->
-              <rect class="mr" data-m="abs" x="49" y="110" width="10" height="12" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
-              <rect class="mr" data-m="abs" x="61" y="110" width="10" height="12" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
-              <rect class="mr" data-m="abs" x="49" y="125" width="10" height="12" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
-              <rect class="mr" data-m="abs" x="61" y="125" width="10" height="12" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
-              <rect class="mr" data-m="abs" x="49" y="140" width="10" height="12" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
-              <rect class="mr" data-m="abs" x="61" y="140" width="10" height="12" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
+              <!-- ABS — GREY -->
+              <rect class="mr" data-m="abs" x="50" y="110" width="9" height="11" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
+              <rect class="mr" data-m="abs" x="61" y="110" width="9" height="11" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
+              <rect class="mr" data-m="abs" x="50" y="124" width="9" height="11" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
+              <rect class="mr" data-m="abs" x="61" y="124" width="9" height="11" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
+              <rect class="mr" data-m="abs" x="50" y="138" width="9" height="11" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
+              <rect class="mr" data-m="abs" x="61" y="138" width="9" height="11" rx="2.5" fill="#2C2C31" fill-opacity=".95"/>
               <!-- Left bicep — YELLOW -->
-              <ellipse class="mr" data-m="biceps" cx="13" cy="102" rx="9" ry="19" fill="#FCD34D" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="biceps" cx="12" cy="100" rx="8" ry="18" fill="#FCD34D" fill-opacity=".88"/>
               <!-- Right bicep — YELLOW -->
-              <ellipse class="mr" data-m="biceps" cx="107" cy="102" rx="9" ry="19" fill="#FCD34D" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="biceps" cx="108" cy="100" rx="8" ry="18" fill="#FCD34D" fill-opacity=".88"/>
               <!-- Left forearm — GREY -->
-              <ellipse class="mr" data-m="forearms" cx="13" cy="150" rx="8" ry="16" fill="#2C2C31" fill-opacity=".9"/>
+              <ellipse class="mr" data-m="forearms" cx="14" cy="157" rx="7" ry="16" fill="#2C2C31" fill-opacity=".9"/>
               <!-- Right forearm — GREY -->
-              <ellipse class="mr" data-m="forearms" cx="107" cy="150" rx="8" ry="16" fill="#2C2C31" fill-opacity=".9"/>
+              <ellipse class="mr" data-m="forearms" cx="106" cy="157" rx="7" ry="16" fill="#2C2C31" fill-opacity=".9"/>
               <!-- Left quad — GREEN -->
-              <ellipse class="mr" data-m="quadriceps" cx="32" cy="218" rx="14" ry="34" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="quadriceps" cx="32" cy="210" rx="12" ry="32" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Right quad — GREEN -->
-              <ellipse class="mr" data-m="quadriceps" cx="88" cy="218" rx="14" ry="34" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="quadriceps" cx="88" cy="210" rx="12" ry="32" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Knee caps -->
-              <ellipse cx="32" cy="254" rx="13" ry="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <ellipse cx="88" cy="254" rx="13" ry="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <!-- Left calf (front) — YELLOW -->
-              <ellipse class="mr" data-m="calves" cx="32" cy="280" rx="12" ry="22" fill="#FCD34D" fill-opacity=".88"/>
-              <!-- Right calf (front) — YELLOW -->
-              <ellipse class="mr" data-m="calves" cx="88" cy="280" rx="12" ry="22" fill="#FCD34D" fill-opacity=".88"/>
+              <ellipse cx="31" cy="253" rx="11" ry="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <ellipse cx="89" cy="253" rx="11" ry="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <!-- Left calf — YELLOW -->
+              <ellipse class="mr" data-m="calves" cx="30" cy="278" rx="9" ry="18" fill="#FCD34D" fill-opacity=".88"/>
+              <!-- Right calf — YELLOW -->
+              <ellipse class="mr" data-m="calves" cx="90" cy="278" rx="9" ry="18" fill="#FCD34D" fill-opacity=".88"/>
             </svg>
           </div>
 
@@ -807,57 +806,57 @@ textarea{font-family:inherit;resize:none}
           <div class="mm-view bk">
             <div class="mm-view-l">Back</div>
             <svg class="mm-svg" viewBox="0 0 120 310" xmlns="http://www.w3.org/2000/svg">
-              <!-- Body base: same structure -->
+              <!-- Body base: organic human silhouette (back) -->
               <circle cx="60" cy="22" r="18" fill="#1C1C22" stroke="#2A2A32" stroke-width="1.2"/>
-              <rect x="53" y="38" width="14" height="12" rx="5" fill="#1C1C22"/>
-              <path d="M42,36 L20,50 L8,72 L8,140 Q10,152 18,156 L18,162 L22,168 L98,168 L102,162 L102,156 Q110,152 112,140 L112,72 L100,50 L78,36 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="4" y="52" width="18" height="84" rx="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="98" y="52" width="18" height="84" rx="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="5" y="138" width="16" height="42" rx="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="99" y="138" width="16" height="42" rx="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="18" y="168" width="28" height="82" rx="10" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="74" y="168" width="28" height="82" rx="10" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="20" y="252" width="24" height="50" rx="9" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="76" y="252" width="24" height="50" rx="9" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="16" y="298" width="30" height="10" rx="5" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <rect x="74" y="298" width="30" height="10" rx="5" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M54,39 C53,42 53,46 54,49 L66,49 C67,46 67,42 66,39 Z" fill="#1C1C22"/>
+              <path d="M44,36 C36,38 26,44 18,52 C12,58 8,66 8,76 C8,96 8,116 10,132 C12,142 14,150 16,158 L20,164 L22,168 L98,168 L100,164 C104,150 108,142 110,132 C112,116 112,96 112,76 C112,66 108,58 102,52 C94,44 84,38 76,36 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M4,52 C3,68 3,88 5,110 C6,120 6,126 7,136 L21,136 C22,126 22,120 21,110 C22,88 22,68 21,52 C17,50 8,50 4,52 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M116,52 C117,68 117,88 115,110 C114,120 114,126 113,136 L99,136 C98,126 98,120 99,110 C98,88 98,68 99,52 C103,50 112,50 116,52 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M7,136 C6,150 7,164 9,178 L10,181 L20,181 L21,178 C22,164 22,150 21,136 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M113,136 C114,150 113,164 111,178 L110,181 L100,181 L99,178 C98,164 98,150 99,136 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M18,168 C17,184 15,210 16,230 C17,238 18,244 20,252 L42,252 C44,244 45,238 45,230 C46,210 45,184 46,168 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M102,168 C103,184 105,210 104,230 C103,238 102,244 100,252 L78,252 C76,244 75,238 74,230 C74,210 75,184 74,168 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M20,252 C17,262 14,274 16,286 C18,292 20,298 22,302 L38,302 C40,298 42,292 44,286 C46,274 43,262 40,252 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M100,252 C103,262 106,274 104,286 C102,292 100,298 98,302 L82,302 C80,298 78,292 76,286 C74,274 77,262 80,252 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M19,300 C17,303 14,306 13,308 L43,308 C44,306 44,303 42,300 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <path d="M101,300 C103,303 106,306 107,308 L77,308 C76,306 76,303 78,300 Z" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
 
               <!-- MUSCLES BACK -->
-              <!-- Upper traps — GREEN (wide ellipse) -->
-              <ellipse class="mr" data-m="upper-back" cx="60" cy="80" rx="42" ry="22" fill="#4ADE80" fill-opacity=".85"/>
+              <!-- Upper traps — GREEN -->
+              <ellipse class="mr" data-m="upper-back" cx="60" cy="78" rx="40" ry="20" fill="#4ADE80" fill-opacity=".85"/>
               <!-- Spine -->
               <line x1="60" y1="48" x2="60" y2="162" stroke="#1C1C22" stroke-width="1.5"/>
               <!-- Left lat — GREEN -->
-              <ellipse class="mr" data-m="upper-back" cx="14" cy="116" rx="11" ry="26" fill="#4ADE80" fill-opacity=".85"/>
+              <ellipse class="mr" data-m="upper-back" cx="14" cy="116" rx="11" ry="28" fill="#4ADE80" fill-opacity=".85"/>
               <!-- Right lat — GREEN -->
-              <ellipse class="mr" data-m="upper-back" cx="106" cy="116" rx="11" ry="26" fill="#4ADE80" fill-opacity=".85"/>
+              <ellipse class="mr" data-m="upper-back" cx="106" cy="116" rx="11" ry="28" fill="#4ADE80" fill-opacity=".85"/>
               <!-- Lower back — GREEN -->
-              <ellipse class="mr" data-m="upper-back" cx="60" cy="148" rx="18" ry="14" fill="#4ADE80" fill-opacity=".82"/>
+              <ellipse class="mr" data-m="upper-back" cx="60" cy="150" rx="18" ry="14" fill="#4ADE80" fill-opacity=".82"/>
               <!-- Left tricep — ORANGE -->
-              <ellipse class="mr" data-m="triceps" cx="13" cy="102" rx="9" ry="22" fill="#FB923C" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="triceps" cx="12" cy="100" rx="8" ry="20" fill="#FB923C" fill-opacity=".88"/>
               <!-- Right tricep — ORANGE -->
-              <ellipse class="mr" data-m="triceps" cx="107" cy="102" rx="9" ry="22" fill="#FB923C" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="triceps" cx="108" cy="100" rx="8" ry="20" fill="#FB923C" fill-opacity=".88"/>
               <!-- Left forearm back — GREY -->
-              <ellipse class="mr" data-m="forearms" cx="13" cy="150" rx="8" ry="16" fill="#2C2C31" fill-opacity=".9"/>
+              <ellipse class="mr" data-m="forearms" cx="14" cy="157" rx="7" ry="16" fill="#2C2C31" fill-opacity=".9"/>
               <!-- Right forearm back — GREY -->
-              <ellipse class="mr" data-m="forearms" cx="107" cy="150" rx="8" ry="16" fill="#2C2C31" fill-opacity=".9"/>
+              <ellipse class="mr" data-m="forearms" cx="106" cy="157" rx="7" ry="16" fill="#2C2C31" fill-opacity=".9"/>
               <!-- Left glute — GREEN -->
-              <ellipse class="mr" data-m="glutes" cx="32" cy="184" rx="20" ry="18" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="glutes" cx="32" cy="190" rx="17" ry="20" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Right glute — GREEN -->
-              <ellipse class="mr" data-m="glutes" cx="88" cy="184" rx="20" ry="18" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="glutes" cx="88" cy="190" rx="17" ry="20" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Glute divide -->
-              <line x1="60" y1="167" x2="60" y2="208" stroke="#1C1C22" stroke-width="1.5"/>
+              <line x1="60" y1="167" x2="60" y2="212" stroke="#1C1C22" stroke-width="1.5"/>
               <!-- Left hamstring — GREEN -->
-              <ellipse class="mr" data-m="hamstrings" cx="32" cy="226" rx="14" ry="34" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="hamstrings" cx="32" cy="222" rx="12" ry="28" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Right hamstring — GREEN -->
-              <ellipse class="mr" data-m="hamstrings" cx="88" cy="226" rx="14" ry="34" fill="#4ADE80" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="hamstrings" cx="88" cy="222" rx="12" ry="28" fill="#4ADE80" fill-opacity=".88"/>
               <!-- Knee caps -->
-              <ellipse cx="32" cy="254" rx="13" ry="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
-              <ellipse cx="88" cy="254" rx="13" ry="8" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <ellipse cx="31" cy="253" rx="11" ry="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
+              <ellipse cx="89" cy="253" rx="11" ry="7" fill="#1C1C22" stroke="#2A2A32" stroke-width="1"/>
               <!-- Left gastrocnemius — YELLOW -->
-              <ellipse class="mr" data-m="calves" cx="32" cy="280" rx="12" ry="22" fill="#FCD34D" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="calves" cx="30" cy="278" rx="10" ry="20" fill="#FCD34D" fill-opacity=".88"/>
               <!-- Right gastrocnemius — YELLOW -->
-              <ellipse class="mr" data-m="calves" cx="88" cy="280" rx="12" ry="22" fill="#FCD34D" fill-opacity=".88"/>
+              <ellipse class="mr" data-m="calves" cx="90" cy="278" rx="10" ry="20" fill="#FCD34D" fill-opacity=".88"/>
             </svg>
           </div>
         </div>
