@@ -317,6 +317,187 @@ textarea{font-family:inherit;resize:none}
   .mm-svg{width:130px}
   .mob-nav{display:flex}
 }
+
+/* ══════════════════════════════════════════
+   MORNING CHECK-IN OVERLAY
+══════════════════════════════════════════ */
+.ci-overlay{
+  position:fixed;inset:0;z-index:200;
+  background:radial-gradient(ellipse at 50% 30%, #071a2e 0%, #030d18 60%, #020810 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px 20px;
+  opacity:1;transition:opacity .4s ease;
+}
+.ci-overlay.ci-hidden{opacity:0;pointer-events:none}
+.ci-overlay.ci-gone{display:none}
+
+/* AI CANVAS */
+#ai-canvas{
+  width:180px;height:180px;flex-shrink:0;
+  filter:drop-shadow(0 0 24px rgba(16,185,129,.35));
+}
+.ci-status-lbl{
+  font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(110,231,183,.6);margin-top:8px;min-height:18px;text-align:center;
+  transition:opacity .3s;
+}
+
+/* PHASES */
+.ci-phase{display:none;flex-direction:column;align-items:center;width:100%;max-width:480px}
+.ci-phase.ci-active{display:flex}
+
+/* GREETING */
+.ci-greeting{
+  font-size:20px;font-weight:700;text-align:center;color:#E0F2FE;
+  letter-spacing:-.01em;line-height:1.5;margin-top:20px;margin-bottom:8px;
+}
+.ci-greeting-sub{font-size:13.5px;color:rgba(148,163,184,.75);text-align:center;margin-bottom:28px}
+.ci-btn-primary{
+  padding:12px 32px;border-radius:10px;font-size:14px;font-weight:700;
+  background:linear-gradient(135deg,#059669,#0891B2);color:#fff;border:none;
+  cursor:pointer;transition:opacity .15s,transform .12s;letter-spacing:.01em;
+}
+.ci-btn-primary:hover{opacity:.88}
+.ci-btn-primary:active{transform:scale(.97)}
+.ci-btn-ghost{
+  background:none;border:none;color:rgba(148,163,184,.6);font-size:12.5px;
+  cursor:pointer;margin-top:12px;padding:6px 12px;transition:color .15s;
+}
+.ci-btn-ghost:hover{color:rgba(148,163,184,1)}
+
+/* SKIP BANNER (on dashboard) */
+.skip-banner{
+  background:rgba(5,150,105,.07);border:1px solid rgba(5,150,105,.2);
+  border-radius:10px;padding:12px 16px;margin-bottom:14px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.skip-banner-l{font-size:12.5px;color:rgba(110,231,183,.8);line-height:1.5}
+.skip-banner-l strong{color:#6EE7B7;display:block;margin-bottom:1px}
+.skip-banner-acts{display:flex;gap:8px;flex-shrink:0}
+.skip-banner-btn{
+  padding:6px 13px;border-radius:7px;font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .13s;
+}
+.skip-banner-btn.primary{background:#059669;color:#fff;border:none}
+.skip-banner-btn.primary:hover{background:#047857}
+.skip-banner-btn.ghost{background:none;border:1px solid rgba(110,231,183,.25);color:rgba(110,231,183,.6)}
+.skip-banner-btn.ghost:hover{border-color:rgba(110,231,183,.5);color:rgba(110,231,183,.9)}
+
+/* QUESTION */
+.ci-progress{
+  display:flex;align-items:center;gap:8px;margin-top:16px;margin-bottom:20px;width:100%;max-width:440px;
+}
+.ci-prog-bar{flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.ci-prog-fill{height:100%;background:linear-gradient(90deg,#059669,#0891B2);border-radius:2px;transition:width .4s ease}
+.ci-prog-txt{font-size:11px;color:rgba(148,163,184,.55);white-space:nowrap;font-weight:500}
+
+.ci-q{
+  font-size:19px;font-weight:700;text-align:center;color:#E0F2FE;
+  letter-spacing:-.01em;line-height:1.45;margin-bottom:28px;
+}
+
+/* SLIDER */
+.ci-slider-wrap{width:100%;max-width:380px;margin-bottom:8px}
+.ci-slider{
+  -webkit-appearance:none;appearance:none;width:100%;height:5px;
+  background:rgba(255,255,255,.1);border-radius:3px;outline:none;
+}
+.ci-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,#059669,#0891B2);cursor:pointer;
+  box-shadow:0 0 10px rgba(5,150,105,.5);
+}
+.ci-slider::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,#059669,#0891B2);cursor:pointer;
+}
+.ci-slider-labels{display:flex;justify-content:space-between;font-size:11px;color:rgba(148,163,184,.5);margin-top:6px}
+.ci-slider-val{
+  font-size:44px;font-weight:900;letter-spacing:-.03em;
+  background:linear-gradient(135deg,#6EE7B7,#67E8F9);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;text-align:center;min-height:60px;line-height:1.2;
+  margin-bottom:6px;
+}
+.ci-slider-desc{font-size:12.5px;color:rgba(148,163,184,.65);text-align:center;min-height:20px;margin-bottom:20px}
+
+/* RATING PILLS */
+.ci-pills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px;max-width:400px}
+.ci-pill{
+  padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;
+  background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);
+  color:rgba(148,163,184,.8);cursor:pointer;transition:all .14s;
+}
+.ci-pill:hover{border-color:rgba(110,231,183,.5);color:#6EE7B7;background:rgba(5,150,105,.08)}
+.ci-pill.on{background:rgba(5,150,105,.15);border-color:#059669;color:#6EE7B7}
+
+/* OPTIONAL NOTE */
+.ci-note{
+  width:100%;max-width:400px;background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:12px 14px;color:#E0F2FE;font-family:inherit;font-size:13.5px;
+  resize:none;outline:none;line-height:1.6;transition:border-color .15s;margin-bottom:20px;
+}
+.ci-note::placeholder{color:rgba(148,163,184,.4)}
+.ci-note:focus{border-color:rgba(110,231,183,.4)}
+
+/* THINKING / RESULTS */
+.ci-thinking-lbl{
+  font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:rgba(110,231,183,.7);margin-top:16px;text-align:center;
+}
+.ci-score-reveal{display:flex;flex-direction:column;align-items:center;margin-top:14px;margin-bottom:4px}
+.ci-score-num{
+  font-size:80px;font-weight:900;letter-spacing:-.04em;line-height:1;
+  background:linear-gradient(135deg,#6EE7B7,#67E8F9,#A5B4FC);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.ci-score-label{
+  font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:rgba(110,231,183,.85);margin-top:4px;
+}
+.ci-score-sub{font-size:12px;color:rgba(148,163,184,.55);margin-top:2px}
+.ci-summary-text{
+  font-size:13px;color:rgba(148,163,184,.8);line-height:1.7;text-align:center;
+  max-width:420px;margin:14px auto 0;padding:12px 16px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:10px;
+}
+.ci-result-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:440px;margin:12px 0}
+.ci-result-box{
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:12px 14px;
+}
+.ci-result-box-title{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:8px}
+.ci-result-box-title.green{color:#6EE7B7}
+.ci-result-box-title.amber{color:#FCD34D}
+.ci-result-item{font-size:12px;color:rgba(148,163,184,.8);display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.ci-result-item::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.ci-result-item.pos::before{background:#6EE7B7}
+.ci-result-item.neg::before{background:#FCD34D}
+.ci-reco{
+  width:100%;max-width:440px;background:rgba(5,150,105,.06);border:1px solid rgba(5,150,105,.2);
+  border-radius:10px;padding:12px 16px;font-size:12.5px;color:rgba(148,163,184,.85);
+  line-height:1.65;margin:10px 0;
+}
+.ci-reco strong{display:block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6EE7B7;margin-bottom:5px}
+.ci-disclaimer{
+  font-size:10px;color:rgba(148,163,184,.35);text-align:center;max-width:360px;
+  line-height:1.55;margin-top:8px;font-style:italic;
+}
+.ci-result-acts{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.ci-result-acts .ci-btn-primary{padding:11px 24px;font-size:13px}
+.ci-btn-outline{
+  padding:11px 22px;border-radius:10px;font-size:13px;font-weight:600;
+  background:none;border:1.5px solid rgba(110,231,183,.3);color:rgba(110,231,183,.8);
+  cursor:pointer;transition:all .14s;
+}
+.ci-btn-outline:hover{border-color:rgba(110,231,183,.6);color:#6EE7B7}
+
+/* LATE-DAY PROMPT */
+.ci-late{display:flex;flex-direction:column;align-items:center;text-align:center;padding:10px}
+.ci-late h2{font-size:18px;font-weight:700;color:#E0F2FE;margin:14px 0 8px;letter-spacing:-.01em}
+.ci-late p{font-size:13px;color:rgba(148,163,184,.7);line-height:1.65;max-width:320px;margin-bottom:22px}
+.ci-late-acts{display:flex;gap:10px}
 </style>
 </head>
 <body>
@@ -883,6 +1064,77 @@ textarea{font-family:inherit;resize:none}
   <div class="pop-tip" id="sh-tip" style="margin-top:10px"></div>
 </div>
 
+<!-- ══ MORNING CHECK-IN OVERLAY ══ -->
+<div id="ci-overlay" class="ci-overlay ci-gone" role="dialog" aria-modal="true" aria-label="Morning Check-In">
+
+  <!-- Opal-Emerald AI Core -->
+  <canvas id="ai-canvas" width="180" height="180" aria-hidden="true"></canvas>
+  <div id="ai-status" class="ci-status-lbl"></div>
+
+  <!-- Phase: Late-day prompt (opened app after morning window) -->
+  <div id="ci-phase-late" class="ci-phase">
+    <div class="ci-late">
+      <h2>You haven't completed today's check-in.</h2>
+      <p>Would you like to do it now? It only takes about 60 seconds.</p>
+      <div class="ci-late-acts">
+        <button class="ci-btn-primary" onclick="CI.startQuestions()">Start check-in</button>
+        <button class="ci-btn-outline" onclick="CI.skipToday()">Skip today</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase: Greeting -->
+  <div id="ci-phase-greeting" class="ci-phase ci-active">
+    <div class="ci-greeting">Good morning.<br>Let's assess your current state.</div>
+    <div class="ci-greeting-sub">Takes about 60 seconds. One question at a time.</div>
+    <button class="ci-btn-primary" onclick="CI.startQuestions()">Begin check-in</button>
+    <button class="ci-btn-ghost" onclick="CI.completeLater()">Complete later</button>
+  </div>
+
+  <!-- Phase: Question -->
+  <div id="ci-phase-question" class="ci-phase">
+    <div class="ci-progress" style="width:100%;max-width:440px">
+      <div class="ci-prog-bar"><div class="ci-prog-fill" id="ci-prog-fill"></div></div>
+      <div class="ci-prog-txt" id="ci-prog-txt">1 of 7</div>
+    </div>
+    <div class="ci-q" id="ci-q-text"></div>
+    <div id="ci-q-input"></div>
+    <button class="ci-btn-primary" id="ci-next-btn" onclick="CI.nextQ()">Continue</button>
+  </div>
+
+  <!-- Phase: Thinking -->
+  <div id="ci-phase-thinking" class="ci-phase">
+    <div class="ci-thinking-lbl" id="ci-thinking-txt">Analysing your current state…</div>
+  </div>
+
+  <!-- Phase: Results -->
+  <div id="ci-phase-results" class="ci-phase" style="overflow-y:auto;max-height:90vh;padding-bottom:24px">
+    <div class="ci-score-reveal">
+      <div class="ci-score-num" id="ci-score-num">0</div>
+      <div class="ci-score-label" id="ci-score-label"></div>
+      <div class="ci-score-sub">Morning Score · <span id="ci-score-date"></span></div>
+    </div>
+    <div class="ci-summary-text" id="ci-summary-text"></div>
+    <div class="ci-result-cols">
+      <div class="ci-result-box">
+        <div class="ci-result-box-title green">Your Strengths Today</div>
+        <div id="ci-strengths"></div>
+      </div>
+      <div class="ci-result-box">
+        <div class="ci-result-box-title amber">Areas to Manage</div>
+        <div id="ci-areas"></div>
+      </div>
+    </div>
+    <div class="ci-reco"><strong>Today's Recommendation</strong><span id="ci-reco-text"></span></div>
+    <div class="ci-disclaimer">The Morning Score is a general wellness and readiness estimate, not a medical diagnosis. Always consult a healthcare professional for medical advice.</div>
+    <div class="ci-result-acts">
+      <button class="ci-btn-primary" onclick="CI.viewDashboard()">View Dashboard</button>
+      <button class="ci-btn-outline" onclick="CI.editAnswers()">Edit Answers</button>
+    </div>
+  </div>
+
+</div>
+
 <script>
 // ── DATA ──
 const MD = {
@@ -1011,7 +1263,612 @@ function animBars(){
 }
 
 // ── INIT ──
-window.addEventListener('DOMContentLoaded', animBars);
-</script>
+window.addEventListener('DOMContentLoaded', () => {
+  animBars();
+  CI.init();
+});
+
+// ══════════════════════════════════════════════
+//  MORNING CHECK-IN MODULE
+// ══════════════════════════════════════════════
+const CI = (() => {
+  const STORAGE_KEY   = 'jarvis_checkin';
+  const HISTORY_KEY   = 'jarvis_checkin_history';
+  const TARGET_SLEEP  = 8;
+  const MORNING_START = 5;  // 5 AM
+  const MORNING_END   = 12; // 12 PM
+
+  let answers = {};
+  let currentQ = 0;
+  let aiState  = 'idle';
+
+  // ── QUESTIONS DEF ──
+  const QUESTIONS = [
+    {
+      id: 'hoursSlept', type: 'slider',
+      q: 'How many hours of sleep did you get?',
+      min: 0, max: 12, step: 0.5, default: 7.5,
+      labels: ['0h','4h','8h','12h'],
+      describe: v => v === 0 ? 'No sleep' : v < 5 ? 'Very little' : v < 6.5 ? 'Below target' : v <= 9 ? `${v} hours` : 'More than usual',
+    },
+    {
+      id: 'sleepQuality', type: 'pills',
+      q: 'How would you rate the quality of your sleep?',
+      options: [{v:1,l:'1 — Very poor'},{v:2,l:'2'},{v:3,l:'3'},{v:4,l:'4'},{v:5,l:'5 — Average'},{v:6,l:'6'},{v:7,l:'7'},{v:8,l:'8'},{v:9,l:'9'},{v:10,l:'10 — Excellent'}],
+    },
+    {
+      id: 'mood', type: 'pills',
+      q: 'How are you feeling this morning?',
+      options: [{v:1,l:'Very low'},{v:2,l:'Low'},{v:3,l:'Quite low'},{v:4,l:'Below average'},{v:5,l:'Neutral'},{v:6,l:'Decent'},{v:7,l:'Good'},{v:8,l:'Great'},{v:9,l:'Very good'},{v:10,l:'Excellent'}],
+    },
+    {
+      id: 'energy', type: 'slider',
+      q: 'How much energy do you have right now?',
+      min: 1, max: 10, step: 1, default: 5,
+      labels: ['1 Low','3','5 Avg','7','10 High'],
+      describe: v => ['','Drained','Very low','Low','Below average','Average','Decent','Good','High','Very high','Peak'][Math.round(v)] || '',
+    },
+    {
+      id: 'stress', type: 'slider',
+      q: 'How stressed do you currently feel?',
+      min: 1, max: 10, step: 1, default: 4,
+      labels: ['1 Relaxed','5 Moderate','10 Very stressed'],
+      describe: v => ['','Completely relaxed','Very calm','Calm','Mild stress','Some stress','Moderate','Elevated','High stress','Very stressed','Extremely stressed'][Math.round(v)] || '',
+    },
+    {
+      id: 'soreness', type: 'slider',
+      q: 'How sore or physically fatigued do you feel?',
+      min: 1, max: 10, step: 1, default: 3,
+      labels: ['1 Fully recovered','5','10 Extremely sore'],
+      describe: v => ['','Fully recovered','Very fresh','Slightly tight','Mild soreness','Moderate','Noticeable','Quite sore','Very sore','Severe soreness','Extremely sore'][Math.round(v)] || '',
+    },
+    {
+      id: 'motivation', type: 'slider',
+      q: 'How motivated do you feel to work toward your goals today?',
+      min: 1, max: 10, step: 1, default: 6,
+      labels: ['1 None','5 Some','10 High'],
+      describe: v => ['','No motivation','Very low','Low','Below average','Average','Decent','Motivated','Very motivated','Highly motivated','Peak motivation'][Math.round(v)] || '',
+    },
+    {
+      id: 'note', type: 'note',
+      q: 'Anything affecting you today JARVIS should know?',
+      placeholder: 'Optional — injuries, events, how yesterday went…',
+    },
+  ];
+
+  // ── SCORE CALC ──
+  function calcScore(a) {
+    const sleepDur  = Math.max(0, 100 - Math.abs(a.hoursSlept - TARGET_SLEEP) * 15);
+    const sleepQual = a.sleepQuality * 10;
+    const energy    = a.energy * 10;
+    const mood      = a.mood * 10;
+    const motiv     = a.motivation * 10;
+    const stress    = (11 - a.stress) * 10;
+    const recovery  = (11 - a.soreness) * 10;
+    return Math.min(100, Math.max(0, Math.round(
+      sleepDur  * 0.25 +
+      sleepQual * 0.20 +
+      energy    * 0.20 +
+      mood      * 0.15 +
+      stress    * 0.10 +
+      recovery  * 0.05 +
+      motiv     * 0.05
+    )));
+  }
+
+  function scoreCategory(s) {
+    if (s >= 90) return 'Peak Readiness';
+    if (s >= 75) return 'Strong Morning';
+    if (s >= 60) return 'Balanced';
+    if (s >= 40) return 'Low Readiness';
+    return 'Recovery Priority';
+  }
+
+  function buildSummary(a, s) {
+    const hrs   = a.hoursSlept;
+    const parts = [];
+    if (hrs >= 7)        parts.push('You slept close to your target');
+    else if (hrs >= 5.5) parts.push('Your sleep was a little short');
+    else                 parts.push('Sleep was limited last night');
+    if (a.energy >= 7)   parts.push('energy is high');
+    else if (a.energy >= 5) parts.push('energy is moderate');
+    else                 parts.push('energy is low');
+    if (a.mood >= 7)     parts.push('mood is positive');
+    else if (a.mood >= 5) parts.push('mood is neutral');
+    else                 parts.push('mood is subdued');
+    if (a.soreness >= 7) parts.push('physical soreness is elevated — allow muscles extra recovery time');
+    else if (a.soreness >= 5) parts.push('some physical fatigue is present');
+    if (a.stress >= 7)   parts.push('stress is high — schedule buffer time and breaks');
+    let out = parts.join(', ') + '. ';
+    if (s >= 75) out += 'You are ready for a productive and demanding day.';
+    else if (s >= 55) out += 'A balanced approach will serve you well today.';
+    else out += 'Focus on essentials and prioritise recovery.';
+    return out.charAt(0).toUpperCase() + out.slice(1);
+  }
+
+  function buildStrengths(a) {
+    const list = [];
+    if (a.hoursSlept >= 7) list.push('Adequate sleep');
+    if (a.sleepQuality >= 7) list.push('Good sleep quality');
+    if (a.energy >= 7) list.push('High energy');
+    if (a.mood >= 7) list.push('Positive mood');
+    if (a.stress <= 4) list.push('Low stress');
+    if (a.soreness <= 3) list.push('Full recovery');
+    if (a.motivation >= 7) list.push('Strong motivation');
+    return list.length ? list : ['Showing up today'];
+  }
+
+  function buildAreas(a) {
+    const list = [];
+    if (a.hoursSlept < 6.5) list.push('Below-target sleep');
+    if (a.sleepQuality <= 4) list.push('Poor sleep quality');
+    if (a.energy <= 4) list.push('Low energy');
+    if (a.mood <= 4) list.push('Low mood');
+    if (a.stress >= 7) list.push('Elevated stress');
+    if (a.soreness >= 7) list.push('High soreness');
+    if (a.motivation <= 4) list.push('Low motivation');
+    return list;
+  }
+
+  function buildReco(s) {
+    if (s >= 75) return 'You are ready for demanding work and a quality training session. Schedule your most important task in your first focus block and push training at full intensity.';
+    if (s >= 60) return 'Use a balanced schedule. Complete one or two major tasks, train at moderate intensity, and include short breaks every 45–60 minutes.';
+    if (s >= 40) return 'Take it measured today. Focus on 25–40 minute work sessions, reduce training intensity, and add extra recovery breaks. Hydrate well.';
+    return 'Prioritise recovery and essential tasks only. Rest from intense training, use short focus sessions, eat nutritious meals, and aim for an earlier bedtime tonight.';
+  }
+
+  // ── OVERLAY HELPERS ──
+  function showPhase(id) {
+    document.querySelectorAll('.ci-phase').forEach(p => p.classList.remove('ci-active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('ci-active');
+  }
+
+  function setAIState(state, label) {
+    aiState = state;
+    document.getElementById('ai-status').textContent = label || '';
+  }
+
+  function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function loadCheckin() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
+  }
+
+  function saveCheckin(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    try {
+      const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      hist.unshift(data);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(hist.slice(0, 90)));
+    } catch {}
+  }
+
+  function updateDashboard(score, cat) {
+    const num  = document.getElementById('ready-num');
+    const lbl  = document.getElementById('ready-lbl');
+    const card = document.getElementById('ready-card');
+    if (!num) return;
+    num.textContent = score;
+    if (lbl) lbl.textContent = cat;
+    const color = score >= 75 ? 'var(--gr)' : score >= 55 ? 'var(--ye)' : 'var(--or)';
+    if (card) card.style.borderLeftColor = color;
+  }
+
+  // ── RENDER QUESTION ──
+  function renderQ(idx) {
+    const q = QUESTIONS[idx];
+    const total = QUESTIONS.length;
+    document.getElementById('ci-prog-fill').style.width = ((idx / total) * 100) + '%';
+    document.getElementById('ci-prog-txt').textContent = `${idx + 1} of ${total}`;
+    document.getElementById('ci-q-text').textContent = q.q;
+    const container = document.getElementById('ci-q-input');
+    container.innerHTML = '';
+
+    if (q.type === 'slider') {
+      const def = answers[q.id] !== undefined ? answers[q.id] : q.default;
+      const valDiv = document.createElement('div');
+      valDiv.className = 'ci-slider-val';
+      valDiv.id = 'ci-slider-val';
+      valDiv.textContent = q.id === 'hoursSlept' ? def + 'h' : def;
+      const descDiv = document.createElement('div');
+      descDiv.className = 'ci-slider-desc';
+      descDiv.id = 'ci-slider-desc';
+      descDiv.textContent = q.describe ? q.describe(def) : '';
+      const wrap = document.createElement('div');
+      wrap.className = 'ci-slider-wrap';
+      const input = document.createElement('input');
+      input.type = 'range'; input.className = 'ci-slider';
+      input.min = q.min; input.max = q.max; input.step = q.step; input.value = def;
+      input.oninput = () => {
+        const v = parseFloat(input.value);
+        answers[q.id] = v;
+        valDiv.textContent = q.id === 'hoursSlept' ? v + 'h' : v;
+        if (q.describe) descDiv.textContent = q.describe(v);
+      };
+      answers[q.id] = def;
+      const labDiv = document.createElement('div');
+      labDiv.className = 'ci-slider-labels';
+      (q.labels || []).forEach(l => { const s = document.createElement('span'); s.textContent = l; labDiv.appendChild(s); });
+      wrap.appendChild(input);
+      wrap.appendChild(labDiv);
+      container.appendChild(valDiv);
+      container.appendChild(descDiv);
+      container.appendChild(wrap);
+
+    } else if (q.type === 'pills') {
+      const pillsDiv = document.createElement('div');
+      pillsDiv.className = 'ci-pills';
+      q.options.forEach(opt => {
+        const p = document.createElement('div');
+        p.className = 'ci-pill' + (answers[q.id] === opt.v ? ' on' : '');
+        p.textContent = opt.l;
+        p.onclick = () => {
+          answers[q.id] = opt.v;
+          pillsDiv.querySelectorAll('.ci-pill').forEach(pp => pp.classList.remove('on'));
+          p.classList.add('on');
+        };
+        pillsDiv.appendChild(p);
+      });
+      container.appendChild(pillsDiv);
+
+    } else if (q.type === 'note') {
+      const ta = document.createElement('textarea');
+      ta.className = 'ci-note'; ta.rows = 3;
+      ta.placeholder = q.placeholder;
+      ta.value = answers[q.id] || '';
+      ta.oninput = () => { answers[q.id] = ta.value; };
+      container.appendChild(ta);
+    }
+
+    const btn = document.getElementById('ci-next-btn');
+    btn.textContent = idx === QUESTIONS.length - 1 ? 'Calculate Score' : 'Continue';
+    setAIState('speaking', '');
+  }
+
+  // ── FLOW ──
+  function startQuestions() {
+    currentQ = 0;
+    showPhase('ci-phase-question');
+    renderQ(currentQ);
+    setAIState('speaking', '');
+  }
+
+  function nextQ() {
+    const q = QUESTIONS[currentQ];
+    if (q.type === 'pills' && answers[q.id] === undefined) {
+      // nudge: pick one
+      document.querySelectorAll('.ci-pill')[0]?.click();
+    }
+    if (q.type === 'slider' && answers[q.id] === undefined) {
+      answers[q.id] = q.default;
+    }
+    currentQ++;
+    if (currentQ < QUESTIONS.length) {
+      renderQ(currentQ);
+    } else {
+      finishCheckin();
+    }
+  }
+
+  function finishCheckin() {
+    showPhase('ci-phase-thinking');
+    setAIState('thinking', 'Analysing your current state…');
+
+    setTimeout(() => {
+      const score = calcScore(answers);
+      const cat   = scoreCategory(score);
+
+      const record = {
+        id: Date.now().toString(),
+        date: todayStr(),
+        completedAt: new Date().toISOString(),
+        hoursSlept: answers.hoursSlept || 0,
+        targetSleepHours: TARGET_SLEEP,
+        sleepQuality: answers.sleepQuality || 5,
+        mood: answers.mood || 5,
+        energy: answers.energy || 5,
+        stress: answers.stress || 5,
+        soreness: answers.soreness || 5,
+        motivation: answers.motivation || 5,
+        optionalNote: answers.note || '',
+        morningScore: score,
+        scoreCategory: cat,
+      };
+      saveCheckin(record);
+
+      // Update dashboard
+      updateDashboard(score, cat);
+
+      // Show results
+      showPhase('ci-phase-results');
+      setAIState('complete', '');
+
+      document.getElementById('ci-score-label').textContent = cat;
+      document.getElementById('ci-score-date').textContent = new Date().toLocaleDateString('en-AU', {weekday:'short',month:'short',day:'numeric'});
+      document.getElementById('ci-summary-text').textContent = buildSummary(answers, score);
+
+      // Count-up
+      const numEl = document.getElementById('ci-score-num');
+      let cur = 0;
+      const tick = setInterval(() => {
+        cur = Math.min(cur + Math.ceil(score / 40), score);
+        numEl.textContent = cur;
+        if (cur >= score) clearInterval(tick);
+      }, 30);
+
+      // Strengths / Areas
+      const str = buildStrengths(answers);
+      const are = buildAreas(answers);
+      const strEl = document.getElementById('ci-strengths');
+      const areEl = document.getElementById('ci-areas');
+      strEl.innerHTML = str.map(s => `<div class="ci-result-item pos">${s}</div>`).join('');
+      areEl.innerHTML = are.length
+        ? are.map(s => `<div class="ci-result-item neg">${s}</div>`).join('')
+        : '<div class="ci-result-item pos">Nothing significant</div>';
+      document.getElementById('ci-reco-text').textContent = buildReco(score);
+    }, 1400);
+  }
+
+  function viewDashboard() {
+    const ov = document.getElementById('ci-overlay');
+    ov.classList.add('ci-hidden');
+    setTimeout(() => ov.classList.add('ci-gone'), 400);
+    document.body.style.overflow = '';
+    // remove skip banner if present
+    const banner = document.getElementById('skip-banner');
+    if (banner) banner.remove();
+  }
+
+  function editAnswers() {
+    currentQ = 0;
+    showPhase('ci-phase-question');
+    renderQ(0);
+    setAIState('speaking', '');
+  }
+
+  function skipToday() {
+    localStorage.setItem('jarvis_skipped', todayStr());
+    const ov = document.getElementById('ci-overlay');
+    ov.classList.add('ci-hidden');
+    setTimeout(() => ov.classList.add('ci-gone'), 400);
+    document.body.style.overflow = '';
+    showSkipBanner();
+  }
+
+  function completeLater() {
+    const ov = document.getElementById('ci-overlay');
+    ov.classList.add('ci-hidden');
+    setTimeout(() => ov.classList.add('ci-gone'), 400);
+    document.body.style.overflow = '';
+    showSkipBanner();
+  }
+
+  function showSkipBanner() {
+    if (document.getElementById('skip-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'skip-banner';
+    banner.className = 'skip-banner';
+    banner.innerHTML = `
+      <div class="skip-banner-l"><strong>Check-in pending</strong>Complete your morning check-in to get your personalised plan.</div>
+      <div class="skip-banner-acts">
+        <button class="skip-banner-btn primary" onclick="CI.openOverlay()">Start now</button>
+        <button class="skip-banner-btn ghost" onclick="this.closest('.skip-banner').remove()">Dismiss</button>
+      </div>`;
+    const wrap = document.querySelector('.wrap');
+    if (wrap) wrap.insertBefore(banner, wrap.firstChild);
+  }
+
+  function openOverlay() {
+    const ov = document.getElementById('ci-overlay');
+    ov.classList.remove('ci-gone');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => ov.classList.remove('ci-hidden'));
+    });
+    document.body.style.overflow = 'hidden';
+    showPhase('ci-phase-greeting');
+    setAIState('idle', '');
+  }
+
+  // ── INIT ──
+  function init() {
+    const checkin = loadCheckin();
+    const today   = todayStr();
+    const hour    = new Date().getHours();
+
+    // Already done today → update dashboard silently and stay on dashboard
+    if (checkin && checkin.date === today) {
+      updateDashboard(checkin.morningScore, checkin.scoreCategory);
+      return;
+    }
+
+    // Skipped today
+    if (localStorage.getItem('jarvis_skipped') === today) return;
+
+    // Open overlay
+    const ov = document.getElementById('ci-overlay');
+    ov.classList.remove('ci-gone');
+    document.body.style.overflow = 'hidden';
+
+    // After morning window: show late-day prompt instead of greeting
+    if (hour >= MORNING_END) {
+      showPhase('ci-phase-late');
+    } else {
+      showPhase('ci-phase-greeting');
+    }
+
+    setAIState('idle', '');
+    startCanvas();
+  }
+
+  return { init, startQuestions, nextQ, viewDashboard, editAnswers, skipToday, completeLater, openOverlay };
+})();
+
+// ══════════════════════════════════════════════
+//  OPAL-EMERALD AI CORE — Canvas Renderer
+// ══════════════════════════════════════════════
+function startCanvas() {
+  const canvas = document.getElementById('ai-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const CX = W / 2, CY = H / 2;
+
+  // Particles
+  const PARTICLE_COUNT = 34;
+  const particles = Array.from({length: PARTICLE_COUNT}, (_, i) => ({
+    angle:  (i / PARTICLE_COUNT) * Math.PI * 2,
+    radius: 52 + Math.random() * 28,
+    speed:  (0.004 + Math.random() * 0.006) * (Math.random() < .5 ? 1 : -1),
+    size:   1.2 + Math.random() * 1.8,
+    alpha:  0.4 + Math.random() * 0.5,
+    drift:  (Math.random() - 0.5) * 0.002,
+    baseR:  52 + Math.random() * 28,
+  }));
+
+  let t = 0;
+  let stateSpeed = 1;
+
+  function getState() {
+    return (typeof CI !== 'undefined' && document.getElementById('ai-status'))
+      ? document.getElementById('ai-status').textContent.toLowerCase()
+      : '';
+  }
+
+  function drawCore() {
+    const status = getState();
+    const isThinking  = status.includes('analys');
+    const isComplete  = status.includes('complete') || false;
+
+    stateSpeed = isThinking ? 3.5 : 1;
+
+    // Breathing scale
+    const breathe = 1 + Math.sin(t * 0.018) * (isThinking ? 0.04 : 0.025);
+    const coreR   = 40 * breathe;
+
+    // Color phase — shifting opal
+    const hue1 = 160 + Math.sin(t * 0.012) * 20;   // emerald ↔ cyan
+    const hue2 = 185 + Math.cos(t * 0.009) * 25;   // cyan ↔ blue
+    const hue3 = 200 + Math.sin(t * 0.007 + 1) * 30;
+
+    // Outer glow ring
+    const glowR = isThinking ? 70 + Math.sin(t * 0.07) * 8 : 62;
+    const glowG = ctx.createRadialGradient(CX, CY, coreR * .7, CX, CY, glowR);
+    glowG.addColorStop(0, `hsla(${hue1},90%,50%,.18)`);
+    glowG.addColorStop(.5, `hsla(${hue2},85%,55%,.09)`);
+    glowG.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.arc(CX, CY, glowR, 0, Math.PI * 2);
+    ctx.fillStyle = glowG;
+    ctx.fill();
+
+    // Outer rotating ring (thinking state)
+    if (isThinking) {
+      ctx.save();
+      ctx.translate(CX, CY);
+      ctx.rotate(t * 0.04);
+      ctx.beginPath();
+      ctx.arc(0, 0, 58, 0, Math.PI * 1.6);
+      ctx.strokeStyle = `hsla(${hue1},90%,65%,.35)`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.rotate(Math.PI);
+      ctx.beginPath();
+      ctx.arc(0, 0, 48, 0, Math.PI * 1.2);
+      ctx.strokeStyle = `hsla(${hue3},80%,70%,.25)`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Core orb — layered radial gradients for opal effect
+    const offsetX = Math.sin(t * 0.022) * 5;
+    const offsetY = Math.cos(t * 0.017) * 4;
+    const g1 = ctx.createRadialGradient(CX + offsetX, CY + offsetY, 0, CX, CY, coreR);
+    g1.addColorStop(0,   `hsla(180,100%,90%,.95)`);  // pearl white centre
+    g1.addColorStop(0.25, `hsla(${hue1},85%,72%,.9)`);
+    g1.addColorStop(0.55, `hsla(${hue2},80%,55%,.85)`);
+    g1.addColorStop(0.82, `hsla(${hue3},75%,40%,.8)`);
+    g1.addColorStop(1,   `hsla(220,70%,25%,.7)`);
+    ctx.beginPath();
+    ctx.arc(CX, CY, coreR, 0, Math.PI * 2);
+    ctx.fillStyle = g1;
+    ctx.fill();
+
+    // Inner shimmer layer — moves separately
+    const shimX = Math.cos(t * 0.031) * 8;
+    const shimY = Math.sin(t * 0.025) * 6;
+    const g2 = ctx.createRadialGradient(CX + shimX, CY + shimY, 0, CX + shimX, CY + shimY, coreR * .65);
+    g2.addColorStop(0, `hsla(${hue2},100%,88%,.45)`);
+    g2.addColorStop(.5, `hsla(${hue1},90%,70%,.2)`);
+    g2.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.arc(CX, CY, coreR, 0, Math.PI * 2);
+    ctx.fillStyle = g2;
+    ctx.fill();
+
+    // Subtle rim light
+    const rim = ctx.createRadialGradient(CX - coreR * .35, CY - coreR * .35, coreR * .1, CX, CY, coreR);
+    rim.addColorStop(0, 'rgba(255,255,255,.35)');
+    rim.addColorStop(.4, 'rgba(255,255,255,.05)');
+    rim.addColorStop(1, 'transparent');
+    ctx.beginPath();
+    ctx.arc(CX, CY, coreR, 0, Math.PI * 2);
+    ctx.fillStyle = rim;
+    ctx.fill();
+
+    // Ripple on complete
+    if (isComplete) {
+      const rippleR = ((t % 80) / 80) * 75;
+      ctx.beginPath();
+      ctx.arc(CX, CY, rippleR, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(110,231,183,${Math.max(0, 0.6 - rippleR / 75)})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Sound-wave ripple (speaking)
+    if (status.includes('speak') || status === '') {
+      const r2 = coreR + 6 + Math.sin(t * 0.15) * 4;
+      ctx.beginPath();
+      ctx.arc(CX, CY, r2, 0, Math.PI * 2);
+      ctx.strokeStyle = `hsla(${hue1},90%,65%,${0.12 + Math.sin(t * 0.15) * 0.08})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  function drawParticles() {
+    const status = getState();
+    const isThinking = status.includes('analys');
+    const pSpeedMult = isThinking ? 3.2 : 1;
+    const inward = status.includes('listen') ? 0.92 : 1;
+
+    particles.forEach(p => {
+      p.angle  += p.speed * stateSpeed * pSpeedMult;
+      p.radius  = p.baseR * inward + Math.sin(t * 0.04 + p.angle) * 3;
+      const x = CX + Math.cos(p.angle) * p.radius;
+      const y = CY + Math.sin(p.angle) * p.radius;
+      const alpha = p.alpha * (0.7 + Math.sin(t * 0.05 + p.angle) * 0.3);
+      const hue = 160 + Math.sin(t * 0.01 + p.angle) * 30;
+      ctx.beginPath();
+      ctx.arc(x, y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${hue},90%,70%,${alpha})`;
+      ctx.fill();
+    });
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    drawParticles();
+    drawCore();
+    t++;
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
 </body>
 </html>
