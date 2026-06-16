@@ -1966,6 +1966,7 @@ const CI = (() => {
 
   return { init, startQuestions, nextQ, viewDashboard, editAnswers, skipToday, completeLater, openOverlay };
 })();
+window.CI = CI; // expose to inline HTML handlers
 
 // ══════════════════════════════════════════════
 //  ENERGY INTELLIGENCE MODULE
@@ -2274,6 +2275,7 @@ const EI = (() => {
 
   return { init, render, setChronotype, showObsPrompt, dismissObs, selectObs, confirmObs };
 })();
+window.EI = EI; // expose to inline HTML handlers
 
 // ══════════════════════════════════════════════
 //  OPAL-EMERALD AI CORE — Canvas Renderer
