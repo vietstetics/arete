@@ -1891,31 +1891,39 @@ const CI = (() => {
 
   function openOverlay() {
     const ov = document.getElementById('ci-overlay');
+    if (!ov) return;
+    // Remove both hiding classes synchronously so overlay is definitely visible
     ov.classList.remove('ci-gone');
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => ov.classList.remove('ci-hidden'));
-    });
+    ov.classList.remove('ci-hidden');
     document.body.style.overflow = 'hidden';
 
     const stored = loadCheckin();
     const today  = todayStr();
+    let showedResults = false;
 
-    if (stored && stored.date === today) {
-      // Re-open to today's results
-      showPhase('ci-phase-results');
-      setAIState('complete', '');
-      document.getElementById('ci-score-num').textContent    = stored.morningScore;
-      document.getElementById('ci-score-label').textContent  = stored.scoreCategory;
-      document.getElementById('ci-score-date').textContent   = new Date(stored.completedAt).toLocaleDateString('en-AU', {weekday:'short',month:'short',day:'numeric'});
-      document.getElementById('ci-summary-text').textContent = buildSummary(stored.answers, stored.morningScore);
-      const str = buildStrengths(stored.answers);
-      const are = buildAreas(stored.answers);
-      document.getElementById('ci-strengths').innerHTML = str.map(s => `<div class="ci-result-item pos">${s}</div>`).join('');
-      document.getElementById('ci-areas').innerHTML    = are.length
-        ? are.map(s => `<div class="ci-result-item neg">${s}</div>`).join('')
-        : '<div class="ci-result-item pos">Nothing flagged</div>';
-      document.getElementById('ci-reco-text').textContent = buildReco(stored.morningScore);
-    } else {
+    // Only attempt results view if answers are actually stored
+    if (stored && stored.date === today && stored.answers) {
+      try {
+        showPhase('ci-phase-results');
+        setAIState('complete', '');
+        document.getElementById('ci-score-num').textContent   = stored.morningScore || 0;
+        document.getElementById('ci-score-label').textContent = stored.scoreCategory || '';
+        document.getElementById('ci-score-date').textContent  = stored.completedAt
+          ? new Date(stored.completedAt).toLocaleDateString('en-AU', {weekday:'short',month:'short',day:'numeric'})
+          : '';
+        document.getElementById('ci-summary-text').textContent = buildSummary(stored.answers, stored.morningScore);
+        const str = buildStrengths(stored.answers);
+        const are = buildAreas(stored.answers);
+        document.getElementById('ci-strengths').innerHTML = str.map(s => `<div class="ci-result-item pos">${s}</div>`).join('');
+        document.getElementById('ci-areas').innerHTML    = are.length
+          ? are.map(s => `<div class="ci-result-item neg">${s}</div>`).join('')
+          : '<div class="ci-result-item pos">Nothing flagged</div>';
+        document.getElementById('ci-reco-text').textContent = buildReco(stored.morningScore);
+        showedResults = true;
+      } catch(e) { /* fall through to greeting */ }
+    }
+
+    if (!showedResults) {
       showPhase('ci-phase-greeting');
       setAIState('idle', '');
     }
