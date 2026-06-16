@@ -498,6 +498,53 @@ textarea{font-family:inherit;resize:none}
 .ci-late h2{font-size:18px;font-weight:700;color:#E0F2FE;margin:14px 0 8px;letter-spacing:-.01em}
 .ci-late p{font-size:13px;color:rgba(148,163,184,.7);line-height:1.65;max-width:320px;margin-bottom:22px}
 .ci-late-acts{display:flex;gap:10px}
+
+/* ══════════════════════════════════════════
+   ENERGY INTELLIGENCE
+══════════════════════════════════════════ */
+.ei-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.ei-ct-group{display:flex;gap:4px}
+.ei-ct{padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:var(--t3);background:var(--s3);border:1px solid transparent;cursor:pointer;transition:all 120ms}
+.ei-ct.on{color:var(--vi);border-color:rgba(167,139,250,.4);background:var(--vid)}
+.ei-ct:hover:not(.on){color:var(--t2)}
+.ei-top{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;margin-bottom:16px}
+.ei-gauge-wrap{position:relative;width:88px;height:88px;flex-shrink:0}
+.ei-gauge-lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ei-gauge-num{font-size:26px;font-weight:900;letter-spacing:-.03em;line-height:1}
+.ei-gauge-unit{font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);margin-top:2px}
+.ei-meta{display:flex;flex-direction:column;gap:5px}
+.ei-status-heading{font-size:15px;font-weight:700}
+.ei-status-sub{font-size:12px;color:var(--t2);line-height:1.55}
+.ei-chart-wrap{margin-bottom:14px}
+.ei-chart-label{font-size:9.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);margin-bottom:7px}
+.ei-chart{width:100%;height:64px;display:block;overflow:visible}
+.ei-windows{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+.ei-win{background:var(--s3);border-radius:8px;padding:9px 11px}
+.ei-win-l{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
+.ei-win-v{font-size:13px;font-weight:700}
+.ei-win-sub{font-size:10.5px;color:var(--t2);margin-top:1px}
+.ei-foot{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--bd);gap:8px;flex-wrap:wrap}
+.ei-conf{font-size:11px;color:var(--t3)}
+.ei-conf b{color:var(--vi);font-weight:600;font-style:normal}
+.ei-log{padding:6px 13px;border-radius:7px;font-size:12px;font-weight:600;color:var(--vi);background:var(--vid);border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background 120ms}
+.ei-log:hover{background:rgba(167,139,250,.22)}
+/* Energy Observation Floating Prompt */
+.ei-obs{position:fixed;bottom:76px;right:20px;z-index:90;background:var(--s2);border:1px solid var(--bd2);border-radius:12px;padding:14px 16px;width:232px;box-shadow:0 16px 40px rgba(0,0,0,.65);opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .22s,transform .22s}
+.ei-obs.on{opacity:1;pointer-events:auto;transform:translateY(0)}
+.ei-obs-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.ei-obs-sub{font-size:11px;color:var(--t2);margin-bottom:11px;line-height:1.4}
+.ei-obs-btns{display:flex;gap:6px;margin-bottom:10px}
+.ei-obs-btn{flex:1;padding:8px 4px;border-radius:7px;font-size:12px;font-weight:600;border:1.5px solid var(--bd2);background:var(--s3);color:var(--t2);cursor:pointer;transition:all .14s;text-align:center}
+.ei-obs-btn:hover{border-color:var(--vi);color:var(--vi)}
+.ei-obs-btn.sel{border-color:var(--vi);background:var(--vid);color:var(--vi)}
+.ei-obs-foot{display:flex;align-items:center;justify-content:space-between}
+.ei-obs-confirm{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;background:var(--vi);color:#0C0C0F;border:none;cursor:pointer;transition:opacity .14s}
+.ei-obs-confirm:hover{opacity:.85}
+.ei-obs-dismiss{font-size:11.5px;color:var(--t3);cursor:pointer;transition:color .14s;background:none;border:none;font-family:inherit}
+.ei-obs-dismiss:hover{color:var(--t2)}
+@media(max-width:767px){
+  .ei-obs{right:12px;left:12px;width:auto;bottom:84px}
+}
 </style>
 </head>
 <body>
@@ -978,6 +1025,90 @@ textarea{font-family:inherit;resize:none}
       </div>
     </div>
 
+    <!-- ENERGY INTELLIGENCE -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="cp">
+        <div class="ei-hd">
+          <div class="cl" style="margin:0">Energy Intelligence</div>
+          <div class="ei-ct-group">
+            <div class="ei-ct" data-ct="early" onclick="EI.setChronotype('early',this)">Early</div>
+            <div class="ei-ct on" data-ct="neutral" onclick="EI.setChronotype('neutral',this)">Neutral</div>
+            <div class="ei-ct" data-ct="late" onclick="EI.setChronotype('late',this)">Late</div>
+          </div>
+        </div>
+        <div class="ei-top">
+          <!-- Gauge -->
+          <div class="ei-gauge-wrap">
+            <svg width="88" height="88" viewBox="0 0 88 88">
+              <!-- 270° track (starts at 7:30, ends at 4:30 clock position) -->
+              <circle cx="44" cy="44" r="36" fill="none" stroke="var(--s4)" stroke-width="7"
+                stroke-dasharray="169.6 56.6" stroke-linecap="round"
+                transform="rotate(135 44 44)"/>
+              <!-- Fill arc — updated by JS -->
+              <circle cx="44" cy="44" r="36" fill="none" stroke="#A78BFA" stroke-width="7" stroke-linecap="round"
+                stroke-dasharray="0 226.2"
+                transform="rotate(135 44 44)" id="ei-gauge-arc"/>
+            </svg>
+            <div class="ei-gauge-lbl">
+              <div class="ei-gauge-num" id="ei-gauge-num" style="color:var(--vi)">—</div>
+              <div class="ei-gauge-unit">Energy</div>
+            </div>
+          </div>
+          <!-- Status -->
+          <div class="ei-meta">
+            <div class="ei-status-heading" id="ei-status-head" style="color:var(--t2)">Calculating…</div>
+            <div class="ei-status-sub" id="ei-status-sub">Complete your morning check-in for a personalised forecast.</div>
+          </div>
+        </div>
+        <!-- Forecast chart -->
+        <div class="ei-chart-wrap">
+          <div class="ei-chart-label">Today's Energy Forecast</div>
+          <svg class="ei-chart" id="ei-chart" viewBox="0 0 400 64" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="ei-grad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#A78BFA" stop-opacity="1"/>
+                <stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path id="ei-chart-fill" d="" fill="url(#ei-grad)" opacity=".15"/>
+            <path id="ei-chart-line" d="" fill="none" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <line id="ei-now-line" x1="0" y1="0" x2="0" y2="64" stroke="var(--t3)" stroke-width="1" stroke-dasharray="3,3" opacity=".6" style="display:none"/>
+          </svg>
+        </div>
+        <!-- Windows -->
+        <div class="ei-windows">
+          <div class="ei-win">
+            <div class="ei-win-l">Peak Energy</div>
+            <div class="ei-win-v" id="ei-peak-v">—</div>
+            <div class="ei-win-sub" id="ei-peak-s"></div>
+          </div>
+          <div class="ei-win">
+            <div class="ei-win-l">Best Focus</div>
+            <div class="ei-win-v" id="ei-focus-v">—</div>
+            <div class="ei-win-sub" id="ei-focus-s"></div>
+          </div>
+          <div class="ei-win">
+            <div class="ei-win-l">Workout Window</div>
+            <div class="ei-win-v" id="ei-workout-v">—</div>
+            <div class="ei-win-sub" id="ei-workout-s"></div>
+          </div>
+          <div class="ei-win">
+            <div class="ei-win-l">Dip / Rest</div>
+            <div class="ei-win-v" id="ei-dip-v">—</div>
+            <div class="ei-win-sub" id="ei-dip-s"></div>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div class="ei-foot">
+          <div class="ei-conf">Personalised estimate · <b id="ei-conf-lbl">Learning your rhythm</b></div>
+          <button class="ei-log" onclick="EI.showObsPrompt()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Log energy
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- JARVIS INPUT -->
     <div class="jarvis-wrap">
       <div class="jarvis-hd">
@@ -1068,6 +1199,21 @@ textarea{font-family:inherit;resize:none}
     <div class="pop-row"><span class="pop-rl">Weekly sets</span><span class="pop-rv" id="sh-vol"></span></div>
   </div>
   <div class="pop-tip" id="sh-tip" style="margin-top:10px"></div>
+</div>
+
+<!-- ENERGY OBSERVATION PROMPT -->
+<div id="ei-obs" class="ei-obs" role="dialog" aria-label="Energy check-in">
+  <div class="ei-obs-title">How's your energy right now?</div>
+  <div class="ei-obs-sub" id="ei-obs-time">Quick 2-second check-in</div>
+  <div class="ei-obs-btns">
+    <div class="ei-obs-btn" data-v="2" onclick="EI.selectObs(this)">Low</div>
+    <div class="ei-obs-btn" data-v="5" onclick="EI.selectObs(this)">Medium</div>
+    <div class="ei-obs-btn" data-v="8" onclick="EI.selectObs(this)">High</div>
+  </div>
+  <div class="ei-obs-foot">
+    <button class="ei-obs-confirm" onclick="EI.confirmObs()">Save</button>
+    <button class="ei-obs-dismiss" onclick="EI.dismissObs()">Dismiss</button>
+  </div>
 </div>
 
 <!-- ══ MORNING CHECK-IN OVERLAY ══ -->
@@ -1272,6 +1418,7 @@ function animBars(){
 window.addEventListener('DOMContentLoaded', () => {
   animBars();
   CI.init();
+  EI.init();
 });
 
 // ══════════════════════════════════════════════
@@ -1710,6 +1857,314 @@ const CI = (() => {
   }
 
   return { init, startQuestions, nextQ, viewDashboard, editAnswers, skipToday, completeLater, openOverlay };
+})();
+
+// ══════════════════════════════════════════════
+//  ENERGY INTELLIGENCE MODULE
+// ══════════════════════════════════════════════
+const EI = (() => {
+  // ── Storage keys ──
+  const KEY_CT  = 'jarvis_chronotype';
+  const KEY_OBS = 'jarvis_ei_observations';
+  const KEY_AVG = 'jarvis_ei_averages';
+
+  // ── Arc constants (r=36 circle, 270° span) ──
+  const ARC_LEN = 169.6; // 270/360 × 2π×36
+  const FULL_C  = 226.2; // full circumference
+
+  let chronotype = 'neutral';
+  let obsVal     = null;
+  let obsShown   = false;
+
+  // ── Chronotype profiles ──
+  // p1/p2 = peak hour, w1/w2 = width (σ), a1/a2 = amplitude
+  const CT = {
+    early:   { p1: 9,  w1: 1.8, a1: 1.00, p2: 14.5, w2: 2.0, a2: 0.65 },
+    neutral: { p1: 10, w1: 2.0, a1: 1.00, p2: 15.5, w2: 2.2, a2: 0.70 },
+    late:    { p1: 11, w1: 2.0, a1: 0.95, p2: 16.5, w2: 2.2, a2: 0.75 },
+  };
+
+  // ── Deterministic Gaussian engine ──
+  function gauss(t, mu, sigma) {
+    return Math.exp(-Math.pow(t - mu, 2) / (2 * Math.pow(sigma, 2)));
+  }
+
+  function rawEnergy(h, ct) {
+    const p = CT[ct] || CT.neutral;
+    const morning   = p.a1 * gauss(h, p.p1, p.w1);
+    const afternoon = p.a2 * gauss(h, p.p2, p.w2);
+    // Post-lunch dip
+    const dip = 0.20 * gauss(h, 13.5, 0.75);
+    // Evening wind-down (linear past 19:00)
+    const wind = Math.max(0, (h - 19) / 6);
+    return Math.max(0, (morning + afternoon - dip) * (1 - wind * 0.55));
+  }
+
+  // ── Read today's morning check-in ──
+  function getMorningFactor() {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const d = JSON.parse(localStorage.getItem('jarvis_checkin'));
+      if (d && d.date === today) return d.morningScore / 100;
+    } catch {}
+    return null;
+  }
+
+  // ── Personal averages (keyed by hour slot "6","6.5" etc.) ──
+  function getAvgs() { try { return JSON.parse(localStorage.getItem(KEY_AVG)) || {}; } catch { return {}; } }
+  function saveAvgs(a) { localStorage.setItem(KEY_AVG, JSON.stringify(a)); }
+
+  function updateAvg(hour, val10) {
+    const avgs = getAvgs();
+    const k = String(Math.round(hour * 2) / 2); // round to nearest 0.5
+    const alpha = 0.3;
+    avgs[k] = avgs[k] !== undefined ? avgs[k] * (1 - alpha) + val10 * alpha : val10;
+    saveAvgs(avgs);
+  }
+
+  // ── Observations ──
+  function getObs() { try { return JSON.parse(localStorage.getItem(KEY_OBS)) || []; } catch { return []; } }
+
+  function saveObs(entry) {
+    const list = getObs();
+    list.push(entry);
+    localStorage.setItem(KEY_OBS, JSON.stringify(list.slice(-200)));
+    updateAvg(entry.hour, entry.value);
+  }
+
+  // ── Build 30-min forecast from 6 AM to 11 PM ──
+  function buildForecast(ct, mf) {
+    const avgs  = getAvgs();
+    const scale = mf !== null ? 0.62 + mf * 0.38 : 0.78;
+    const pts   = [];
+    for (let h = 6; h <= 23; h += 0.5) {
+      let v = rawEnergy(h, ct) * scale;
+      const k = String(h);
+      if (avgs[k] !== undefined) {
+        v = v * 0.55 + (avgs[k] / 10) * 0.45; // personal blend
+      }
+      pts.push({ hour: h, raw: v });
+    }
+    // Normalise so best point hits ~88–95 range
+    const peak = Math.max(...pts.map(p => p.raw));
+    const target = 0.88 + Math.min(0.07, scale * 0.09);
+    pts.forEach(p => {
+      p.energy = peak > 0 ? Math.round(Math.min(100, Math.max(0, (p.raw / peak) * target * 100))) : 50;
+    });
+    return pts;
+  }
+
+  // ── Find windows ──
+  function findWindows(pts) {
+    const nowH = new Date().getHours() + new Date().getMinutes() / 60;
+    const future = pts.filter(p => p.hour >= nowH);
+    if (!future.length) return { peak: null, focus: null, workout: null, dip: null };
+
+    const peak = future.reduce((a, b) => a.energy > b.energy ? a : b);
+
+    // Post-lunch dip (12–18 window, lowest point)
+    const dipZone = future.filter(p => p.hour >= 12 && p.hour <= 18);
+    const dip = dipZone.length ? dipZone.reduce((a, b) => a.energy < b.energy ? a : b) : null;
+
+    // Best 2-hour focus block (4 × 30-min slots, highest avg, before peak)
+    const prePeak = future.filter(p => p.hour < Math.min(peak.hour, 16.5));
+    let focus = null, bestFocusAvg = -1;
+    for (let i = 0; i + 3 < prePeak.length; i++) {
+      const block = prePeak.slice(i, i + 4);
+      const avg = block.reduce((s, p) => s + p.energy, 0) / 4;
+      if (avg > bestFocusAvg) { bestFocusAvg = avg; focus = block[0]; }
+    }
+
+    // Workout window: high energy ≥55, prefer afternoon ≥14:00
+    const hiEnergy = future.filter(p => p.energy >= 55);
+    let workout = null;
+    if (hiEnergy.length) {
+      const pm = hiEnergy.filter(p => p.hour >= 14);
+      workout = pm.length ? pm[0] : hiEnergy[0];
+    }
+
+    return { peak, focus, workout, dip };
+  }
+
+  // ── Format hour as "10:30 AM" ──
+  function fmtHour(h) {
+    if (h == null) return '—';
+    const hr  = Math.floor(h);
+    const min = h % 1 === 0.5 ? '30' : '00';
+    const sfx = hr < 12 ? 'AM' : 'PM';
+    const disp = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+    return `${disp}:${min} ${sfx}`;
+  }
+
+  // ── Confidence label ──
+  function confLabel(obsCount) {
+    if (obsCount >= 14) return 'Personalised forecast';
+    if (obsCount >= 5)  return 'Moderate confidence';
+    return 'Learning your rhythm';
+  }
+
+  // ── Gauge update ──
+  function updateGauge(e) {
+    const arc = document.getElementById('ei-gauge-arc');
+    const num = document.getElementById('ei-gauge-num');
+    if (!arc || !num) return;
+    const filled = (e / 100) * ARC_LEN;
+    arc.setAttribute('stroke-dasharray', `${filled.toFixed(1)} ${FULL_C}`);
+    const color = e >= 70 ? '#4ADE80' : e >= 45 ? '#FCD34D' : '#FB923C';
+    arc.setAttribute('stroke', color);
+    num.textContent = e;
+    num.style.color = e >= 70 ? 'var(--gr)' : e >= 45 ? 'var(--ye)' : 'var(--or)';
+  }
+
+  // ── Chart render ──
+  function renderChart(pts) {
+    const W = 400, H = 64;
+    const nowH  = new Date().getHours() + new Date().getMinutes() / 60;
+    const start = pts[0].hour, end = pts[pts.length - 1].hour;
+    const xS = h => ((h - start) / (end - start)) * W;
+    const yS = e => H - 4 - (e / 100) * (H - 10);
+
+    const coords = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xS(p.hour).toFixed(1)},${yS(p.energy).toFixed(1)}`).join(' ');
+    document.getElementById('ei-chart-line').setAttribute('d', coords);
+
+    const lastX = xS(pts[pts.length - 1].hour).toFixed(1);
+    const firstX = xS(pts[0].hour).toFixed(1);
+    document.getElementById('ei-chart-fill').setAttribute('d',
+      `${coords} L${lastX},${H} L${firstX},${H} Z`);
+
+    const nowLine = document.getElementById('ei-now-line');
+    if (nowH >= start && nowH <= end) {
+      const nx = xS(nowH).toFixed(1);
+      nowLine.setAttribute('x1', nx); nowLine.setAttribute('x2', nx);
+      nowLine.style.display = '';
+    } else {
+      nowLine.style.display = 'none';
+    }
+  }
+
+  // ── Current energy interpolation ──
+  function currentEnergy(pts) {
+    const nowH = new Date().getHours() + new Date().getMinutes() / 60;
+    let best = pts[0], bestD = Infinity;
+    for (const p of pts) {
+      const d = Math.abs(p.hour - nowH);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best.energy;
+  }
+
+  // ── Set text safely ──
+  function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; }
+
+  // ── Main render ──
+  function render() {
+    chronotype = localStorage.getItem(KEY_CT) || 'neutral';
+    const mf  = getMorningFactor();
+    const pts = buildForecast(chronotype, mf);
+    const win = findWindows(pts);
+    const cur = currentEnergy(pts);
+    const obs = getObs();
+
+    updateGauge(cur);
+    renderChart(pts);
+
+    // Status heading
+    const headEl = document.getElementById('ei-status-head');
+    const subEl  = document.getElementById('ei-status-sub');
+    const headLabel = cur >= 70 ? 'High Energy' : cur >= 45 ? 'Moderate Energy' : 'Low Energy';
+    const headColor = cur >= 70 ? 'var(--gr)' : cur >= 45 ? 'var(--ye)' : 'var(--or)';
+    if (headEl) { headEl.textContent = headLabel; headEl.style.color = headColor; }
+    if (subEl) {
+      if (mf !== null) {
+        subEl.textContent = win.peak
+          ? `Peak around ${fmtHour(win.peak.hour)}. ${win.focus ? 'Best focus: ' + fmtHour(win.focus.hour) + '.' : ''}`
+          : 'Energy tapering — good time to wind down.';
+      } else {
+        subEl.textContent = 'Complete your morning check-in for a personalised forecast.';
+      }
+    }
+
+    // Windows
+    setText('ei-peak-v',    win.peak    ? fmtHour(win.peak.hour)    : '—');
+    setText('ei-peak-s',    win.peak    ? `${win.peak.energy} / 100`  : '');
+    setText('ei-focus-v',   win.focus   ? fmtHour(win.focus.hour)   : '—');
+    setText('ei-focus-s',   win.focus   ? '2 hr sustained block'    : '');
+    setText('ei-workout-v', win.workout ? fmtHour(win.workout.hour) : '—');
+    setText('ei-workout-s', win.workout ? `${win.workout.energy} / 100` : '');
+    setText('ei-dip-v',     win.dip     ? fmtHour(win.dip.hour)     : '—');
+    setText('ei-dip-s',     win.dip     ? 'Low-energy window'       : '');
+
+    setText('ei-conf-lbl', confLabel(obs.length));
+
+    // Sync chronotype buttons
+    document.querySelectorAll('.ei-ct').forEach(b => {
+      b.classList.toggle('on', b.dataset.ct === chronotype);
+    });
+  }
+
+  // ── Chronotype toggle ──
+  function setChronotype(ct, el) {
+    chronotype = ct;
+    localStorage.setItem(KEY_CT, ct);
+    document.querySelectorAll('.ei-ct').forEach(b => b.classList.remove('on'));
+    if (el) el.classList.add('on');
+    render();
+  }
+
+  // ── Observation prompt logic ──
+  function shouldAutoPrompt() {
+    if (obsShown) return false;
+    const h    = new Date().getHours();
+    const today = new Date().toISOString().slice(0, 10);
+    const todayObs = getObs().filter(o => o.date === today).length;
+    // Morning slot 9-11, midday 13-15, evening 17-19
+    const slots = [{ from: 9, to: 11, max: 1 }, { from: 13, to: 15, max: 2 }, { from: 17, to: 19, max: 3 }];
+    return slots.some(s => h >= s.from && h < s.to && todayObs < s.max);
+  }
+
+  function showObsPrompt() {
+    const el = document.getElementById('ei-obs');
+    if (!el) return;
+    const now = new Date();
+    setText('ei-obs-time', now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) + ' check-in');
+    document.querySelectorAll('.ei-obs-btn').forEach(b => b.classList.remove('sel'));
+    obsVal = null;
+    el.classList.add('on');
+    obsShown = true;
+  }
+
+  function dismissObs() {
+    const el = document.getElementById('ei-obs');
+    if (el) el.classList.remove('on');
+  }
+
+  function selectObs(btn) {
+    document.querySelectorAll('.ei-obs-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    obsVal = parseInt(btn.dataset.v, 10);
+  }
+
+  function confirmObs() {
+    if (obsVal === null) { dismissObs(); return; }
+    const now = new Date();
+    saveObs({
+      date:  now.toISOString().slice(0, 10),
+      time:  now.toISOString(),
+      hour:  now.getHours() + now.getMinutes() / 60,
+      value: obsVal,
+    });
+    dismissObs();
+    render();
+  }
+
+  // ── Init ──
+  function init() {
+    render();
+    // Non-intrusive auto-prompt with delay so it doesn't appear immediately on load
+    setTimeout(() => { if (shouldAutoPrompt()) showObsPrompt(); }, 9000);
+  }
+
+  return { init, render, setChronotype, showObsPrompt, dismissObs, selectObs, confirmObs };
 })();
 
 // ══════════════════════════════════════════════
