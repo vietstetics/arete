@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Programs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ───────────────────────────────────────────────────── */
+:root{
+  --bg:#F5F5F7;--s1:rgba(0,0,0,.03);--s2:rgba(0,0,0,.05);--s3:rgba(0,0,0,.07);
+  --s4:rgba(0,0,0,.10);--bd:rgba(0,0,0,.09);--bd2:rgba(0,0,0,.15);
+  --t1:#1D1D1F;--t2:#6E6E73;--t3:#AEAEB2;
+  --gr:#1DA462;--grd:rgba(29,164,98,.10);
+  --vi:#5E5CE6;--vid:rgba(94,92,230,.10);
+  --or:#C0552A;--re:#C0403A;
+  --r:16px;--r-sm:10px;
+  --sh0:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  --sh1:0 4px 20px rgba(0,0,0,.10),0 1px 4px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ── LAYOUT ──────────────────────────────────────────────────── */
+.app{display:flex;height:100vh;overflow:hidden}
+.main{flex:1;min-width:0;overflow-y:auto;background:var(--bg)}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+.sb{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
+.sb-top{padding:22px 16px 16px;border-bottom:1px solid var(--bd)}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:0 4px}
+.sb-icon{width:30px;height:30px;border-radius:9px;background:var(--vi);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-name{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.sb-nav{flex:1;padding:10px 10px}
+.nav-section{font-size:10px;font-weight:500;color:var(--t3);padding:16px 8px 5px}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;color:var(--t3);font-size:13px;font-weight:500;cursor:pointer;position:relative;transition:background 160ms,color 160ms}
+.ni:hover{background:var(--s2);color:var(--t2)}
+.ni.on{background:var(--s2);color:var(--t1)}
+.ni.on .ni-ic{color:var(--vi)}
+.ni-ic{width:16px;height:16px;flex-shrink:0;transition:color 160ms}
+.sb-foot{padding:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background 160ms}
+.sb-foot:hover{background:var(--s2)}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,var(--vi));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.av-name{font-size:13px;font-weight:600}
+.av-plan{font-size:11px;color:var(--t3)}
+
+/* ── PAGE ─────────────────────────────────────────────────────── */
+.pg{padding:32px 32px 64px;max-width:1100px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;gap:16px}
+.ph-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
+.ph-sub{font-size:13px;color:var(--t2)}
+
+/* ── BUTTONS ──────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;font-size:13.5px;font-weight:500;cursor:pointer;transition:all 160ms;white-space:nowrap;border:none}
+.btn:active{transform:scale(.97)}
+.btn-p{background:#1D1D1F;color:#fff}
+.btn-p:hover{background:#000;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.btn-s{background:#fff;color:var(--t1);border:1px solid var(--bd)}
+.btn-s:hover{border-color:var(--bd2);box-shadow:var(--sh0)}
+.btn-sm{padding:7px 14px;font-size:12.5px}
+.btn-xs{padding:5px 10px;font-size:11.5px;border-radius:8px}
+.btn-ghost{color:var(--vi);font-size:12.5px;font-weight:500;padding:6px 10px;border-radius:8px;background:transparent}
+.btn-ghost:hover{background:var(--vid)}
+.btn-danger{color:var(--re);font-size:12px;font-weight:500;padding:5px 8px;border-radius:7px;background:transparent}
+.btn-danger:hover{background:rgba(192,64,58,.08)}
+.btn-gr{background:var(--gr);color:#fff}
+.btn-gr:hover{background:#158A50}
+
+/* ── CARDS ────────────────────────────────────────────────────── */
+.card{background:#fff;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0)}
+.card:hover{border-color:var(--bd2)}
+.cp{padding:20px}
+
+/* ── TWO-COLUMN ───────────────────────────────────────────────── */
+.cols{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+
+/* ── PROGRAM LIST ─────────────────────────────────────────────── */
+.prog-list{display:flex;flex-direction:column;gap:2px;padding:8px}
+.prog-item{padding:12px 14px;border-radius:12px;cursor:pointer;transition:background 150ms;display:flex;align-items:center;gap:10px}
+.prog-item:hover{background:var(--s2)}
+.prog-item.active{background:var(--vid);border:1px solid rgba(94,92,230,.2)}
+.prog-dot{width:8px;height:8px;border-radius:50%;background:var(--t3);flex-shrink:0}
+.prog-item.active .prog-dot{background:var(--vi)}
+.prog-info{flex:1;min-width:0}
+.prog-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-meta{font-size:11.5px;color:var(--t3);margin-top:2px}
+.prog-empty{padding:32px 16px;text-align:center;color:var(--t3);font-size:12.5px}
+
+/* ── WEEK TABLE ───────────────────────────────────────────────── */
+.week-table{width:100%;border-collapse:collapse}
+.week-table th{font-size:10.5px;font-weight:600;color:var(--t3);text-align:left;padding:0 14px 10px;letter-spacing:.03em;text-transform:uppercase}
+.week-table td{padding:0;vertical-align:top;border-top:1px solid var(--bd)}
+.day-row{transition:background 120ms}
+.day-row:hover .day-cell{background:var(--s1)}
+.day-cell{padding:12px 14px;display:flex;align-items:center;gap:10px}
+.day-label{width:96px;flex-shrink:0}
+.day-name{font-size:13px;font-weight:500}
+.day-today{font-size:10px;font-weight:600;color:var(--vi);background:var(--vid);padding:2px 7px;border-radius:5px;margin-left:4px}
+.day-wo{flex:1;min-width:0}
+.day-wo-name{font-size:13px;font-weight:500}
+.day-wo-meta{font-size:11.5px;color:var(--t3);margin-top:1px}
+.day-rest{font-size:12.5px;color:var(--t3);font-style:italic}
+.day-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+/* ── EXERCISE LIST IN DAY ─────────────────────────────────────── */
+.ex-expand{display:none;padding:0 14px 14px 110px}
+.ex-expand.open{display:block}
+.ex-chip-list{display:flex;flex-wrap:wrap;gap:5px}
+.ex-chip{padding:3px 9px;border-radius:6px;font-size:11px;font-weight:500;background:var(--s2);color:var(--t2);display:flex;align-items:center;gap:5px}
+.ex-chip strong{color:var(--t1)}
+
+/* ── INLINE DAY EDITOR ────────────────────────────────────────── */
+.day-editor{display:none;padding:14px;background:var(--bg);border-top:1px solid var(--bd)}
+.day-editor.open{display:block}
+.de-name-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.de-input{flex:1;padding:8px 12px;border-radius:9px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:13px;outline:none;transition:border-color 140ms}
+.de-input:focus{border-color:var(--vi);box-shadow:0 0 0 3px rgba(94,92,230,.10)}
+.de-input::placeholder{color:var(--t3)}
+.de-ex-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.de-ex-row{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--bd);border-radius:9px;padding:8px 10px}
+.de-ex-name{flex:1;font-size:12.5px;font-weight:500}
+.de-num{width:44px;padding:4px 6px;border-radius:6px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:12px;text-align:center;outline:none}
+.de-num:focus{border-color:var(--vi)}
+.de-reps{width:68px;padding:4px 7px;border-radius:6px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:12px;outline:none}
+.de-reps:focus{border-color:var(--vi)}
+.de-lbl{font-size:10.5px;color:var(--t3);font-weight:500}
+.de-add-area{position:relative;margin-bottom:10px}
+.de-add-input{width:100%;padding:8px 12px;border-radius:9px;border:1px dashed rgba(94,92,230,.35);background:#fff;color:var(--t1);font-size:13px;outline:none;transition:all 140ms}
+.de-add-input:focus{border-style:solid;border-color:var(--vi);box-shadow:0 0 0 3px rgba(94,92,230,.10)}
+.de-add-input::placeholder{color:var(--t3)}
+.autocomplete{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--bd);border-radius:10px;box-shadow:var(--sh1);z-index:50;max-height:180px;overflow-y:auto;display:none}
+.autocomplete.open{display:block}
+.ac-item{padding:8px 12px;font-size:12.5px;cursor:pointer;transition:background 100ms}
+.ac-item:hover,.ac-item.focused{background:var(--s2)}
+
+/* ── EMPTY STATE ──────────────────────────────────────────────── */
+.empty-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 32px;text-align:center;color:var(--t3);gap:12px;min-height:320px}
+.empty-panel svg{opacity:.3}
+.empty-panel h3{font-size:15px;font-weight:600;color:var(--t2)}
+.empty-panel p{font-size:12.5px;max-width:280px;line-height:1.6}
+
+/* ── TABS ─────────────────────────────────────────────────────── */
+.tabs{display:flex;gap:2px;margin-bottom:22px;background:var(--s2);border-radius:11px;padding:3px;width:fit-content}
+.tab{padding:7px 18px;border-radius:9px;font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;transition:all 150ms}
+.tab.on{background:#fff;color:var(--t1);box-shadow:0 1px 4px rgba(0,0,0,.10)}
+
+/* ── PROGRAM NAME EDIT ────────────────────────────────────────── */
+.prog-name-input{font-size:17px;font-weight:600;color:var(--t1);background:transparent;border:none;outline:none;border-bottom:2px solid transparent;padding-bottom:2px;transition:border-color 150ms;width:100%}
+.prog-name-input:focus{border-color:var(--vi)}
+
+/* ── STAT ROW ─────────────────────────────────────────────────── */
+.stat-row{display:flex;gap:16px;padding:16px 20px;border-bottom:1px solid var(--bd)}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat-v{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.stat-l{font-size:10.5px;color:var(--t3);font-weight:500}
+
+/* ── MOCK label ───────────────────────────────────────────────── */
+.mock-note{font-size:10.5px;color:var(--t3);padding:10px 20px 0;font-style:italic}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+@media(max-width:767px){
+  .sb{display:none}
+  .pg{padding:20px 16px 48px}
+  .ph{flex-direction:column;gap:12px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-top">
+    <div class="sb-brand">
+      <div class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <span class="sb-name">JARVIS</span>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-section">Main</div>
+    <a href="index.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a href="workouts.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Training</span></a>
+    <a href="programs.html" class="ni on"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Programs</span></a>
+    <a href="recovery.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>Recovery</span></a>
+    <a href="nutrition.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span>Nutrition</span></a>
+    <a href="sleep.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></a>
+    <div class="nav-section">Life</div>
+    <a href="tasks.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tasks</span></a>
+    <a href="analytics.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span>Progress</span></a>
+    <a href="finance.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Finance</span></a>
+    <a href="settings.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
+  </nav>
+  <a href="settings.html" class="sb-foot">
+    <div class="av">J</div>
+    <div><div class="av-name">Joseph N.</div><div class="av-plan">JARVIS Pro</div></div>
+  </a>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+<div class="pg">
+
+  <div class="ph">
+    <div>
+      <div class="ph-title">Programs</div>
+      <div class="ph-sub">Build weekly training programs that repeat automatically every week.</div>
+    </div>
+    <button class="btn btn-p" onclick="createProgram()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Program
+    </button>
+  </div>
+
+  <div class="cols">
+    <!-- Left: list -->
+    <div class="card" style="overflow:hidden">
+      <div style="padding:16px 20px 8px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;font-weight:600">My Programs</span>
+        <span id="prog-count" style="font-size:11px;color:var(--t3)"></span>
+      </div>
+      <div id="prog-list" class="prog-list"></div>
+    </div>
+
+    <!-- Right: detail -->
+    <div id="right-panel"></div>
+  </div>
+
+</div>
+</main>
+</div>
+
+<script src="js/fitness.js"></script>
+<script>
+const F = window.Fitness;
+
+const DAY_NAMES  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAY_SHORT  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const TODAY_IDX  = new Date().getDay(); // 0=Sun
+
+// ── State ─────────────────────────────────────────────────────
+let selectedId    = null;   // program id being viewed
+let editingDayIdx = null;   // day index currently being edited
+let acFocused     = -1;
+
+// ── Storage ───────────────────────────────────────────────────
+function getPrograms() {
+  try { return JSON.parse(localStorage.getItem('jarvis_programs') || '[]'); }
+  catch { return []; }
+}
+function saveProgram(prog) {
+  const list = getPrograms();
+  const idx  = list.findIndex(p => p.id === prog.id);
+  if (idx >= 0) list[idx] = prog; else list.unshift(prog);
+  localStorage.setItem('jarvis_programs', JSON.stringify(list));
+}
+function deleteProgram(id) {
+  localStorage.setItem('jarvis_programs',
+    JSON.stringify(getPrograms().filter(p => p.id !== id)));
+}
+
+// ── MOCKED: seed two example programs if list is empty ────────
+function seedPrograms() {
+  if (getPrograms().length > 0) return;
+  const programs = [
+    {
+      id: 'prog-ppl', name: 'Push / Pull / Legs', createdAt: Date.now(),
+      days: {
+        1: { name: 'Push Day', exercises: [
+          { name: 'Bench Press',    targetSets: 4, targetReps: '6-8'  },
+          { name: 'Overhead Press', targetSets: 3, targetReps: '8-10' },
+          { name: 'Dumbbell Fly',   targetSets: 3, targetReps: '12'   },
+          { name: 'Tricep Pushdown',targetSets: 3, targetReps: '12'   },
+          { name: 'Lateral Raise',  targetSets: 3, targetReps: '15'   },
+        ]},
+        2: { name: 'Pull Day', exercises: [
+          { name: 'Pull-Up',      targetSets: 4, targetReps: '6-8'  },
+          { name: 'Barbell Row',  targetSets: 4, targetReps: '6-8'  },
+          { name: 'Face Pull',    targetSets: 3, targetReps: '15'   },
+          { name: 'Barbell Curl', targetSets: 3, targetReps: '10-12'},
+          { name: 'Hammer Curl',  targetSets: 2, targetReps: '12'   },
+        ]},
+        3: null,
+        4: { name: 'Leg Day', exercises: [
+          { name: 'Squat',             targetSets: 4, targetReps: '5-6'  },
+          { name: 'Romanian Deadlift', targetSets: 3, targetReps: '8-10' },
+          { name: 'Leg Press',         targetSets: 3, targetReps: '12'   },
+          { name: 'Leg Curl',          targetSets: 3, targetReps: '12'   },
+          { name: 'Calf Raise',        targetSets: 4, targetReps: '15'   },
+        ]},
+        5: { name: 'Push Day', exercises: [
+          { name: 'Incline Bench',   targetSets: 4, targetReps: '8'    },
+          { name: 'Overhead Press',  targetSets: 3, targetReps: '8'    },
+          { name: 'Tricep Pushdown', targetSets: 3, targetReps: '12'   },
+          { name: 'Lateral Raise',   targetSets: 4, targetReps: '15'   },
+        ]},
+        6: { name: 'Pull Day', exercises: [
+          { name: 'Lat Pulldown', targetSets: 4, targetReps: '10'   },
+          { name: 'Cable Row',    targetSets: 3, targetReps: '10'   },
+          { name: 'Rear Delt Fly',targetSets: 3, targetReps: '15'   },
+          { name: 'Barbell Curl', targetSets: 3, targetReps: '10'   },
+        ]},
+        0: null,
+      }
+    },
+    {
+      id: 'prog-3day', name: '3-Day Full Body', createdAt: Date.now() - 86400000,
+      days: {
+        1: { name: 'Full Body A', exercises: [
+          { name: 'Squat',        targetSets: 3, targetReps: '5'    },
+          { name: 'Bench Press',  targetSets: 3, targetReps: '5'    },
+          { name: 'Barbell Row',  targetSets: 3, targetReps: '5'    },
+          { name: 'Overhead Press',targetSets: 2, targetReps: '8'   },
+        ]},
+        2: null,
+        3: { name: 'Full Body B', exercises: [
+          { name: 'Squat',        targetSets: 3, targetReps: '5'    },
+          { name: 'Overhead Press',targetSets: 3, targetReps: '5'   },
+          { name: 'Deadlift',     targetSets: 1, targetReps: '5'    },
+          { name: 'Pull-Up',      targetSets: 3, targetReps: '8'    },
+        ]},
+        4: null,
+        5: { name: 'Full Body A', exercises: [
+          { name: 'Squat',        targetSets: 3, targetReps: '5'    },
+          { name: 'Bench Press',  targetSets: 3, targetReps: '5'    },
+          { name: 'Barbell Row',  targetSets: 3, targetReps: '5'    },
+          { name: 'Calf Raise',   targetSets: 3, targetReps: '15'   },
+        ]},
+        6: null, 0: null,
+      }
+    }
+  ];
+  localStorage.setItem('jarvis_programs', JSON.stringify(programs));
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+seedPrograms();
+const programs = getPrograms();
+if (programs.length) selectedId = programs[0].id;
+render();
+
+// ── Render ────────────────────────────────────────────────────
+function render() {
+  renderList();
+  if (selectedId) renderDetail(selectedId);
+  else renderEmpty();
+}
+
+function renderList() {
+  const progs = getPrograms();
+  document.getElementById('prog-count').textContent =
+    progs.length ? progs.length + ' program' + (progs.length > 1 ? 's' : '') : '';
+
+  if (!progs.length) {
+    document.getElementById('prog-list').innerHTML =
+      `<div class="prog-empty">No programs yet.<br>Tap <strong>New Program</strong> to start.</div>`;
+    return;
+  }
+  document.getElementById('prog-list').innerHTML = progs.map(p => {
+    const trainDays = Object.values(p.days).filter(Boolean).length;
+    const active    = p.id === selectedId;
+    return `<div class="prog-item${active ? ' active' : ''}" onclick="selectProgram('${p.id}')">
+      <div class="prog-dot"></div>
+      <div class="prog-info">
+        <div class="prog-name">${esc(p.name)}</div>
+        <div class="prog-meta">${trainDays} training day${trainDays !== 1 ? 's' : ''} / week</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDetail(id) {
+  const prog = getPrograms().find(p => p.id === id);
+  if (!prog) { renderEmpty(); return; }
+
+  const totalExercises = Object.values(prog.days)
+    .filter(Boolean).reduce((t, d) => t + d.exercises.length, 0);
+  const trainDays = Object.values(prog.days).filter(Boolean).length;
+
+  const rows = DAY_NAMES.map((dayName, di) => {
+    const wo      = prog.days[di] || null;
+    const isToday = di === TODAY_IDX;
+    const exCount = wo ? wo.exercises.length : 0;
+    const totalSets = wo ? wo.exercises.reduce((t, e) => t + (e.targetSets || 0), 0) : 0;
+    const isEditing = editingDayIdx === di;
+
+    const dayLabelHtml = `<div class="day-label">
+      <div class="day-name">${dayName}${isToday ? `<span class="day-today">Today</span>` : ''}</div>
+    </div>`;
+
+    const woHtml = wo
+      ? `<div class="day-wo">
+          <div class="day-wo-name">${esc(wo.name)}</div>
+          <div class="day-wo-meta">${exCount} exercise${exCount !== 1 ? 's' : ''} · ${totalSets} sets</div>
+         </div>`
+      : `<div class="day-rest">Rest</div><div style="flex:1"></div>`;
+
+    const actionsHtml = wo
+      ? `<div class="day-actions">
+          <button class="btn btn-gr btn-xs" onclick="startWorkout('${id}',${di});event.stopPropagation()">Start</button>
+          <button class="btn btn-s btn-xs" onclick="toggleEdit('${id}',${di});event.stopPropagation()">${isEditing ? 'Done' : 'Edit'}</button>
+          <button class="btn-danger btn-xs" onclick="clearDay('${id}',${di});event.stopPropagation()" title="Remove workout">✕</button>
+         </div>`
+      : `<div class="day-actions">
+          <button class="btn btn-s btn-xs" onclick="toggleEdit('${id}',${di});event.stopPropagation()">${isEditing ? 'Done' : '+ Add'}</button>
+         </div>`;
+
+    // Exercise chips (expanded view)
+    const chipsHtml = wo && !isEditing
+      ? `<div class="ex-expand${wo ? ' open' : ''}" id="ex-expand-${di}">
+          <div class="ex-chip-list">
+            ${wo.exercises.map(e =>
+              `<div class="ex-chip"><strong>${esc(e.name)}</strong> ${e.targetSets}×${esc(e.targetReps)}</div>`
+            ).join('')}
+          </div>
+         </div>` : '';
+
+    // Inline editor
+    const editorHtml = isEditing ? buildEditor(prog, di) : '';
+
+    return `<tr class="day-row">
+      <td>
+        <div class="day-cell" onclick="toggleExpandDay(${di})">
+          ${dayLabelHtml}
+          ${woHtml}
+          ${actionsHtml}
+        </div>
+        ${chipsHtml}
+        ${editorHtml}
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('right-panel').innerHTML = `
+    <div class="card" style="overflow:hidden">
+      <div style="padding:18px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <input class="prog-name-input" value="${esc(prog.name)}"
+          onchange="renameProg('${id}',this.value)"
+          onblur="renameProg('${id}',this.value)"
+          title="Program name">
+        <button class="btn-danger btn-sm" onclick="confirmDelete('${id}')">Delete</button>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-v">${trainDays}</div><div class="stat-l">Training days</div></div>
+        <div class="stat"><div class="stat-v">${7 - trainDays}</div><div class="stat-l">Rest days</div></div>
+        <div class="stat"><div class="stat-v">${totalExercises}</div><div class="stat-l">Exercises</div></div>
+      </div>
+      <div class="mock-note">MOCKED: example programs — edit or replace with your own plan.</div>
+      <table class="week-table" style="margin-top:8px">
+        <thead><tr><th style="padding-left:14px;padding-bottom:10px">Day &amp; Workout</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  // Re-attach autocomplete for editor if open
+  if (editingDayIdx !== null) setupEditorAC(id, editingDayIdx);
+}
+
+function renderEmpty() {
+  document.getElementById('right-panel').innerHTML = `
+    <div class="card">
+      <div class="empty-panel">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <h3>No program selected</h3>
+        <p>Create a new program or select one from the list to view its weekly schedule.</p>
+      </div>
+    </div>`;
+}
+
+// ── Inline day editor ─────────────────────────────────────────
+function buildEditor(prog, di) {
+  const wo = prog.days[di] || { name: '', exercises: [] };
+  const exRows = wo.exercises.map((ex, ei) => `
+    <div class="de-ex-row" id="de-ex-${di}-${ei}">
+      <div class="de-ex-name">${esc(ex.name)}</div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <input class="de-num" type="number" min="1" value="${ex.targetSets}" title="Sets"
+          onchange="updateExField('${prog.id}',${di},${ei},'targetSets',+this.value)">
+        <span class="de-lbl">×</span>
+        <input class="de-reps" type="text" value="${esc(ex.targetReps)}" placeholder="reps" title="Reps"
+          onchange="updateExField('${prog.id}',${di},${ei},'targetReps',this.value)">
+        <button class="btn-danger" onclick="removeExFromDay('${prog.id}',${di},${ei})" title="Remove">✕</button>
+      </div>
+    </div>`).join('');
+
+  return `<div class="day-editor open" id="day-editor-${di}">
+    <div class="de-name-row">
+      <input class="de-input" placeholder="Workout name (e.g. Push Day)" value="${esc(wo.name)}"
+        onchange="updateDayName('${prog.id}',${di},this.value)"
+        onblur="updateDayName('${prog.id}',${di},this.value)">
+    </div>
+    <div class="de-ex-list" id="de-ex-list-${di}">${exRows}</div>
+    <div class="de-add-area">
+      <input class="de-add-input" id="de-add-${di}" placeholder="Add exercise…" autocomplete="off">
+      <div class="autocomplete" id="de-ac-${di}"></div>
+    </div>
+  </div>`;
+}
+
+function setupEditorAC(progId, di) {
+  const input = document.getElementById(`de-add-${di}`);
+  const ac    = document.getElementById(`de-ac-${di}`);
+  if (!input || !ac) return;
+  acFocused = -1;
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) { ac.classList.remove('open'); return; }
+    const matches = F.EXERCISE_NAMES.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+    if (!matches.length) { ac.classList.remove('open'); return; }
+    ac.innerHTML = matches.map((n, i) =>
+      `<div class="ac-item" data-name="${esc(n)}" onclick="addExToDay('${progId}',${di},'${esc(n)}')">${esc(n)}</div>`
+    ).join('');
+    ac.classList.add('open');
+    acFocused = -1;
+  });
+
+  input.addEventListener('keydown', e => {
+    const items = ac.querySelectorAll('.ac-item');
+    if (e.key === 'ArrowDown') { acFocused = Math.min(acFocused + 1, items.length - 1); highlightAC(items); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { acFocused = Math.max(acFocused - 1, 0); highlightAC(items); e.preventDefault(); }
+    else if (e.key === 'Enter') {
+      if (acFocused >= 0 && items[acFocused]) addExToDay(progId, di, items[acFocused].dataset.name);
+      else if (input.value.trim()) addExToDay(progId, di, input.value.trim());
+      e.preventDefault();
+    } else if (e.key === 'Escape') ac.classList.remove('open');
+  });
+
+  document.addEventListener('click', e => {
+    if (!input.contains(e.target) && !ac.contains(e.target)) ac.classList.remove('open');
+  });
+}
+
+function highlightAC(items) {
+  items.forEach((el, i) => el.classList.toggle('focused', i === acFocused));
+  if (items[acFocused]) items[acFocused].scrollIntoView({ block: 'nearest' });
+}
+
+// ── Mutations ─────────────────────────────────────────────────
+function createProgram() {
+  const prog = {
+    id: F.uid(),
+    name: 'New Program',
+    createdAt: Date.now(),
+    days: { 0: null, 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+  };
+  saveProgram(prog);
+  selectedId    = prog.id;
+  editingDayIdx = null;
+  render();
+}
+
+function selectProgram(id) {
+  selectedId    = id;
+  editingDayIdx = null;
+  render();
+}
+
+function renameProg(id, name) {
+  const prog = getPrograms().find(p => p.id === id);
+  if (!prog || prog.name === name.trim()) return;
+  prog.name = name.trim() || 'Program';
+  saveProgram(prog);
+  renderList();
+}
+
+function confirmDelete(id) {
+  const prog = getPrograms().find(p => p.id === id);
+  if (!prog) return;
+  if (!confirm(`Delete "${prog.name}"? This cannot be undone.`)) return;
+  deleteProgram(id);
+  selectedId = getPrograms()[0]?.id || null;
+  editingDayIdx = null;
+  render();
+}
+
+function toggleEdit(progId, di) {
+  editingDayIdx = editingDayIdx === di ? null : di;
+  renderDetail(progId);
+}
+
+function toggleExpandDay(di) {
+  // only toggles the chip expansion — editing has its own button
+  if (editingDayIdx === di) return;
+  const el = document.getElementById(`ex-expand-${di}`);
+  if (el) el.classList.toggle('open');
+}
+
+function clearDay(progId, di) {
+  const prog = getPrograms().find(p => p.id === progId);
+  if (!prog) return;
+  prog.days[di] = null;
+  saveProgram(prog);
+  if (editingDayIdx === di) editingDayIdx = null;
+  renderDetail(progId);
+}
+
+function updateDayName(progId, di, name) {
+  const prog = getPrograms().find(p => p.id === progId);
+  if (!prog) return;
+  if (!prog.days[di]) prog.days[di] = { name: '', exercises: [] };
+  prog.days[di].name = name.trim() || DAY_NAMES[di] + ' Workout';
+  saveProgram(prog);
+}
+
+function addExToDay(progId, di, exName) {
+  const prog = getPrograms().find(p => p.id === progId);
+  if (!prog) return;
+  if (!prog.days[di]) prog.days[di] = { name: DAY_NAMES[di] + ' Workout', exercises: [] };
+  prog.days[di].exercises.push({ name: exName.trim(), targetSets: 3, targetReps: '8-12' });
+  saveProgram(prog);
+  renderDetail(progId);
+  // re-focus the add input
+  setTimeout(() => {
+    const inp = document.getElementById(`de-add-${di}`);
+    if (inp) { inp.value = ''; inp.focus(); }
+  }, 0);
+}
+
+function removeExFromDay(progId, di, ei) {
+  const prog = getPrograms().find(p => p.id === progId);
+  if (!prog || !prog.days[di]) return;
+  prog.days[di].exercises.splice(ei, 1);
+  if (!prog.days[di].exercises.length && !prog.days[di].name) prog.days[di] = null;
+  saveProgram(prog);
+  renderDetail(progId);
+}
+
+function updateExField(progId, di, ei, field, val) {
+  const prog = getPrograms().find(p => p.id === progId);
+  if (!prog || !prog.days[di]) return;
+  prog.days[di].exercises[ei][field] = val;
+  saveProgram(prog);
+}
+
+// ── Start workout from program day ────────────────────────────
+function startWorkout(progId, di) {
+  const prog = getPrograms().find(p => p.id === progId);
+  if (!prog || !prog.days[di]) return;
+  const template = prog.days[di];
+
+  // Build prefill object for workouts.html
+  const prefill = {
+    name: template.name,
+    exercises: template.exercises.map(ex => {
+      const map = F.EXERCISE_MUSCLES[ex.name] || { primary: [], secondary: [] };
+      const sets = [];
+      // one warmup set + working sets
+      if (ex.targetSets > 0) {
+        sets.push({ id: F.uid(), type: 'warmup',  weight: null, unit: 'kg', reps: null, completed: false });
+        for (let i = 0; i < ex.targetSets; i++) {
+          sets.push({ id: F.uid(), type: 'working', weight: null, unit: 'kg', reps: ex.targetReps, completed: false });
+        }
+      }
+      return {
+        id:               F.uid(),
+        name:             ex.name,
+        primaryMuscles:   map.primary,
+        secondaryMuscles: map.secondary,
+        sets,
+      };
+    }),
+  };
+
+  localStorage.setItem('jarvis_prefill', JSON.stringify(prefill));
+  window.location.href = 'workouts.html';
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
