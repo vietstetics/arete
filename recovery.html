@@ -6,13 +6,136 @@
 <title>JARVIS — Recovery</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<style>:root{--bg:#0C0C0F;--s1:#111115;--s2:#17171B;--s3:#1E1E23;--s4:#262629;--bd:#252529;--bd2:#333339;--t1:#EDEDEF;--t2:#8A8A94;--t3:#52525A;--vi:#A78BFA}*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{height:100%}body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}a{color:inherit;text-decoration:none}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}.app{display:flex;height:100vh;overflow:hidden}.sb{width:220px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}.sb-top{padding:18px 14px 14px;border-bottom:1px solid var(--bd)}.sb-brand{display:flex;align-items:center;gap:9px;padding:0 4px}.sb-icon{width:28px;height:28px;border-radius:7px;background:var(--vi);display:flex;align-items:center;justify-content:center;flex-shrink:0}.sb-name{font-size:15px;font-weight:700;letter-spacing:-.02em}.sb-nav{flex:1;padding:8px 8px}.nav-section{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);padding:14px 8px 5px}.ni{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;color:var(--t3);font-size:13px;font-weight:500;cursor:pointer;position:relative;transition:background 120ms,color 120ms}.ni:hover{background:var(--s3);color:var(--t2)}.ni.on{background:var(--s3);color:var(--t1)}.ni.on .ni-ic{color:var(--vi)}.ni.on::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:52%;background:var(--vi);border-radius:0 2px 2px 0}.ni-ic{width:16px;height:16px;flex-shrink:0;transition:color 120ms}.sb-foot{padding:12px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:9px;cursor:pointer;transition:background 120ms}.sb-foot:hover{background:var(--s3)}.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,var(--vi));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}.av-name{font-size:12.5px;font-weight:600}.av-plan{font-size:10.5px;color:var(--t3)}.main{flex:1;min-width:0;overflow-y:auto}.wrap{padding:48px 32px;max-width:600px;margin:0 auto;text-align:center}.ph-icon{width:64px;height:64px;border-radius:16px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:var(--vi)}.ph-title{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px}.ph-sub{font-size:13.5px;color:var(--t2);line-height:1.7;margin-bottom:24px}.badge{display:inline-flex;padding:5px 14px;border-radius:20px;background:var(--s2);border:1px solid var(--bd);font-size:11.5px;color:var(--t3);font-weight:600;letter-spacing:.04em;margin-bottom:16px}.back{font-size:12.5px;color:var(--t3);transition:color 120ms;display:inline-flex;align-items:center;gap:4px}.back:hover{color:var(--t1)}@media(max-width:767px){.sb{display:none}.wrap{padding:32px 16px}}</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ───────────────────────────────────────────────────── */
+:root{
+  --bg:#F5F5F7;--s1:rgba(0,0,0,.03);--s2:rgba(0,0,0,.05);--s3:rgba(0,0,0,.07);
+  --s4:rgba(0,0,0,.10);--bd:rgba(0,0,0,.09);--bd2:rgba(0,0,0,.15);
+  --t1:#1D1D1F;--t2:#6E6E73;--t3:#AEAEB2;
+  --gr:#1DA462;--grd:rgba(29,164,98,.10);
+  --ye:#B07D28;--or:#C0552A;--re:#C0403A;
+  --vi:#5E5CE6;--vid:rgba(94,92,230,.10);
+  --r:16px;--r-sm:10px;
+  --sh0:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  --sh1:0 4px 20px rgba(0,0,0,.10),0 1px 4px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ── LAYOUT ──────────────────────────────────────────────────── */
+.app{display:flex;height:100vh;overflow:hidden}
+.main{flex:1;min-width:0;overflow-y:auto;background:var(--bg)}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────── */
+.sb{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
+.sb-top{padding:22px 16px 16px;border-bottom:1px solid var(--bd)}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:0 4px}
+.sb-icon{width:30px;height:30px;border-radius:9px;background:var(--vi);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-name{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.sb-nav{flex:1;padding:10px 10px}
+.nav-section{font-size:10px;font-weight:500;color:var(--t3);padding:16px 8px 5px}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;color:var(--t3);font-size:13px;font-weight:500;cursor:pointer;position:relative;transition:background 160ms,color 160ms}
+.ni:hover{background:var(--s2);color:var(--t2)}
+.ni.on{background:var(--s2);color:var(--t1)}
+.ni.on .ni-ic{color:var(--vi)}
+.ni-ic{width:16px;height:16px;flex-shrink:0;transition:color 160ms}
+.sb-foot{padding:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background 160ms}
+.sb-foot:hover{background:var(--s2)}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,var(--vi));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.av-name{font-size:13px;font-weight:600}
+.av-plan{font-size:11px;color:var(--t3)}
+
+/* ── PAGE ─────────────────────────────────────────────────────── */
+.pg{padding:32px 32px 48px;max-width:1080px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px}
+.ph-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
+.ph-sub{font-size:13px;color:var(--t2)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;font-size:13.5px;font-weight:500;cursor:pointer;transition:all 160ms;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-s{background:#fff;color:var(--t1);border:1px solid var(--bd)}
+.btn-s:hover{border-color:var(--bd2);box-shadow:var(--sh0)}
+.btn-sm{padding:7px 14px;font-size:12.5px}
+.card{background:#fff;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0)}
+.card:hover{border-color:var(--bd2)}
+.cp{padding:20px}
+
+/* ── SUMMARY BAR ─────────────────────────────────────────────── */
+.summary-bar{display:flex;align-items:center;gap:6px;margin-bottom:22px;flex-wrap:wrap}
+.sb-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent}
+.sb-chip-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.chip-ready{background:rgba(29,164,98,.10);color:#1DA462;border-color:rgba(29,164,98,.18)}
+.chip-partial{background:rgba(176,125,40,.10);color:var(--ye);border-color:rgba(176,125,40,.20)}
+.chip-fatigued{background:rgba(192,64,58,.08);color:var(--re);border-color:rgba(192,64,58,.18)}
+.chip-nodata{background:var(--s2);color:var(--t3);border-color:var(--bd)}
+.suggestion{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;background:var(--vid);color:var(--vi);font-size:12px;font-weight:600;border:1px solid rgba(94,92,230,.20);margin-left:auto}
+
+/* ── BODY MAP SECTION ────────────────────────────────────────── */
+.map-card{margin-bottom:22px}
+.map-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px}
+.map-title{font-size:14px;font-weight:600}
+.map-legend{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:500;color:var(--t2)}
+.leg-swatch{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.map-body{display:flex;gap:32px;justify-content:center;align-items:flex-start;padding:8px 22px 22px}
+.map-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;max-width:200px}
+.map-view-label{font-size:11px;font-weight:500;color:var(--t3);letter-spacing:.05em;text-transform:uppercase}
+
+/* SVG muscle interaction */
+.muscle-patch{cursor:pointer;transition:opacity 160ms,filter 160ms}
+.muscle-patch:hover{opacity:.82;filter:brightness(1.05)}
+.muscle-patch:focus{outline:2px solid var(--vi);outline-offset:2px;border-radius:2px}
+.muscle-patch:focus:not(:focus-visible){outline:none}
+.body-base{pointer-events:none}
+
+/* ── POPOVER ──────────────────────────────────────────────────── */
+.popover{position:fixed;z-index:200;background:#fff;border:1px solid var(--bd);border-radius:var(--r-sm);box-shadow:var(--sh1);padding:14px;width:210px;display:none;animation:popIn 150ms ease}
+.popover.open{display:block}
+@keyframes popIn{from{opacity:0;transform:scale(.94) translateY(4px)}to{opacity:1;transform:none}}
+.pop-name{font-size:13.5px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.pop-status-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pop-row{display:flex;align-items:baseline;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--s3);font-size:12px}
+.pop-row:last-child{border:0;padding-bottom:0}
+.pop-lbl{color:var(--t2)}
+.pop-val{font-weight:500;color:var(--t1)}
+.pop-status{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;display:inline-flex}
+.pop-note{font-size:11px;color:var(--t3);margin-top:8px;padding-top:8px;border-top:1px solid var(--s3);line-height:1.5}
+
+/* ── MUSCLE GRID ──────────────────────────────────────────────── */
+.muscle-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.mc{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:#fff;border:1px solid var(--bd);cursor:pointer;transition:all 150ms}
+.mc:hover{border-color:var(--bd2);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.mc-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.mc-name{font-size:12.5px;font-weight:500;flex:1}
+.mc-pct{font-size:12px;font-weight:600;color:var(--t2)}
+.mc-label{font-size:10.5px;color:var(--t3)}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
+@media(max-width:900px){.map-body{gap:16px}}
+@media(max-width:767px){
+  .sb{display:none}
+  .pg{padding:20px 16px 40px}
+  .ph{flex-direction:column;gap:12px}
+  .map-body{gap:10px}
+}
+</style>
 </head>
 <body>
 <div class="app">
+
+<!-- SIDEBAR -->
 <aside class="sb">
-  <div class="sb-top"><div class="sb-brand"><div class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><span class="sb-name">JARVIS</span></div></div>
+  <div class="sb-top">
+    <div class="sb-brand">
+      <div class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <span class="sb-name">JARVIS</span>
+    </div>
+  </div>
   <nav class="sb-nav">
     <div class="nav-section">Main</div>
     <a href="index.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></a>
@@ -26,15 +149,507 @@
     <a href="finance.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Finance</span></a>
     <a href="settings.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
   </nav>
-  <a href="settings.html" class="sb-foot"><div class="av">J</div><div><div class="av-name">Joseph N.</div><div class="av-plan">JARVIS Pro</div></div></a>
+  <a href="settings.html" class="sb-foot">
+    <div class="av">J</div>
+    <div><div class="av-name">Joseph N.</div><div class="av-plan">JARVIS Pro</div></div>
+  </a>
 </aside>
-<main class="main"><div class="wrap">
-  <div class="ph-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
-  <div class="ph-title">Recovery</div>
-  <div class="ph-sub">Detailed muscle recovery timelines, HRV tracking, soreness logging and full body status breakdown.</div>
-  <div class="badge">Coming soon</div><br>
-  <a href="index.html" class="back">← Back to Dashboard</a>
-</div></main>
+
+<!-- MAIN -->
+<main class="main">
+<div class="pg">
+
+  <!-- Header -->
+  <div class="ph">
+    <div>
+      <div class="ph-title">Recovery</div>
+      <div class="ph-sub">Muscle fatigue map — tap any region to see recovery details.</div>
+    </div>
+    <a href="workouts.html" class="btn btn-s btn-sm">Log workout</a>
+  </div>
+
+  <!-- Summary bar (rendered by JS) -->
+  <div class="summary-bar" id="summary-bar"></div>
+
+  <!-- Body Map Card -->
+  <div class="card map-card">
+    <div class="map-header">
+      <span class="map-title">Muscle Recovery Map</span>
+      <div class="map-legend">
+        <div class="leg-item"><div class="leg-swatch" style="background:#1DA462"></div>Ready</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#3BC47A"></div>Mostly recovered</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#B07D28"></div>Partial</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#C0552A"></div>Fatigued</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#C0403A"></div>Heavy fatigue</div>
+        <div class="leg-item"><div class="leg-swatch" style="background:#D1D1D6"></div>No data</div>
+      </div>
+    </div>
+
+    <div class="map-body">
+      <!-- FRONT VIEW SVG (completely original geometric body diagram) -->
+      <div class="map-col">
+        <div class="map-view-label">Front</div>
+        <!--
+          Original SVG body diagram — not traced from any third-party source.
+          Coordinates define stylised anatomical regions on a 160×380 canvas.
+          viewBox: 0 0 160 380. Body center: x=80.
+        -->
+        <svg id="svg-front" viewBox="0 0 160 380" style="width:100%;max-width:180px;display:block"
+             role="group" aria-label="Front body muscle map">
+
+          <!-- Non-interactive base fills -->
+          <circle class="body-base" cx="80" cy="22" r="16" fill="#E8E8ED"/>
+          <polygon class="body-base" points="73,38 87,38 85,53 75,53" fill="#E8E8ED"/>
+          <!-- Hip connector between abs and legs -->
+          <polygon class="body-base" points="62,146 98,146 104,172 56,172" fill="#E8E8ED"/>
+          <!-- Narrow gap between the two legs -->
+          <polygon class="body-base" points="78,172 82,172 82,268 78,268" fill="#E8E8ED"/>
+          <!-- Knee transition between quads and calves -->
+          <polygon class="body-base" points="56,268 104,268 104,272 56,272" fill="#E8E8ED"/>
+
+          <!-- Left Front Deltoid -->
+          <polygon id="f-delt-front-l" class="muscle-patch" data-muscle="delt-front-l"
+            points="28,52 66,52 62,76 44,80 28,76"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Front Deltoid"/>
+
+          <!-- Right Front Deltoid -->
+          <polygon id="f-delt-front-r" class="muscle-patch" data-muscle="delt-front-r"
+            points="132,52 94,52 98,76 116,80 132,76"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Front Deltoid"/>
+
+          <!-- Left Pectoral -->
+          <polygon id="f-chest-l" class="muscle-patch" data-muscle="chest-l"
+            points="66,52 80,52 80,100 64,100 62,76"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Pectoral"/>
+
+          <!-- Right Pectoral -->
+          <polygon id="f-chest-r" class="muscle-patch" data-muscle="chest-r"
+            points="94,52 80,52 80,100 96,100 98,76"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Pectoral"/>
+
+          <!-- Left Biceps -->
+          <polygon id="f-biceps-l" class="muscle-patch" data-muscle="biceps-l"
+            points="26,76 28,76 44,80 42,126 26,124"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Biceps"/>
+
+          <!-- Right Biceps -->
+          <polygon id="f-biceps-r" class="muscle-patch" data-muscle="biceps-r"
+            points="134,76 132,76 116,80 118,126 134,124"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Biceps"/>
+
+          <!-- Left Forearm (front) -->
+          <polygon id="f-forearm-l" class="muscle-patch" data-muscle="forearm-l"
+            points="24,124 42,126 40,170 22,168"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Forearm"/>
+
+          <!-- Right Forearm (front) -->
+          <polygon id="f-forearm-r" class="muscle-patch" data-muscle="forearm-r"
+            points="136,124 118,126 120,170 138,168"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Forearm"/>
+
+          <!-- Abdominals -->
+          <polygon id="f-abs" class="muscle-patch" data-muscle="abs"
+            points="64,100 96,100 100,102 102,146 98,150 80,152 62,150 58,146 60,102"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Abdominals"/>
+
+          <!-- Left Obliques -->
+          <polygon id="f-obliques-l" class="muscle-patch" data-muscle="obliques-l"
+            points="44,80 62,76 64,100 58,146 48,138 44,110"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Obliques"/>
+
+          <!-- Right Obliques -->
+          <polygon id="f-obliques-r" class="muscle-patch" data-muscle="obliques-r"
+            points="116,80 98,76 96,100 102,146 112,138 116,110"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Obliques"/>
+
+          <!-- Left Quadriceps -->
+          <polygon id="f-quads-l" class="muscle-patch" data-muscle="quads-l"
+            points="56,172 74,172 74,268 56,268"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Quadriceps"/>
+
+          <!-- Left Adductors -->
+          <polygon id="f-adductors-l" class="muscle-patch" data-muscle="adductors-l"
+            points="74,172 78,172 78,268 74,268"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Adductors"/>
+
+          <!-- Right Adductors -->
+          <polygon id="f-adductors-r" class="muscle-patch" data-muscle="adductors-r"
+            points="82,172 86,172 86,268 82,268"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Adductors"/>
+
+          <!-- Right Quadriceps -->
+          <polygon id="f-quads-r" class="muscle-patch" data-muscle="quads-r"
+            points="86,172 104,172 104,268 86,268"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Quadriceps"/>
+
+          <!-- Left Calves (front) -->
+          <polygon id="f-calves-l" class="muscle-patch" data-muscle="calves-l"
+            points="56,272 74,272 74,358 56,358"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Calves"/>
+
+          <!-- Right Calves (front) -->
+          <polygon id="f-calves-r" class="muscle-patch" data-muscle="calves-r"
+            points="86,272 104,272 104,358 86,358"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Calves"/>
+        </svg>
+      </div>
+
+      <!-- BACK VIEW SVG -->
+      <div class="map-col">
+        <div class="map-view-label">Back</div>
+        <svg id="svg-back" viewBox="0 0 160 380" style="width:100%;max-width:180px;display:block"
+             role="group" aria-label="Back body muscle map">
+
+          <!-- Non-interactive base fills -->
+          <circle class="body-base" cx="80" cy="22" r="16" fill="#E8E8ED"/>
+          <polygon class="body-base" points="73,38 87,38 85,53 75,53" fill="#E8E8ED"/>
+          <!-- Hip connector between lower back and glutes -->
+          <polygon class="body-base" points="52,156 108,156 110,162 50,162" fill="#E8E8ED"/>
+          <!-- Gap between hamstrings -->
+          <polygon class="body-base" points="78,232 82,232 82,296 78,296" fill="#E8E8ED"/>
+          <!-- Gap between glutes at center -->
+          <polygon class="body-base" points="78,162 82,162 82,232 78,232" fill="#E8E8ED"/>
+          <!-- Knee/calf transition -->
+          <polygon class="body-base" points="44,296 116,296 116,300 44,300" fill="#E8E8ED"/>
+
+          <!-- Trapezius (upper back, wide diamond) -->
+          <polygon id="b-traps" class="muscle-patch" data-muscle="traps"
+            points="48,52 112,52 108,92 80,102 52,92"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Trapezius"/>
+
+          <!-- Left Rear Deltoid -->
+          <polygon id="b-delt-rear-l" class="muscle-patch" data-muscle="delt-rear-l"
+            points="28,52 48,52 52,92 38,90 28,76"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Rear Deltoid"/>
+
+          <!-- Right Rear Deltoid -->
+          <polygon id="b-delt-rear-r" class="muscle-patch" data-muscle="delt-rear-r"
+            points="132,52 112,52 108,92 122,90 132,76"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Rear Deltoid"/>
+
+          <!-- Left Triceps -->
+          <polygon id="b-triceps-l" class="muscle-patch" data-muscle="triceps-l"
+            points="24,76 28,76 38,90 36,130 22,128"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Triceps"/>
+
+          <!-- Right Triceps -->
+          <polygon id="b-triceps-r" class="muscle-patch" data-muscle="triceps-r"
+            points="136,76 132,76 122,90 124,130 138,128"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Triceps"/>
+
+          <!-- Left Forearm (back) — same muscle ID as front view -->
+          <polygon id="b-forearm-l" class="muscle-patch" data-muscle="forearm-l"
+            points="20,128 36,130 34,172 18,170"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Forearm"/>
+
+          <!-- Right Forearm (back) -->
+          <polygon id="b-forearm-r" class="muscle-patch" data-muscle="forearm-r"
+            points="140,128 124,130 126,172 142,170"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Forearm"/>
+
+          <!-- Upper Back (rhomboids / mid-trapezius) -->
+          <polygon id="b-upper-back" class="muscle-patch" data-muscle="upper-back"
+            points="52,92 108,92 106,128 80,134 54,128"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Upper Back"/>
+
+          <!-- Left Latissimus Dorsi -->
+          <polygon id="b-lats-l" class="muscle-patch" data-muscle="lats-l"
+            points="28,90 52,92 54,128 50,156 34,148 26,110"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Lat"/>
+
+          <!-- Right Latissimus Dorsi -->
+          <polygon id="b-lats-r" class="muscle-patch" data-muscle="lats-r"
+            points="132,90 108,92 106,128 110,156 126,148 134,110"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Lat"/>
+
+          <!-- Lower Back (lumbar / erector spinae) -->
+          <polygon id="b-lower-back" class="muscle-patch" data-muscle="lower-back"
+            points="54,128 106,128 108,156 52,156"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Lower Back"/>
+
+          <!-- Left Glutes -->
+          <polygon id="b-glutes-l" class="muscle-patch" data-muscle="glutes-l"
+            points="50,162 78,162 78,232 50,234 40,204"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Glutes"/>
+
+          <!-- Right Glutes -->
+          <polygon id="b-glutes-r" class="muscle-patch" data-muscle="glutes-r"
+            points="110,162 82,162 82,232 110,234 120,204"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Glutes"/>
+
+          <!-- Left Hamstrings -->
+          <polygon id="b-hamstrings-l" class="muscle-patch" data-muscle="hamstrings-l"
+            points="44,234 78,232 78,296 44,298"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Hamstrings"/>
+
+          <!-- Right Hamstrings -->
+          <polygon id="b-hamstrings-r" class="muscle-patch" data-muscle="hamstrings-r"
+            points="116,234 82,232 82,296 116,298"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Hamstrings"/>
+
+          <!-- Left Calves (back) — same muscle ID as front view -->
+          <polygon id="b-calves-l" class="muscle-patch" data-muscle="calves-l"
+            points="44,300 72,300 72,358 44,358"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Left Calves"/>
+
+          <!-- Right Calves (back) -->
+          <polygon id="b-calves-r" class="muscle-patch" data-muscle="calves-r"
+            points="88,300 116,300 116,358 88,358"
+            fill="#D1D1D6" stroke="#AEAEB2" stroke-width="0.8"
+            role="button" tabindex="0" aria-label="Right Calves"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Muscle grid -->
+  <div style="font-size:12px;font-weight:500;color:var(--t3);margin-bottom:10px;letter-spacing:.04em;text-transform:uppercase">All Muscles</div>
+  <div class="muscle-grid" id="muscle-grid"></div>
+
 </div>
+</main>
+</div>
+
+<!-- Popover -->
+<div class="popover" id="popover" role="tooltip" aria-live="polite"></div>
+
+<script src="js/fitness.js"></script>
+<script>
+// ── Init ──────────────────────────────────────────────────────
+const F = window.Fitness;
+F.seedMockData();
+
+const workouts = F.storageAdapter.getWorkouts();
+const checkin  = F.storageAdapter.getLatestCheckin();
+
+// Compute all states
+const muscleStates = F.MUSCLE_GROUPS.map(mg =>
+  F.getMuscleRecoveryState(mg.id, workouts, checkin)
+);
+
+paintMap();
+renderSummaryBar();
+renderMuscleGrid();
+setupInteraction();
+
+// ── Paint SVG muscles ─────────────────────────────────────────
+function paintMap() {
+  muscleStates.forEach(state => {
+    const noData = !state.lastTrainedAt;
+    const { fill, stroke } = F.fatigueToColor(state.combinedFatigue, noData);
+    document.querySelectorAll(`[data-muscle="${state.muscleId}"]`).forEach(el => {
+      el.setAttribute('fill', fill);
+      el.setAttribute('stroke', stroke);
+      el.setAttribute('aria-label',
+        `${state.muscleName} — ${F.fatigueToColor(state.combinedFatigue, noData).label}` +
+        (state.lastTrainedAt ? `, ${Math.round(state.recoveryPct)}% recovered` : ''));
+    });
+  });
+}
+
+// ── Summary bar ───────────────────────────────────────────────
+function renderSummaryBar() {
+  const counts = { ready: 0, partial: 0, fatigued: 0, nodata: 0 };
+  muscleStates.forEach(s => {
+    if (!s.lastTrainedAt)               counts.nodata++;
+    else if (s.recoveryPct >= 90)       counts.ready++;
+    else if (s.recoveryPct >= 55)       counts.partial++;
+    else                                counts.fatigued++;
+  });
+
+  const readyIds   = F.getReadyMuscles(muscleStates);
+  const suggestion = F.suggestWorkoutName(readyIds);
+
+  document.getElementById('summary-bar').innerHTML = `
+    <span class="sb-chip chip-ready">
+      <span class="sb-chip-dot" style="background:#1DA462"></span>
+      ${counts.ready} ready
+    </span>
+    <span class="sb-chip chip-partial">
+      <span class="sb-chip-dot" style="background:#B07D28"></span>
+      ${counts.partial} recovering
+    </span>
+    <span class="sb-chip chip-fatigued">
+      <span class="sb-chip-dot" style="background:#C0403A"></span>
+      ${counts.fatigued} fatigued
+    </span>
+    <span class="sb-chip chip-nodata">
+      <span class="sb-chip-dot" style="background:#D1D1D6"></span>
+      ${counts.nodata} no data
+    </span>
+    ${readyIds.length > 2 ? `
+    <span class="suggestion">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Suggested: ${esc(suggestion)}
+    </span>` : ''}
+  `;
+}
+
+// ── Muscle grid ───────────────────────────────────────────────
+function renderMuscleGrid() {
+  const sorted = [...muscleStates].sort((a, b) => {
+    if (!a.lastTrainedAt && !b.lastTrainedAt) return 0;
+    if (!a.lastTrainedAt) return 1;
+    if (!b.lastTrainedAt) return -1;
+    return b.combinedFatigue - a.combinedFatigue;
+  });
+
+  document.getElementById('muscle-grid').innerHTML = sorted.map(s => {
+    const noData = !s.lastTrainedAt;
+    const { fill, label } = F.fatigueToColor(s.combinedFatigue, noData);
+    const pct  = noData ? '—' : Math.round(s.recoveryPct) + '%';
+    return `<div class="mc" onclick="clickMuscle('${s.muscleId}',event)" role="button" tabindex="0"
+         onkeydown="if(event.key==='Enter'||event.key===' ')clickMuscle('${s.muscleId}',event)">
+      <div class="mc-dot" style="background:${fill}"></div>
+      <div class="mc-name">${esc(s.muscleName)}</div>
+      <div style="text-align:right">
+        <div class="mc-pct">${pct}</div>
+        <div class="mc-label">${esc(label)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Interaction ───────────────────────────────────────────────
+function setupInteraction() {
+  ['svg-front', 'svg-back'].forEach(id => {
+    const svg = document.getElementById(id);
+    svg.addEventListener('click', e => {
+      const el = e.target.closest('[data-muscle]');
+      if (!el) { closePopover(); return; }
+      openPopover(el.dataset.muscle, e.clientX, e.clientY);
+    });
+    svg.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const el = document.activeElement.closest('[data-muscle]');
+        if (el) { openPopover(el.dataset.muscle, 0, 0, el); e.preventDefault(); }
+      }
+    });
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#popover') && !e.target.closest('[data-muscle]') &&
+        !e.target.closest('.mc')) closePopover();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePopover();
+  });
+}
+
+function clickMuscle(muscleId, e) {
+  openPopover(muscleId, e.clientX, e.clientY);
+}
+
+function openPopover(muscleId, clientX, clientY, anchorEl) {
+  const state = muscleStates.find(s => s.muscleId === muscleId);
+  if (!state) return;
+
+  const noData = !state.lastTrainedAt;
+  const { fill, label } = F.fatigueToColor(state.combinedFatigue, noData);
+
+  const statusColors = {
+    '#1DA462': 'rgba(29,164,98,.10)', '#3BC47A': 'rgba(59,196,122,.10)',
+    '#B07D28': 'rgba(176,125,40,.10)', '#C0552A': 'rgba(192,85,42,.10)',
+    '#C0403A': 'rgba(192,64,58,.10)', '#D1D1D6': 'var(--s2)',
+  };
+  const statusBg = statusColors[fill] || 'var(--s2)';
+
+  const lastTrained = state.lastTrainedAt ? F.fmtDate(state.lastTrainedAt) : 'Never';
+  const elapsed     = state.lastTrainedAt ? F.fmtElapsed(state.hoursElapsed) : '—';
+  const remaining   = state.lastTrainedAt ? F.fmtRemaining(state.hoursElapsed, state.hoursNeeded) : '—';
+  const sets7d      = state.totalWorkingSets > 0 ? `${state.totalWorkingSets} sets` : 'No data';
+  const soreness    = state.reportedSoreness != null ? `${state.reportedSoreness}/5` : 'Not reported';
+  const highVolWarn = state.highVolume ? '<div class="pop-note">High volume — extra rest recommended.</div>' : '';
+
+  const pop = document.getElementById('popover');
+  pop.innerHTML = `
+    <div class="pop-name">
+      <div class="pop-status-dot" style="background:${fill}"></div>
+      ${esc(state.muscleName)}
+    </div>
+    <div class="pop-row">
+      <span class="pop-lbl">Status</span>
+      <span class="pop-status" style="background:${statusBg};color:${fill}">${esc(label)}</span>
+    </div>
+    ${!noData ? `
+    <div class="pop-row"><span class="pop-lbl">Recovery</span><span class="pop-val">${Math.round(state.recoveryPct)}%</span></div>
+    <div class="pop-row"><span class="pop-lbl">Last trained</span><span class="pop-val">${esc(lastTrained)} (${esc(elapsed)})</span></div>
+    <div class="pop-row"><span class="pop-lbl">Time left</span><span class="pop-val">${esc(remaining)}</span></div>
+    ` : ''}
+    <div class="pop-row"><span class="pop-lbl">Sets (7 days)</span><span class="pop-val">${esc(sets7d)}</span></div>
+    <div class="pop-row"><span class="pop-lbl">Soreness</span><span class="pop-val">${esc(soreness)}</span></div>
+    ${highVolWarn}
+  `;
+
+  pop.classList.add('open');
+  positionPopover(pop, clientX, clientY, anchorEl);
+}
+
+function positionPopover(pop, x, y, anchorEl) {
+  pop.style.display = 'block';
+  const pw = pop.offsetWidth;
+  const ph = pop.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let left = x + 12;
+  let top  = y - ph / 2;
+
+  if (anchorEl) {
+    const r = anchorEl.getBoundingClientRect();
+    left = r.right + 12;
+    top  = r.top + r.height / 2 - ph / 2;
+  }
+
+  if (left + pw > vw - 12) left = x - pw - 12;
+  if (top < 10)             top  = 10;
+  if (top + ph > vh - 10)   top  = vh - ph - 10;
+
+  pop.style.left = left + 'px';
+  pop.style.top  = top + 'px';
+}
+
+function closePopover() {
+  document.getElementById('popover').classList.remove('open');
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
 </body>
 </html>
