@@ -87,11 +87,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .map-view-label{font-size:11px;font-weight:500;color:var(--t3);letter-spacing:.05em;text-transform:uppercase}
 
 /* SVG muscle interaction */
-.muscle-patch{cursor:pointer;transition:opacity 160ms,filter 160ms}
-.muscle-patch:hover{opacity:.82;filter:brightness(1.05)}
-.muscle-patch:focus{outline:2px solid var(--vi);outline-offset:2px;border-radius:2px}
+.muscle-patch{cursor:pointer;fill-opacity:.38;stroke:none;transition:fill-opacity 160ms}
+.muscle-patch:hover{fill-opacity:.68}
+.muscle-patch:focus{outline:2px solid var(--vi);outline-offset:2px}
 .muscle-patch:focus:not(:focus-visible){outline:none}
-.body-base{pointer-events:none}
 
 /* ── POPOVER ──────────────────────────────────────────────────── */
 .popover{position:fixed;z-index:200;background:#fff;border:1px solid var(--bd);border-radius:var(--r-sm);box-shadow:var(--sh1);padding:14px;width:210px;display:none;animation:popIn 150ms ease}
@@ -185,94 +184,54 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
       </div>
     </div>
 
-    <div class="map-body">
-      <!-- FRONT VIEW -->
-      <div class="map-col">
-        <div class="map-view-label">Front</div>
-        <svg id="svg-front" viewBox="0 0 160 420" style="width:100%;max-width:180px;display:block"
-             role="group" aria-label="Front body muscle map">
+    <div class="map-body" style="display:block;padding:4px 22px 22px">
+      <div style="position:relative;width:100%;max-width:680px;margin:0 auto">
+        <img src="body-diagram.png" style="width:100%;display:block;border-radius:8px" alt="Front and back body muscle diagram">
+        <div style="position:absolute;top:10px;left:0;width:50%;text-align:center;font-size:11px;font-weight:500;color:#888;letter-spacing:.05em;text-transform:uppercase;pointer-events:none">Back</div>
+        <div style="position:absolute;top:10px;right:0;width:50%;text-align:center;font-size:11px;font-weight:500;color:#888;letter-spacing:.05em;text-transform:uppercase;pointer-events:none">Front</div>
+        <!-- SVG overlay — viewBox matches image proportions (square).
+             Back figure occupies left half (0-500), front figure right half (500-1000). -->
+        <svg id="svg-body" viewBox="0 0 1000 1000"
+             style="position:absolute;top:0;left:0;width:100%;height:100%"
+             role="group" aria-label="Body muscle map">
 
-          <!-- ── DARK BODY SILHOUETTE ── -->
-          <ellipse class="body-base" cx="80" cy="19" rx="13" ry="14" fill="#18181B"/>
-          <rect class="body-base" x="75" y="31" width="10" height="13" fill="#18181B"/>
-          <rect class="body-base" x="12" y="42" width="136" height="22" rx="11" fill="#18181B"/>
-          <rect class="body-base" x="30" y="58" width="100" height="60" rx="6" fill="#18181B"/>
-          <rect class="body-base" x="36" y="112" width="88" height="28" rx="4" fill="#18181B"/>
-          <rect class="body-base" x="28" y="134" width="104" height="52" rx="8" fill="#18181B"/>
-          <rect class="body-base" x="8" y="48" width="18" height="88" rx="9" fill="#18181B"/>
-          <rect class="body-base" x="5" y="134" width="15" height="78" rx="7" fill="#18181B" transform="rotate(5,12,134)"/>
-          <rect class="body-base" x="134" y="48" width="18" height="88" rx="9" fill="#18181B"/>
-          <rect class="body-base" x="140" y="134" width="15" height="78" rx="7" fill="#18181B" transform="rotate(-5,148,134)"/>
-          <rect class="body-base" x="30" y="184" width="40" height="112" rx="18" fill="#18181B"/>
-          <rect class="body-base" x="34" y="292" width="32" height="110" rx="14" fill="#18181B"/>
-          <ellipse class="body-base" cx="50" cy="404" rx="19" ry="8" fill="#18181B"/>
-          <rect class="body-base" x="90" y="184" width="40" height="112" rx="18" fill="#18181B"/>
-          <rect class="body-base" x="94" y="292" width="32" height="110" rx="14" fill="#18181B"/>
-          <ellipse class="body-base" cx="110" cy="404" rx="19" ry="8" fill="#18181B"/>
+          <!-- ── BACK muscles (left half) ── -->
+          <ellipse class="muscle-patch" data-muscle="traps"         cx="265" cy="215" rx="85" ry="55"  fill="#D1D1D6" tabindex="0" aria-label="Trapezius"/>
+          <ellipse class="muscle-patch" data-muscle="delt-rear-r"   cx="120" cy="230" rx="42" ry="52"  fill="#D1D1D6" tabindex="0" aria-label="Right Rear Deltoid"/>
+          <ellipse class="muscle-patch" data-muscle="delt-rear-l"   cx="410" cy="230" rx="42" ry="52"  fill="#D1D1D6" tabindex="0" aria-label="Left Rear Deltoid"/>
+          <ellipse class="muscle-patch" data-muscle="triceps-r"     cx="98"  cy="372" rx="32" ry="72"  fill="#D1D1D6" tabindex="0" aria-label="Right Triceps"/>
+          <ellipse class="muscle-patch" data-muscle="triceps-l"     cx="432" cy="372" rx="32" ry="72"  fill="#D1D1D6" tabindex="0" aria-label="Left Triceps"/>
+          <ellipse class="muscle-patch" data-muscle="forearm-r"     cx="85"  cy="490" rx="28" ry="62"  fill="#D1D1D6" tabindex="0" aria-label="Right Forearm"/>
+          <ellipse class="muscle-patch" data-muscle="forearm-l"     cx="448" cy="490" rx="28" ry="62"  fill="#D1D1D6" tabindex="0" aria-label="Left Forearm"/>
+          <ellipse class="muscle-patch" data-muscle="upper-back"    cx="265" cy="292" rx="62" ry="45"  fill="#D1D1D6" tabindex="0" aria-label="Upper Back"/>
+          <ellipse class="muscle-patch" data-muscle="lats-r"        cx="178" cy="355" rx="52" ry="92"  fill="#D1D1D6" tabindex="0" aria-label="Right Lat"/>
+          <ellipse class="muscle-patch" data-muscle="lats-l"        cx="352" cy="355" rx="52" ry="92"  fill="#D1D1D6" tabindex="0" aria-label="Left Lat"/>
+          <ellipse class="muscle-patch" data-muscle="lower-back"    cx="265" cy="452" rx="52" ry="48"  fill="#D1D1D6" tabindex="0" aria-label="Lower Back"/>
+          <ellipse class="muscle-patch" data-muscle="glutes-r"      cx="208" cy="578" rx="65" ry="58"  fill="#D1D1D6" tabindex="0" aria-label="Right Glutes"/>
+          <ellipse class="muscle-patch" data-muscle="glutes-l"      cx="322" cy="578" rx="65" ry="58"  fill="#D1D1D6" tabindex="0" aria-label="Left Glutes"/>
+          <ellipse class="muscle-patch" data-muscle="hamstrings-r"  cx="198" cy="672" rx="50" ry="78"  fill="#D1D1D6" tabindex="0" aria-label="Right Hamstrings"/>
+          <ellipse class="muscle-patch" data-muscle="hamstrings-l"  cx="332" cy="672" rx="50" ry="78"  fill="#D1D1D6" tabindex="0" aria-label="Left Hamstrings"/>
+          <ellipse class="muscle-patch" data-muscle="calves-r"      cx="192" cy="858" rx="38" ry="60"  fill="#D1D1D6" tabindex="0" aria-label="Right Calves"/>
+          <ellipse class="muscle-patch" data-muscle="calves-l"      cx="338" cy="858" rx="38" ry="60"  fill="#D1D1D6" tabindex="0" aria-label="Left Calves"/>
 
-          <!-- ── FRONT MUSCLE PATCHES ── -->
-          <ellipse id="f-delt-front-l" class="muscle-patch" data-muscle="delt-front-l" cx="17" cy="72" rx="9" ry="17" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Front Deltoid"/>
-          <ellipse id="f-delt-front-r" class="muscle-patch" data-muscle="delt-front-r" cx="143" cy="72" rx="9" ry="17" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Front Deltoid"/>
-          <ellipse id="f-chest-l" class="muscle-patch" data-muscle="chest-l" cx="57" cy="84" rx="22" ry="17" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Pectoral"/>
-          <ellipse id="f-chest-r" class="muscle-patch" data-muscle="chest-r" cx="103" cy="84" rx="22" ry="17" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Pectoral"/>
-          <ellipse id="f-biceps-l" class="muscle-patch" data-muscle="biceps-l" cx="13" cy="108" rx="8" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Biceps"/>
-          <ellipse id="f-biceps-r" class="muscle-patch" data-muscle="biceps-r" cx="147" cy="108" rx="8" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Biceps"/>
-          <ellipse id="f-forearm-l" class="muscle-patch" data-muscle="forearm-l" cx="11" cy="174" rx="7" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Forearm"/>
-          <ellipse id="f-forearm-r" class="muscle-patch" data-muscle="forearm-r" cx="149" cy="174" rx="7" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Forearm"/>
-          <ellipse id="f-abs" class="muscle-patch" data-muscle="abs" cx="80" cy="146" rx="18" ry="28" fill="#D1D1D6" role="button" tabindex="0" aria-label="Abdominals"/>
-          <ellipse id="f-obliques-l" class="muscle-patch" data-muscle="obliques-l" cx="44" cy="142" rx="8" ry="22" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Obliques"/>
-          <ellipse id="f-obliques-r" class="muscle-patch" data-muscle="obliques-r" cx="116" cy="142" rx="8" ry="22" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Obliques"/>
-          <ellipse id="f-quads-l" class="muscle-patch" data-muscle="quads-l" cx="52" cy="234" rx="15" ry="36" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Quadriceps"/>
-          <ellipse id="f-quads-r" class="muscle-patch" data-muscle="quads-r" cx="108" cy="234" rx="15" ry="36" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Quadriceps"/>
-          <ellipse id="f-adductors-l" class="muscle-patch" data-muscle="adductors-l" cx="68" cy="228" rx="6" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Adductors"/>
-          <ellipse id="f-adductors-r" class="muscle-patch" data-muscle="adductors-r" cx="92" cy="228" rx="6" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Adductors"/>
-          <ellipse id="f-calves-l" class="muscle-patch" data-muscle="calves-l" cx="51" cy="334" rx="12" ry="28" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Calves"/>
-          <ellipse id="f-calves-r" class="muscle-patch" data-muscle="calves-r" cx="109" cy="334" rx="12" ry="28" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Calves"/>
-        </svg>
-      </div>
-
-      <!-- BACK VIEW -->
-      <div class="map-col">
-        <div class="map-view-label">Back</div>
-        <svg id="svg-back" viewBox="0 0 160 420" style="width:100%;max-width:180px;display:block"
-             role="group" aria-label="Back body muscle map">
-
-          <!-- ── DARK BODY SILHOUETTE (same as front) ── -->
-          <ellipse class="body-base" cx="80" cy="19" rx="13" ry="14" fill="#18181B"/>
-          <rect class="body-base" x="75" y="31" width="10" height="13" fill="#18181B"/>
-          <rect class="body-base" x="12" y="42" width="136" height="22" rx="11" fill="#18181B"/>
-          <rect class="body-base" x="30" y="58" width="100" height="60" rx="6" fill="#18181B"/>
-          <rect class="body-base" x="36" y="112" width="88" height="28" rx="4" fill="#18181B"/>
-          <rect class="body-base" x="28" y="134" width="104" height="52" rx="8" fill="#18181B"/>
-          <rect class="body-base" x="8" y="48" width="18" height="88" rx="9" fill="#18181B"/>
-          <rect class="body-base" x="5" y="134" width="15" height="78" rx="7" fill="#18181B" transform="rotate(5,12,134)"/>
-          <rect class="body-base" x="134" y="48" width="18" height="88" rx="9" fill="#18181B"/>
-          <rect class="body-base" x="140" y="134" width="15" height="78" rx="7" fill="#18181B" transform="rotate(-5,148,134)"/>
-          <rect class="body-base" x="30" y="184" width="40" height="112" rx="18" fill="#18181B"/>
-          <rect class="body-base" x="34" y="292" width="32" height="110" rx="14" fill="#18181B"/>
-          <ellipse class="body-base" cx="50" cy="404" rx="19" ry="8" fill="#18181B"/>
-          <rect class="body-base" x="90" y="184" width="40" height="112" rx="18" fill="#18181B"/>
-          <rect class="body-base" x="94" y="292" width="32" height="110" rx="14" fill="#18181B"/>
-          <ellipse class="body-base" cx="110" cy="404" rx="19" ry="8" fill="#18181B"/>
-
-          <!-- ── BACK MUSCLE PATCHES ── -->
-          <ellipse id="b-traps" class="muscle-patch" data-muscle="traps" cx="80" cy="64" rx="26" ry="14" fill="#D1D1D6" role="button" tabindex="0" aria-label="Trapezius"/>
-          <ellipse id="b-delt-rear-l" class="muscle-patch" data-muscle="delt-rear-l" cx="17" cy="70" rx="9" ry="17" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Rear Deltoid"/>
-          <ellipse id="b-delt-rear-r" class="muscle-patch" data-muscle="delt-rear-r" cx="143" cy="70" rx="9" ry="17" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Rear Deltoid"/>
-          <ellipse id="b-triceps-l" class="muscle-patch" data-muscle="triceps-l" cx="13" cy="108" rx="8" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Triceps"/>
-          <ellipse id="b-triceps-r" class="muscle-patch" data-muscle="triceps-r" cx="147" cy="108" rx="8" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Triceps"/>
-          <ellipse id="b-forearm-l" class="muscle-patch" data-muscle="forearm-l" cx="11" cy="174" rx="7" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Forearm"/>
-          <ellipse id="b-forearm-r" class="muscle-patch" data-muscle="forearm-r" cx="149" cy="174" rx="7" ry="20" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Forearm"/>
-          <ellipse id="b-upper-back" class="muscle-patch" data-muscle="upper-back" cx="80" cy="104" rx="24" ry="18" fill="#D1D1D6" role="button" tabindex="0" aria-label="Upper Back"/>
-          <ellipse id="b-lats-l" class="muscle-patch" data-muscle="lats-l" cx="43" cy="122" rx="13" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Lat"/>
-          <ellipse id="b-lats-r" class="muscle-patch" data-muscle="lats-r" cx="117" cy="122" rx="13" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Lat"/>
-          <ellipse id="b-lower-back" class="muscle-patch" data-muscle="lower-back" cx="80" cy="156" rx="20" ry="14" fill="#D1D1D6" role="button" tabindex="0" aria-label="Lower Back"/>
-          <ellipse id="b-glutes-l" class="muscle-patch" data-muscle="glutes-l" cx="57" cy="208" rx="22" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Glutes"/>
-          <ellipse id="b-glutes-r" class="muscle-patch" data-muscle="glutes-r" cx="103" cy="208" rx="22" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Glutes"/>
-          <ellipse id="b-hamstrings-l" class="muscle-patch" data-muscle="hamstrings-l" cx="52" cy="262" rx="15" ry="32" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Hamstrings"/>
-          <ellipse id="b-hamstrings-r" class="muscle-patch" data-muscle="hamstrings-r" cx="108" cy="262" rx="15" ry="32" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Hamstrings"/>
-          <ellipse id="b-calves-l" class="muscle-patch" data-muscle="calves-l" cx="51" cy="338" rx="12" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Left Calves"/>
-          <ellipse id="b-calves-r" class="muscle-patch" data-muscle="calves-r" cx="109" cy="338" rx="12" ry="26" fill="#D1D1D6" role="button" tabindex="0" aria-label="Right Calves"/>
+          <!-- ── FRONT muscles (right half) ── -->
+          <ellipse class="muscle-patch" data-muscle="delt-front-r"  cx="588" cy="228" rx="38" ry="52"  fill="#D1D1D6" tabindex="0" aria-label="Right Front Deltoid"/>
+          <ellipse class="muscle-patch" data-muscle="delt-front-l"  cx="922" cy="228" rx="38" ry="52"  fill="#D1D1D6" tabindex="0" aria-label="Left Front Deltoid"/>
+          <ellipse class="muscle-patch" data-muscle="chest-r"       cx="682" cy="265" rx="58" ry="52"  fill="#D1D1D6" tabindex="0" aria-label="Right Pectoral"/>
+          <ellipse class="muscle-patch" data-muscle="chest-l"       cx="828" cy="265" rx="58" ry="52"  fill="#D1D1D6" tabindex="0" aria-label="Left Pectoral"/>
+          <ellipse class="muscle-patch" data-muscle="biceps-r"      cx="565" cy="372" rx="32" ry="72"  fill="#D1D1D6" tabindex="0" aria-label="Right Biceps"/>
+          <ellipse class="muscle-patch" data-muscle="biceps-l"      cx="945" cy="372" rx="32" ry="72"  fill="#D1D1D6" tabindex="0" aria-label="Left Biceps"/>
+          <ellipse class="muscle-patch" data-muscle="forearm-r"     cx="548" cy="490" rx="28" ry="62"  fill="#D1D1D6" tabindex="0" aria-label="Right Forearm"/>
+          <ellipse class="muscle-patch" data-muscle="forearm-l"     cx="962" cy="490" rx="28" ry="62"  fill="#D1D1D6" tabindex="0" aria-label="Left Forearm"/>
+          <ellipse class="muscle-patch" data-muscle="abs"           cx="755" cy="415" rx="58" ry="88"  fill="#D1D1D6" tabindex="0" aria-label="Abdominals"/>
+          <ellipse class="muscle-patch" data-muscle="obliques-r"    cx="658" cy="432" rx="28" ry="68"  fill="#D1D1D6" tabindex="0" aria-label="Right Obliques"/>
+          <ellipse class="muscle-patch" data-muscle="obliques-l"    cx="852" cy="432" rx="28" ry="68"  fill="#D1D1D6" tabindex="0" aria-label="Left Obliques"/>
+          <ellipse class="muscle-patch" data-muscle="quads-r"       cx="680" cy="655" rx="52" ry="82"  fill="#D1D1D6" tabindex="0" aria-label="Right Quadriceps"/>
+          <ellipse class="muscle-patch" data-muscle="quads-l"       cx="830" cy="655" rx="52" ry="82"  fill="#D1D1D6" tabindex="0" aria-label="Left Quadriceps"/>
+          <ellipse class="muscle-patch" data-muscle="adductors-r"   cx="720" cy="648" rx="22" ry="72"  fill="#D1D1D6" tabindex="0" aria-label="Right Adductors"/>
+          <ellipse class="muscle-patch" data-muscle="adductors-l"   cx="790" cy="648" rx="22" ry="72"  fill="#D1D1D6" tabindex="0" aria-label="Left Adductors"/>
+          <ellipse class="muscle-patch" data-muscle="calves-r"      cx="680" cy="858" rx="38" ry="60"  fill="#D1D1D6" tabindex="0" aria-label="Right Calves"/>
+          <ellipse class="muscle-patch" data-muscle="calves-l"      cx="830" cy="858" rx="38" ry="60"  fill="#D1D1D6" tabindex="0" aria-label="Left Calves"/>
         </svg>
       </div>
     </div>
@@ -388,19 +347,17 @@ function renderMuscleGrid() {
 
 // ── Interaction ───────────────────────────────────────────────
 function setupInteraction() {
-  ['svg-front', 'svg-back'].forEach(id => {
-    const svg = document.getElementById(id);
-    svg.addEventListener('click', e => {
-      const el = e.target.closest('[data-muscle]');
-      if (!el) { closePopover(); return; }
-      openPopover(el.dataset.muscle, e.clientX, e.clientY);
-    });
-    svg.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        const el = document.activeElement.closest('[data-muscle]');
-        if (el) { openPopover(el.dataset.muscle, 0, 0, el); e.preventDefault(); }
-      }
-    });
+  const svg = document.getElementById('svg-body');
+  svg.addEventListener('click', e => {
+    const el = e.target.closest('[data-muscle]');
+    if (!el) { closePopover(); return; }
+    openPopover(el.dataset.muscle, e.clientX, e.clientY);
+  });
+  svg.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const el = document.activeElement.closest('[data-muscle]');
+      if (el) { openPopover(el.dataset.muscle, 0, 0, el); e.preventDefault(); }
+    }
   });
 
   document.addEventListener('click', e => {
