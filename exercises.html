@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Exercise Database</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F5F7;--s1:rgba(0,0,0,.03);--s2:rgba(0,0,0,.05);--s3:rgba(0,0,0,.07);
+  --s4:rgba(0,0,0,.10);--bd:rgba(0,0,0,.09);--bd2:rgba(0,0,0,.15);
+  --t1:#1D1D1F;--t2:#6E6E73;--t3:#AEAEB2;
+  --gr:#1DA462;--grd:rgba(29,164,98,.10);
+  --vi:#5E5CE6;--vid:rgba(94,92,230,.10);
+  --re:#C0403A;
+  --r:16px;--r-sm:10px;
+  --sh0:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+  --sh1:0 6px 24px rgba(0,0,0,.12),0 1px 4px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ── LAYOUT ───────────────────────────────────────────────────── */
+.app{display:flex;height:100vh;overflow:hidden}
+.main{flex:1;min-width:0;overflow-y:auto}
+
+/* ── SIDEBAR ──────────────────────────────────────────────────── */
+.sb{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
+.sb-top{padding:22px 16px 16px;border-bottom:1px solid var(--bd)}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:0 4px}
+.sb-icon{width:30px;height:30px;border-radius:9px;background:var(--vi);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-name{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.sb-nav{flex:1;padding:10px}
+.nav-section{font-size:10px;font-weight:500;color:var(--t3);padding:16px 8px 5px}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;color:var(--t3);font-size:13px;font-weight:500;cursor:pointer;transition:background 160ms,color 160ms}
+.ni:hover{background:var(--s2);color:var(--t2)}
+.ni.on{background:var(--s2);color:var(--t1)}
+.ni.on .ni-ic{color:var(--vi)}
+.ni-ic{width:16px;height:16px;flex-shrink:0}
+.sb-foot{padding:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background 160ms}
+.sb-foot:hover{background:var(--s2)}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,var(--vi));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.av-name{font-size:13px;font-weight:600}
+.av-plan{font-size:11px;color:var(--t3)}
+
+/* ── PAGE ─────────────────────────────────────────────────────── */
+.pg{padding:32px 32px 64px;max-width:1100px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:16px;flex-wrap:wrap}
+.ph-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
+.ph-sub{font-size:13px;color:var(--t2)}
+
+/* ── BUTTONS ──────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;font-size:13.5px;font-weight:500;cursor:pointer;transition:all 160ms;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-p{background:#1D1D1F;color:#fff;border:none}
+.btn-p:hover{background:#000}
+.btn-s{background:#fff;color:var(--t1);border:1px solid var(--bd)}
+.btn-s:hover{border-color:var(--bd2);box-shadow:var(--sh0)}
+.btn-sm{padding:7px 14px;font-size:12.5px;border-radius:9px}
+.btn-xs{padding:4px 10px;font-size:11.5px;border-radius:8px}
+.btn-danger{color:var(--re);font-size:11.5px;font-weight:500;padding:4px 8px;border-radius:7px;background:transparent}
+.btn-danger:hover{background:rgba(192,64,58,.08)}
+.icon-btn{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--t2);background:transparent;transition:all 130ms;flex-shrink:0}
+.icon-btn:hover{background:var(--s3);color:var(--t1)}
+
+/* ── FILTER BAR ───────────────────────────────────────────────── */
+.filter-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px;max-width:320px}
+.search-ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);pointer-events:none}
+.search-input{width:100%;padding:8px 12px 8px 34px;border-radius:9px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:13px;outline:none;transition:border-color 140ms}
+.search-input:focus{border-color:var(--vi);box-shadow:0 0 0 3px rgba(94,92,230,.10)}
+.search-input::placeholder{color:var(--t3)}
+.filter-select{padding:8px 12px;border-radius:9px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:12.5px;outline:none;cursor:pointer;transition:border-color 140ms}
+.filter-select:focus{border-color:var(--vi)}
+.filter-chip{padding:7px 14px;border-radius:9px;font-size:12.5px;font-weight:500;cursor:pointer;transition:all 130ms;border:1px solid var(--bd);background:#fff;color:var(--t2)}
+.filter-chip.on{background:var(--vid);border-color:rgba(94,92,230,.3);color:var(--vi)}
+.filter-chip:hover{border-color:var(--bd2)}
+
+/* ── TABLE ─────────────────────────────────────────────────────── */
+.card{background:#fff;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);overflow:hidden}
+.db-table{width:100%;border-collapse:collapse;min-width:640px}
+.db-table thead th{
+  font-size:10.5px;font-weight:600;color:var(--t3);text-align:left;
+  padding:12px 16px 10px;border-bottom:2px solid var(--bd);
+  letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;
+  background:#fff;position:sticky;top:0;z-index:1;
+}
+.db-table thead th:last-child{text-align:right;width:80px}
+.db-table tbody tr{border-bottom:1px solid var(--bd);transition:background 110ms}
+.db-table tbody tr:last-child{border-bottom:0}
+.db-table tbody tr:hover{background:var(--s1)}
+.db-table tbody tr.custom-row{background:rgba(29,164,98,.025)}
+.db-table tbody tr.custom-row:hover{background:rgba(29,164,98,.05)}
+.db-table td{padding:10px 16px;vertical-align:middle}
+.ex-name-td{font-size:13px;font-weight:600}
+.cat-badge{display:inline-flex;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:600}
+.muscle-tags{display:flex;flex-wrap:wrap;gap:3px}
+.mtag{padding:1px 6px;border-radius:5px;font-size:10px;font-weight:500;background:var(--s2);color:var(--t2)}
+.mtag.primary{background:var(--vid);color:var(--vi)}
+.source-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px}
+.source-custom{background:var(--grd);color:var(--gr)}
+.source-default{background:var(--s2);color:var(--t3)}
+.row-actions{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+
+/* ── STATS ROW ────────────────────────────────────────────────── */
+.db-stats{display:flex;gap:0;border-bottom:2px solid var(--bd)}
+.db-stat{flex:1;padding:14px 18px;border-right:1px solid var(--bd)}
+.db-stat:last-child{border-right:0}
+.db-stat-v{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.db-stat-l{font-size:10.5px;color:var(--t3);font-weight:500;margin-top:1px}
+
+/* ── PLACEHOLDER BANNER ───────────────────────────────────────── */
+.placeholder-banner{margin-bottom:16px;padding:14px 18px;border-radius:var(--r-sm);background:rgba(94,92,230,.07);border:1px solid rgba(94,92,230,.18);display:flex;align-items:flex-start;gap:10px}
+.placeholder-banner svg{color:var(--vi);flex-shrink:0;margin-top:1px}
+.placeholder-banner p{font-size:12.5px;color:var(--t1);line-height:1.6}
+.placeholder-banner strong{font-weight:600}
+
+/* ── ADD EXERCISE MODAL ───────────────────────────────────────── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:290;display:none;backdrop-filter:blur(2px)}
+.modal-backdrop.open{display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:var(--r);box-shadow:var(--sh1);width:480px;max-width:calc(100vw - 32px);max-height:85vh;overflow-y:auto;animation:modalIn 160ms ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+.modal-head{padding:20px 22px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:16px;font-weight:700}
+.modal-body{padding:20px 22px}
+.form-row{margin-bottom:14px}
+.form-label{font-size:11.5px;font-weight:600;color:var(--t2);margin-bottom:5px;display:block}
+.form-input{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:13px;outline:none;transition:border-color 140ms}
+.form-input:focus{border-color:var(--vi);box-shadow:0 0 0 3px rgba(94,92,230,.10)}
+.form-input::placeholder{color:var(--t3)}
+.form-select{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:13px;outline:none;cursor:pointer}
+.form-select:focus{border-color:var(--vi)}
+.modal-foot{padding:14px 22px 18px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.error-msg{font-size:12px;color:var(--re);margin-top:4px;display:none}
+.error-msg.show{display:block}
+
+/* ── EMPTY TABLE ──────────────────────────────────────────────── */
+.table-empty{padding:48px 24px;text-align:center;color:var(--t3)}
+.table-empty h3{font-size:14px;font-weight:600;color:var(--t2);margin-bottom:6px}
+
+@media(max-width:767px){.sb{display:none}.pg{padding:20px 16px 48px}.ph{flex-direction:column;gap:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-top">
+    <div class="sb-brand">
+      <div class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <span class="sb-name">JARVIS</span>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-section">Main</div>
+    <a href="index.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a href="workouts.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Training</span></a>
+    <a href="programs.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Programs</span></a>
+    <a href="exercises.html" class="ni on"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg><span>Exercises</span></a>
+    <a href="recovery.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>Recovery</span></a>
+    <a href="nutrition.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span>Nutrition</span></a>
+    <a href="sleep.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></a>
+    <div class="nav-section">Life</div>
+    <a href="tasks.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tasks</span></a>
+    <a href="analytics.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span>Progress</span></a>
+    <a href="finance.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Finance</span></a>
+    <a href="settings.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
+  </nav>
+  <a href="settings.html" class="sb-foot">
+    <div class="av">J</div>
+    <div><div class="av-name">Joseph N.</div><div class="av-plan">JARVIS Pro</div></div>
+  </a>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+<div class="pg">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Exercise Database</div>
+      <div class="ph-sub">Your catalogue of exercises — used across programs, workouts, and recovery.</div>
+    </div>
+    <button class="btn btn-p btn-sm" onclick="openAddModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Exercise
+    </button>
+  </div>
+
+  <!-- Placeholder notice -->
+  <div class="placeholder-banner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <p><strong>Your exercise catalogue is ready.</strong> The exercises below are built-in defaults. Add your own exercises with the button above — they'll appear here and be available in Programs and the workout logger. You can replace the built-in list with your own catalogue anytime.</p>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-ico">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input class="search-input" id="search" placeholder="Search exercises…" oninput="applyFilter()">
+    </div>
+    <select class="filter-select" id="cat-filter" onchange="applyFilter()">
+      <option value="">All categories</option>
+      <option>Chest</option><option>Shoulders</option><option>Back</option>
+      <option>Arms</option><option>Legs</option><option>Core</option><option>Other</option>
+    </select>
+    <select class="filter-select" id="eq-filter" onchange="applyFilter()">
+      <option value="">All equipment</option>
+      <option>Barbell</option><option>Dumbbell</option><option>Cable</option>
+      <option>Machine</option><option>Bodyweight</option><option>Other</option>
+    </select>
+    <button class="filter-chip" id="chip-custom" onclick="toggleCustomOnly()">My exercises</button>
+    <span id="result-count" style="font-size:12px;color:var(--t3);margin-left:4px"></span>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="db-stats" id="db-stats"></div>
+    <div style="overflow-x:auto">
+      <table class="db-table">
+        <thead>
+          <tr>
+            <th style="min-width:160px">Exercise</th>
+            <th style="width:100px">Category</th>
+            <th style="width:90px">Equipment</th>
+            <th>Primary muscles</th>
+            <th>Secondary</th>
+            <th>Source</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="db-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</main>
+</div>
+
+<!-- Add / Edit modal -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="handleBackdropClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Add Exercise</div>
+      <button class="icon-btn" onclick="closeModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label" for="f-name">Name</label>
+        <input class="form-input" id="f-name" placeholder="e.g. Cable Fly, Nordic Curl…">
+        <div class="error-msg" id="err-name">Please enter a name.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-row" style="margin:0">
+          <label class="form-label" for="f-cat">Category</label>
+          <select class="form-select" id="f-cat">
+            <option value="">— select —</option>
+            <option>Chest</option><option>Shoulders</option><option>Back</option>
+            <option>Arms</option><option>Legs</option><option>Core</option><option>Other</option>
+          </select>
+        </div>
+        <div class="form-row" style="margin:0">
+          <label class="form-label" for="f-eq">Equipment</label>
+          <select class="form-select" id="f-eq">
+            <option value="">— select —</option>
+            <option>Barbell</option><option>Dumbbell</option><option>Cable</option>
+            <option>Machine</option><option>Bodyweight</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:12px">
+        <label class="form-label" for="f-primary">Primary muscles <span style="font-weight:400;color:var(--t3)">(comma-separated)</span></label>
+        <input class="form-input" id="f-primary" placeholder="e.g. Chest, Front Delts">
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="f-secondary">Secondary muscles <span style="font-weight:400;color:var(--t3)">(optional)</span></label>
+        <input class="form-input" id="f-secondary" placeholder="e.g. Triceps, Core">
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="f-notes">Notes <span style="font-weight:400;color:var(--t3)">(optional)</span></label>
+        <input class="form-input" id="f-notes" placeholder="Cues, variations, links…">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-s btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p btn-sm" id="modal-save-btn" onclick="saveExercise()">Add Exercise</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/fitness.js"></script>
+<script>
+const F = window.Fitness;
+
+// Category colours
+const CAT_COLORS = {
+  'Chest':     { bg:'rgba(192,64,58,.08)',  color:'#C0403A' },
+  'Shoulders': { bg:'rgba(176,125,40,.10)', color:'#B07D28' },
+  'Back':      { bg:'rgba(94,92,230,.08)',  color:'#5E5CE6' },
+  'Arms':      { bg:'rgba(59,196,122,.10)', color:'#1DA462' },
+  'Legs':      { bg:'rgba(192,85,42,.08)',  color:'#C0552A' },
+  'Core':      { bg:'rgba(94,92,230,.06)',  color:'#8E8CE8' },
+  'Other':     { bg:'var(--s2)',            color:'var(--t2)' },
+};
+
+// Equipment derived from exercise names (rough heuristic for built-ins)
+const EQ_MAP = {
+  'Barbell':    ['Bench Press','Incline Bench','Barbell Row','Barbell Curl','Deadlift','Romanian Deadlift','Good Morning','Overhead Press','Squat','Upright Row','Skull Crusher'],
+  'Dumbbell':   ['Dumbbell Fly','Hammer Curl','Lateral Raise','Front Raise','Rear Delt Fly'],
+  'Bodyweight': ['Pull-Up','Push-Up','Dip','Plank','Crunch','Russian Twist','Hanging Leg Raise','Side Plank','Lunge'],
+  'Cable':      ['Cable Row','Cable Adduction','Tricep Pushdown','Face Pull','Lat Pulldown'],
+  'Machine':    ['Leg Press','Leg Extension','Leg Curl','Seated Calf Raise','Preacher Curl'],
+  'Other':      ['Shrug','Calf Raise','Hip Thrust','Sumo Squat',"Farmer's Carry"],
+};
+function getEquipment(name) {
+  for (const [eq, names] of Object.entries(EQ_MAP)) if (names.includes(name)) return eq;
+  return 'Other';
+}
+
+// Category derived from fitness.js groups (rough)
+const CAT_MAP = {
+  'Chest':     ['Bench Press','Incline Bench','Dumbbell Fly','Push-Up'],
+  'Shoulders': ['Overhead Press','Lateral Raise','Front Raise','Rear Delt Fly','Face Pull','Upright Row'],
+  'Back':      ['Pull-Up','Lat Pulldown','Barbell Row','Cable Row','Shrug','Deadlift','Good Morning'],
+  'Arms':      ['Barbell Curl','Hammer Curl','Preacher Curl','Tricep Pushdown','Skull Crusher','Dip'],
+  'Legs':      ['Squat','Leg Press','Leg Extension','Romanian Deadlift','Leg Curl','Hip Thrust','Lunge','Sumo Squat','Calf Raise','Seated Calf Raise'],
+  'Core':      ['Plank','Crunch','Russian Twist','Hanging Leg Raise','Side Plank'],
+  'Other':     ["Farmer's Carry",'Cable Adduction'],
+};
+function getCategory(name) {
+  for (const [cat, names] of Object.entries(CAT_MAP)) if (names.includes(name)) return cat;
+  return 'Other';
+}
+
+// ── State ─────────────────────────────────────────────────────
+let filterQ       = '';
+let filterCat     = '';
+let filterEq      = '';
+let customOnly    = false;
+let editingId     = null;
+
+// ── Storage ───────────────────────────────────────────────────
+function getCustom() {
+  try { return JSON.parse(localStorage.getItem('jarvis_exercises') || '[]'); } catch { return []; }
+}
+function saveCustom(list) {
+  localStorage.setItem('jarvis_exercises', JSON.stringify(list));
+}
+
+// Build the unified list: built-in exercises + custom ones
+function getAllExercises() {
+  // Built-ins from fitness.js
+  const builtIns = Object.entries(F.EXERCISE_MUSCLES).map(([name, map]) => {
+    const primaryNames   = (map.primary   || []).map(id => { const m = F.MUSCLE_GROUPS.find(g => g.id === id); return m ? m.name : id; });
+    const secondaryNames = (map.secondary || []).map(id => { const m = F.MUSCLE_GROUPS.find(g => g.id === id); return m ? m.name : id; });
+    return {
+      id:         'builtin-' + name.replace(/\s+/g,'-').toLowerCase(),
+      name,
+      category:   getCategory(name),
+      equipment:  getEquipment(name),
+      primary:    primaryNames,
+      secondary:  secondaryNames,
+      notes:      '',
+      isCustom:   false,
+    };
+  });
+
+  const custom = getCustom().map(e => ({ ...e, isCustom: true }));
+
+  // Custom exercises come first
+  const customNames = new Set(custom.map(e => e.name));
+  const filteredBuiltIns = builtIns.filter(e => !customNames.has(e.name));
+  return [...custom, ...filteredBuiltIns];
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render() {
+  const all     = getAllExercises();
+  const custom  = all.filter(e => e.isCustom);
+
+  document.getElementById('db-stats').innerHTML = `
+    <div class="db-stat"><div class="db-stat-v">${all.length}</div><div class="db-stat-l">Total exercises</div></div>
+    <div class="db-stat"><div class="db-stat-v">${custom.length}</div><div class="db-stat-l">Your exercises</div></div>
+    <div class="db-stat"><div class="db-stat-v">${all.length - custom.length}</div><div class="db-stat-l">Built-in defaults</div></div>
+    <div class="db-stat"><div class="db-stat-v">${new Set(all.map(e=>e.category)).size}</div><div class="db-stat-l">Categories</div></div>
+  `;
+
+  applyFilter();
+}
+
+function applyFilter() {
+  filterQ   = document.getElementById('search').value.toLowerCase();
+  filterCat = document.getElementById('cat-filter').value;
+  filterEq  = document.getElementById('eq-filter').value;
+
+  const all      = getAllExercises();
+  const filtered = all.filter(e => {
+    if (customOnly && !e.isCustom) return false;
+    if (filterQ   && !e.name.toLowerCase().includes(filterQ) &&
+        !e.primary.join(' ').toLowerCase().includes(filterQ)) return false;
+    if (filterCat && e.category !== filterCat) return false;
+    if (filterEq  && e.equipment !== filterEq)  return false;
+    return true;
+  });
+
+  document.getElementById('result-count').textContent =
+    filtered.length !== all.length ? `${filtered.length} of ${all.length}` : `${all.length} exercises`;
+
+  const tbody = document.getElementById('db-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="table-empty"><h3>No exercises found</h3><p style="font-size:12px;color:var(--t3)">Try a different search or filter.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(e => {
+    const cc  = CAT_COLORS[e.category] || CAT_COLORS['Other'];
+    const pTags = e.primary.map(m => `<span class="mtag primary">${esc(m)}</span>`).join('');
+    const sTags = e.secondary.slice(0,3).map(m => `<span class="mtag">${esc(m)}</span>`).join('');
+    const sMore = e.secondary.length > 3 ? `<span class="mtag">+${e.secondary.length - 3}</span>` : '';
+    return `<tr class="${e.isCustom ? 'custom-row' : ''}">
+      <td class="ex-name-td">${esc(e.name)}</td>
+      <td><span class="cat-badge" style="background:${cc.bg};color:${cc.color}">${esc(e.category || '—')}</span></td>
+      <td style="font-size:12px;color:var(--t2)">${esc(e.equipment || '—')}</td>
+      <td><div class="muscle-tags">${pTags || '<span style="color:var(--t3);font-size:11px">—</span>'}</div></td>
+      <td><div class="muscle-tags">${sTags}${sMore}</div></td>
+      <td><span class="source-badge ${e.isCustom ? 'source-custom' : 'source-default'}">${e.isCustom ? 'Custom' : 'Default'}</span></td>
+      <td>
+        <div class="row-actions">
+          ${e.isCustom ? `
+            <button class="icon-btn" onclick="openEditModal('${esc(e.id)}')" title="Edit">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="icon-btn" onclick="deleteExercise('${esc(e.id)}')" title="Delete" style="color:var(--re)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleCustomOnly() {
+  customOnly = !customOnly;
+  document.getElementById('chip-custom').classList.toggle('on', customOnly);
+  applyFilter();
+}
+
+// ── Modal (Add / Edit) ────────────────────────────────────────
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Exercise';
+  document.getElementById('modal-save-btn').textContent = 'Add Exercise';
+  clearForm();
+  document.getElementById('modal-backdrop').classList.add('open');
+  setTimeout(() => document.getElementById('f-name').focus(), 80);
+}
+
+function openEditModal(id) {
+  const ex = getCustom().find(e => e.id === id);
+  if (!ex) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit Exercise';
+  document.getElementById('modal-save-btn').textContent = 'Save Changes';
+  document.getElementById('f-name').value      = ex.name || '';
+  document.getElementById('f-cat').value       = ex.category || '';
+  document.getElementById('f-eq').value        = ex.equipment || '';
+  document.getElementById('f-primary').value   = (ex.primary || []).join(', ');
+  document.getElementById('f-secondary').value = (ex.secondary || []).join(', ');
+  document.getElementById('f-notes').value     = ex.notes || '';
+  document.getElementById('err-name').classList.remove('show');
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  editingId = null;
+}
+
+function handleBackdropClick(e) {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal();
+}
+
+function clearForm() {
+  ['f-name','f-primary','f-secondary','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-cat').value = '';
+  document.getElementById('f-eq').value  = '';
+  document.getElementById('err-name').classList.remove('show');
+}
+
+function saveExercise() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('err-name').classList.add('show'); return; }
+  document.getElementById('err-name').classList.remove('show');
+
+  const ex = {
+    id:        editingId || ('custom-' + F.uid()),
+    name,
+    category:  document.getElementById('f-cat').value,
+    equipment: document.getElementById('f-eq').value,
+    primary:   document.getElementById('f-primary').value.split(',').map(s => s.trim()).filter(Boolean),
+    secondary: document.getElementById('f-secondary').value.split(',').map(s => s.trim()).filter(Boolean),
+    notes:     document.getElementById('f-notes').value.trim(),
+  };
+
+  const list = getCustom();
+  const idx  = list.findIndex(e => e.id === ex.id);
+  if (idx >= 0) list[idx] = ex; else list.push(ex);
+  saveCustom(list);
+
+  closeModal();
+  render();
+}
+
+function deleteExercise(id) {
+  const ex = getCustom().find(e => e.id === id);
+  if (!ex || !confirm(`Delete "${ex.name}"?`)) return;
+  saveCustom(getCustom().filter(e => e.id !== id));
+  render();
+}
+
+// ── Keyboard ──────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && document.getElementById('modal-backdrop').classList.contains('open')) {
+    if (document.activeElement.tagName !== 'BUTTON') saveExercise();
+  }
+});
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+render();
+</script>
+</body>
+</html>
