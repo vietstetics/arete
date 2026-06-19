@@ -122,7 +122,12 @@ body.drawing-mode #sel-layer{display:none}
 
     <div class="ps">
       <div class="ps-lbl">Selected muscle</div>
-      <div class="ps-val" id="sel-name">—</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="ps-val" id="sel-name" style="flex:1">—</div>
+        <button id="rename-btn" title="Rename" style="display:none;background:none;border:none;color:rgba(255,255,255,.35);font-size:13px;cursor:pointer;padding:2px 4px;border-radius:4px;transition:color 160ms" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.35)'">✎</button>
+      </div>
+      <input id="rename-input" type="text" placeholder="New name…"
+        style="display:none;margin-top:6px;width:100%;padding:6px 9px;background:rgba(255,255,255,.07);border:1px solid #7C93F0;border-radius:7px;color:#fff;font-size:12.5px;outline:none"/>
       <div class="ps-sub" id="sel-pos">Click any patch to edit</div>
     </div>
 
@@ -381,6 +386,8 @@ function selectMuscle(id) {
   document.getElementById('scale-section').classList.remove('disabled');
   document.getElementById('reset-section').classList.remove('disabled');
   document.getElementById('draw-section').classList.remove('disabled');
+  document.getElementById('rename-btn').style.display = 'inline-block';
+  document.getElementById('rename-input').style.display = 'none';
 
   listEl.querySelector(`[data-lid="${id}"]`)?.classList.add('active');
   refreshHandles();
@@ -397,6 +404,8 @@ function deselect() {
   document.getElementById('sel-pos').textContent = 'Click any patch to edit';
   document.getElementById('scale-section').classList.add('disabled');
   document.getElementById('reset-section').classList.add('disabled');
+  document.getElementById('rename-btn').style.display = 'none';
+  document.getElementById('rename-input').style.display = 'none';
   hideHandles();
 }
 
@@ -731,6 +740,37 @@ document.getElementById('draw-btn').addEventListener('click', () => {
   if (!selected) { showStatus('Select a muscle first','err'); return; }
   enterDraw(selected);
 });
+
+// ─────────────────────────────────────────────────────
+//  RENAME
+// ─────────────────────────────────────────────────────
+const renameBtn   = document.getElementById('rename-btn');
+const renameInput = document.getElementById('rename-input');
+
+renameBtn.addEventListener('click', () => {
+  renameInput.value = MUSCLES.find(m => m.id === selected)?.label || '';
+  renameInput.style.display = 'block';
+  renameInput.focus();
+  renameInput.select();
+});
+
+function commitRename() {
+  const val = renameInput.value.trim();
+  if (!val || !selected) { renameInput.style.display = 'none'; return; }
+  const m = MUSCLES.find(m => m.id === selected);
+  m.label = val;
+  document.getElementById('sel-name').textContent = val;
+  // update list item
+  const li = listEl.querySelector(`[data-lid="${selected}"]`);
+  if (li) li.textContent = val;
+  renameInput.style.display = 'none';
+}
+
+renameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+  if (e.key === 'Escape') { renameInput.style.display = 'none'; }
+});
+renameInput.addEventListener('blur', commitRename);
 
 // ── Keyboard shortcuts ───────────────────────────────
 document.addEventListener('keydown', e => {
