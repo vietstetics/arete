@@ -527,36 +527,63 @@ if (savedToken) document.getElementById('gh-token').value = savedToken;
 //  APPLY TO GITHUB
 // ─────────────────────────────────────────────────────
 async function pushToGitHub() {
-  const token = localStorage.getItem('jarvis-sb-token') || document.getElementById('gh-token').value.trim();
-  if (!token) { showStatus('Paste your GitHub token first','err'); return; }
+  const token = (localStorage.getItem('jarvis-sb-token') || document.getElementById('gh-token').value || '').trim();
+  if (!token) { showStatus('Paste your GitHub token first and click Save','err'); return; }
 
-  showStatus('Fetching recovery.html…','ok');
-  const api = 'https://api.github.com/repos/vietstetics/arete/contents/recovery.html';
-  const headers = { Authorization:`token ${token}`, Accept:'application/vnd.github.v3+json' };
+  try {
+    showStatus('Fetching file…','ok');
+    const api = 'https://api.github.com/repos/vietstetics/arete/contents/recovery.html';
+    const headers = { Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json' };
 
-  const res = await fetch(api, {headers});
-  if (!res.ok) { showStatus('Fetch failed: ' + res.status,'err'); return; }
-  const json = await res.json();
-  const bytes = Uint8Array.from(atob(json.content.replace(/\n/g,'')), c=>c.charCodeAt(0));
-  const original = new TextDecoder().decode(bytes);
+    const res = await fetch(api, {headers});
+    if (!res.ok) {
+      const e = await res.json().catch(()=>({}));
+      showStatus(`GitHub error ${res.status}: ${e.message||'check token & scope'}`, 'err');
+      return;
+    }
+    const json = await res.json();
 
-  const newPaths = generatePaths();
-  const updated = original.replace(
-    /(<svg id="svg-body"[^>]*>)([\s\S]*?)(<\/svg>)/,
-    (_, open, _mid, close) => `${open}\n\n${newPaths}\n\n        ${close.trim()}`
-  );
+    // decode base64 → string (handles ASCII + latin1 fine for HTML)
+    const original = atob(json.content.replace(/\s/g,''));
 
-  if (updated === original) { showStatus('Could not locate SVG section','err'); return; }
+    const newPaths = generatePaths();
 
-  showStatus('Pushing…','ok');
-  const encoded = btoa(unescape(encodeURIComponent(updated)));
-  const put = await fetch(api, {
-    method:'PUT', headers:{...headers,'Content-Type':'application/json'},
-    body: JSON.stringify({message:'fix: muscle overlay positions from editor', content:encoded, sha:json.sha})
-  });
+    // replace everything inside <svg id="svg-body"…> … </svg>
+    // use [\s\S] so newlines are matched; tag may span multiple lines
+    const updated = original.replace(
+      /(id="svg-body"[\s\S]*?>)([\s\S]*?)(<\/svg>)/,
+      (_, open, _mid, close) => `${open}\n\n${newPaths}\n\n        ${close.trim()}`
+    );
 
-  if (put.ok) showStatus('Applied! Vercel deploying…','ok');
-  else { const e = await put.json(); showStatus('Error: '+(e.message||put.status),'err'); }
+    if (updated === original) {
+      showStatus('Could not find svg-body in the file — has it been renamed?','err');
+      return;
+    }
+
+    showStatus('Pushing…','ok');
+
+    // encode back to base64
+    const encoded = btoa(unescape(encodeURIComponent(updated)));
+    const put = await fetch(api, {
+      method:'PUT',
+      headers:{...headers,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        message:'fix: muscle overlay positions from editor',
+        content: encoded,
+        sha: json.sha
+      })
+    });
+
+    if (put.ok) {
+      showStatus('✓ Applied! Vercel is deploying…','ok');
+    } else {
+      const e = await put.json().catch(()=>({}));
+      showStatus(`Push failed ${put.status}: ${e.message||'unknown error'}`, 'err');
+    }
+  } catch(err) {
+    showStatus('Network error: ' + err.message, 'err');
+    console.error(err);
+  }
 }
 
 document.getElementById('apply-btn').addEventListener('click', pushToGitHub);
@@ -569,7 +596,8 @@ function showStatus(msg, type) {
   const el = document.getElementById('status');
   el.textContent = msg;
   el.className = type;
-  if (type === 'ok') setTimeout(()=>{ if(el.textContent===msg) el.className=''; }, 4000);
+  el.scrollIntoView({block:'nearest'});
+  if (type === 'ok') setTimeout(()=>{ if(el.textContent===msg) el.className=''; }, 6000);
 }
 
 // ─────────────────────────────────────────────────────
