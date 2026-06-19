@@ -1567,7 +1567,8 @@ const CI = (() => {
   }
 
   function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
   function loadCheckin() {
@@ -1870,12 +1871,7 @@ const CI = (() => {
     ov.classList.remove('ci-gone');
     document.body.style.overflow = 'hidden';
 
-    // After morning window: show late-day prompt instead of greeting
-    if (hour >= MORNING_END) {
-      showPhase('ci-phase-late');
-    } else {
-      showPhase('ci-phase-greeting');
-    }
+    showPhase('ci-phase-greeting');
 
     setAIState('idle', '');
     startCanvas();
@@ -2360,6 +2356,7 @@ function startCanvas() {
   }
   frame();
 }
+</script>
 
 </body>
 </html>
