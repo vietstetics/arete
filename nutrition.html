@@ -201,6 +201,19 @@ input,select,textarea{font-family:inherit}
 .error-msg{font-size:12px;color:var(--re);margin-top:8px;display:none}
 .error-msg.show{display:block}
 
+/* ── SCANNER ──────────────────────────────────────────────────── */
+.scan-stage{position:relative;width:100%;aspect-ratio:1/1;max-height:340px;background:#0c0c0f;border-radius:14px;overflow:hidden;margin-bottom:14px}
+.scan-stage video{width:100%;height:100%;object-fit:cover;display:block}
+.scan-reticle{position:absolute;inset:24% 14%;border:2px solid rgba(255,255,255,.92);border-radius:14px;box-shadow:0 0 0 100vmax rgba(0,0,0,.42)}
+.scan-laser{position:absolute;left:14%;right:14%;height:2px;background:var(--gr);box-shadow:0 0 8px 1px var(--gr);animation:laser 2.2s ease-in-out infinite}
+@keyframes laser{0%,100%{top:26%}50%{top:72%}}
+.scan-stage.ok .scan-reticle{border-color:var(--gr)}
+.scan-status{font-size:13px;color:var(--t2);text-align:center;margin-bottom:12px;min-height:18px;font-weight:500}
+.scan-status.err{color:var(--re)}
+.scan-status.warn{color:var(--ye)}
+.scan-manual{display:flex;gap:8px;align-items:stretch}
+.scan-manual .form-input{flex:1}
+
 @media(max-width:767px){
   .sb{display:none}
   .pg{padding:20px 16px 56px}
@@ -262,6 +275,10 @@ input,select,textarea{font-family:inherit}
         <div class="day-label" id="day-label" onclick="goToday()">Today<small id="day-date"></small></div>
         <button onclick="changeDay(1)" id="next-day-btn" title="Next day" aria-label="Next day"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
+      <button class="btn btn-p btn-sm" onclick="openScanner()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="7" y2="12"/><path d="M7 8v8M10 8v8M13 8v8M17 8v8"/></svg>
+        Scan
+      </button>
       <button class="btn btn-s btn-sm" onclick="openGoals()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8l2.8-2.8M17 7l2.8-2.8"/></svg>
         Goals
@@ -339,7 +356,11 @@ input,select,textarea{font-family:inherit}
       </div>
       <div class="chips" id="cat-chips"></div>
       <div class="res-list" id="res-list"></div>
-      <div class="create-link" onclick="openCustomForm()">
+      <div class="create-link" onclick="scanFromModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8v8M10 8v8M13 8v8M17 8v8"/></svg>
+        Scan a barcode
+      </div>
+      <div class="create-link" style="border-top:0;padding-top:4px" onclick="openCustomForm()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Create a custom food
       </div>
@@ -405,6 +426,34 @@ input,select,textarea{font-family:inherit}
       <button class="btn btn-s btn-sm" id="portion-delete" onclick="deleteEditing()" style="display:none;margin-right:auto;color:var(--re)">Remove</button>
       <button class="btn btn-s btn-sm" onclick="closeFood()">Cancel</button>
       <button class="btn btn-p btn-sm" id="food-confirm" onclick="confirmFood()">Add to diary</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCANNER MODAL -->
+<div class="modal-backdrop" id="scan-modal" onclick="if(event.target===this)closeScanner()">
+  <div class="modal" style="width:440px">
+    <div class="modal-head">
+      <div class="modal-title">Scan a Barcode</div>
+      <button class="icon-btn" onclick="closeScanner()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="scan-stage" id="scan-stage">
+        <video id="scan-video" playsinline muted autoplay></video>
+        <div class="scan-reticle"></div>
+        <div class="scan-laser"></div>
+      </div>
+      <div class="scan-status" id="scan-status">Starting camera…</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+        <button class="btn btn-s btn-sm" id="scan-retry" style="display:none" onclick="restartScan()">Scan again</button>
+        <button class="btn btn-p btn-sm" id="scan-addcustom" style="display:none" onclick="addScannedManually()">Add as custom food</button>
+      </div>
+      <label class="form-label">Or enter the barcode number</label>
+      <div class="scan-manual">
+        <input class="form-input" id="scan-input" inputmode="numeric" autocomplete="off" placeholder="e.g. 0123456789012" onkeydown="if(event.key==='Enter')lookupManual()">
+        <button class="btn btn-p btn-sm" onclick="lookupManual()" style="flex-shrink:0">Look&nbsp;up</button>
+      </div>
+      <div style="font-size:11.5px;color:var(--t3);margin-top:12px;line-height:1.5">Powered by the <strong>Open Food Facts</strong> database. Live camera scanning works in Chrome, Edge and most Android browsers — on other devices, type the number printed under the barcode.</div>
     </div>
   </div>
 </div>
@@ -715,10 +764,11 @@ const FOOD_DB = [
 // ══════════════════════════════════════════════════════════════
 //  STORAGE
 // ══════════════════════════════════════════════════════════════
-const K_LOG    = 'jarvis_nutrition_log';
-const K_GOALS  = 'jarvis_nutrition_goals';
-const K_CUSTOM = 'jarvis_custom_foods';
-const K_WATER  = 'jarvis_water';
+const K_LOG     = 'jarvis_nutrition_log';
+const K_GOALS   = 'jarvis_nutrition_goals';
+const K_CUSTOM  = 'jarvis_custom_foods';
+const K_SCANNED = 'jarvis_scanned_foods';
+const K_WATER   = 'jarvis_water';
 const DEFAULT_GOALS = { kcal:2650, protein:180, carbs:280, fat:75, water:3.0 };
 const MEALS = [
   { id:'breakfast', name:'Breakfast', color:'#B07D28', bg:'rgba(176,125,40,.12)', ic:'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z M6 1v3 M10 1v3 M14 1v3' },
@@ -737,8 +787,16 @@ function todayStr(d){
 
 function getGoals(){ return { ...DEFAULT_GOALS, ...readJSON(K_GOALS, {}) }; }
 function getCustomFoods(){ return readJSON(K_CUSTOM, []).map(x => ({ ...x, isCustom:true })); }
-function getAllFoods(){ return [ ...getCustomFoods(), ...FOOD_DB ]; }
+function getScannedFoods(){ return readJSON(K_SCANNED, []).map(x => ({ ...x, isScanned:true })); }
+function getAllFoods(){ return [ ...getCustomFoods(), ...getScannedFoods(), ...FOOD_DB ]; }
 function findFood(id){ return getAllFoods().find(x => x.id === id) || null; }
+function cacheScannedFood(food){
+  const list = readJSON(K_SCANNED, []);
+  const idx = list.findIndex(x => x.id === food.id);
+  const clean = { id:food.id, name:food.name, cat:'Scanned', serving:food.serving, kcal:food.kcal, protein:food.protein, carbs:food.carbs, fat:food.fat };
+  if (idx >= 0) list[idx] = clean; else list.unshift(clean);
+  writeJSON(K_SCANNED, list.slice(0, 200));
+}
 
 function getLog(date){ const all = readJSON(K_LOG, {}); return all[date] || []; }
 function setLog(date, entries){ const all = readJSON(K_LOG, {}); if (entries.length) all[date] = entries; else delete all[date]; writeJSON(K_LOG, all); }
@@ -756,7 +814,7 @@ let pendingMeal = 'breakfast';
 let selFood    = null;         // food being portioned
 let editingId  = null;         // log entry id being edited (null = adding new)
 
-const CATS = ['All','Protein','Dairy','Grains','Fruit','Vegetables','Nuts & Legumes','Breakfast','Meals','Fast Food','Snacks','Beverages','Condiments'];
+const CATS = ['All','Protein','Dairy','Grains','Fruit','Vegetables','Nuts & Legumes','Breakfast','Meals','Fast Food','Snacks','Beverages','Condiments','Scanned'];
 
 function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function nf(n){ return Math.round(n).toLocaleString(); }
@@ -1137,6 +1195,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){
     if (document.getElementById('food-modal').classList.contains('open')) closeFood();
     if (document.getElementById('goals-modal').classList.contains('open')) closeGoals();
+    if (document.getElementById('scan-modal').classList.contains('open')) closeScanner();
   }
   if (e.key === 'Enter'){
     const foodOpen = document.getElementById('food-modal').classList.contains('open');
@@ -1148,6 +1207,214 @@ document.addEventListener('keydown', e => {
     }
   }
 });
+
+// ══════════════════════════════════════════════════════════════
+//  BARCODE SCANNER  (native BarcodeDetector + manual fallback)
+//  Product lookup via the Open Food Facts open database.
+// ══════════════════════════════════════════════════════════════
+let scanStream = null, scanTimer = null, scanDetector = null, scanning = false, scanMeal = 'snacks', scanGen = 0;
+
+function defaultMealForNow(){
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 21) return 'dinner';
+  return 'snacks';
+}
+
+function setScanStatus(msg, type){
+  const el = document.getElementById('scan-status');
+  el.textContent = msg;
+  el.className = 'scan-status' + (type ? ' ' + type : '');
+}
+
+function openScanner(meal){
+  scanMeal = meal || defaultMealForNow();
+  document.getElementById('scan-input').value = '';
+  document.getElementById('scan-modal').classList.add('open');
+  restartScan();
+}
+function scanFromModal(){ closeFood(); openScanner(pendingMeal); }
+
+function restartScan(){
+  document.getElementById('scan-retry').style.display = 'none';
+  document.getElementById('scan-addcustom').style.display = 'none';
+  document.getElementById('scan-stage').classList.remove('ok');
+  startCamera();
+}
+
+async function startCamera(){
+  // stop anything already running, then claim this session
+  if (scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  if (scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+  const myGen = ++scanGen;
+
+  // Engine check
+  if (!('BarcodeDetector' in window)){
+    document.getElementById('scan-stage').style.display = 'none';
+    setScanStatus('Live scanning isn’t supported here — enter the barcode below.', 'warn');
+    return;
+  }
+  try { scanDetector = new BarcodeDetector(); }
+  catch(e){
+    document.getElementById('scan-stage').style.display = 'none';
+    setScanStatus('Scanner unavailable — enter the barcode below.', 'warn');
+    return;
+  }
+  // Camera
+  setScanStatus('Starting camera…');
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } } });
+  } catch(e){
+    if (myGen !== scanGen) return;
+    document.getElementById('scan-stage').style.display = 'none';
+    setScanStatus(e && e.name === 'NotAllowedError'
+      ? 'Camera access was blocked. Enter the barcode below instead.'
+      : 'No camera available — enter the barcode below.', 'warn');
+    return;
+  }
+  // modal was closed (or restarted) while we were waiting → discard
+  if (myGen !== scanGen){ stream.getTracks().forEach(t => t.stop()); return; }
+  scanStream = stream;
+  const v = document.getElementById('scan-video');
+  document.getElementById('scan-stage').style.display = '';
+  v.srcObject = scanStream;
+  try { await v.play(); } catch(_) {}
+  if (myGen !== scanGen){ stopCamera(); return; }
+  setScanStatus('Point your camera at a barcode…');
+  scanning = true;
+  scanTimer = setInterval(detectTick, 350);
+}
+
+async function detectTick(){
+  if (!scanning || !scanDetector) return;
+  if (detectTick._busy) return;
+  const v = document.getElementById('scan-video');
+  if (!v || v.readyState < 2) return;
+  detectTick._busy = true;
+  try {
+    const codes = await scanDetector.detect(v);
+    if (codes && codes.length && codes[0].rawValue){
+      scanning = false;
+      stopCamera();
+      document.getElementById('scan-stage').classList.add('ok');
+      lookupBarcode(codes[0].rawValue);
+    }
+  } catch(_) { /* transient frame error — ignore */ }
+  finally { detectTick._busy = false; }
+}
+
+function stopCamera(){
+  scanning = false;
+  scanGen++;                       // invalidate any in-flight startCamera()
+  if (scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+  if (scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  const v = document.getElementById('scan-video');
+  if (v) v.srcObject = null;
+}
+
+function closeScanner(){
+  stopCamera();
+  document.getElementById('scan-modal').classList.remove('open');
+}
+
+function lookupManual(){
+  const c = document.getElementById('scan-input').value.trim();
+  if (c) lookupBarcode(c);
+}
+
+function num(v){ const x = parseFloat(v); return isFinite(x) ? x : 0; }
+function r1(v){ const x = parseFloat(v); return isFinite(x) ? Math.round(x*10)/10 : 0; }
+
+function buildFoodFromOFF(code, p){
+  const n = p.nutriments || {};
+  let serving, kcal, prot, carb, fat;
+  // Prefer per-serving values when present
+  let kcalServ = n['energy-kcal_serving'];
+  if (kcalServ == null && n['energy-kj_serving'] != null) kcalServ = num(n['energy-kj_serving']) / 4.184;
+  let kcal100 = n['energy-kcal_100g'];
+  if (kcal100 == null && n['energy-kj_100g'] != null) kcal100 = num(n['energy-kj_100g']) / 4.184;
+
+  if (kcalServ != null && num(kcalServ) > 0){
+    serving = (p.serving_size || '1 serving').trim();
+    kcal = num(kcalServ);
+    prot = num(n['proteins_serving']); carb = num(n['carbohydrates_serving']); fat = num(n['fat_serving']);
+  } else if (kcal100 != null && num(kcal100) > 0){
+    serving = '100 g';
+    kcal = num(kcal100);
+    prot = num(n['proteins_100g']); carb = num(n['carbohydrates_100g']); fat = num(n['fat_100g']);
+  } else {
+    return null; // no usable energy data
+  }
+  let name = (p.product_name || '').trim();
+  const brand = (p.brands || '').split(',')[0].trim();
+  if (brand && name && !name.toLowerCase().includes(brand.toLowerCase())) name = `${name} (${brand})`;
+  if (!name) name = brand || ('Product ' + code);
+  return { id:'off-'+code, name, cat:'Scanned', serving, kcal:Math.round(kcal), protein:r1(prot), carbs:r1(carb), fat:r1(fat), isScanned:true };
+}
+
+async function lookupBarcode(raw){
+  stopCamera();
+  const code = String(raw).trim();
+  document.getElementById('scan-retry').style.display = 'none';
+  document.getElementById('scan-addcustom').style.display = 'none';
+  if (!/^\d{6,14}$/.test(code)){
+    setScanStatus('That’s not a product barcode (numbers only, 6–14 digits).', 'err');
+    document.getElementById('scan-retry').style.display = 'inline-flex';
+    return;
+  }
+  setScanStatus('Looking up ' + code + '…');
+  let data;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 9000);
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,serving_size,nutriments`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    data = await res.json();
+  } catch(e){
+    setScanStatus('Network error — check your connection and try again.', 'err');
+    document.getElementById('scan-retry').style.display = 'inline-flex';
+    return;
+  }
+  if (!data || data.status !== 1 || !data.product){
+    setScanStatus('No product found for ' + code + '. Add it as a custom food, or try again.', 'warn');
+    document.getElementById('scan-retry').style.display = 'inline-flex';
+    document.getElementById('scan-addcustom').style.display = 'inline-flex';
+    return;
+  }
+  const food = buildFoodFromOFF(code, data.product);
+  if (!food){
+    setScanStatus('Found “' + (data.product.product_name || code) + '” but it has no nutrition data. Add it manually.', 'warn');
+    document.getElementById('scan-retry').style.display = 'inline-flex';
+    document.getElementById('scan-addcustom').style.display = 'inline-flex';
+    return;
+  }
+  cacheScannedFood(food);
+  closeScanner();
+  portionFood(food, scanMeal);
+}
+
+function addScannedManually(){
+  closeScanner();
+  openFood(scanMeal);
+  openCustomForm();
+}
+
+// Open the food modal straight into the portion screen for a given food.
+function portionFood(food, meal){
+  selFood = food;
+  editingId = null;
+  pendingMeal = meal || pendingMeal;
+  // prime the search screen so "Back" lands somewhere coherent
+  activeCat = (food.cat && CATS.includes(food.cat)) ? food.cat : 'All';
+  document.getElementById('food-search').value = '';
+  renderChips();
+  renderResults();
+  document.getElementById('food-modal').classList.add('open');
+  document.getElementById('qty-input').value = 1;
+  openPortion();
+}
 
 // ── INIT ──
 render();
