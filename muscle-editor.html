@@ -507,6 +507,45 @@ function generatePaths() {
 }
 
 // ─────────────────────────────────────────────────────
+//  GENERATE PATHS FOR index.html  (class="mr" data-m=)
+// ─────────────────────────────────────────────────────
+// Maps editor muscle id → dashboard data-m group id
+const INDEX_MAP = {
+  'delt-front-r':'shoulders','delt-front-l':'shoulders',
+  'delt-rear-r': 'shoulders','delt-rear-l': 'shoulders',
+  'chest-r':'chest',        'chest-l':'chest',
+  'biceps-r':'biceps',      'biceps-l':'biceps',
+  'forearm-r':'forearms',   'forearm-l':'forearms',
+  'forearm-r-bk':'forearms','forearm-l-bk':'forearms',
+  'abs':'abs',
+  'quads-r':'quadriceps',   'quads-l':'quadriceps',
+  'calves-r':'calves',      'calves-l':'calves',
+  'calves-r-bk':'calves',   'calves-l-bk':'calves',
+  'traps':'upper-back',     'upper-back':'upper-back',
+  'lats-r':'upper-back',    'lats-l':'upper-back',
+  'lower-back':'upper-back',
+  'triceps-r':'triceps',    'triceps-l':'triceps',
+  'glutes-r':'glutes',      'glutes-l':'glutes',
+  'hamstrings-r':'hamstrings','hamstrings-l':'hamstrings',
+  // obliques and adductors have no dashboard equivalent — omit
+};
+
+function generateIndexPaths() {
+  return MUSCLES
+    .filter(m => INDEX_MAP[m.id])
+    .map(m => {
+      const dm = INDEX_MAP[m.id];
+      const s = state[m.id];
+      let transform = '';
+      if (s.dx !== 0 || s.dy !== 0 || s.scale !== 1) {
+        const bb = originalBBox(m.id);
+        transform = ` transform="translate(${(bb.cx+s.dx).toFixed(2)},${(bb.cy+s.dy).toFixed(2)}) scale(${s.scale.toFixed(4)}) translate(${(-bb.cx).toFixed(2)},${(-bb.cy).toFixed(2)})"`;
+      }
+      return `            <path class="mr" data-m="${dm}" fill="#D1D1D6" d="${m.d}"${transform}/>`;
+    }).join('\n');
+}
+
+// ─────────────────────────────────────────────────────
 //  COPY CODE
 // ─────────────────────────────────────────────────────
 document.getElementById('copy-btn').addEventListener('click', () => {
@@ -581,7 +620,20 @@ async function pushToGitHub() {
     showStatus('Pushing recovery.html…','ok');
     await ghPut(token, 'recovery.html', updatedRec, rec.sha, 'fix: muscle overlay positions from editor');
 
-    // ── 2. Update js/fitness.js (muscle names) ───────────
+    // ── 2. Update index.html (dashboard SVG) ─────────────
+    showStatus('Fetching index.html…','ok');
+    const idx = await ghGet(token, 'index.html');
+    const newIndexPaths = generateIndexPaths();
+    const updatedIdx = idx.content.replace(
+      /<!--MUSCLE-START-->[\s\S]*?<!--MUSCLE-END-->/,
+      `<!--MUSCLE-START-->\n${newIndexPaths}\n            <!--MUSCLE-END-->`
+    );
+    if (updatedIdx !== idx.content) {
+      showStatus('Pushing index.html…','ok');
+      await ghPut(token, 'index.html', updatedIdx, idx.sha, 'fix: sync muscle overlay to dashboard');
+    }
+
+    // ── 3. Update js/fitness.js (muscle names) ───────────
     showStatus('Updating muscle names in fitness.js…','ok');
     const fit = await ghGet(token, 'js/fitness.js');
     let updatedFit = fit.content;
