@@ -284,8 +284,8 @@ textarea{font-family:inherit;resize:none}
 
 /* ─── MOBILE NAV ─── */
 .mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(248,248,250,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--bd);padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:40}
-.mob-items{display:flex;justify-content:space-around;align-items:center}
-.mob-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 10px;cursor:pointer;color:var(--t3);transition:color 160ms;min-width:50px}
+.mob-items{display:flex;justify-content:space-around;align-items:center;width:100%}
+.mob-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0;cursor:pointer;color:var(--t3);transition:color 160ms;flex:1}
 .mob-item.on{color:var(--vi)}
 .mob-lbl{font-size:9.5px;font-weight:500}
 .mob-j{width:44px;height:44px;background:var(--vi);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:-12px;box-shadow:0 4px 16px rgba(124,147,240,.4)}
