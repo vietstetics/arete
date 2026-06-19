@@ -526,22 +526,34 @@ if (savedToken) document.getElementById('gh-token').value = savedToken;
 // ─────────────────────────────────────────────────────
 //  APPLY TO GITHUB  (updates recovery.html + js/fitness.js)
 // ─────────────────────────────────────────────────────
+// Proper UTF-8 base64 helpers
+function b64decode(b64) {
+  const bytes = Uint8Array.from(atob(b64.replace(/\s/g,'')), c => c.charCodeAt(0));
+  return new TextDecoder('utf-8').decode(bytes);
+}
+function b64encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+
 async function ghGet(token, path) {
   const res = await fetch(`https://api.github.com/repos/vietstetics/arete/contents/${path}`, {
     headers:{ Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json' }
   });
-  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`GET ${path} → ${res.status}: ${e.message||''}`); }
+  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`GET ${path} ${res.status}: ${e.message||'check token'}`); }
   const j = await res.json();
-  return { content: atob(j.content.replace(/\s/g,'')), sha: j.sha };
+  return { content: b64decode(j.content), sha: j.sha };
 }
 
 async function ghPut(token, path, content, sha, message) {
   const res = await fetch(`https://api.github.com/repos/vietstetics/arete/contents/${path}`, {
     method:'PUT',
     headers:{ Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json', 'Content-Type':'application/json' },
-    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha })
+    body: JSON.stringify({ message, content: b64encode(content), sha })
   });
-  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`PUT ${path} → ${res.status}: ${e.message||''}`); }
+  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`PUT ${path} ${res.status}: ${e.message||''}`); }
 }
 
 async function pushToGitHub() {
@@ -561,10 +573,10 @@ async function pushToGitHub() {
     const rec = await ghGet(token, 'recovery.html');
     const newPaths = generatePaths();
     const updatedRec = rec.content.replace(
-      /(id="svg-body"[\s\S]*?>)([\s\S]*?)(<\/svg>)/,
-      (_, open, _mid, close) => `${open}\n\n${newPaths}\n\n        ${close.trim()}`
+      /<!--MUSCLE-START-->[\s\S]*?<!--MUSCLE-END-->/,
+      `<!--MUSCLE-START-->\n\n${newPaths}\n\n        <!--MUSCLE-END-->`
     );
-    if (updatedRec === rec.content) { showStatus('Could not find svg-body in recovery.html','err'); return; }
+    if (updatedRec === rec.content) { showStatus('Markers not found — reload editor and try again','err'); return; }
 
     showStatus('Pushing recovery.html…','ok');
     await ghPut(token, 'recovery.html', updatedRec, rec.sha, 'fix: muscle overlay positions from editor');
