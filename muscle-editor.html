@@ -524,64 +524,73 @@ const savedToken = localStorage.getItem('jarvis-sb-token');
 if (savedToken) document.getElementById('gh-token').value = savedToken;
 
 // ─────────────────────────────────────────────────────
-//  APPLY TO GITHUB
+//  APPLY TO GITHUB  (updates recovery.html + js/fitness.js)
 // ─────────────────────────────────────────────────────
+async function ghGet(token, path) {
+  const res = await fetch(`https://api.github.com/repos/vietstetics/arete/contents/${path}`, {
+    headers:{ Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json' }
+  });
+  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`GET ${path} → ${res.status}: ${e.message||''}`); }
+  const j = await res.json();
+  return { content: atob(j.content.replace(/\s/g,'')), sha: j.sha };
+}
+
+async function ghPut(token, path, content, sha, message) {
+  const res = await fetch(`https://api.github.com/repos/vietstetics/arete/contents/${path}`, {
+    method:'PUT',
+    headers:{ Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json', 'Content-Type':'application/json' },
+    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha })
+  });
+  if (!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(`PUT ${path} → ${res.status}: ${e.message||''}`); }
+}
+
 async function pushToGitHub() {
   const token = (localStorage.getItem('jarvis-sb-token') || document.getElementById('gh-token').value || '').trim();
   if (!token) { showStatus('Paste your GitHub token first and click Save','err'); return; }
 
   try {
-    showStatus('Fetching file…','ok');
-    const api = 'https://api.github.com/repos/vietstetics/arete/contents/recovery.html';
-    const headers = { Authorization:`Bearer ${token}`, Accept:'application/vnd.github.v3+json' };
+    // Build map of fitnessId → display name (first occurrence wins for duplicates like calves front/back)
+    const nameMap = {};
+    MUSCLES.forEach(m => {
+      const fid = m.exportId || m.id;
+      if (!nameMap[fid]) nameMap[fid] = m.label;
+    });
 
-    const res = await fetch(api, {headers});
-    if (!res.ok) {
-      const e = await res.json().catch(()=>({}));
-      showStatus(`GitHub error ${res.status}: ${e.message||'check token & scope'}`, 'err');
-      return;
-    }
-    const json = await res.json();
-
-    // decode base64 → string (handles ASCII + latin1 fine for HTML)
-    const original = atob(json.content.replace(/\s/g,''));
-
+    // ── 1. Update recovery.html (SVG paths) ──────────────
+    showStatus('Fetching recovery.html…','ok');
+    const rec = await ghGet(token, 'recovery.html');
     const newPaths = generatePaths();
-
-    // replace everything inside <svg id="svg-body"…> … </svg>
-    // use [\s\S] so newlines are matched; tag may span multiple lines
-    const updated = original.replace(
+    const updatedRec = rec.content.replace(
       /(id="svg-body"[\s\S]*?>)([\s\S]*?)(<\/svg>)/,
       (_, open, _mid, close) => `${open}\n\n${newPaths}\n\n        ${close.trim()}`
     );
+    if (updatedRec === rec.content) { showStatus('Could not find svg-body in recovery.html','err'); return; }
 
-    if (updated === original) {
-      showStatus('Could not find svg-body in the file — has it been renamed?','err');
-      return;
-    }
+    showStatus('Pushing recovery.html…','ok');
+    await ghPut(token, 'recovery.html', updatedRec, rec.sha, 'fix: muscle overlay positions from editor');
 
-    showStatus('Pushing…','ok');
+    // ── 2. Update js/fitness.js (muscle names) ───────────
+    showStatus('Updating muscle names in fitness.js…','ok');
+    const fit = await ghGet(token, 'js/fitness.js');
+    let updatedFit = fit.content;
 
-    // encode back to base64
-    const encoded = btoa(unescape(encodeURIComponent(updated)));
-    const put = await fetch(api, {
-      method:'PUT',
-      headers:{...headers,'Content-Type':'application/json'},
-      body: JSON.stringify({
-        message:'fix: muscle overlay positions from editor',
-        content: encoded,
-        sha: json.sha
-      })
+    Object.entries(nameMap).forEach(([id, label]) => {
+      // Match:  id: 'muscle-id',   ... name: 'Old Name'
+      // Replace only the name value, leave everything else intact
+      const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      updatedFit = updatedFit.replace(
+        new RegExp(`(id:\\s*'${escaped}'[^}]*?name:\\s*')[^']*?(')`),
+        `$1${label.replace(/'/g,"\\'")}$2`
+      );
     });
 
-    if (put.ok) {
-      showStatus('✓ Applied! Vercel is deploying…','ok');
-    } else {
-      const e = await put.json().catch(()=>({}));
-      showStatus(`Push failed ${put.status}: ${e.message||'unknown error'}`, 'err');
+    if (updatedFit !== fit.content) {
+      await ghPut(token, 'js/fitness.js', updatedFit, fit.sha, 'fix: update muscle display names from editor');
     }
+
+    showStatus('✓ Applied! Vercel is deploying…','ok');
   } catch(err) {
-    showStatus('Network error: ' + err.message, 'err');
+    showStatus(err.message, 'err');
     console.error(err);
   }
 }
