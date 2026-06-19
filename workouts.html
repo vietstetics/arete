@@ -172,10 +172,14 @@ input,select,textarea{font-family:inherit}
   .pg{padding:20px 16px 40px}
   .ph{flex-direction:column;gap:12px}
 }
+.mob-back{display:none;position:fixed;top:0;left:0;right:0;z-index:50;align-items:center;gap:5px;padding:12px 16px;background:rgba(245,245,247,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);font-size:14px;font-weight:600;color:var(--vi);text-decoration:none;cursor:pointer}
+.mob-back svg{width:18px;height:18px}
+@media(max-width:767px){.mob-back{display:flex}.pg{padding-top:60px!important}}
 </style>
 </head>
 <body>
 <div class="app">
+<a href="index.html" class="mob-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Dashboard</a>
 
 <!-- SIDEBAR -->
 <aside class="sb">
