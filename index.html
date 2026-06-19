@@ -844,24 +844,24 @@ textarea{font-family:inherit;resize:none}
         <div class="cp">
           <div class="cl">Nutrition</div>
           <div class="nut-top">
-            <div class="nut-cal">1,420 <span class="nut-target">/ 2,650</span></div>
-            <div class="nut-pct">54%</div>
+            <div class="nut-cal" id="dash-nut-cal">0 <span class="nut-target">/ 2,650</span></div>
+            <div class="nut-pct" id="dash-nut-pct">0%</div>
           </div>
           <div class="macro">
-            <div class="macro-hd"><span class="macro-l">Protein</span><span class="macro-v" style="color:var(--gr)">104 / 180g</span></div>
-            <div class="mpb"><div class="mpf" data-v="58" style="background:var(--gr)"></div></div>
+            <div class="macro-hd"><span class="macro-l">Protein</span><span class="macro-v" id="dash-p-txt" style="color:var(--gr)">0 / 180g</span></div>
+            <div class="mpb"><div class="mpf" id="dash-p-bar" data-v="0" style="background:var(--gr)"></div></div>
           </div>
           <div class="macro">
-            <div class="macro-hd"><span class="macro-l">Carbs</span><span class="macro-v">138 / 280g</span></div>
-            <div class="mpb"><div class="mpf" data-v="49" style="background:var(--vi)"></div></div>
+            <div class="macro-hd"><span class="macro-l">Carbs</span><span class="macro-v" id="dash-c-txt">0 / 280g</span></div>
+            <div class="mpb"><div class="mpf" id="dash-c-bar" data-v="0" style="background:var(--vi)"></div></div>
           </div>
           <div class="macro">
-            <div class="macro-hd"><span class="macro-l">Fats</span><span class="macro-v">46 / 75g</span></div>
-            <div class="mpb"><div class="mpf" data-v="61" style="background:var(--ye)"></div></div>
+            <div class="macro-hd"><span class="macro-l">Fats</span><span class="macro-v" id="dash-f-txt">0 / 75g</span></div>
+            <div class="mpb"><div class="mpf" id="dash-f-bar" data-v="0" style="background:var(--ye)"></div></div>
           </div>
           <div class="macro">
-            <div class="macro-hd"><span class="macro-l">Water</span><span class="macro-v">1.8 / 3.0L</span></div>
-            <div class="mpb"><div class="mpf" data-v="60" style="background:#38BDF8"></div></div>
+            <div class="macro-hd"><span class="macro-l">Water</span><span class="macro-v" id="dash-w-txt">0 / 3.0L</span></div>
+            <div class="mpb"><div class="mpf" id="dash-w-bar" data-v="0" style="background:#38BDF8"></div></div>
           </div>
           <div class="nut-acts">
             <button class="btn btn-p btn-sm" style="flex:1" onclick="location.href='nutrition.html'">Log Meal</button>
@@ -1369,6 +1369,39 @@ function animBars(){
   });
 }
 
+// ── NUTRITION WIDGET SYNC (reads what nutrition.html logged for today) ──
+function syncNutritionWidget(){
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem('jarvis_nutrition_today')); } catch { d = null; }
+  const use = d && d.date === today;
+  const goalK = (d && d.goalKcal)    || 2650;
+  const goalP = (d && d.goalProtein) || 180;
+  const goalC = (d && d.goalCarbs)   || 280;
+  const goalF = (d && d.goalFat)     || 75;
+  const goalW = (d && d.goalWater)   || 3000;
+  const kcal  = use ? (d.kcal||0)    : 0;
+  const p     = use ? (d.protein||0) : 0;
+  const c     = use ? (d.carbs||0)   : 0;
+  const fat   = use ? (d.fat||0)     : 0;
+  const water = use ? (d.water||0)   : 0;
+
+  const txt = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  const cal = document.getElementById('dash-nut-cal');
+  if (cal) cal.innerHTML = `${Math.round(kcal).toLocaleString()} <span class="nut-target">/ ${goalK.toLocaleString()}</span>`;
+  txt('dash-nut-pct', (goalK ? Math.round(kcal/goalK*100) : 0) + '%');
+  txt('dash-p-txt', `${Math.round(p)} / ${goalP}g`);
+  txt('dash-c-txt', `${Math.round(c)} / ${goalC}g`);
+  txt('dash-f-txt', `${Math.round(fat)} / ${goalF}g`);
+  txt('dash-w-txt', `${(water/1000).toFixed(1)} / ${(goalW/1000).toFixed(1)}L`);
+  const bar = (id,val,goal)=>{ const el=document.getElementById(id); if(el) el.dataset.v = Math.min(100, goal ? Math.round(val/goal*100) : 0); };
+  bar('dash-p-bar', p, goalP);
+  bar('dash-c-bar', c, goalC);
+  bar('dash-f-bar', fat, goalF);
+  bar('dash-w-bar', water, goalW);
+}
+
 // ── DYNAMIC MUSCLE COLOUR UPDATE ──
 // Paints each .mr element based on computed recovery progress
 function updateMuscleColours() {
@@ -1399,6 +1432,7 @@ function updateMuscleColours() {
 
 // ── INIT ──
 window.addEventListener('DOMContentLoaded', () => {
+  syncNutritionWidget();
   animBars();
   updateMuscleColours();
   CI.init();
