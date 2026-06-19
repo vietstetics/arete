@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Muscle Overlay Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0A0A0C;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TOP BAR ── */
+#topbar{display:flex;align-items:center;gap:14px;padding:10px 18px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
+#topbar h1{font-size:14px;font-weight:600}
+#topbar .hint{font-size:11.5px;color:rgba(255,255,255,.4)}
+#topbar .spacer{flex:1}
+
+/* ── WORKSPACE ── */
+#workspace{display:flex;flex:1;overflow:hidden}
+
+/* ── CANVAS ── */
+#canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;background:#111114}
+#canvas{position:relative;width:680px;flex-shrink:0}
+#canvas img{width:100%;display:block}
+#overlay{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible}
+#sel-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+/* ── PANEL ── */
+#panel{width:230px;background:rgba(255,255,255,.035);border-left:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:0;overflow-y:auto;flex-shrink:0}
+.ps{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.ps-lbl{font-size:9.5px;font-weight:500;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.ps-val{font-size:13px;font-weight:600}
+.ps-sub{font-size:11px;color:rgba(255,255,255,.4)}
+
+/* slider */
+.slider-row{display:flex;flex-direction:column;gap:5px}
+.slider-top{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(255,255,255,.55)}
+input[type=range]{width:100%;height:4px;accent-color:#7C93F0;cursor:pointer}
+
+/* buttons */
+.btn{display:block;width:100%;padding:9px 14px;border:none;border-radius:8px;font-size:12.5px;font-weight:500;cursor:pointer;transition:all 160ms;text-align:center;text-decoration:none}
+.btn-p{background:#7C93F0;color:#fff}
+.btn-p:hover{background:#6a82e0}
+.btn-s{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8)}
+.btn-s:hover{background:rgba(255,255,255,.13)}
+.btn-d{background:rgba(255,80,80,.12);color:#ff6060}
+.btn-d:hover{background:rgba(255,80,80,.2)}
+
+/* token */
+.tok-row{display:flex;gap:6px}
+.tok-row input{flex:1;padding:7px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:11.5px;outline:none}
+.tok-row input:focus{border-color:#7C93F0}
+.tok-save{padding:7px 10px;background:rgba(255,255,255,.08);border:none;border-radius:8px;color:#fff;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.tok-save:hover{background:rgba(255,255,255,.15)}
+
+/* status */
+#status{font-size:11px;padding:7px 10px;border-radius:7px;display:none;margin-top:2px}
+#status.ok{background:rgba(52,199,89,.15);color:#34C759;display:block}
+#status.err{background:rgba(255,59,48,.15);color:#ff3b30;display:block}
+
+/* disabled state */
+.disabled{opacity:.3;pointer-events:none}
+
+/* list */
+#muscle-list{display:flex;flex-direction:column;gap:0;max-height:200px;overflow-y:auto}
+.ml-item{padding:7px 16px;font-size:11.5px;cursor:pointer;color:rgba(255,255,255,.6);border-bottom:1px solid rgba(255,255,255,.04);transition:background 120ms}
+.ml-item:hover{background:rgba(255,255,255,.05);color:#fff}
+.ml-item.active{background:rgba(124,147,240,.15);color:#7C93F0}
+.ml-side{font-size:9px;color:rgba(255,255,255,.3);margin-left:4px}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>Muscle Overlay Editor</h1>
+  <span class="hint">Click a patch → drag to move · corner handles to resize · slider to scale</span>
+  <div class="spacer"></div>
+  <button class="btn btn-p" style="width:auto;padding:7px 14px" id="apply-btn">Apply to site →</button>
+</div>
+
+<div id="workspace">
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <div id="canvas">
+      <img src="body-diagram.png" alt="Body diagram" draggable="false">
+      <!-- muscle patches -->
+      <svg id="overlay" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
+      <!-- selection handles (pointer-events:none so they don't block dragging) -->
+      <svg id="sel-layer" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
+        <rect id="sel-box" fill="none" stroke="#7C93F0" stroke-width="1.5" stroke-dasharray="5,3" rx="3" display="none"/>
+        <circle id="h-tl" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nwse-resize"/>
+        <circle id="h-tr" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nesw-resize"/>
+        <circle id="h-bl" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nesw-resize"/>
+        <circle id="h-br" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nwse-resize"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- PANEL -->
+  <div id="panel">
+
+    <div class="ps">
+      <div class="ps-lbl">Selected muscle</div>
+      <div class="ps-val" id="sel-name">—</div>
+      <div class="ps-sub" id="sel-pos">Click any patch to edit</div>
+    </div>
+
+    <div class="ps disabled" id="scale-section">
+      <div class="slider-row">
+        <div class="slider-top">
+          <span>Scale</span>
+          <span id="scale-val">1.00×</span>
+        </div>
+        <input type="range" id="scale-slider" min="0.2" max="3.0" step="0.02" value="1">
+      </div>
+    </div>
+
+    <div class="ps disabled" id="reset-section">
+      <button class="btn btn-d" id="reset-btn">Reset this patch</button>
+    </div>
+
+    <div class="ps">
+      <div class="ps-lbl">All patches</div>
+      <div id="muscle-list"></div>
+    </div>
+
+    <div class="ps" style="margin-top:auto">
+      <div class="ps-lbl" style="margin-bottom:8px">GitHub token</div>
+      <div class="tok-row">
+        <input type="password" id="gh-token" placeholder="ghp_…">
+        <button class="tok-save" onclick="saveToken()">Save</button>
+      </div>
+    </div>
+
+    <div class="ps" style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-s" id="copy-btn">Copy SVG code</button>
+      <button class="btn btn-p" id="apply-btn2">Push to GitHub →</button>
+      <div id="status"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────
+//  MUSCLE DATA  (id = unique sandbox id, exportId = data-muscle value in output)
+// ─────────────────────────────────────────────────────
+const MUSCLES = [
+  // FRONT
+  {id:'delt-front-r', label:'Front Delt R',      side:'front', d:"M 140,154 C 118,157 88,170 82,197 C 77,222 90,246 114,253 C 133,259 158,248 167,228 C 174,208 169,176 155,161 Z"},
+  {id:'delt-front-l', label:'Front Delt L',      side:'front', d:"M 380,154 C 402,157 432,170 438,197 C 443,222 430,246 406,253 C 387,259 362,248 353,228 C 346,208 351,176 365,161 Z"},
+  {id:'chest-r',      label:'Chest R',           side:'front', d:"M 154,190 C 138,202 132,230 144,268 C 154,290 178,302 218,302 C 256,302 273,285 273,263 C 273,238 260,188 242,180 C 223,172 168,180 154,190 Z"},
+  {id:'chest-l',      label:'Chest L',           side:'front', d:"M 366,190 C 382,202 388,230 376,268 C 366,290 342,302 302,302 C 264,302 247,285 247,263 C 247,238 260,188 278,180 C 297,172 352,180 366,190 Z"},
+  {id:'biceps-r',     label:'Biceps R',          side:'front', d:"M 100,246 C 86,266 83,345 95,376 C 107,394 133,399 150,386 C 162,373 162,276 149,249 C 138,232 108,237 100,246 Z"},
+  {id:'biceps-l',     label:'Biceps L',          side:'front', d:"M 420,246 C 434,266 437,345 425,376 C 413,394 387,399 370,386 C 358,373 358,276 371,249 C 382,232 412,237 420,246 Z"},
+  {id:'forearm-r',    label:'Forearm R (front)', side:'front', exportId:'forearm-r', d:"M 88,382 C 73,403 66,466 75,503 C 85,524 112,534 133,521 C 150,508 152,432 141,386 C 132,365 97,371 88,382 Z"},
+  {id:'forearm-l',    label:'Forearm L (front)', side:'front', exportId:'forearm-l', d:"M 432,382 C 447,403 454,466 445,503 C 435,524 408,534 387,521 C 370,508 368,432 379,386 C 388,365 423,371 432,382 Z"},
+  {id:'abs',          label:'Abs',               side:'front', d:"M 216,302 C 206,320 203,480 214,498 C 226,512 294,512 306,498 C 317,480 314,320 304,302 C 293,288 227,288 216,302 Z"},
+  {id:'obliques-r',   label:'Obliques R',        side:'front', d:"M 141,272 C 127,292 122,376 134,424 C 147,452 174,462 197,449 C 213,436 217,364 206,302 C 197,274 154,258 141,272 Z"},
+  {id:'obliques-l',   label:'Obliques L',        side:'front', d:"M 379,272 C 393,292 398,376 386,424 C 373,452 346,462 323,449 C 307,436 303,364 314,302 C 323,274 366,258 379,272 Z"},
+  {id:'quads-r',      label:'Quads R',           side:'front', d:"M 178,518 C 163,544 156,650 171,697 C 186,725 220,731 244,719 C 263,707 267,650 260,520 C 252,503 193,505 178,518 Z"},
+  {id:'quads-l',      label:'Quads L',           side:'front', d:"M 342,518 C 357,544 364,650 349,697 C 334,725 300,731 276,719 C 257,707 253,650 260,520 C 268,503 327,505 342,518 Z"},
+  {id:'adductors-r',  label:'Adductors R',       side:'front', d:"M 238,520 C 226,546 226,640 238,677 C 249,694 268,694 276,677 C 283,654 280,546 267,520 Z"},
+  {id:'adductors-l',  label:'Adductors L',       side:'front', d:"M 282,520 C 294,546 294,640 282,677 C 271,694 252,694 244,677 C 237,654 240,546 253,520 Z"},
+  {id:'calves-r',     label:'Calves R (front)',  side:'front', exportId:'calves-r', d:"M 173,705 C 159,730 155,814 170,854 C 185,878 216,882 238,869 C 255,856 257,778 246,708 Z"},
+  {id:'calves-l',     label:'Calves L (front)',  side:'front', exportId:'calves-l', d:"M 347,705 C 361,730 365,814 350,854 C 335,878 304,882 282,869 C 265,856 263,778 274,708 Z"},
+  // BACK
+  {id:'traps',        label:'Trapezius',         side:'back',  d:"M 658,138 C 677,146 747,170 762,180 C 777,170 847,146 866,138 C 880,144 898,184 886,210 C 874,233 828,252 762,260 C 696,252 650,233 638,210 C 626,184 644,144 658,138 Z"},
+  {id:'delt-rear-r',  label:'Rear Delt R',       side:'back',  d:"M 611,160 C 591,172 579,211 590,242 C 602,267 632,277 654,264 C 673,251 675,213 662,181 C 651,159 627,154 611,160 Z"},
+  {id:'delt-rear-l',  label:'Rear Delt L',       side:'back',  d:"M 909,160 C 929,172 941,211 930,242 C 918,267 888,277 866,264 C 847,251 845,213 858,181 C 869,159 893,154 909,160 Z"},
+  {id:'triceps-r',    label:'Triceps R',         side:'back',  d:"M 594,254 C 578,275 573,365 587,396 C 600,416 630,422 651,408 C 667,394 669,296 654,258 C 643,239 608,244 594,254 Z"},
+  {id:'triceps-l',    label:'Triceps L',         side:'back',  d:"M 926,254 C 942,275 947,365 933,396 C 920,416 890,422 869,408 C 853,394 851,296 866,258 C 877,239 912,244 926,254 Z"},
+  {id:'forearm-r-bk', label:'Forearm R (back)',  side:'back',  exportId:'forearm-r', d:"M 572,400 C 557,421 549,484 559,521 C 570,543 598,553 620,540 C 638,526 641,450 630,404 C 620,382 582,388 572,400 Z"},
+  {id:'forearm-l-bk', label:'Forearm L (back)',  side:'back',  exportId:'forearm-l', d:"M 948,400 C 963,421 971,484 961,521 C 950,543 922,553 900,540 C 882,526 879,450 890,404 C 900,382 938,388 948,400 Z"},
+  {id:'upper-back',   label:'Upper Back',        side:'back',  d:"M 664,262 C 650,280 644,320 656,342 C 670,358 762,365 864,342 C 876,320 870,280 856,262 C 840,247 680,247 664,262 Z"},
+  {id:'lats-r',       label:'Lats R',            side:'back',  d:"M 646,274 C 630,295 618,392 635,448 C 652,477 690,487 718,473 C 739,460 743,380 729,288 C 719,262 662,260 646,274 Z"},
+  {id:'lats-l',       label:'Lats L',            side:'back',  d:"M 878,274 C 894,295 906,392 889,448 C 872,477 834,487 806,473 C 785,460 781,380 795,288 C 805,262 862,260 878,274 Z"},
+  {id:'lower-back',   label:'Lower Back',        side:'back',  d:"M 688,452 C 673,470 670,512 685,530 C 702,547 762,551 822,530 C 837,512 834,470 819,452 C 803,437 704,437 688,452 Z"},
+  {id:'glutes-r',     label:'Glutes R',          side:'back',  d:"M 678,528 C 661,550 656,604 672,644 C 689,672 726,678 751,663 C 769,650 772,594 760,534 C 750,513 695,515 678,528 Z"},
+  {id:'glutes-l',     label:'Glutes L',          side:'back',  d:"M 846,528 C 863,550 868,604 852,644 C 835,672 798,678 773,663 C 755,650 752,594 764,534 C 774,513 829,515 846,528 Z"},
+  {id:'hamstrings-r', label:'Hamstrings R',      side:'back',  d:"M 671,652 C 655,676 650,752 666,794 C 683,822 718,828 743,812 C 763,798 766,718 752,658 C 740,636 685,640 671,652 Z"},
+  {id:'hamstrings-l', label:'Hamstrings L',      side:'back',  d:"M 849,652 C 865,676 870,752 854,794 C 837,822 802,828 777,812 C 757,798 754,718 768,658 C 780,636 835,640 849,652 Z"},
+  {id:'calves-r-bk',  label:'Calves R (back)',   side:'back',  exportId:'calves-r', d:"M 666,802 C 651,828 647,895 662,928 C 678,953 712,957 737,940 C 754,926 758,850 743,806 Z"},
+  {id:'calves-l-bk',  label:'Calves L (back)',   side:'back',  exportId:'calves-l', d:"M 854,802 C 869,828 873,895 858,928 C 842,953 808,957 783,940 C 766,926 762,850 777,806 Z"},
+];
+
+// ─────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────
+const state = {};
+MUSCLES.forEach(m => { state[m.id] = {dx:0, dy:0, scale:1}; });
+
+let selected = null;
+const groups = {}; // id -> {g, path}
+
+// ─────────────────────────────────────────────────────
+//  BUILD OVERLAY SVG
+// ─────────────────────────────────────────────────────
+const overlay = document.getElementById('overlay');
+
+MUSCLES.forEach(m => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.id = 'g-' + m.id;
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', m.d);
+  path.setAttribute('fill', '#7C93F0');
+  path.setAttribute('fill-opacity', '0.30');
+  path.setAttribute('stroke', 'none');
+  path.style.cursor = 'move';
+  path.dataset.id = m.id;
+
+  g.appendChild(path);
+  overlay.appendChild(g);
+  groups[m.id] = {g, path};
+
+  g.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    selectMuscle(m.id);
+    startDrag(e, m.id);
+  });
+});
+
+// Click background → deselect
+overlay.addEventListener('pointerdown', e => {
+  if (e.target === overlay) deselect();
+});
+
+// ─────────────────────────────────────────────────────
+//  BOUNDING BOX (from path d, no DOM needed)
+// ─────────────────────────────────────────────────────
+function originalBBox(id) {
+  const m = MUSCLES.find(m => m.id === id);
+  const nums = m.d.match(/-?\d+\.?\d*/g).map(Number);
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for (let i=0;i<nums.length-1;i+=2) {
+    x0=Math.min(x0,nums[i]); x1=Math.max(x1,nums[i]);
+    y0=Math.min(y0,nums[i+1]); y1=Math.max(y1,nums[i+1]);
+  }
+  return {x:x0,y:y0,w:x1-x0,h:y1-y0,cx:(x0+x1)/2,cy:(y0+y1)/2};
+}
+
+// Transformed bbox after state applied
+function transformedBBox(id) {
+  const bb = originalBBox(id);
+  const s = state[id];
+  const w = bb.w * s.scale;
+  const h = bb.h * s.scale;
+  const cx = bb.cx + s.dx;
+  const cy = bb.cy + s.dy;
+  return {x:cx-w/2, y:cy-h/2, w, h, cx, cy};
+}
+
+// ─────────────────────────────────────────────────────
+//  APPLY TRANSFORM TO <g>
+// ─────────────────────────────────────────────────────
+function applyTransform(id) {
+  const bb = originalBBox(id);
+  const s = state[id];
+  // scale around original center, then translate by dx,dy
+  const tx = bb.cx + s.dx;
+  const ty = bb.cy + s.dy;
+  groups[id].g.setAttribute('transform',
+    `translate(${tx},${ty}) scale(${s.scale}) translate(${-bb.cx},${-bb.cy})`
+  );
+  if (id === selected) refreshHandles();
+}
+
+// ─────────────────────────────────────────────────────
+//  SELECTION HANDLES
+// ─────────────────────────────────────────────────────
+const selBox  = document.getElementById('sel-box');
+const hTL = document.getElementById('h-tl');
+const hTR = document.getElementById('h-tr');
+const hBL = document.getElementById('h-bl');
+const hBR = document.getElementById('h-br');
+const allHandles = [hTL,hTR,hBL,hBR];
+
+function refreshHandles() {
+  if (!selected) { hideHandles(); return; }
+  const b = transformedBBox(selected);
+  selBox.setAttribute('x',b.x); selBox.setAttribute('y',b.y);
+  selBox.setAttribute('width',b.w); selBox.setAttribute('height',b.h);
+  selBox.removeAttribute('display');
+  hTL.setAttribute('cx',b.x);     hTL.setAttribute('cy',b.y);
+  hTR.setAttribute('cx',b.x+b.w); hTR.setAttribute('cy',b.y);
+  hBL.setAttribute('cx',b.x);     hBL.setAttribute('cy',b.y+b.h);
+  hBR.setAttribute('cx',b.x+b.w); hBR.setAttribute('cy',b.y+b.h);
+  allHandles.forEach(h => h.removeAttribute('display'));
+}
+
+function hideHandles() {
+  selBox.setAttribute('display','none');
+  allHandles.forEach(h => h.setAttribute('display','none'));
+}
+
+// Corner handle drag → resize
+allHandles.forEach(handle => {
+  handle.addEventListener('pointerdown', e => {
+    if (!selected) return;
+    e.stopPropagation(); e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+
+    const startPt = svgPt(e);
+    const b = transformedBBox(selected);
+    const initScale = state[selected].scale;
+    const bb = originalBBox(selected);
+    const cx = b.cx, cy = b.cy;
+    const startDist = Math.hypot(startPt.x - cx, startPt.y - cy);
+
+    function onMove(ev) {
+      const pt = svgPt(ev);
+      const dist = Math.hypot(pt.x - cx, pt.y - cy);
+      if (startDist < 1) return;
+      const newScale = Math.max(0.15, Math.min(4, initScale * dist / startDist));
+      state[selected].scale = newScale;
+      document.getElementById('scale-slider').value = newScale;
+      document.getElementById('scale-val').textContent = newScale.toFixed(2)+'×';
+      applyTransform(selected);
+    }
+    function onUp() {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+    }
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  });
+});
+
+// ─────────────────────────────────────────────────────
+//  SELECT / DESELECT
+// ─────────────────────────────────────────────────────
+const listEl = document.getElementById('muscle-list');
+
+function selectMuscle(id) {
+  if (selected) {
+    groups[selected].path.setAttribute('fill-opacity','0.30');
+    groups[selected].path.setAttribute('stroke','none');
+    listEl.querySelector('.active')?.classList.remove('active');
+  }
+  selected = id;
+  const s = state[id];
+  const m = MUSCLES.find(m=>m.id===id);
+
+  groups[id].path.setAttribute('fill-opacity','0.52');
+  groups[id].path.setAttribute('stroke','#7C93F0');
+  groups[id].path.setAttribute('stroke-width','1.5');
+
+  document.getElementById('sel-name').textContent = m.label;
+  document.getElementById('sel-pos').textContent = `x: ${Math.round(s.dx)}  y: ${Math.round(s.dy)}`;
+  document.getElementById('scale-slider').value = s.scale;
+  document.getElementById('scale-val').textContent = s.scale.toFixed(2)+'×';
+  document.getElementById('scale-section').classList.remove('disabled');
+  document.getElementById('reset-section').classList.remove('disabled');
+
+  listEl.querySelector(`[data-lid="${id}"]`)?.classList.add('active');
+  refreshHandles();
+}
+
+function deselect() {
+  if (selected) {
+    groups[selected].path.setAttribute('fill-opacity','0.30');
+    groups[selected].path.setAttribute('stroke','none');
+    listEl.querySelector('.active')?.classList.remove('active');
+  }
+  selected = null;
+  document.getElementById('sel-name').textContent = '—';
+  document.getElementById('sel-pos').textContent = 'Click any patch to edit';
+  document.getElementById('scale-section').classList.add('disabled');
+  document.getElementById('reset-section').classList.add('disabled');
+  hideHandles();
+}
+
+// ─────────────────────────────────────────────────────
+//  BUILD MUSCLE LIST
+// ─────────────────────────────────────────────────────
+let lastSide = '';
+MUSCLES.forEach(m => {
+  if (m.side !== lastSide) {
+    const sep = document.createElement('div');
+    sep.style.cssText = 'padding:5px 16px 3px;font-size:9px;font-weight:600;color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.08em';
+    sep.textContent = m.side === 'front' ? '— Front —' : '— Back —';
+    listEl.appendChild(sep);
+    lastSide = m.side;
+  }
+  const item = document.createElement('div');
+  item.className = 'ml-item';
+  item.dataset.lid = m.id;
+  item.textContent = m.label;
+  item.addEventListener('click', () => selectMuscle(m.id));
+  listEl.appendChild(item);
+});
+
+// ─────────────────────────────────────────────────────
+//  DRAG TO MOVE
+// ─────────────────────────────────────────────────────
+function svgPt(e) {
+  const svg = overlay;
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function startDrag(e, id) {
+  const start = svgPt(e);
+  const initDx = state[id].dx;
+  const initDy = state[id].dy;
+
+  // Use the path element to capture pointer so dragging outside canvas still works
+  groups[id].path.setPointerCapture(e.pointerId);
+
+  function onMove(ev) {
+    const cur = svgPt(ev);
+    state[id].dx = initDx + (cur.x - start.x);
+    state[id].dy = initDy + (cur.y - start.y);
+    applyTransform(id);
+    document.getElementById('sel-pos').textContent = `x: ${Math.round(state[id].dx)}  y: ${Math.round(state[id].dy)}`;
+  }
+  function onUp() {
+    groups[id].path.removeEventListener('pointermove', onMove);
+    groups[id].path.removeEventListener('pointerup', onUp);
+  }
+  groups[id].path.addEventListener('pointermove', onMove);
+  groups[id].path.addEventListener('pointerup', onUp);
+}
+
+// ─────────────────────────────────────────────────────
+//  SCALE SLIDER
+// ─────────────────────────────────────────────────────
+document.getElementById('scale-slider').addEventListener('input', function() {
+  if (!selected) return;
+  state[selected].scale = parseFloat(this.value);
+  document.getElementById('scale-val').textContent = parseFloat(this.value).toFixed(2)+'×';
+  applyTransform(selected);
+});
+
+// ─────────────────────────────────────────────────────
+//  RESET
+// ─────────────────────────────────────────────────────
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (!selected) return;
+  state[selected] = {dx:0,dy:0,scale:1};
+  groups[selected].g.removeAttribute('transform');
+  document.getElementById('scale-slider').value = 1;
+  document.getElementById('scale-val').textContent = '1.00×';
+  document.getElementById('sel-pos').textContent = 'x: 0  y: 0';
+  refreshHandles();
+});
+
+// ─────────────────────────────────────────────────────
+//  GENERATE SVG CODE
+// ─────────────────────────────────────────────────────
+function generatePaths() {
+  return MUSCLES.map(m => {
+    const s = state[m.id];
+    const exportId = m.exportId || m.id;
+    let transform = '';
+    if (s.dx !== 0 || s.dy !== 0 || s.scale !== 1) {
+      const bb = originalBBox(m.id);
+      const tx = (bb.cx + s.dx).toFixed(2);
+      const ty = (bb.cy + s.dy).toFixed(2);
+      const sc = s.scale.toFixed(4);
+      const nx = (-bb.cx).toFixed(2);
+      const ny = (-bb.cy).toFixed(2);
+      transform = `\n            transform="translate(${tx},${ty}) scale(${sc}) translate(${nx},${ny})"`;
+    }
+    return `          <path class="muscle-patch" data-muscle="${exportId}" fill="#D1D1D6" tabindex="0" aria-label="${m.label}"\n            d="${m.d}"${transform}/>`;
+  }).join('\n');
+}
+
+// ─────────────────────────────────────────────────────
+//  COPY CODE
+// ─────────────────────────────────────────────────────
+document.getElementById('copy-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText(generatePaths()).then(() => showStatus('Copied to clipboard!','ok'));
+});
+
+// ─────────────────────────────────────────────────────
+//  GITHUB TOKEN
+// ─────────────────────────────────────────────────────
+function saveToken() {
+  const t = document.getElementById('gh-token').value.trim();
+  if (t) { localStorage.setItem('jarvis-sb-token', t); showStatus('Token saved','ok'); }
+}
+const savedToken = localStorage.getItem('jarvis-sb-token');
+if (savedToken) document.getElementById('gh-token').value = savedToken;
+
+// ─────────────────────────────────────────────────────
+//  APPLY TO GITHUB
+// ─────────────────────────────────────────────────────
+async function pushToGitHub() {
+  const token = localStorage.getItem('jarvis-sb-token') || document.getElementById('gh-token').value.trim();
+  if (!token) { showStatus('Paste your GitHub token first','err'); return; }
+
+  showStatus('Fetching recovery.html…','ok');
+  const api = 'https://api.github.com/repos/vietstetics/arete/contents/recovery.html';
+  const headers = { Authorization:`token ${token}`, Accept:'application/vnd.github.v3+json' };
+
+  const res = await fetch(api, {headers});
+  if (!res.ok) { showStatus('Fetch failed: ' + res.status,'err'); return; }
+  const json = await res.json();
+  const bytes = Uint8Array.from(atob(json.content.replace(/\n/g,'')), c=>c.charCodeAt(0));
+  const original = new TextDecoder().decode(bytes);
+
+  const newPaths = generatePaths();
+  const updated = original.replace(
+    /(<svg id="svg-body"[^>]*>)([\s\S]*?)(<\/svg>)/,
+    (_, open, _mid, close) => `${open}\n\n${newPaths}\n\n        ${close.trim()}`
+  );
+
+  if (updated === original) { showStatus('Could not locate SVG section','err'); return; }
+
+  showStatus('Pushing…','ok');
+  const encoded = btoa(unescape(encodeURIComponent(updated)));
+  const put = await fetch(api, {
+    method:'PUT', headers:{...headers,'Content-Type':'application/json'},
+    body: JSON.stringify({message:'fix: muscle overlay positions from editor', content:encoded, sha:json.sha})
+  });
+
+  if (put.ok) showStatus('Applied! Vercel deploying…','ok');
+  else { const e = await put.json(); showStatus('Error: '+(e.message||put.status),'err'); }
+}
+
+document.getElementById('apply-btn').addEventListener('click', pushToGitHub);
+document.getElementById('apply-btn2').addEventListener('click', pushToGitHub);
+
+// ─────────────────────────────────────────────────────
+//  STATUS
+// ─────────────────────────────────────────────────────
+function showStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = type;
+  if (type === 'ok') setTimeout(()=>{ if(el.textContent===msg) el.className=''; }, 4000);
+}
+</script>
+</body>
+</html>
