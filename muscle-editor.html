@@ -60,6 +60,14 @@ input[type=range]{width:100%;height:4px;accent-color:#7C93F0;cursor:pointer}
 /* disabled state */
 .disabled{opacity:.3;pointer-events:none}
 
+/* ── DRAW MODE ── */
+#draw-layer{position:absolute;top:0;left:0;width:100%;height:100%;display:none;cursor:crosshair;overflow:visible}
+body.drawing-mode #overlay{pointer-events:none}
+body.drawing-mode #sel-layer{display:none}
+.draw-dot{fill:#00D26A;stroke:#fff;stroke-width:1.2}
+.draw-dot-first{fill:#fff;stroke:#00D26A;stroke-width:2;cursor:pointer}
+#draw-hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#fff;font-size:11px;padding:5px 12px;border-radius:20px;pointer-events:none;white-space:nowrap;display:none}
+
 /* list */
 #muscle-list{display:flex;flex-direction:column;gap:0;max-height:200px;overflow-y:auto}
 .ml-item{padding:7px 16px;font-size:11.5px;cursor:pointer;color:rgba(255,255,255,.6);border-bottom:1px solid rgba(255,255,255,.04);transition:background 120ms}
@@ -72,7 +80,7 @@ input[type=range]{width:100%;height:4px;accent-color:#7C93F0;cursor:pointer}
 
 <div id="topbar">
   <h1>Muscle Overlay Editor</h1>
-  <span class="hint">Click a patch → drag to move · corner handles to resize · slider to scale</span>
+  <span class="hint" id="topbar-hint">Click a patch → drag to move · corner handles to resize · slider to scale · ✏ to redraw</span>
   <div class="spacer"></div>
   <button class="btn btn-p" style="width:auto;padding:7px 14px" id="apply-btn">Apply to site →</button>
 </div>
@@ -93,6 +101,19 @@ input[type=range]{width:100%;height:4px;accent-color:#7C93F0;cursor:pointer}
         <circle id="h-bl" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nesw-resize"/>
         <circle id="h-br" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nwse-resize"/>
       </svg>
+      <!-- draw layer — shown in draw mode, captures clicks for polygon -->
+      <svg id="draw-layer" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
+        <!-- live polygon preview -->
+        <polygon id="draw-poly" fill="#00D26A" fill-opacity="0.18" stroke="#00D26A" stroke-width="1.5" stroke-linejoin="round" points=""/>
+        <!-- rubber-band line from last point to cursor -->
+        <line id="draw-rubber" stroke="#00D26A" stroke-width="1" stroke-dasharray="4,3" opacity="0.7" x1="0" y1="0" x2="0" y2="0"/>
+        <!-- close-snap indicator ring around first point -->
+        <circle id="draw-snap" r="10" fill="none" stroke="#fff" stroke-width="1.5" stroke-dasharray="3,2" opacity="0" />
+        <!-- vertex dots get appended here -->
+        <g id="draw-dots"></g>
+      </svg>
+      <!-- floating hint inside canvas -->
+      <div id="draw-hint"></div>
     </div>
   </div>
 
@@ -113,6 +134,12 @@ input[type=range]{width:100%;height:4px;accent-color:#7C93F0;cursor:pointer}
         </div>
         <input type="range" id="scale-slider" min="0.2" max="3.0" step="0.02" value="1">
       </div>
+    </div>
+
+    <div class="ps disabled" id="draw-section">
+      <div class="ps-lbl" style="margin-bottom:8px">Redraw shape</div>
+      <button class="btn btn-s" id="draw-btn">✏ Draw new shape</button>
+      <div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:7px;line-height:1.5">Click around the muscle outline. Close to first point or double-click to finish. Backspace undoes last point.</div>
     </div>
 
     <div class="ps disabled" id="reset-section">
@@ -353,6 +380,7 @@ function selectMuscle(id) {
   document.getElementById('scale-val').textContent = s.scale.toFixed(2)+'×';
   document.getElementById('scale-section').classList.remove('disabled');
   document.getElementById('reset-section').classList.remove('disabled');
+  document.getElementById('draw-section').classList.remove('disabled');
 
   listEl.querySelector(`[data-lid="${id}"]`)?.classList.add('active');
   refreshHandles();
@@ -534,6 +562,201 @@ function showStatus(msg, type) {
   el.className = type;
   if (type === 'ok') setTimeout(()=>{ if(el.textContent===msg) el.className=''; }, 4000);
 }
+
+// ─────────────────────────────────────────────────────
+//  DRAW MODE — click to place polygon vertices
+// ─────────────────────────────────────────────────────
+const drawLayer   = document.getElementById('draw-layer');
+const drawPoly    = document.getElementById('draw-poly');
+const drawRubber  = document.getElementById('draw-rubber');
+const drawSnap    = document.getElementById('draw-snap');
+const drawDots    = document.getElementById('draw-dots');
+const drawHint    = document.getElementById('draw-hint');
+
+let drawing = false;
+let drawPts = [];      // array of {x,y} in SVG coords
+let drawMuscleId = null;
+let lastClickMs = 0;
+
+function svgPtDraw(e) {
+  const pt = drawLayer.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(drawLayer.getScreenCTM().inverse());
+}
+
+function setDrawHint(msg) {
+  drawHint.textContent = msg;
+  drawHint.style.display = msg ? 'block' : 'none';
+}
+
+function enterDraw(id) {
+  drawing = true;
+  drawMuscleId = id;
+  drawPts = [];
+  lastClickMs = 0;
+
+  // Dim the current patch so the diagram outline shows through
+  groups[id].path.setAttribute('fill-opacity', '0.10');
+
+  drawLayer.style.display = 'block';
+  document.body.classList.add('drawing-mode');
+
+  document.getElementById('draw-btn').textContent = '✕ Cancel drawing';
+  document.getElementById('draw-btn').classList.replace('btn-s','btn-d');
+
+  document.getElementById('topbar-hint').textContent =
+    'Click to place points · close to start point or double-click to finish · Backspace undoes · ESC cancels';
+  setDrawHint('Click to start drawing — trace snugly around the muscle');
+}
+
+function exitDraw(cancelled) {
+  drawing = false;
+  drawPts = [];
+
+  drawPoly.setAttribute('points','');
+  drawRubber.setAttribute('x1',0); drawRubber.setAttribute('y1',0);
+  drawRubber.setAttribute('x2',0); drawRubber.setAttribute('y2',0);
+  drawSnap.setAttribute('opacity',0);
+  drawDots.innerHTML = '';
+
+  drawLayer.style.display = 'none';
+  document.body.classList.remove('drawing-mode');
+
+  document.getElementById('draw-btn').textContent = '✏ Draw new shape';
+  document.getElementById('draw-btn').classList.replace('btn-d','btn-s');
+  document.getElementById('topbar-hint').textContent =
+    'Click a patch → drag to move · corner handles to resize · slider to scale · ✏ to redraw';
+  setDrawHint('');
+
+  // Restore patch opacity
+  if (drawMuscleId && groups[drawMuscleId]) {
+    const isSelected = drawMuscleId === selected;
+    groups[drawMuscleId].path.setAttribute('fill-opacity', isSelected ? '0.52' : '0.30');
+    if (isSelected) {
+      groups[drawMuscleId].path.setAttribute('stroke','#7C93F0');
+      groups[drawMuscleId].path.setAttribute('stroke-width','1.5');
+    }
+  }
+}
+
+function finalizeDraw() {
+  if (drawPts.length < 3) { setDrawHint('Need at least 3 points'); return; }
+
+  // Build a clean M … L … Z path string
+  const d = 'M ' + drawPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ') + ' Z';
+
+  // Persist into MUSCLES array and SVG element
+  const m = MUSCLES.find(m => m.id === drawMuscleId);
+  m.d = d;
+  groups[drawMuscleId].path.setAttribute('d', d);
+
+  // Clear any lingering transform (we drew in absolute coords)
+  state[drawMuscleId] = {dx:0, dy:0, scale:1};
+  groups[drawMuscleId].g.removeAttribute('transform');
+
+  const mid = drawMuscleId;
+  exitDraw();
+  selectMuscle(mid);
+  showStatus(`Shape updated (${drawPts.length} pts) — hit Apply to push`, 'ok');
+}
+
+// ── Poly preview update ──────────────────────────────
+function refreshDrawPoly() {
+  drawPoly.setAttribute('points', drawPts.map(p=>`${p.x},${p.y}`).join(' '));
+}
+
+function addDot(pt, isFirst) {
+  const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  c.setAttribute('cx', pt.x); c.setAttribute('cy', pt.y);
+  c.setAttribute('r', isFirst ? 5 : 3.5);
+  c.setAttribute('class', isFirst ? 'draw-dot-first' : 'draw-dot');
+  drawDots.appendChild(c);
+}
+
+// ── Click → add point ────────────────────────────────
+drawLayer.addEventListener('click', e => {
+  if (!drawing) return;
+  const now = Date.now();
+  const pt = svgPtDraw(e);
+
+  // Double-click detection (second click within 350ms)
+  if (now - lastClickMs < 350 && drawPts.length >= 3) {
+    drawPts.pop(); // remove the ghost click
+    finalizeDraw();
+    return;
+  }
+  lastClickMs = now;
+
+  // Snap-close: if near first point, finalize
+  if (drawPts.length >= 3) {
+    const first = drawPts[0];
+    const dx = pt.x - first.x, dy = pt.y - first.y;
+    if (Math.hypot(dx, dy) < 14) { finalizeDraw(); return; }
+  }
+
+  drawPts.push(pt);
+  addDot(pt, drawPts.length === 1);
+  refreshDrawPoly();
+
+  const n = drawPts.length;
+  setDrawHint(n < 3
+    ? `${n} point${n===1?'':'s'} — keep going`
+    : `${n} points · double-click or close to first point to finish`);
+});
+
+// ── Mouse move → rubber-band line + snap indicator ───
+drawLayer.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const pt = svgPtDraw(e);
+
+  if (drawPts.length > 0) {
+    const last = drawPts[drawPts.length - 1];
+    drawRubber.setAttribute('x1', last.x); drawRubber.setAttribute('y1', last.y);
+    drawRubber.setAttribute('x2', pt.x);   drawRubber.setAttribute('y2', pt.y);
+  }
+
+  // Snap ring around first point when close
+  if (drawPts.length >= 3) {
+    const first = drawPts[0];
+    const near = Math.hypot(pt.x - first.x, pt.y - first.y) < 14;
+    drawSnap.setAttribute('cx', first.x); drawSnap.setAttribute('cy', first.y);
+    drawSnap.setAttribute('opacity', near ? 1 : 0);
+    drawLayer.style.cursor = near ? 'cell' : 'crosshair';
+  }
+});
+
+// ── Draw button ──────────────────────────────────────
+document.getElementById('draw-btn').addEventListener('click', () => {
+  if (drawing) { exitDraw(true); return; }
+  if (!selected) { showStatus('Select a muscle first','err'); return; }
+  enterDraw(selected);
+});
+
+// ── Keyboard shortcuts ───────────────────────────────
+document.addEventListener('keydown', e => {
+  if (!drawing) return;
+  if (e.key === 'Escape') { exitDraw(true); }
+  if (e.key === 'Backspace' && drawPts.length > 0) {
+    e.preventDefault();
+    drawPts.pop();
+    const dots = drawDots.children;
+    if (dots.length > 0) drawDots.removeChild(dots[dots.length-1]);
+    // Restore first-dot style if we removed a middle dot
+    if (drawDots.children.length > 0) {
+      drawDots.children[0].setAttribute('r','5');
+      drawDots.children[0].setAttribute('class','draw-dot-first');
+    }
+    refreshDrawPoly();
+    const n = drawPts.length;
+    setDrawHint(n === 0
+      ? 'Click to start drawing — trace snugly around the muscle'
+      : `${n} point${n===1?'':'s'} · keep going`);
+  }
+  if ((e.key === 'Enter' || e.key === 'Return') && drawPts.length >= 3) {
+    finalizeDraw();
+  }
+});
+
 </script>
 </body>
 </html>
