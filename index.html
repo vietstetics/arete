@@ -642,17 +642,17 @@ textarea{font-family:inherit;resize:none}
     <div class="ready" id="ready-card" style="border-left-color:var(--gr)">
       <div class="ready-inner">
         <div class="ready-score-block">
-          <div class="ready-num">82</div>
-          <div class="ready-lbl">Ready</div>
+          <div class="ready-num" id="ready-num">82</div>
+          <div class="ready-lbl" id="ready-lbl">Ready</div>
         </div>
         <div class="ready-body">
           <div class="ready-eyebrow">Daily Readiness</div>
           <div class="ready-copy"><strong>Your legs, back and shoulders are ready to train.</strong> Chest and triceps need one more day. A moderate lower-body session is the move today.</div>
           <div class="ready-mets">
-            <div class="rm"><div class="rm-l">Sleep</div><div class="rm-v" style="color:var(--ye)">78</div></div>
-            <div class="rm"><div class="rm-l">Energy</div><div class="rm-v">7 / 10</div></div>
-            <div class="rm"><div class="rm-l">Mood</div><div class="rm-v" style="color:var(--gr)">Good</div></div>
-            <div class="rm"><div class="rm-l">HRV</div><div class="rm-v">62 ms</div></div>
+            <div class="rm"><div class="rm-l">Sleep</div><div class="rm-v" id="ready-met-sleep" style="color:var(--ye)">—</div></div>
+            <div class="rm"><div class="rm-l">Energy</div><div class="rm-v" id="ready-met-energy">—</div></div>
+            <div class="rm"><div class="rm-l">Mood</div><div class="rm-v" id="ready-met-mood" style="color:var(--gr)">—</div></div>
+            <div class="rm"><div class="rm-l">Sleepiness</div><div class="rm-v" id="ready-met-sleepy">—</div></div>
           </div>
           <div class="ready-acts">
             <button class="btn btn-p" onclick="location.href='workouts.html'">
@@ -966,9 +966,16 @@ textarea{font-family:inherit;resize:none}
             <div class="ei-status-sub" id="ei-status-sub">Complete your morning check-in for a personalised forecast.</div>
           </div>
         </div>
-        <!-- Forecast chart -->
+        <!-- Forecast chart (three curves) -->
         <div class="ei-chart-wrap">
-          <div class="ei-chart-label">Today's Energy Forecast</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div class="ei-chart-label" style="margin:0">Today's Energy Forecast</div>
+            <div style="display:flex;gap:10px">
+              <span style="font-size:10px;color:var(--t3);display:inline-flex;align-items:center;gap:4px"><i style="width:10px;height:3px;border-radius:2px;background:#A78BFA;display:inline-block"></i>Overall</span>
+              <span style="font-size:10px;color:var(--t3);display:inline-flex;align-items:center;gap:4px"><i style="width:10px;height:3px;border-radius:2px;background:#5E9BFF;display:inline-block"></i>Focus</span>
+              <span style="font-size:10px;color:var(--t3);display:inline-flex;align-items:center;gap:4px"><i style="width:10px;height:3px;border-radius:2px;background:#FB923C;display:inline-block"></i>Physical</span>
+            </div>
+          </div>
           <svg class="ei-chart" id="ei-chart" viewBox="0 0 400 64" preserveAspectRatio="none">
             <defs>
               <linearGradient id="ei-grad" x1="0" x2="0" y1="0" y2="1">
@@ -976,10 +983,13 @@ textarea{font-family:inherit;resize:none}
                 <stop offset="100%" stop-color="#A78BFA" stop-opacity="0"/>
               </linearGradient>
             </defs>
-            <path id="ei-chart-fill" d="" fill="url(#ei-grad)" opacity=".15"/>
-            <path id="ei-chart-line" d="" fill="none" stroke="#A78BFA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path id="ei-chart-fill" d="" fill="url(#ei-grad)" opacity=".14"/>
+            <path id="ei-line-focus" d="" fill="none" stroke="#5E9BFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+            <path id="ei-line-physical" d="" fill="none" stroke="#FB923C" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+            <path id="ei-line-overall" d="" fill="none" stroke="#A78BFA" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
             <line id="ei-now-line" x1="0" y1="0" x2="0" y2="64" stroke="var(--t3)" stroke-width="1" stroke-dasharray="3,3" opacity=".6" style="display:none"/>
           </svg>
+          <div style="font-size:11px;color:var(--t3);line-height:1.5;margin-top:8px">A personalised energy prediction based on your sleep schedule, current state and previous patterns. It does not directly measure biological energy.</div>
         </div>
         <!-- Windows -->
         <div class="ei-windows">
@@ -1109,12 +1119,15 @@ textarea{font-family:inherit;resize:none}
 
 <!-- ENERGY OBSERVATION PROMPT -->
 <div id="ei-obs" class="ei-obs" role="dialog" aria-label="Energy check-in">
-  <div class="ei-obs-title">How's your energy right now?</div>
-  <div class="ei-obs-sub" id="ei-obs-time">Quick 2-second check-in</div>
-  <div class="ei-obs-btns">
-    <div class="ei-obs-btn" data-v="2" onclick="EI.selectObs(this)">Low</div>
-    <div class="ei-obs-btn" data-v="5" onclick="EI.selectObs(this)">Medium</div>
-    <div class="ei-obs-btn" data-v="8" onclick="EI.selectObs(this)">High</div>
+  <div class="ei-obs-title">Quick energy check-in</div>
+  <div class="ei-obs-sub" id="ei-obs-time">Helps personalise your forecast</div>
+  <div style="margin:14px 0 2px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="color:var(--t2);font-weight:500">Mental energy right now</span><b id="ei-obs-mental-v" style="color:var(--vi)">6</b></div>
+    <input id="ei-obs-mental" type="range" min="1" max="10" step="1" value="6" oninput="EI.obsInput('mental')" style="width:100%">
+  </div>
+  <div style="margin:12px 0 2px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="color:var(--t2);font-weight:500">Physically capable</span><b id="ei-obs-phys-v" style="color:var(--vi)">6</b></div>
+    <input id="ei-obs-phys" type="range" min="1" max="10" step="1" value="6" oninput="EI.obsInput('phys')" style="width:100%">
   </div>
   <div class="ei-obs-foot">
     <button class="ei-obs-confirm" onclick="EI.confirmObs()">Save</button>
@@ -1141,6 +1154,37 @@ textarea{font-family:inherit;resize:none}
     </div>
   </div>
 
+  <!-- Phase: Onboarding (typical schedule → chronotype, once) -->
+  <div id="ci-phase-onboard" class="ci-phase">
+    <div class="ci-greeting" style="margin-bottom:6px">Welcome to Energy Intelligence.</div>
+    <div class="ci-greeting-sub" style="margin-bottom:24px">First, your usual sleep schedule — this sets your body clock. You only do this once.</div>
+    <div style="display:flex;flex-direction:column;gap:20px;width:100%;max-width:420px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:9px;text-align:left;letter-spacing:.02em">WORK / SCHOOL DAYS</div>
+        <div style="display:flex;gap:12px">
+          <label style="flex:1;font-size:11px;color:var(--t3);text-align:left;font-weight:500">Fall asleep
+            <input id="ob-work-sleep" type="time" value="23:00" style="display:block;width:100%;margin-top:5px;font-size:17px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff;color:var(--t1);font-family:inherit">
+          </label>
+          <label style="flex:1;font-size:11px;color:var(--t3);text-align:left;font-weight:500">Wake up
+            <input id="ob-work-wake" type="time" value="07:00" style="display:block;width:100%;margin-top:5px;font-size:17px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff;color:var(--t1);font-family:inherit">
+          </label>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:9px;text-align:left;letter-spacing:.02em">FREE DAYS</div>
+        <div style="display:flex;gap:12px">
+          <label style="flex:1;font-size:11px;color:var(--t3);text-align:left;font-weight:500">Fall asleep
+            <input id="ob-free-sleep" type="time" value="23:30" style="display:block;width:100%;margin-top:5px;font-size:17px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff;color:var(--t1);font-family:inherit">
+          </label>
+          <label style="flex:1;font-size:11px;color:var(--t3);text-align:left;font-weight:500">Wake up
+            <input id="ob-free-wake" type="time" value="08:00" style="display:block;width:100%;margin-top:5px;font-size:17px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff;color:var(--t1);font-family:inherit">
+          </label>
+        </div>
+      </div>
+    </div>
+    <button class="ci-btn-primary" onclick="CI.saveOnboarding()" style="margin-top:8px">Continue</button>
+  </div>
+
   <!-- Phase: Greeting -->
   <div id="ci-phase-greeting" class="ci-phase ci-active">
     <div class="ci-greeting">Good morning.<br>Let's assess your current state.</div>
@@ -1153,7 +1197,7 @@ textarea{font-family:inherit;resize:none}
   <div id="ci-phase-question" class="ci-phase">
     <div class="ci-progress" style="width:100%;max-width:440px">
       <div class="ci-prog-bar"><div class="ci-prog-fill" id="ci-prog-fill"></div></div>
-      <div class="ci-prog-txt" id="ci-prog-txt">1 of 7</div>
+      <div class="ci-prog-txt" id="ci-prog-txt">1 of 12</div>
     </div>
     <div class="ci-q" id="ci-q-text"></div>
     <div id="ci-q-input"></div>
@@ -1193,6 +1237,7 @@ textarea{font-family:inherit;resize:none}
 
 </div>
 
+<script src="js/energy.js"></script>
 <script>
 // ── MUSCLE RAW DATA (sets + lastTrainedAt drive all computed values) ──
 // To connect real workout logs: update sets and lastTrainedAt from workout history
@@ -1453,78 +1498,90 @@ const CI = (() => {
   let currentQ = 0;
   let aiState  = 'idle';
 
-  // ── QUESTIONS DEF ──
+  // ── QUESTIONS DEF (12 inputs that feed the Energy Intelligence engine) ──
   const QUESTIONS = [
     {
-      id: 'hoursSlept', type: 'slider',
-      q: 'How many hours of sleep did you get?',
-      min: 0, max: 12, step: 0.5, default: 7.5,
-      labels: ['0h','4h','8h','12h'],
-      describe: v => v === 0 ? 'No sleep' : v < 5 ? 'Very little' : v < 6.5 ? 'Below target' : v <= 9 ? `${v} hours` : 'More than usual',
+      id: 'sleepOnset', type: 'time', default: '23:00',
+      q: 'What time did you fall asleep last night?',
+      hint: 'Feeds sleep duration, hours awake and sleep pressure.',
     },
     {
-      id: 'sleepQuality', type: 'pills',
-      q: 'How would you rate the quality of your sleep?',
-      options: [{v:1,l:'1 — Very poor'},{v:2,l:'2'},{v:3,l:'3'},{v:4,l:'4'},{v:5,l:'5 — Average'},{v:6,l:'6'},{v:7,l:'7'},{v:8,l:'8'},{v:9,l:'9'},{v:10,l:'10 — Excellent'}],
+      id: 'wakeTime', type: 'time', default: '07:00',
+      q: 'What time did you wake up?',
+      hint: 'Feeds sleep duration, sleep inertia and the start of your day.',
     },
     {
-      id: 'mood', type: 'pills',
-      q: 'How are you feeling this morning?',
-      options: [{v:1,l:'Very low'},{v:2,l:'Low'},{v:3,l:'Quite low'},{v:4,l:'Below average'},{v:5,l:'Neutral'},{v:6,l:'Decent'},{v:7,l:'Good'},{v:8,l:'Great'},{v:9,l:'Very good'},{v:10,l:'Excellent'}],
+      id: 'sleepQuality', type: 'slider',
+      q: 'How would you rate your sleep quality?',
+      min: 1, max: 10, step: 1, default: 6,
+      labels: ['1 Poor','5','10 Excellent'],
+      describe: v => ['','Very poor','Poor','Restless','Below average','Average','Decent','Good','Very good','Great','Excellent'][Math.round(v)] || '',
     },
     {
       id: 'energy', type: 'slider',
       q: 'How much energy do you have right now?',
       min: 1, max: 10, step: 1, default: 5,
-      labels: ['1 Low','3','5 Avg','7','10 High'],
+      labels: ['1 Low','5 Avg','10 High'],
       describe: v => ['','Drained','Very low','Low','Below average','Average','Decent','Good','High','Very high','Peak'][Math.round(v)] || '',
     },
     {
+      id: 'sleepiness', type: 'slider',
+      q: 'How sleepy do you feel right now?',
+      min: 1, max: 9, step: 1, default: 4,
+      labels: ['1 Alert','5','9 Very sleepy'],
+      describe: v => ['','Extremely alert','Very alert','Alert','Fairly alert','Neither','Some sleep signs','Sleepy, no effort','Sleepy, some effort','Fighting sleep'][Math.round(v)] || '',
+    },
+    {
+      id: 'mood', type: 'slider',
+      q: 'What is your mood this morning?',
+      min: 1, max: 10, step: 1, default: 6,
+      labels: ['1 Low','5 Neutral','10 Great'],
+      describe: v => ['','Very low','Low','Quite low','Below average','Neutral','Decent','Good','Great','Very good','Excellent'][Math.round(v)] || '',
+    },
+    {
       id: 'stress', type: 'slider',
-      q: 'How stressed do you currently feel?',
+      q: 'How stressed are you right now?',
       min: 1, max: 10, step: 1, default: 4,
-      labels: ['1 Relaxed','5 Moderate','10 Very stressed'],
+      labels: ['1 Relaxed','5 Moderate','10 High'],
       describe: v => ['','Completely relaxed','Very calm','Calm','Mild stress','Some stress','Moderate','Elevated','High stress','Very stressed','Extremely stressed'][Math.round(v)] || '',
     },
     {
-      id: 'soreness', type: 'slider',
-      q: 'How sore or physically fatigued do you feel?',
+      id: 'physicalFatigue', type: 'slider',
+      q: 'How physically fatigued are you?',
       min: 1, max: 10, step: 1, default: 3,
-      labels: ['1 Fully recovered','5','10 Extremely sore'],
-      describe: v => ['','Fully recovered','Very fresh','Slightly tight','Mild soreness','Moderate','Noticeable','Quite sore','Very sore','Severe soreness','Extremely sore'][Math.round(v)] || '',
+      labels: ['1 Fresh','5','10 Exhausted'],
+      describe: v => ['','Completely fresh','Very fresh','Fresh','Slightly tired','Moderate','Noticeable','Tired','Quite tired','Very fatigued','Exhausted'][Math.round(v)] || '',
     },
     {
-      id: 'motivation', type: 'slider',
-      q: 'How motivated do you feel to work toward your goals today?',
-      min: 1, max: 10, step: 1, default: 6,
-      labels: ['1 None','5 Some','10 High'],
-      describe: v => ['','No motivation','Very low','Low','Below average','Average','Decent','Motivated','Very motivated','Highly motivated','Peak motivation'][Math.round(v)] || '',
+      id: 'soreness', type: 'slider',
+      q: 'How sore are your muscles?',
+      min: 1, max: 10, step: 1, default: 3,
+      labels: ['1 None','5','10 Severe'],
+      describe: v => ['','No soreness','Very slight','Slightly tight','Mild soreness','Moderate','Noticeable','Quite sore','Very sore','Severe','Extreme'][Math.round(v)] || '',
     },
     {
-      id: 'note', type: 'note',
-      q: 'Anything affecting you today JARVIS should know?',
-      placeholder: 'Optional — injuries, events, how yesterday went…',
+      id: 'illness', type: 'pills', default: 'well',
+      q: 'Are you feeling unwell?',
+      options: [{v:'well',l:'Feeling well'},{v:'slightly-unwell',l:'Slightly unwell'},{v:'unwell',l:'Unwell'}],
+    },
+    {
+      id: 'expectedBedtime', type: 'time', default: '23:00',
+      q: 'What time do you expect to sleep tonight?',
+      hint: 'Controls the evening decline of your forecast.',
+    },
+    {
+      id: 'chronotype', type: 'pills', default: 'neutral',
+      q: 'Are you an early bird, neutral, or a night owl?',
+      options: [{v:'early',l:'Early bird'},{v:'neutral',l:'Neutral'},{v:'late',l:'Night owl'}],
     },
   ];
 
-  // ── SCORE CALC ──
-  function calcScore(a) {
-    const sleepDur  = Math.max(0, 100 - Math.abs(a.hoursSlept - TARGET_SLEEP) * 15);
-    const sleepQual = a.sleepQuality * 10;
-    const energy    = a.energy * 10;
-    const mood      = a.mood * 10;
-    const motiv     = a.motivation * 10;
-    const stress    = (11 - a.stress) * 10;
-    const recovery  = (11 - a.soreness) * 10;
-    return Math.min(100, Math.max(0, Math.round(
-      sleepDur  * 0.25 +
-      sleepQual * 0.20 +
-      energy    * 0.20 +
-      mood      * 0.15 +
-      stress    * 0.10 +
-      recovery  * 0.05 +
-      motiv     * 0.05
-    )));
+  // ── Sleep hours from the onset/wake answers ──
+  function answerHours(a) {
+    const h = (window.Energy && Energy.sleepDuration)
+      ? Energy.sleepDuration(Energy.toHour(a.sleepOnset), Energy.toHour(a.wakeTime))
+      : null;
+    return (h == null || isNaN(h)) ? 0 : Math.round(h * 10) / 10;
   }
 
   function scoreCategory(s) {
@@ -1536,10 +1593,10 @@ const CI = (() => {
   }
 
   function buildSummary(a, s) {
-    const hrs   = a.hoursSlept;
+    const hrs   = answerHours(a);
     const parts = [];
-    if (hrs >= 7)        parts.push('You slept close to your target');
-    else if (hrs >= 5.5) parts.push('Your sleep was a little short');
+    if (hrs >= 7)        parts.push(`You slept about ${hrs}h, close to target`);
+    else if (hrs >= 5.5) parts.push(`Your ${hrs}h of sleep was a little short`);
     else                 parts.push('Sleep was limited last night');
     if (a.energy >= 7)   parts.push('energy is high');
     else if (a.energy >= 5) parts.push('energy is moderate');
@@ -1547,9 +1604,10 @@ const CI = (() => {
     if (a.mood >= 7)     parts.push('mood is positive');
     else if (a.mood >= 5) parts.push('mood is neutral');
     else                 parts.push('mood is subdued');
-    if (a.soreness >= 7) parts.push('physical soreness is elevated — allow muscles extra recovery time');
-    else if (a.soreness >= 5) parts.push('some physical fatigue is present');
+    if (a.soreness >= 7) parts.push('muscle soreness is elevated — allow extra recovery time');
+    else if (a.physicalFatigue >= 7) parts.push('physical fatigue is present');
     if (a.stress >= 7)   parts.push('stress is high — schedule buffer time and breaks');
+    if (a.illness && a.illness !== 'well') parts.push('you reported feeling unwell — keep load light');
     let out = parts.join(', ') + '. ';
     if (s >= 75) out += 'You are ready for a productive and demanding day.';
     else if (s >= 55) out += 'A balanced approach will serve you well today.';
@@ -1559,25 +1617,27 @@ const CI = (() => {
 
   function buildStrengths(a) {
     const list = [];
-    if (a.hoursSlept >= 7) list.push('Adequate sleep');
+    if (answerHours(a) >= 7) list.push('Adequate sleep');
     if (a.sleepQuality >= 7) list.push('Good sleep quality');
     if (a.energy >= 7) list.push('High energy');
+    if (a.sleepiness <= 3) list.push('Feeling alert');
     if (a.mood >= 7) list.push('Positive mood');
     if (a.stress <= 4) list.push('Low stress');
-    if (a.soreness <= 3) list.push('Full recovery');
-    if (a.motivation >= 7) list.push('Strong motivation');
+    if (a.soreness <= 3 && a.physicalFatigue <= 3) list.push('Well recovered');
     return list.length ? list : ['Showing up today'];
   }
 
   function buildAreas(a) {
     const list = [];
-    if (a.hoursSlept < 6.5) list.push('Below-target sleep');
+    if (answerHours(a) < 6.5) list.push('Below-target sleep');
     if (a.sleepQuality <= 4) list.push('Poor sleep quality');
     if (a.energy <= 4) list.push('Low energy');
+    if (a.sleepiness >= 7) list.push('High sleepiness');
     if (a.mood <= 4) list.push('Low mood');
     if (a.stress >= 7) list.push('Elevated stress');
+    if (a.physicalFatigue >= 7) list.push('High physical fatigue');
     if (a.soreness >= 7) list.push('High soreness');
-    if (a.motivation <= 4) list.push('Low motivation');
+    if (a.illness && a.illness !== 'well') list.push('Feeling unwell');
     return list;
   }
 
@@ -1618,15 +1678,41 @@ const CI = (() => {
     } catch {}
   }
 
+  // ── Shared sleep log (also written by the Sleep tracker page) ──
+  function getSleepLog() {
+    try { return JSON.parse(localStorage.getItem('jarvis_sleep_log')) || []; } catch { return []; }
+  }
+  function upsertSleepLog(rec) {
+    if (!rec || !rec.date || !rec.onset || !rec.wake) return;
+    const log = getSleepLog().filter(r => r.date !== rec.date);
+    log.push(rec);
+    log.sort((x, y) => x.date < y.date ? -1 : 1);
+    localStorage.setItem('jarvis_sleep_log', JSON.stringify(log.slice(-60)));
+  }
+
   function updateDashboard(score, cat) {
     const num  = document.getElementById('ready-num');
     const lbl  = document.getElementById('ready-lbl');
     const card = document.getElementById('ready-card');
-    if (!num) return;
-    num.textContent = score;
+    if (num) num.textContent = score;
     if (lbl) lbl.textContent = cat;
     const color = score >= 75 ? 'var(--gr)' : score >= 55 ? 'var(--ye)' : 'var(--or)';
     if (card) card.style.borderLeftColor = color;
+
+    // Mini-metrics from today's check-in answers
+    const c = loadCheckin();
+    if (!c || c.date !== todayStr()) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    if (c.sleepQuality != null) set('ready-met-sleep', c.sleepQuality + ' / 10');
+    if (c.energy != null)       set('ready-met-energy', c.energy + ' / 10');
+    if (c.sleepiness != null)   set('ready-met-sleepy', c.sleepiness + ' / 9');
+    if (c.mood != null) {
+      const moodEl = document.getElementById('ready-met-mood');
+      if (moodEl) {
+        moodEl.textContent = c.mood >= 8 ? 'Great' : c.mood >= 6 ? 'Good' : c.mood >= 4 ? 'Okay' : 'Low';
+        moodEl.style.color = c.mood >= 6 ? 'var(--gr)' : c.mood >= 4 ? 'var(--ye)' : 'var(--or)';
+      }
+    }
   }
 
   // ── RENDER QUESTION ──
@@ -1638,8 +1724,26 @@ const CI = (() => {
     document.getElementById('ci-q-text').textContent = q.q;
     const container = document.getElementById('ci-q-input');
     container.innerHTML = '';
+    if (q.hint) {
+      const h = document.createElement('div');
+      h.style.cssText = 'font-size:12px;color:var(--t3);text-align:center;margin:-6px auto 16px;max-width:340px;line-height:1.5';
+      h.textContent = q.hint;
+      container.appendChild(h);
+    }
 
-    if (q.type === 'slider') {
+    if (q.type === 'time') {
+      const def = answers[q.id] !== undefined ? answers[q.id] : q.default;
+      answers[q.id] = def;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;justify-content:center';
+      const input = document.createElement('input');
+      input.type = 'time'; input.value = def;
+      input.style.cssText = 'font-size:30px;font-weight:300;padding:14px 20px;border:1px solid var(--bd);border-radius:14px;background:#fff;color:var(--t1);font-family:inherit;text-align:center';
+      input.oninput = () => { if (input.value) answers[q.id] = input.value; };
+      wrap.appendChild(input);
+      container.appendChild(wrap);
+
+    } else if (q.type === 'slider') {
       const def = answers[q.id] !== undefined ? answers[q.id] : q.default;
       const valDiv = document.createElement('div');
       valDiv.className = 'ci-slider-val';
@@ -1671,6 +1775,7 @@ const CI = (() => {
       container.appendChild(wrap);
 
     } else if (q.type === 'pills') {
+      if (answers[q.id] === undefined && q.default !== undefined) answers[q.id] = q.default;
       const pillsDiv = document.createElement('div');
       pillsDiv.className = 'ci-pills';
       q.options.forEach(opt => {
@@ -1710,13 +1815,7 @@ const CI = (() => {
 
   function nextQ() {
     const q = QUESTIONS[currentQ];
-    if (q.type === 'pills' && answers[q.id] === undefined) {
-      // nudge: pick one
-      document.querySelectorAll('.ci-pill')[0]?.click();
-    }
-    if (q.type === 'slider' && answers[q.id] === undefined) {
-      answers[q.id] = q.default;
-    }
+    if (answers[q.id] === undefined && q.default !== undefined) answers[q.id] = q.default;
     currentQ++;
     if (currentQ < QUESTIONS.length) {
       renderQ(currentQ);
@@ -1730,30 +1829,50 @@ const CI = (() => {
     setAIState('thinking', 'Analysing your current state…');
 
     setTimeout(() => {
-      const score = calcScore(answers);
-      const cat   = scoreCategory(score);
+      const a = answers;
+      const sleepHrs = answerHours(a);
+
+      // Record today's sleep into the shared sleep log (feeds sleep pressure)
+      upsertSleepLog({ date: todayStr(), onset: a.sleepOnset, wake: a.wakeTime, quality: a.sleepQuality });
+
+      // The chronotype answer is authoritative from here on
+      localStorage.setItem('jarvis_chronotype', a.chronotype || 'neutral');
+
+      // Morning readiness = the day's PEAK predicted overall energy (your ceiling
+      // today given sleep + current state) — a stable, motivating number.
+      let score = 60;
+      try {
+        const fc = Energy.buildForecast({
+          wake: a.wakeTime, onset: a.sleepOnset, expectedBedtime: a.expectedBedtime,
+          chronotype: a.chronotype || 'neutral',
+          sleepLog: getSleepLog(), answers: a,
+          learning: Energy.computeLearning(),
+        });
+        if (fc.points.length) score = fc.points.reduce((m, p) => Math.max(m, p.overall), 0);
+      } catch (e) {
+        score = Math.round(((a.energy || 5) + (a.mood || 5) + (11 - (a.stress || 5))) / 3 * 10);
+      }
+      score = Math.min(100, Math.max(0, Math.round(score)));
+      const cat = scoreCategory(score);
 
       const record = {
         id: Date.now().toString(),
         date: todayStr(),
         completedAt: new Date().toISOString(),
-        hoursSlept: answers.hoursSlept || 0,
-        targetSleepHours: TARGET_SLEEP,
-        sleepQuality: answers.sleepQuality || 5,
-        mood: answers.mood || 5,
-        energy: answers.energy || 5,
-        stress: answers.stress || 5,
-        soreness: answers.soreness || 5,
-        motivation: answers.motivation || 5,
-        optionalNote: answers.note || '',
-        morningScore: score,
-        scoreCategory: cat,
+        sleepOnset: a.sleepOnset, wakeTime: a.wakeTime, sleepDurationHours: sleepHrs,
+        sleepQuality: a.sleepQuality, energy: a.energy, sleepiness: a.sleepiness,
+        mood: a.mood, stress: a.stress, physicalFatigue: a.physicalFatigue,
+        soreness: a.soreness, illness: a.illness || 'well',
+        expectedBedtime: a.expectedBedtime, chronotype: a.chronotype || 'neutral',
+        morningScore: score, scoreCategory: cat,
+        answers: a,
       };
       saveCheckin(record);
       updateHeaderDot();
 
-      // Update dashboard
+      // Update dashboard + refresh the energy forecast immediately
       updateDashboard(score, cat);
+      if (window.EI && EI.render) EI.render();
 
       // Show results
       showPhase('ci-phase-results');
@@ -1905,13 +2024,36 @@ const CI = (() => {
     ov.classList.remove('ci-gone');
     document.body.style.overflow = 'hidden';
 
-    showPhase('ci-phase-greeting');
+    // First ever run → capture the user's typical sleep schedule once
+    if (!localStorage.getItem('jarvis_sleep_schedule')) {
+      showPhase('ci-phase-onboard');
+    } else {
+      showPhase('ci-phase-greeting');
+    }
 
     setAIState('idle', '');
     startCanvas();
   }
 
-  return { init, startQuestions, nextQ, viewDashboard, editAnswers, skipToday, completeLater, openOverlay };
+  // ── ONBOARDING: typical schedule → chronotype estimate (run once) ──
+  function saveOnboarding() {
+    const g = id => { const el = document.getElementById(id); return el && el.value ? el.value : ''; };
+    const schedule = {
+      workSleep: g('ob-work-sleep') || '23:00',
+      workWake:  g('ob-work-wake')  || '07:00',
+      freeSleep: g('ob-free-sleep') || '23:30',
+      freeWake:  g('ob-free-wake')  || '08:00',
+    };
+    localStorage.setItem('jarvis_sleep_schedule', JSON.stringify(schedule));
+    try {
+      const ct = Energy.estimateChronotype(schedule);
+      if (!localStorage.getItem('jarvis_chronotype')) localStorage.setItem('jarvis_chronotype', ct);
+    } catch (e) {}
+    showPhase('ci-phase-greeting');
+    setAIState('idle', '');
+  }
+
+  return { init, startQuestions, nextQ, viewDashboard, editAnswers, skipToday, completeLater, openOverlay, saveOnboarding };
 })();
 window.CI = CI; // expose to inline HTML handlers
 
@@ -1919,308 +2061,203 @@ window.CI = CI; // expose to inline HTML handlers
 //  ENERGY INTELLIGENCE MODULE
 // ══════════════════════════════════════════════
 const EI = (() => {
-  // ── Storage keys ──
   const KEY_CT  = 'jarvis_chronotype';
-  const KEY_OBS = 'jarvis_ei_observations';
-  const KEY_AVG = 'jarvis_ei_averages';
+  const ARC_LEN = 169.6;   // 270° arc length for r=36
+  const FULL_C  = 226.2;   // full circumference
+  let lastForecast = null;
+  let obsShown = false;
 
-  // ── Arc constants (r=36 circle, 270° span) ──
-  const ARC_LEN = 169.6; // 270/360 × 2π×36
-  const FULL_C  = 226.2; // full circumference
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  function loadCheckin() { try { return JSON.parse(localStorage.getItem('jarvis_checkin')); } catch { return null; } }
+  function getSleepLog() { try { return JSON.parse(localStorage.getItem('jarvis_sleep_log')) || []; } catch { return []; } }
+  function getSchedule() { try { return JSON.parse(localStorage.getItem('jarvis_sleep_schedule')); } catch { return null; } }
+  function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = (v == null ? '—' : v); }
+  function setAttr(id, a, v) { const el = document.getElementById(id); if (el) el.setAttribute(a, v); }
 
-  let chronotype = 'neutral';
-  let obsVal     = null;
-  let obsShown   = false;
-
-  // ── Chronotype profiles ──
-  // p1/p2 = peak hour, w1/w2 = width (σ), a1/a2 = amplitude
-  const CT = {
-    early:   { p1: 9,  w1: 1.8, a1: 1.00, p2: 14.5, w2: 2.0, a2: 0.65 },
-    neutral: { p1: 10, w1: 2.0, a1: 1.00, p2: 15.5, w2: 2.2, a2: 0.70 },
-    late:    { p1: 11, w1: 2.0, a1: 0.95, p2: 16.5, w2: 2.2, a2: 0.75 },
-  };
-
-  // ── Deterministic Gaussian engine ──
-  function gauss(t, mu, sigma) {
-    return Math.exp(-Math.pow(t - mu, 2) / (2 * Math.pow(sigma, 2)));
+  // Gather today's inputs (check-in if done, else fall back to typical schedule).
+  function inputs() {
+    const ci = loadCheckin();
+    // Require the new-format fields so a pre-update check-in falls back to schedule.
+    const haveToday = !!(ci && ci.date === todayStr() && ci.wakeTime && ci.sleepOnset);
+    const sched = getSchedule();
+    const chronotype = localStorage.getItem(KEY_CT) || (haveToday && ci.chronotype) || 'neutral';
+    const wake  = haveToday ? ci.wakeTime        : (sched ? sched.workWake  : '07:00');
+    const onset = haveToday ? ci.sleepOnset       : (sched ? sched.workSleep : '23:00');
+    const bed   = haveToday ? ci.expectedBedtime  : (sched ? sched.workSleep : '23:00');
+    const answers = haveToday ? {
+      energy: ci.energy, sleepiness: ci.sleepiness, mood: ci.mood, stress: ci.stress,
+      physicalFatigue: ci.physicalFatigue, soreness: ci.soreness,
+      sleepQuality: ci.sleepQuality, illness: ci.illness,
+    } : null;
+    return { wake, onset, bed, chronotype, answers, haveToday, ci };
   }
 
-  function rawEnergy(h, ct) {
-    const p = CT[ct] || CT.neutral;
-    const morning   = p.a1 * gauss(h, p.p1, p.w1);
-    const afternoon = p.a2 * gauss(h, p.p2, p.w2);
-    // Post-lunch dip
-    const dip = 0.20 * gauss(h, 13.5, 0.75);
-    // Evening wind-down (linear past 19:00)
-    const wind = Math.max(0, (h - 19) / 6);
-    return Math.max(0, (morning + afternoon - dip) * (1 - wind * 0.55));
-  }
-
-  // ── Read today's morning check-in ──
-  function getMorningFactor() {
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const d = JSON.parse(localStorage.getItem('jarvis_checkin'));
-      if (d && d.date === today) return d.morningScore / 100;
-    } catch {}
-    return null;
-  }
-
-  // ── Personal averages (keyed by hour slot "6","6.5" etc.) ──
-  function getAvgs() { try { return JSON.parse(localStorage.getItem(KEY_AVG)) || {}; } catch { return {}; } }
-  function saveAvgs(a) { localStorage.setItem(KEY_AVG, JSON.stringify(a)); }
-
-  function updateAvg(hour, val10) {
-    const avgs = getAvgs();
-    const k = String(Math.round(hour * 2) / 2); // round to nearest 0.5
-    const alpha = 0.3;
-    avgs[k] = avgs[k] !== undefined ? avgs[k] * (1 - alpha) + val10 * alpha : val10;
-    saveAvgs(avgs);
-  }
-
-  // ── Observations ──
-  function getObs() { try { return JSON.parse(localStorage.getItem(KEY_OBS)) || []; } catch { return []; } }
-
-  function saveObs(entry) {
-    const list = getObs();
-    list.push(entry);
-    localStorage.setItem(KEY_OBS, JSON.stringify(list.slice(-200)));
-    updateAvg(entry.hour, entry.value);
-  }
-
-  // ── Build 30-min forecast from 6 AM to 11 PM ──
-  function buildForecast(ct, mf) {
-    const avgs  = getAvgs();
-    const scale = mf !== null ? 0.62 + mf * 0.38 : 0.78;
-    const pts   = [];
-    for (let h = 6; h <= 23; h += 0.5) {
-      let v = rawEnergy(h, ct) * scale;
-      const k = String(h);
-      if (avgs[k] !== undefined) {
-        v = v * 0.55 + (avgs[k] / 10) * 0.45; // personal blend
-      }
-      pts.push({ hour: h, raw: v });
-    }
-    // Normalise so best point hits ~88–95 range
-    const peak = Math.max(...pts.map(p => p.raw));
-    const target = 0.88 + Math.min(0.07, scale * 0.09);
-    pts.forEach(p => {
-      p.energy = peak > 0 ? Math.round(Math.min(100, Math.max(0, (p.raw / peak) * target * 100))) : 50;
+  function render() {
+    if (!window.Energy) return;
+    const inp = inputs();
+    const learning = Energy.computeLearning();
+    const fc = Energy.buildForecast({
+      wake: inp.wake, onset: inp.onset, expectedBedtime: inp.bed,
+      chronotype: inp.chronotype, sleepLog: getSleepLog(),
+      answers: inp.answers || undefined, learning,
     });
-    return pts;
-  }
+    lastForecast = fc;
+    const pts = fc.points;
+    if (!pts.length) return;
 
-  // ── Find windows ──
-  function findWindows(pts) {
+    // Muscle recovery acceptable? (used to gate the workout window)
+    let muscleRecoveryOk = true;
+    try {
+      const keys = Object.keys(MD_RAW || {}); let fatigued = 0;
+      keys.forEach(k => { const d = getMD(k); if (d && d.c === 'red') fatigued++; });
+      muscleRecoveryOk = fatigued < 3;
+    } catch (e) {}
+
+    const win = Energy.detectWindows(pts, {
+      soreness: inp.haveToday ? inp.ci.soreness : null,
+      illness:  inp.haveToday ? inp.ci.illness : 'well',
+      muscleRecoveryOk,
+    });
+
     const nowH = new Date().getHours() + new Date().getMinutes() / 60;
-    const future = pts.filter(p => p.hour >= nowH);
-    if (!future.length) return { peak: null, focus: null, workout: null, dip: null };
+    let cur = pts[0];
+    pts.forEach(p => { if (Math.abs(p.absHour - nowH) < Math.abs(cur.absHour - nowH)) cur = p; });
 
-    const peak = future.reduce((a, b) => a.energy > b.energy ? a : b);
+    updateGauge(cur.overall);
+    renderChart(pts);
 
-    // Post-lunch dip (12–18 window, lowest point)
-    const dipZone = future.filter(p => p.hour >= 12 && p.hour <= 18);
-    const dip = dipZone.length ? dipZone.reduce((a, b) => a.energy < b.energy ? a : b) : null;
-
-    // Best 2-hour focus block (4 × 30-min slots, highest avg, before peak)
-    const prePeak = future.filter(p => p.hour < Math.min(peak.hour, 16.5));
-    let focus = null, bestFocusAvg = -1;
-    for (let i = 0; i + 3 < prePeak.length; i++) {
-      const block = prePeak.slice(i, i + 4);
-      const avg = block.reduce((s, p) => s + p.energy, 0) / 4;
-      if (avg > bestFocusAvg) { bestFocusAvg = avg; focus = block[0]; }
+    const headEl = document.getElementById('ei-status-head');
+    const subEl  = document.getElementById('ei-status-sub');
+    const lvl = cur.overall >= 70 ? 'High Energy' : cur.overall >= 45 ? 'Moderate Energy' : 'Low Energy';
+    const col = cur.overall >= 70 ? 'var(--gr)' : cur.overall >= 45 ? 'var(--ye)' : 'var(--or)';
+    if (headEl) { headEl.textContent = lvl; headEl.style.color = col; }
+    if (subEl) {
+      subEl.textContent = inp.haveToday
+        ? (win.peakEnergy ? `Focus ${cur.focus} · Physical ${cur.physical} now — peak ~${Energy.fmtHour(win.peakEnergy.hour)}.` : 'Energy tapering — time to wind down.')
+        : 'Complete your morning check-in for a personalised forecast.';
     }
 
-    // Workout window: high energy ≥55, prefer afternoon ≥14:00
-    const hiEnergy = future.filter(p => p.energy >= 55);
-    let workout = null;
-    if (hiEnergy.length) {
-      const pm = hiEnergy.filter(p => p.hour >= 14);
-      workout = pm.length ? pm[0] : hiEnergy[0];
+    setText('ei-peak-v', win.peakEnergy ? Energy.fmtHour(win.peakEnergy.hour) : '—');
+    setText('ei-peak-s', win.peakEnergy ? `${win.peakEnergy.value} / 100 overall` : '');
+    setText('ei-focus-v', win.bestFocus ? win.bestFocus.label : '—');
+    setText('ei-focus-s', win.bestFocus ? `Focus ~${win.bestFocus.value}/100` : 'Keep logging');
+    if (win.bestWorkout) {
+      setText('ei-workout-v', win.bestWorkout.label);
+      setText('ei-workout-s', `Physical ~${win.bestWorkout.value}/100`);
+    } else {
+      setText('ei-workout-v', win.workoutBlocked ? 'Rest advised' : '—');
+      setText('ei-workout-s', win.workoutBlocked ? 'Soreness / illness / low recovery' : '');
     }
+    setText('ei-dip-v', win.energyDip ? win.energyDip.label : '—');
+    setText('ei-dip-s', win.energyDip ? 'Plan lighter work' : 'No major dip');
 
-    return { peak, focus, workout, dip };
+    setText('ei-conf-lbl', learning.label);
+
+    document.querySelectorAll('.ei-ct').forEach(b => b.classList.toggle('on', b.dataset.ct === inp.chronotype));
   }
 
-  // ── Format hour as "10:30 AM" ──
-  function fmtHour(h) {
-    if (h == null) return '—';
-    const hr  = Math.floor(h);
-    const min = h % 1 === 0.5 ? '30' : '00';
-    const sfx = hr < 12 ? 'AM' : 'PM';
-    const disp = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
-    return `${disp}:${min} ${sfx}`;
-  }
-
-  // ── Confidence label ──
-  function confLabel(obsCount) {
-    if (obsCount >= 14) return 'Personalised forecast';
-    if (obsCount >= 5)  return 'Moderate confidence';
-    return 'Learning your rhythm';
-  }
-
-  // ── Gauge update ──
   function updateGauge(e) {
     const arc = document.getElementById('ei-gauge-arc');
     const num = document.getElementById('ei-gauge-num');
     if (!arc || !num) return;
     const filled = (e / 100) * ARC_LEN;
     arc.setAttribute('stroke-dasharray', `${filled.toFixed(1)} ${FULL_C}`);
-    const color = e >= 70 ? '#4ADE80' : e >= 45 ? '#FCD34D' : '#FB923C';
-    arc.setAttribute('stroke', color);
+    arc.setAttribute('stroke', e >= 70 ? '#4ADE80' : e >= 45 ? '#FCD34D' : '#FB923C');
     num.textContent = e;
     num.style.color = e >= 70 ? 'var(--gr)' : e >= 45 ? 'var(--ye)' : 'var(--or)';
   }
 
-  // ── Chart render ──
+  // Draw all three curves: overall (filled), focus, physical.
   function renderChart(pts) {
     const W = 400, H = 64;
-    const nowH  = new Date().getHours() + new Date().getMinutes() / 60;
-    const start = pts[0].hour, end = pts[pts.length - 1].hour;
-    const xS = h => ((h - start) / (end - start)) * W;
-    const yS = e => H - 4 - (e / 100) * (H - 10);
-
-    const coords = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xS(p.hour).toFixed(1)},${yS(p.energy).toFixed(1)}`).join(' ');
-    document.getElementById('ei-chart-line').setAttribute('d', coords);
-
-    const lastX = xS(pts[pts.length - 1].hour).toFixed(1);
-    const firstX = xS(pts[0].hour).toFixed(1);
-    document.getElementById('ei-chart-fill').setAttribute('d',
-      `${coords} L${lastX},${H} L${firstX},${H} Z`);
-
-    const nowLine = document.getElementById('ei-now-line');
-    if (nowH >= start && nowH <= end) {
-      const nx = xS(nowH).toFixed(1);
-      nowLine.setAttribute('x1', nx); nowLine.setAttribute('x2', nx);
-      nowLine.style.display = '';
-    } else {
-      nowLine.style.display = 'none';
-    }
-  }
-
-  // ── Current energy interpolation ──
-  function currentEnergy(pts) {
     const nowH = new Date().getHours() + new Date().getMinutes() / 60;
-    let best = pts[0], bestD = Infinity;
-    for (const p of pts) {
-      const d = Math.abs(p.hour - nowH);
-      if (d < bestD) { bestD = d; best = p; }
+    const start = pts[0].absHour, end = pts[pts.length - 1].absHour;
+    const span = (end - start) || 1;
+    const xS = h => ((h - start) / span) * W;
+    const yS = v => H - 4 - (v / 100) * (H - 10);
+    const lineFor = key => pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xS(p.absHour).toFixed(1)},${yS(p[key]).toFixed(1)}`).join(' ');
+    const overall = lineFor('overall');
+    setAttr('ei-line-overall', 'd', overall);
+    setAttr('ei-line-focus', 'd', lineFor('focus'));
+    setAttr('ei-line-physical', 'd', lineFor('physical'));
+    setAttr('ei-chart-fill', 'd', `${overall} L${xS(end).toFixed(1)},${H} L${xS(start).toFixed(1)},${H} Z`);
+    const nowLine = document.getElementById('ei-now-line');
+    if (nowLine) {
+      if (nowH >= start && nowH <= end) { const nx = xS(nowH).toFixed(1); nowLine.setAttribute('x1', nx); nowLine.setAttribute('x2', nx); nowLine.style.display = ''; }
+      else nowLine.style.display = 'none';
     }
-    return best.energy;
   }
 
-  // ── Set text safely ──
-  function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; }
-
-  // ── Main render ──
-  function render() {
-    chronotype = localStorage.getItem(KEY_CT) || 'neutral';
-    const mf  = getMorningFactor();
-    const pts = buildForecast(chronotype, mf);
-    const win = findWindows(pts);
-    const cur = currentEnergy(pts);
-    const obs = getObs();
-
-    updateGauge(cur);
-    renderChart(pts);
-
-    // Status heading
-    const headEl = document.getElementById('ei-status-head');
-    const subEl  = document.getElementById('ei-status-sub');
-    const headLabel = cur >= 70 ? 'High Energy' : cur >= 45 ? 'Moderate Energy' : 'Low Energy';
-    const headColor = cur >= 70 ? 'var(--gr)' : cur >= 45 ? 'var(--ye)' : 'var(--or)';
-    if (headEl) { headEl.textContent = headLabel; headEl.style.color = headColor; }
-    if (subEl) {
-      if (mf !== null) {
-        subEl.textContent = win.peak
-          ? `Peak around ${fmtHour(win.peak.hour)}. ${win.focus ? 'Best focus: ' + fmtHour(win.focus.hour) + '.' : ''}`
-          : 'Energy tapering — good time to wind down.';
-      } else {
-        subEl.textContent = 'Complete your morning check-in for a personalised forecast.';
-      }
-    }
-
-    // Windows
-    setText('ei-peak-v',    win.peak    ? fmtHour(win.peak.hour)    : '—');
-    setText('ei-peak-s',    win.peak    ? `${win.peak.energy} / 100`  : '');
-    setText('ei-focus-v',   win.focus   ? fmtHour(win.focus.hour)   : '—');
-    setText('ei-focus-s',   win.focus   ? '2 hr sustained block'    : '');
-    setText('ei-workout-v', win.workout ? fmtHour(win.workout.hour) : '—');
-    setText('ei-workout-s', win.workout ? `${win.workout.energy} / 100` : '');
-    setText('ei-dip-v',     win.dip     ? fmtHour(win.dip.hour)     : '—');
-    setText('ei-dip-s',     win.dip     ? 'Low-energy window'       : '');
-
-    setText('ei-conf-lbl', confLabel(obs.length));
-
-    // Sync chronotype buttons
-    document.querySelectorAll('.ei-ct').forEach(b => {
-      b.classList.toggle('on', b.dataset.ct === chronotype);
-    });
-  }
-
-  // ── Chronotype toggle ──
   function setChronotype(ct, el) {
-    chronotype = ct;
     localStorage.setItem(KEY_CT, ct);
     document.querySelectorAll('.ei-ct').forEach(b => b.classList.remove('on'));
     if (el) el.classList.add('on');
     render();
   }
 
-  // ── Observation prompt logic ──
+  // ── Daytime learning prompt: mental energy + physical capability (1–10) ──
   function shouldAutoPrompt() {
     if (obsShown) return false;
-    const h    = new Date().getHours();
-    const today = new Date().toISOString().slice(0, 10);
-    const todayObs = getObs().filter(o => o.date === today).length;
-    // Morning slot 9-11, midday 13-15, evening 17-19
-    const slots = [{ from: 9, to: 11, max: 1 }, { from: 13, to: 15, max: 2 }, { from: 17, to: 19, max: 3 }];
+    const h = new Date().getHours();
+    const todayObs = Energy.getObservations().filter(o => o.date === todayStr()).length;
+    const slots = [{ from: 10, to: 12, max: 1 }, { from: 13, to: 15, max: 2 }, { from: 17, to: 19, max: 3 }];
     return slots.some(s => h >= s.from && h < s.to && todayObs < s.max);
   }
-
+  function obsInput(which) {
+    const map = { mental: ['ei-obs-mental', 'ei-obs-mental-v'], phys: ['ei-obs-phys', 'ei-obs-phys-v'] };
+    const ids = map[which]; if (!ids) return;
+    const el = document.getElementById(ids[0]), le = document.getElementById(ids[1]);
+    if (el && le) le.textContent = el.value;
+  }
   function showObsPrompt() {
-    const el = document.getElementById('ei-obs');
-    if (!el) return;
+    const el = document.getElementById('ei-obs'); if (!el) return;
     const now = new Date();
-    setText('ei-obs-time', now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) + ' check-in');
-    document.querySelectorAll('.ei-obs-btn').forEach(b => b.classList.remove('sel'));
-    obsVal = null;
-    el.classList.add('on');
-    obsShown = true;
+    setText('ei-obs-time', now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' check-in');
+    const m = document.getElementById('ei-obs-mental'), p = document.getElementById('ei-obs-phys');
+    if (m) { m.value = 6; obsInput('mental'); }
+    if (p) { p.value = 6; obsInput('phys'); }
+    el.classList.add('on'); obsShown = true;
   }
-
-  function dismissObs() {
-    const el = document.getElementById('ei-obs');
-    if (el) el.classList.remove('on');
-  }
-
-  function selectObs(btn) {
-    document.querySelectorAll('.ei-obs-btn').forEach(b => b.classList.remove('sel'));
-    btn.classList.add('sel');
-    obsVal = parseInt(btn.dataset.v, 10);
-  }
-
+  function dismissObs() { const el = document.getElementById('ei-obs'); if (el) el.classList.remove('on'); }
+  function selectObs() { /* retained for backwards-compatibility */ }
   function confirmObs() {
-    if (obsVal === null) { dismissObs(); return; }
+    const m = document.getElementById('ei-obs-mental'), p = document.getElementById('ei-obs-phys');
+    if (!m || !p) { dismissObs(); return; }
+    const mental = parseInt(m.value, 10), physical = parseInt(p.value, 10);
     const now = new Date();
-    saveObs({
-      date:  now.toISOString().slice(0, 10),
-      time:  now.toISOString(),
-      hour:  now.getHours() + now.getMinutes() / 60,
-      value: obsVal,
+    const ci = loadCheckin();
+    const nowH = now.getHours() + now.getMinutes() / 60;
+    const wakeH = (ci && ci.wakeTime && window.Energy) ? Energy.toHour(ci.wakeTime) : 7;
+    const hoursSinceWaking = Math.max(0, nowH - wakeH);
+
+    let predicted = 50;
+    if (lastForecast && lastForecast.points.length) {
+      let best = lastForecast.points[0];
+      lastForecast.points.forEach(pt => { if (Math.abs(pt.absHour - nowH) < Math.abs(best.absHour - nowH)) best = pt; });
+      predicted = best.overall;
+    }
+    const reportedMental = mental * 10, reportedPhysical = physical * 10;
+    const reportedScore = Math.round(0.65 * reportedMental + 0.35 * reportedPhysical);
+    Energy.recordObservation({
+      date: todayStr(), time: now.toISOString(), hour: nowH,
+      hoursSinceWaking, predictedScore: predicted, reportedScore,
+      reportedMental, reportedPhysical,
+      sleepDuration: ci ? ci.sleepDurationHours : null,
+      stress: ci ? ci.stress : null, mood: ci ? ci.mood : null, fatigue: ci ? ci.physicalFatigue : null,
     });
     dismissObs();
     render();
   }
 
-  // ── Init ──
   function init() {
     render();
-    // Non-intrusive auto-prompt with delay so it doesn't appear immediately on load
     setTimeout(() => { if (shouldAutoPrompt()) showObsPrompt(); }, 9000);
   }
 
-  return { init, render, setChronotype, showObsPrompt, dismissObs, selectObs, confirmObs };
+  return { init, render, setChronotype, showObsPrompt, dismissObs, selectObs, confirmObs, obsInput };
 })();
 window.EI = EI; // expose to inline HTML handlers
 
