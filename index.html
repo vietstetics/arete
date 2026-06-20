@@ -1164,7 +1164,7 @@ textarea{font-family:inherit;resize:none}
 
   <!-- Phase: Greeting -->
   <div id="ci-phase-greeting" class="ci-phase ci-active">
-    <div class="ci-greeting">Good morning.<br>Let's assess your current state.</div>
+    <div class="ci-greeting" id="ci-greet-line">Good morning.<br>Let's assess your current state.</div>
     <div class="ci-greeting-sub">Takes about 60 seconds. One question at a time.</div>
     <button class="ci-btn-primary" onclick="CI.startQuestions()">Begin check-in</button>
     <button class="ci-btn-ghost" onclick="CI.completeLater()">Complete later</button>
@@ -1972,6 +1972,7 @@ const CI = (() => {
     }
 
     if (!showedResults) {
+      setGreetingByTime();
       showPhase('ci-phase-greeting');
       setAIState('idle', '');
     }
@@ -1979,37 +1980,97 @@ const CI = (() => {
   }
 
   // ── INIT ──
+  // ── WAKE DETECTION ──────────────────────────────────────────────
+  // The app prompts the morning check-in when you appear to have just woken
+  // up: the first time you open (or return to) the app after a long overnight
+  // gap. No sensors needed — time-since-last-active is the wake signal, and the
+  // clock decides the greeting wording. It prompts at most once per day.
+  const WAKE_GAP_HOURS    = 5;
+  const LAST_ACTIVE_KEY   = 'jarvis_last_active';
+  const MORNING_SHOWN_KEY = 'jarvis_morning_shown';
+
+  function gapHoursSinceActive() {
+    const t = parseInt(localStorage.getItem(LAST_ACTIVE_KEY), 10);
+    if (!Number.isFinite(t)) return Infinity;       // never active before
+    return (Date.now() - t) / 3600000;
+  }
+  function recordActive() {
+    try { localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now())); } catch (e) {}
+  }
+  function greetingForHour(h) {
+    return h < 12 ? 'Good morning.' : h < 18 ? 'Good afternoon.' : 'Good evening.';
+  }
+  function setGreetingByTime() {
+    const el = document.getElementById('ci-greet-line');
+    if (el) el.innerHTML = `${greetingForHour(new Date().getHours())}<br>Let's assess your current state.`;
+  }
+
+  // Decide whether to surface the greeting now. Returns true if it opened.
+  function maybePromptMorning(gap) {
+    const today = todayStr();
+    const c = loadCheckin();
+    if (c && c.date === today) return false;                            // done today
+    if (localStorage.getItem('jarvis_skipped') === today) return false;  // skipped today
+    if (localStorage.getItem(MORNING_SHOWN_KEY) === today) return false; // already prompted
+    const hour = new Date().getHours();
+    const justWoke = gap >= WAKE_GAP_HOURS && hour >= 4 && hour < 22;    // woke up, not the dead of night
+    if (!justWoke) return false;
+    localStorage.setItem(MORNING_SHOWN_KEY, today);
+    const ov = document.getElementById('ci-overlay');
+    ov.classList.remove('ci-gone');
+    ov.classList.remove('ci-hidden');
+    document.body.style.overflow = 'hidden';
+    setGreetingByTime();
+    showPhase('ci-phase-greeting');
+    setAIState('idle', '');
+    startCanvas();
+    return true;
+  }
+
+  // Re-check when the app returns to the foreground (you left it open overnight
+  // and unlocked your phone in the morning). Also keeps last-active fresh.
+  let _wakeWatcherOn = false;
+  function registerWakeWatcher() {
+    if (_wakeWatcherOn) return;
+    _wakeWatcherOn = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { recordActive(); return; }   // mark when you left
+      maybePromptMorning(gapHoursSinceActive());
+      recordActive();
+    });
+  }
+
   function init() {
+    updateHeaderDot();
     const checkin = loadCheckin();
     const today   = todayStr();
-    const hour    = new Date().getHours();
 
-    // Always sync the header dot first
-    updateHeaderDot();
-
-    // Already done today → update dashboard silently
+    // Already done today → update the dashboard, stay quiet.
     if (checkin && checkin.date === today) {
       updateDashboard(checkin.morningScore, checkin.scoreCategory);
+      recordActive();
+      registerWakeWatcher();
       return;
     }
 
-    // Skipped today
-    if (localStorage.getItem('jarvis_skipped') === today) return;
-
-    // Open overlay
-    const ov = document.getElementById('ci-overlay');
-    ov.classList.remove('ci-gone');
-    document.body.style.overflow = 'hidden';
-
-    // First ever run → capture the user's typical sleep schedule once
+    // Brand-new user → one-time onboarding (any time of day).
     if (!localStorage.getItem('jarvis_sleep_schedule')) {
+      const ov = document.getElementById('ci-overlay');
+      ov.classList.remove('ci-gone');
+      document.body.style.overflow = 'hidden';
       showPhase('ci-phase-onboard');
-    } else {
-      showPhase('ci-phase-greeting');
+      setAIState('idle', '');
+      startCanvas();
+      localStorage.setItem(MORNING_SHOWN_KEY, today);
+      recordActive();
+      registerWakeWatcher();
+      return;
     }
 
-    setAIState('idle', '');
-    startCanvas();
+    // Otherwise only prompt when it looks like you just woke up.
+    maybePromptMorning(gapHoursSinceActive());
+    recordActive();
+    registerWakeWatcher();
   }
 
   // ── ONBOARDING: typical schedule → chronotype estimate (run once) ──
