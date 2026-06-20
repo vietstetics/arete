@@ -1,0 +1,22 @@
+{
+  "name": "jarvis-fitness",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "JARVIS fitness app — static web app wrapped with Capacitor for native phone step tracking.",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "sync": "npm run build:web && cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android",
+    "test:steps": "node --test features/steps/__tests__/"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.0",
+    "@capacitor/core": "^6.1.0",
+    "@capacitor/ios": "^6.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.0"
+  }
+}

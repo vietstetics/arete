@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Steps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F5F7;--s1:rgba(0,0,0,.03);--s2:rgba(0,0,0,.05);--s3:rgba(0,0,0,.07);
+  --s4:rgba(0,0,0,.10);--bd:rgba(0,0,0,.09);--bd2:rgba(0,0,0,.15);
+  --t1:#1D1D1F;--t2:#6E6E73;--t3:#AEAEB2;
+  --gr:#1DA462;--grd:rgba(29,164,98,.10);
+  --vi:#5E5CE6;--vid:rgba(94,92,230,.10);
+  --r:16px;--sh0:0 1px 4px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input{font-family:inherit}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}
+.app{display:flex;height:100vh;overflow:hidden}
+.main{flex:1;min-width:0;overflow-y:auto}
+.sb{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
+.sb-top{padding:22px 16px 16px;border-bottom:1px solid var(--bd)}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:0 4px}
+.sb-icon{width:30px;height:30px;border-radius:9px;background:var(--vi);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-name{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.sb-nav{flex:1;padding:10px}
+.nav-section{font-size:10px;font-weight:500;color:var(--t3);padding:16px 8px 5px}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;color:var(--t3);font-size:13px;font-weight:500;cursor:pointer;transition:background 160ms,color 160ms}
+.ni:hover{background:var(--s2);color:var(--t2)}
+.ni.on{background:var(--s2);color:var(--t1)}
+.ni.on .ni-ic{color:var(--vi)}
+.ni-ic{width:16px;height:16px;flex-shrink:0}
+.sb-foot{padding:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,var(--vi));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.av-name{font-size:13px;font-weight:600}.av-plan{font-size:11px;color:var(--t3)}
+.pg{padding:32px 32px 64px;max-width:760px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap}
+.ph-title{font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
+.ph-sub{font-size:13px;color:var(--t2)}
+.goal-edit{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t2)}
+.goal-edit input{width:92px;font-size:14px;padding:8px 10px;border:1px solid var(--bd);border-radius:9px;background:#fff;color:var(--t1)}
+.stack > * { margin-bottom:14px }
+.mob-back{display:none}
+@media(max-width:767px){
+  .sb{display:none}
+  .pg{padding:18px 16px 56px}
+  .mob-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--vi);margin-bottom:14px;font-weight:600}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sb">
+  <div class="sb-top">
+    <div class="sb-brand">
+      <div class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <span class="sb-name">JARVIS</span>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-section">Main</div>
+    <a href="index.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a href="workouts.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Training</span></a>
+    <a href="recovery.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>Recovery</span></a>
+    <a href="steps.html" class="ni on"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5.5a2.5 2.5 0 0 0-5 0c0 1 .5 2 .5 3.5 0 2-1.5 3-1.5 5a2 2 0 0 0 4 0c0-2 2-3.5 2-6a2.6 2.6 0 0 0 0-2.5z"/><path d="M9 14.5a2.5 2.5 0 0 0-5 0c0 1 .5 2 .5 3.5 0 1.5-1 2.5-1 4a2 2 0 0 0 4 0c0-1.5 1.5-3 1.5-5a2.6 2.6 0 0 0 0-2.5z"/></svg><span>Steps</span></a>
+    <a href="nutrition.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span>Nutrition</span></a>
+    <a href="sleep.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></a>
+    <div class="nav-section">Life</div>
+    <a href="tasks.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tasks</span></a>
+    <a href="analytics.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span>Progress</span></a>
+    <a href="settings.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
+  </nav>
+  <a href="settings.html" class="sb-foot">
+    <div class="av">J</div>
+    <div><div class="av-name">Joseph N.</div><div class="av-plan">JARVIS Pro</div></div>
+  </a>
+</aside>
+
+<main class="main">
+<div class="pg">
+  <a href="index.html" class="mob-back">‹ Dashboard</a>
+  <div class="ph">
+    <div>
+      <div class="ph-title">Steps</div>
+      <div class="ph-sub">Daily steps recorded by your phone.</div>
+    </div>
+    <label class="goal-edit">Daily goal <input id="goal-input" type="number" inputmode="numeric" min="100" step="100"> steps</label>
+  </div>
+
+  <div class="stack">
+    <div id="history-mount"></div>
+    <div id="panel-mount"></div>
+  </div>
+</div>
+</main>
+</div>
+
+<script type="module">
+  import { mountStepsPage, getGoal, setGoal } from './features/steps/stepsApp.js';
+  const goalInput = document.getElementById('goal-input');
+  goalInput.value = getGoal();
+  const render = () => mountStepsPage({ history: '#history-mount', panel: '#panel-mount' });
+  goalInput.addEventListener('change', () => {
+    const g = parseInt(goalInput.value, 10);
+    if (Number.isFinite(g) && g > 0) { setGoal(g); render(); }
+  });
+  render();
+</script>
+</body>
+</html>

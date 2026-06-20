@@ -1,1 +1,13 @@
 .vercel
+
+# Node / Capacitor
+node_modules
+www
+
+# Generated native projects (run `npx cap add ios|android` locally)
+/ios
+/android
+
+# Local agent worktrees / sandbox
+.claude/
+sandbox.html
