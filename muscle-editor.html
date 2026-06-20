@@ -61,6 +61,14 @@ input[type=range]{width:100%;height:4px;accent-color:#7C93F0;cursor:pointer}
 /* disabled state */
 .disabled{opacity:.3;pointer-events:none}
 
+/* touch: let patches/handles be dragged without the page panning/zooming */
+#overlay{touch-action:none}
+#overlay path{touch-action:none}
+
+/* preview mode — patches painted like recovery; editing chrome hidden */
+body.preview-mode #overlay{pointer-events:none}
+body.preview-mode #sel-layer{display:none}
+
 /* ── DRAW MODE ── */
 #draw-layer{position:absolute;top:0;left:0;width:100%;height:100%;display:none;cursor:crosshair;overflow:visible}
 body.drawing-mode #overlay{pointer-events:none}
@@ -81,8 +89,12 @@ body.drawing-mode #sel-layer{display:none}
 
 <div id="topbar">
   <h1>Muscle Overlay Editor</h1>
-  <span class="hint" id="topbar-hint">Click a patch → drag to move · corner handles to resize · slider to scale · ✏ to redraw</span>
+  <span class="hint" id="topbar-hint">Click a patch → drag to move · arrows nudge · corner handles resize · ✏ redraw</span>
   <div class="spacer"></div>
+  <button class="btn btn-s" style="width:auto;padding:7px 11px" id="undo-btn" title="Undo (Ctrl+Z)" style="opacity:.4">↶</button>
+  <button class="btn btn-s" style="width:auto;padding:7px 11px" id="redo-btn" title="Redo (Ctrl+Shift+Z)">↷</button>
+  <button class="btn btn-s" style="width:auto;padding:7px 12px" id="snap-btn" title="Snap to 5px grid">Snap: Off</button>
+  <button class="btn btn-s" style="width:auto;padding:7px 12px" id="preview-btn" title="Preview recovery colours">Preview</button>
   <button class="btn btn-p" style="width:auto;padding:7px 14px" id="apply-btn">Apply to site →</button>
 </div>
 
@@ -97,10 +109,10 @@ body.drawing-mode #sel-layer{display:none}
       <!-- selection handles (pointer-events:none so they don't block dragging) -->
       <svg id="sel-layer" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
         <rect id="sel-box" fill="none" stroke="#7C93F0" stroke-width="1.5" stroke-dasharray="5,3" rx="3" display="none"/>
-        <circle id="h-tl" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nwse-resize"/>
-        <circle id="h-tr" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nesw-resize"/>
-        <circle id="h-bl" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nesw-resize"/>
-        <circle id="h-br" r="5" fill="#7C93F0" stroke="#fff" stroke-width="1.5" display="none" style="pointer-events:all;cursor:nwse-resize"/>
+        <circle id="h-tl" r="8" fill="#7C93F0" stroke="#fff" stroke-width="2" display="none" style="pointer-events:all;touch-action:none;cursor:nwse-resize"/>
+        <circle id="h-tr" r="8" fill="#7C93F0" stroke="#fff" stroke-width="2" display="none" style="pointer-events:all;touch-action:none;cursor:nesw-resize"/>
+        <circle id="h-bl" r="8" fill="#7C93F0" stroke="#fff" stroke-width="2" display="none" style="pointer-events:all;touch-action:none;cursor:nesw-resize"/>
+        <circle id="h-br" r="8" fill="#7C93F0" stroke="#fff" stroke-width="2" display="none" style="pointer-events:all;touch-action:none;cursor:nwse-resize"/>
       </svg>
       <!-- draw layer — shown in draw mode, captures clicks for polygon -->
       <svg id="draw-layer" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
@@ -142,6 +154,11 @@ body.drawing-mode #sel-layer{display:none}
       </div>
     </div>
 
+    <div class="ps disabled" id="mirror-section">
+      <button class="btn btn-s" id="mirror-btn">⇋ Mirror to opposite side</button>
+      <div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:7px;line-height:1.5">Copies this patch's shape, flipped, onto its left/right pair.</div>
+    </div>
+
     <div class="ps disabled" id="draw-section">
       <div class="ps-lbl" style="margin-bottom:8px">Redraw shape</div>
       <button class="btn btn-s" id="draw-btn">✏ Draw new shape</button>
@@ -155,6 +172,18 @@ body.drawing-mode #sel-layer{display:none}
     <div class="ps">
       <div class="ps-lbl">All patches</div>
       <div id="muscle-list"></div>
+    </div>
+
+    <div class="ps">
+      <div class="ps-lbl" style="margin-bottom:8px">Diagram</div>
+      <div class="slider-row">
+        <div class="slider-top"><span>Image opacity</span><span id="diag-op-val">100%</span></div>
+        <input type="range" id="diag-op" min="0.15" max="1" step="0.05" value="1">
+      </div>
+      <label class="btn btn-s" style="margin-top:8px;display:block;text-align:center;cursor:pointer">
+        Load trace image…
+        <input type="file" id="diag-file" accept="image/*" style="display:none">
+      </label>
     </div>
 
     <div class="ps" style="margin-top:auto">
@@ -341,8 +370,10 @@ allHandles.forEach(handle => {
     const bb = originalBBox(selected);
     const cx = b.cx, cy = b.cy;
     const startDist = Math.hypot(startPt.x - cx, startPt.y - cy);
+    let rSnapped = false;
 
     function onMove(ev) {
+      if (!rSnapped) { snapshot(); rSnapped = true; }   // one undo step per resize
       const pt = svgPt(ev);
       const dist = Math.hypot(pt.x - cx, pt.y - cy);
       if (startDist < 1) return;
@@ -387,6 +418,7 @@ function selectMuscle(id) {
   document.getElementById('scale-section').classList.remove('disabled');
   document.getElementById('reset-section').classList.remove('disabled');
   document.getElementById('draw-section').classList.remove('disabled');
+  document.getElementById('mirror-section').classList.toggle('disabled', !pairId(id));
   document.getElementById('rename-btn').style.display = 'inline-block';
   document.getElementById('rename-input').style.display = 'none';
 
@@ -405,6 +437,7 @@ function deselect() {
   document.getElementById('sel-pos').textContent = 'Click any patch to edit';
   document.getElementById('scale-section').classList.add('disabled');
   document.getElementById('reset-section').classList.add('disabled');
+  document.getElementById('mirror-section').classList.add('disabled');
   document.getElementById('rename-btn').style.display = 'none';
   document.getElementById('rename-input').style.display = 'none';
   hideHandles();
@@ -447,11 +480,13 @@ function startDrag(e, id) {
 
   // Use the path element to capture pointer so dragging outside canvas still works
   groups[id].path.setPointerCapture(e.pointerId);
+  let snapped = false;
 
   function onMove(ev) {
+    if (!snapped) { snapshot(); snapped = true; }   // one undo step per drag
     const cur = svgPt(ev);
-    state[id].dx = initDx + (cur.x - start.x);
-    state[id].dy = initDy + (cur.y - start.y);
+    state[id].dx = snapVal(initDx + (cur.x - start.x));
+    state[id].dy = snapVal(initDy + (cur.y - start.y));
     applyTransform(id);
     document.getElementById('sel-pos').textContent = `x: ${Math.round(state[id].dx)}  y: ${Math.round(state[id].dy)}`;
   }
@@ -466,6 +501,7 @@ function startDrag(e, id) {
 // ─────────────────────────────────────────────────────
 //  SCALE SLIDER
 // ─────────────────────────────────────────────────────
+document.getElementById('scale-slider').addEventListener('pointerdown', () => { if (selected) snapshot(); });
 document.getElementById('scale-slider').addEventListener('input', function() {
   if (!selected) return;
   state[selected].scale = parseFloat(this.value);
@@ -478,6 +514,7 @@ document.getElementById('scale-slider').addEventListener('input', function() {
 // ─────────────────────────────────────────────────────
 document.getElementById('reset-btn').addEventListener('click', () => {
   if (!selected) return;
+  snapshot();
   state[selected] = {dx:0,dy:0,scale:1};
   groups[selected].g.removeAttribute('transform');
   document.getElementById('scale-slider').value = 1;
@@ -752,6 +789,7 @@ function exitDraw(cancelled) {
 
 function finalizeDraw() {
   if (drawPts.length < 3) { setDrawHint('Need at least 3 points'); return; }
+  snapshot();
 
   // Build a clean M … L … Z path string
   const d = 'M ' + drawPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ') + ' Z';
@@ -897,6 +935,146 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === 'Return') && drawPts.length >= 3) {
     finalizeDraw();
   }
+});
+
+// ═════════════════════════════════════════════════════
+//  EDITOR v2 — history, nudge, snap, mirror, preview, diagram
+// ═════════════════════════════════════════════════════
+
+// ── Undo / redo ──────────────────────────────────────
+let undoStack = [], redoStack = [];
+function cloneState() { const o = {}; for (const k in state) o[k] = { ...state[k] }; return o; }
+function cloneDs()    { const o = {}; MUSCLES.forEach(m => o[m.id] = m.d); return o; }
+function snapshot()   { undoStack.push({ ds: cloneDs(), st: cloneState() }); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; updateUndoButtons(); }
+function applyAll() {
+  MUSCLES.forEach(m => { if (groups[m.id]) { groups[m.id].path.setAttribute('d', m.d); applyTransform(m.id); } });
+  if (selected) {
+    const s = state[selected];
+    document.getElementById('scale-slider').value = s.scale;
+    document.getElementById('scale-val').textContent = s.scale.toFixed(2) + '×';
+    document.getElementById('sel-pos').textContent = `x: ${Math.round(s.dx)}  y: ${Math.round(s.dy)}`;
+    refreshHandles();
+  }
+  if (previewOn) setPreview(true);
+}
+function restore(snap) {
+  MUSCLES.forEach(m => { if (snap.ds[m.id] != null) m.d = snap.ds[m.id]; });
+  for (const k in snap.st) state[k] = { ...snap.st[k] };
+  applyAll();
+}
+function undo() { if (!undoStack.length) return; redoStack.push({ ds: cloneDs(), st: cloneState() }); restore(undoStack.pop()); updateUndoButtons(); showStatus('Undo', 'ok'); }
+function redo() { if (!redoStack.length) return; undoStack.push({ ds: cloneDs(), st: cloneState() }); restore(redoStack.pop()); updateUndoButtons(); showStatus('Redo', 'ok'); }
+function updateUndoButtons() {
+  document.getElementById('undo-btn').style.opacity = undoStack.length ? '1' : '.4';
+  document.getElementById('redo-btn').style.opacity = redoStack.length ? '1' : '.4';
+}
+document.getElementById('undo-btn').addEventListener('click', undo);
+document.getElementById('redo-btn').addEventListener('click', redo);
+
+// ── Snap to grid ─────────────────────────────────────
+let snapOn = false; const GRID = 5;
+function snapVal(v) { return snapOn ? Math.round(v / GRID) * GRID : v; }
+document.getElementById('snap-btn').addEventListener('click', function () {
+  snapOn = !snapOn;
+  this.textContent = 'Snap: ' + (snapOn ? 'On' : 'Off');
+  this.classList.toggle('btn-p', snapOn);
+});
+
+// ── Arrow-key nudge + keyboard undo/redo ─────────────
+document.addEventListener('keydown', e => {
+  if (drawing) return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (!selected) return;
+  const step = (e.shiftKey ? 10 : 1);
+  const map = { ArrowLeft: ['dx', -step], ArrowRight: ['dx', step], ArrowUp: ['dy', -step], ArrowDown: ['dy', step] };
+  const mv = map[e.key];
+  if (!mv) return;
+  e.preventDefault();
+  if (!e.repeat) snapshot();
+  state[selected][mv[0]] = snapVal(state[selected][mv[0]] + mv[1]);
+  applyTransform(selected);
+  document.getElementById('sel-pos').textContent = `x: ${Math.round(state[selected].dx)}  y: ${Math.round(state[selected].dy)}`;
+});
+
+// ── Mirror to opposite side ──────────────────────────
+function pairId(id) {
+  if (/-r(-bk)?$/.test(id)) return id.replace(/-r(-bk)?$/, '-l$1');
+  if (/-l(-bk)?$/.test(id)) return id.replace(/-l(-bk)?$/, '-r$1');
+  return null;
+}
+function bakedD(id) {
+  const m = MUSCLES.find(x => x.id === id), s = state[id];
+  if (s.dx === 0 && s.dy === 0 && s.scale === 1) return m.d;
+  const bb = originalBBox(id);
+  return bakeTransform(m.d, `translate(${bb.cx + s.dx},${bb.cy + s.dy}) scale(${s.scale}) translate(${-bb.cx},${-bb.cy})`);
+}
+function reflectX(d, axis) {
+  return d.replace(/(-?\d*\.?\d+)([ ,])(-?\d*\.?\d+)/g, (_, x, sep, y) => (2 * axis - parseFloat(x)).toFixed(1) + ',' + y);
+}
+function mirrorSelected() {
+  if (!selected) return;
+  const pid = pairId(selected);
+  if (!pid || !groups[pid]) { showStatus('This patch has no left/right pair to mirror', 'err'); return; }
+  snapshot();
+  const srcLabel = MUSCLES.find(x => x.id === selected).label;
+  const selfD = bakedD(selected);
+  const axis = (bbCenterX(selfD) + bbCenterX(bakedD(pid))) / 2;
+  const mirrored = reflectX(selfD, axis);
+  const pm = MUSCLES.find(x => x.id === pid);
+  pm.d = mirrored;
+  state[pid] = { dx: 0, dy: 0, scale: 1 };
+  groups[pid].path.setAttribute('d', mirrored);
+  groups[pid].g.removeAttribute('transform');
+  selectMuscle(pid);
+  showStatus(`Mirrored ${srcLabel} → ${pm.label}`, 'ok');
+}
+document.getElementById('mirror-btn').addEventListener('click', mirrorSelected);
+
+// ── Preview recovery colours ─────────────────────────
+const PREVIEW_COLORS = ['#4ADE80', '#4ADE80', '#4ADE80', '#FCD34D', '#FCD34D', '#FB923C', '#F87171'];
+let previewOn = false;
+function setPreview(on) {
+  previewOn = on;
+  const btn = document.getElementById('preview-btn');
+  btn.classList.toggle('btn-p', on);
+  btn.textContent = on ? 'Editing' : 'Preview';
+  if (on) {
+    hideHandles();
+    document.body.classList.add('preview-mode');
+    MUSCLES.forEach((m, i) => {
+      const p = groups[m.id].path;
+      p.setAttribute('fill', PREVIEW_COLORS[i % PREVIEW_COLORS.length]);
+      p.setAttribute('fill-opacity', '0.45');
+      p.setAttribute('stroke', 'none');
+    });
+  } else {
+    document.body.classList.remove('preview-mode');
+    MUSCLES.forEach(m => {
+      const p = groups[m.id].path;
+      p.setAttribute('fill', '#7C93F0');
+      p.setAttribute('fill-opacity', m.id === selected ? '0.52' : '0.30');
+      if (m.id === selected) { p.setAttribute('stroke', '#7C93F0'); p.setAttribute('stroke-width', '1.5'); }
+      else p.setAttribute('stroke', 'none');
+    });
+    if (selected) refreshHandles();
+  }
+}
+document.getElementById('preview-btn').addEventListener('click', () => setPreview(!previewOn));
+
+// ── Diagram opacity + trace image ────────────────────
+const diagImg = document.querySelector('#canvas img');
+document.getElementById('diag-op').addEventListener('input', function () {
+  diagImg.style.opacity = this.value;
+  document.getElementById('diag-op-val').textContent = Math.round(this.value * 100) + '%';
+});
+document.getElementById('diag-file').addEventListener('change', function () {
+  const f = this.files && this.files[0];
+  if (!f) return;
+  diagImg.src = URL.createObjectURL(f);
+  showStatus('Trace image loaded (sandbox only — does not change the site)', 'ok');
 });
 
 // ─────────────────────────────────────────────────────
