@@ -899,6 +899,75 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// ─────────────────────────────────────────────────────
+//  SYNC FROM LIVE — load the shapes currently on recovery.html so the
+//  sandbox always reflects what's published. Runs once when the editor opens.
+// ─────────────────────────────────────────────────────
+function bbCenterX(d) {
+  const nums = d.match(/-?\d+\.?\d*/g).map(Number);
+  let x0 = Infinity, x1 = -Infinity;
+  for (let i = 0; i < nums.length - 1; i += 2) { x0 = Math.min(x0, nums[i]); x1 = Math.max(x1, nums[i]); }
+  return (x0 + x1) / 2;
+}
+
+// Bake the editor's own transform format into absolute path coordinates,
+// so a previously-moved muscle comes back into the sandbox already positioned.
+function bakeTransform(d, transform) {
+  if (!transform) return d;
+  const m = transform.match(/translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)\s*\)\s*scale\(\s*(-?[\d.]+)\s*\)\s*translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)\s*\)/);
+  if (!m) return d; // unknown transform → leave as-is
+  const a = +m[1], b = +m[2], s = +m[3], c = +m[4], e = +m[5];
+  return d.replace(/(-?\d*\.?\d+)([ ,])(-?\d*\.?\d+)/g, (_, x, sep, y) =>
+    (a + s * (parseFloat(x) + c)).toFixed(1) + ',' + (b + s * (parseFloat(y) + e)).toFixed(1)
+  );
+}
+
+async function syncFromLive() {
+  let html;
+  try {
+    const res = await fetch('recovery.html', { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    html = await res.text();
+  } catch (err) {
+    showStatus('Showing built-in shapes — open this editor from the deployed site to sync with recovery.html', 'err');
+    return;
+  }
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const live = doc.querySelectorAll('#svg-body path[data-muscle]');
+  if (!live.length) { showStatus('No muscle shapes found in recovery.html', 'err'); return; }
+
+  // data-muscle (exportId) → list of live shapes (front + back may share an id)
+  const byId = {};
+  live.forEach(p => {
+    const id = p.getAttribute('data-muscle');
+    const d = bakeTransform(p.getAttribute('d') || '', p.getAttribute('transform'));
+    if (!id || !d) return;
+    (byId[id] = byId[id] || []).push({ d, cx: bbCenterX(d) });
+  });
+
+  let synced = 0;
+  MUSCLES.forEach(m => {
+    const cands = byId[m.exportId || m.id];
+    if (!cands || !cands.length) return;
+    let pick = cands[0];
+    if (cands.length > 1) {
+      const sorted = cands.slice().sort((x, y) => x.cx - y.cx); // left=front figure, right=back
+      pick = m.side === 'front' ? sorted[0] : sorted[sorted.length - 1];
+    }
+    m.d = pick.d;
+    state[m.id] = { dx: 0, dy: 0, scale: 1 };
+    if (groups[m.id]) {
+      groups[m.id].path.setAttribute('d', m.d);
+      groups[m.id].g.removeAttribute('transform');
+    }
+    synced++;
+  });
+  if (selected && groups[selected]) refreshHandles();
+  showStatus(`Synced ${synced} live shapes from recovery.html — edit away, then Apply`, 'ok');
+}
+
+syncFromLive();
+
 </script>
 </body>
 </html>
