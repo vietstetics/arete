@@ -121,6 +121,34 @@ input,select,textarea{font-family:inherit}
 .food-del{flex-shrink:0}
 .meal-empty{padding:16px 18px;font-size:12.5px;color:var(--t3);text-align:center}
 
+/* ── TABS ─────────────────────────────────────────────────────── */
+.tabs{display:inline-flex;background:var(--s2);border-radius:11px;padding:3px;margin-bottom:16px}
+.tab{padding:7px 18px;border-radius:9px;font-size:13px;font-weight:600;color:var(--t2);transition:all 140ms}
+.tab.on{background:#fff;color:var(--t1);box-shadow:var(--sh0)}
+.tab:not(.on):hover{color:var(--t1)}
+
+/* ── NUTRIENTS VIEW ───────────────────────────────────────────── */
+.nutri-cov{display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:14px;border-radius:var(--r-sm);background:rgba(94,92,230,.06);border:1px solid rgba(94,92,230,.16);font-size:12.5px;color:var(--t1);line-height:1.5}
+.nutri-cov svg{color:var(--vi);flex-shrink:0}
+.nutri-cov b{font-weight:600}
+.ngroup{margin-bottom:14px;overflow:hidden}
+.ngroup-hd{padding:13px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.ngroup-ttl{font-size:13px;font-weight:600}
+.ngroup-sub{font-size:11px;color:var(--t3)}
+.nrow{display:grid;grid-template-columns:1fr 96px 132px 46px;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--bd)}
+.nrow:last-child{border-bottom:0}
+.nrow.zero{opacity:.5}
+.nrow-l{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nrow-amt{font-size:12.5px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.nrow-bar{height:6px;border-radius:4px;background:var(--s2);overflow:hidden}
+.nrow-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.nrow-dv{font-size:11px;color:var(--t3);text-align:right;font-variant-numeric:tabular-nums}
+.nrow-dv.over{color:var(--re);font-weight:600}
+@media(max-width:560px){
+  .nrow{grid-template-columns:1fr 76px 40px;gap:8px;padding:10px 14px}
+  .nrow-bar{display:none}
+}
+
 /* ── WATER ────────────────────────────────────────────────────── */
 .water{display:flex;align-items:center;gap:14px;padding:16px 20px;margin-bottom:18px}
 .water-ic{width:34px;height:34px;border-radius:10px;background:rgba(56,189,248,.12);color:var(--bl);display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -320,6 +348,14 @@ input,select,textarea{font-family:inherit}
     </div>
   </div>
 
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab on" id="tab-diary" onclick="setTab('diary')">Diary</button>
+    <button class="tab" id="tab-nutrients" onclick="setTab('nutrients')">Nutrients</button>
+  </div>
+
+  <!-- DIARY VIEW -->
+  <div id="view-diary">
   <!-- Water -->
   <div class="card water">
     <div class="water-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></div>
@@ -335,6 +371,13 @@ input,select,textarea{font-family:inherit}
 
   <!-- Meals -->
   <div id="meals"></div>
+  </div><!-- /view-diary -->
+
+  <!-- NUTRIENTS VIEW -->
+  <div id="view-nutrients" style="display:none">
+    <div class="nutri-cov" id="nutri-cov"></div>
+    <div id="nutrient-groups"></div>
+  </div>
 </div>
 </main>
 </div>
@@ -506,9 +549,11 @@ input,select,textarea{font-family:inherit}
 //  Sourced from standard published nutrition facts (USDA-style).
 //  kcal, protein(g), carbs(g), fat(g)
 // ══════════════════════════════════════════════════════════════
-function f(name, cat, serving, kcal, protein, carbs, fat){
-  return { id:'db-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''),
-           name, cat, serving, kcal, protein, carbs, fat };
+function f(name, cat, serving, kcal, protein, carbs, fat, ext){
+  const o = { id:'db-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''),
+              name, cat, serving, kcal, protein, carbs, fat };
+  if (ext) o.ext = ext;
+  return o;
 }
 const FOOD_DB = [
   // ── PROTEIN & MEAT ──
@@ -762,6 +807,106 @@ const FOOD_DB = [
 ];
 
 // ══════════════════════════════════════════════════════════════
+//  EXTENDED MICRONUTRIENT PROFILES  (per the food's stated serving)
+//  Accurate values from USDA FoodData Central, rounded. Units:
+//  g — fibre/sugars/fats/omega/water · mg — cholesterol/sodium/
+//  potassium/calcium/iron/magnesium/zinc/B1,B2,B3,B5,B6/vitC/vitE/
+//  caffeine · mcg — vitA(RAE)/B7/B9(DFE)/B12/vitD/vitK
+//  Only fields we can stand behind are filled; the rest stay unknown
+//  and are excluded from totals (the Nutrients view shows coverage).
+// ══════════════════════════════════════════════════════════════
+const EXT = {
+  'Chicken Breast, cooked': {satFat:1.0,monoFat:1.2,polyFat:0.8,cholesterol:85,sodium:74,potassium:256,magnesium:29,zinc:1.0,iron:1.0,b3:13.7,b6:0.6,b12:0.3,fiber:0,sugar:0},
+  'Salmon, cooked': {satFat:3.1,monoFat:3.8,polyFat:3.9,omega3:2.3,cholesterol:63,sodium:61,potassium:384,magnesium:30,zinc:0.6,vitD:13,b12:3.2,b3:8.5,b6:0.6,fiber:0,sugar:0},
+  'Tuna, canned in water': {satFat:0.3,cholesterol:36,sodium:247,potassium:237,magnesium:28,b12:2.5,b3:11,vitD:1.7,fiber:0,sugar:0},
+  'Shrimp, cooked': {satFat:0.1,cholesterol:189,sodium:111,potassium:259,calcium:70,magnesium:34,zinc:1.6,b12:1.4,iron:0.5,fiber:0,sugar:0},
+  'Ground Beef 90/10, cooked': {satFat:3.2,monoFat:3.5,cholesterol:89,sodium:72,potassium:318,zinc:6.0,iron:2.7,magnesium:21,b12:2.5,b3:5.4,b6:0.5,fiber:0,sugar:0},
+  'Egg, large': {satFat:1.6,monoFat:1.8,polyFat:1.0,cholesterol:186,sodium:71,potassium:69,calcium:28,iron:0.9,zinc:0.6,vitA:80,vitD:1.1,b2:0.23,b12:0.45,b5:0.7,b9:24,fiber:0,sugar:0.2},
+  'Whole Milk': {satFat:4.6,monoFat:2.0,cholesterol:24,sodium:105,potassium:322,calcium:276,magnesium:24,zinc:1.0,vitA:112,vitD:2.6,b2:0.41,b12:1.1,sugar:12,fiber:0},
+  'Greek Yogurt, nonfat plain': {satFat:0.1,cholesterol:9,sodium:61,potassium:240,calcium:187,zinc:1.0,b2:0.4,b12:1.3,sugar:6,fiber:0},
+  'Greek Yogurt, whole plain': {satFat:4.7,cholesterol:23,sodium:50,potassium:240,calcium:170,b12:1.0,sugar:6,fiber:0},
+  'Cottage Cheese, lowfat': {satFat:1.4,cholesterol:17,sodium:746,potassium:168,calcium:138,b2:0.4,b12:1.4,sugar:12,fiber:0},
+  'Cheddar Cheese': {satFat:5.3,monoFat:2.4,cholesterol:28,sodium:180,calcium:200,potassium:21,zinc:0.9,vitA:75,b12:0.2,fiber:0,sugar:0.1},
+  'Banana': {fiber:3.1,sugar:14.4,potassium:422,magnesium:32,vitC:10.3,b6:0.43,satFat:0.1},
+  'Apple': {fiber:4.4,sugar:19,potassium:195,vitC:8.4,vitK:4},
+  'Orange': {fiber:3.1,sugar:12,vitC:70,potassium:237,calcium:52,b9:39,b1:0.1},
+  'Strawberries': {fiber:3.0,sugar:7.4,vitC:89,potassium:233,b9:36,magnesium:20},
+  'Blueberries': {fiber:3.6,sugar:15,vitC:14,vitK:29,potassium:114},
+  'Avocado': {fiber:6.7,satFat:2.1,monoFat:9.8,polyFat:1.8,potassium:485,magnesium:29,vitC:10,vitE:2.1,vitK:21,b9:81,sugar:0.7},
+  'Broccoli, cooked': {fiber:5.1,sugar:2.2,vitC:101,vitK:220,potassium:457,calcium:62,magnesium:33,b9:168,vitA:120},
+  'Spinach, raw': {fiber:0.7,vitK:145,vitA:84,b9:58,iron:0.8,potassium:167,magnesium:24,vitC:8.4,calcium:30},
+  'Carrot': {fiber:1.7,sugar:2.9,vitA:509,potassium:195,vitK:8,vitC:3.6},
+  'Sweet Potato, baked': {fiber:3.8,sugar:7,vitA:1096,potassium:438,vitC:22,b6:0.3,magnesium:31},
+  'Potato, baked': {fiber:3.8,sugar:2,potassium:926,vitC:17,b6:0.5,magnesium:48,iron:1.9},
+  'Tomato': {fiber:1.5,sugar:3.2,vitC:17,potassium:292,vitA:51,vitK:9.7},
+  'White Rice, cooked': {fiber:0.6,sugar:0.1,b1:0.26,b3:2.3,iron:1.9,magnesium:19,sodium:2,potassium:55},
+  'Brown Rice, cooked': {fiber:3.5,sugar:0.7,magnesium:84,b3:5.2,zinc:1.2,potassium:154,b6:0.3,iron:1.0},
+  'Oats, dry': {fiber:4.0,sugar:0.4,b1:0.3,iron:1.9,magnesium:55,zinc:1.5,potassium:142,satFat:0.5},
+  'Quinoa, cooked': {fiber:5.2,sugar:1.6,magnesium:118,iron:2.8,potassium:318,zinc:2.0,b9:78},
+  'Whole Wheat Bread': {fiber:1.9,sugar:1.6,sodium:132,b1:0.1,b3:1.4,iron:1.0,magnesium:23,potassium:81},
+  'White Bread': {fiber:0.8,sugar:1.4,sodium:130,b1:0.12,iron:0.9,b3:1.3,calcium:38},
+  'Almonds': {fiber:3.5,sugar:1.2,satFat:1.1,monoFat:8.6,polyFat:3.4,vitE:7.3,magnesium:76,calcium:76,potassium:208,b2:0.3,zinc:0.9,iron:1.0},
+  'Walnuts': {fiber:1.9,sugar:0.7,satFat:1.7,monoFat:2.5,polyFat:13.4,omega3:2.6,omega6:10.8,magnesium:45,potassium:125,calcium:28},
+  'Peanut Butter': {fiber:1.6,sugar:3,satFat:3.3,monoFat:7.8,polyFat:4.4,sodium:152,potassium:200,magnesium:57,b3:4.2,vitE:2.9,zinc:0.9,iron:0.6},
+  'Chia Seeds': {fiber:4.1,satFat:0.4,polyFat:2.3,omega3:2.1,calcium:76,magnesium:40,potassium:53,iron:0.9,zinc:0.5},
+  'Lentils, cooked': {fiber:15.6,sugar:3.6,potassium:731,iron:6.6,magnesium:71,zinc:2.5,b9:358,b1:0.33,sodium:4},
+  'Black Beans, cooked': {fiber:15,sugar:0.6,potassium:611,iron:3.6,magnesium:120,zinc:1.9,b9:256,calcium:46,sodium:2},
+  'Edamame': {fiber:8,sugar:3.4,potassium:676,iron:3.5,magnesium:99,b9:482,vitK:41,calcium:98},
+  'Olive Oil': {satFat:1.9,monoFat:10.2,polyFat:1.5,vitE:1.9,vitK:8.1},
+};
+FOOD_DB.forEach(x => { if (EXT[x.name]) x.ext = EXT[x.name]; });
+
+// ══════════════════════════════════════════════════════════════
+//  NUTRIENT SCHEMA  (matches the FoodNutrition interface)
+//  dv = FDA Daily Value (2,000 kcal adult); limit = "keep below"
+// ══════════════════════════════════════════════════════════════
+const NUTRIENTS = [
+  { key:'protein',      label:'Protein',              unit:'g',   group:'macro',   dv:50,   dec:1 },
+  { key:'carbs',        label:'Carbohydrate',         unit:'g',   group:'macro',   dv:275,  dec:1 },
+  { key:'fat',          label:'Total Fat',            unit:'g',   group:'macro',   dv:78,   dec:1 },
+  { key:'fiber',        label:'Fibre',                unit:'g',   group:'carb',    dv:28,   dec:1 },
+  { key:'sugar',        label:'Total Sugars',         unit:'g',   group:'carb',    dv:null, dec:1 },
+  { key:'addedSugar',   label:'Added Sugars',         unit:'g',   group:'carb',    dv:50,   dec:1, limit:true },
+  { key:'sugarAlcohol', label:'Sugar Alcohols',       unit:'g',   group:'carb',    dv:null, dec:1 },
+  { key:'satFat',       label:'Saturated Fat',        unit:'g',   group:'fat',     dv:20,   dec:1, limit:true },
+  { key:'monoFat',      label:'Monounsaturated',      unit:'g',   group:'fat',     dv:null, dec:1 },
+  { key:'polyFat',      label:'Polyunsaturated',      unit:'g',   group:'fat',     dv:null, dec:1 },
+  { key:'transFat',     label:'Trans Fat',            unit:'g',   group:'fat',     dv:null, dec:1, limit:true },
+  { key:'omega3',       label:'Omega-3',              unit:'g',   group:'fat',     dv:1.6,  dec:2 },
+  { key:'omega6',       label:'Omega-6',              unit:'g',   group:'fat',     dv:17,   dec:1 },
+  { key:'cholesterol',  label:'Cholesterol',          unit:'mg',  group:'fat',     dv:300,  dec:0, limit:true },
+  { key:'sodium',       label:'Sodium',               unit:'mg',  group:'mineral', dv:2300, dec:0, limit:true },
+  { key:'potassium',    label:'Potassium',            unit:'mg',  group:'mineral', dv:4700, dec:0 },
+  { key:'calcium',      label:'Calcium',              unit:'mg',  group:'mineral', dv:1300, dec:0 },
+  { key:'iron',         label:'Iron',                 unit:'mg',  group:'mineral', dv:18,   dec:1 },
+  { key:'magnesium',    label:'Magnesium',            unit:'mg',  group:'mineral', dv:420,  dec:0 },
+  { key:'zinc',         label:'Zinc',                 unit:'mg',  group:'mineral', dv:11,   dec:1 },
+  { key:'vitA',         label:'Vitamin A',            unit:'mcg', group:'vitamin', dv:900,  dec:0 },
+  { key:'b1',           label:'Thiamin (B1)',         unit:'mg',  group:'vitamin', dv:1.2,  dec:2 },
+  { key:'b2',           label:'Riboflavin (B2)',      unit:'mg',  group:'vitamin', dv:1.3,  dec:2 },
+  { key:'b3',           label:'Niacin (B3)',          unit:'mg',  group:'vitamin', dv:16,   dec:1 },
+  { key:'b5',           label:'Pantothenic Acid (B5)',unit:'mg',  group:'vitamin', dv:5,    dec:1 },
+  { key:'b6',           label:'Vitamin B6',           unit:'mg',  group:'vitamin', dv:1.7,  dec:2 },
+  { key:'b7',           label:'Biotin (B7)',          unit:'mcg', group:'vitamin', dv:30,   dec:0 },
+  { key:'b9',           label:'Folate (B9)',          unit:'mcg', group:'vitamin', dv:400,  dec:0 },
+  { key:'b12',          label:'Vitamin B12',          unit:'mcg', group:'vitamin', dv:2.4,  dec:1 },
+  { key:'vitC',         label:'Vitamin C',            unit:'mg',  group:'vitamin', dv:90,   dec:1 },
+  { key:'vitD',         label:'Vitamin D',            unit:'mcg', group:'vitamin', dv:20,   dec:1 },
+  { key:'vitE',         label:'Vitamin E',            unit:'mg',  group:'vitamin', dv:15,   dec:1 },
+  { key:'vitK',         label:'Vitamin K',            unit:'mcg', group:'vitamin', dv:120,  dec:0 },
+  { key:'water',        label:'Water',                unit:'ml',  group:'other',   dv:null, dec:0 },
+  { key:'caffeine',     label:'Caffeine',             unit:'mg',  group:'other',   dv:null, dec:0 },
+];
+const NUTRIENT_GROUPS = [
+  { id:'macro',   name:'Macronutrients' },
+  { id:'carb',    name:'Carbohydrate detail' },
+  { id:'fat',     name:'Fat detail' },
+  { id:'mineral', name:'Minerals' },
+  { id:'vitamin', name:'Vitamins' },
+  { id:'other',   name:'Other' },
+];
+
+// ══════════════════════════════════════════════════════════════
 //  STORAGE
 // ══════════════════════════════════════════════════════════════
 const K_LOG     = 'jarvis_nutrition_log';
@@ -794,6 +939,7 @@ function cacheScannedFood(food){
   const list = readJSON(K_SCANNED, []);
   const idx = list.findIndex(x => x.id === food.id);
   const clean = { id:food.id, name:food.name, cat:'Scanned', serving:food.serving, kcal:food.kcal, protein:food.protein, carbs:food.carbs, fat:food.fat };
+  if (food.ext) clean.ext = food.ext;
   if (idx >= 0) list[idx] = clean; else list.unshift(clean);
   writeJSON(K_SCANNED, list.slice(0, 200));
 }
@@ -809,6 +955,7 @@ function setWater(date, ml){ const all = readJSON(K_WATER, {}); const v = Math.m
 // ══════════════════════════════════════════════════════════════
 let curDate    = todayStr();
 let activeCat  = 'All';
+let activeTab  = 'diary';       // diary | nutrients
 let screen     = 'search';     // search | portion | custom
 let pendingMeal = 'breakfast';
 let selFood    = null;         // food being portioned
@@ -832,6 +979,34 @@ function totalsFor(entries){
     t.fat     += e.fat     * q;
     return t;
   }, { kcal:0, protein:0, carbs:0, fat:0 });
+}
+
+// Aggregate every nutrient (macros from the entry, micros from e.ext) × qty.
+function extTotalsFor(entries){
+  const totals = {};
+  NUTRIENTS.forEach(n => totals[n.key] = 0);
+  let kcal = 0, withExt = 0;
+  entries.forEach(e => {
+    const q = e.qty || 1;
+    kcal          += (e.kcal    || 0) * q;
+    totals.protein += (e.protein || 0) * q;
+    totals.carbs   += (e.carbs   || 0) * q;
+    totals.fat     += (e.fat     || 0) * q;
+    if (e.ext && typeof e.ext === 'object'){
+      withExt++;
+      for (const k in e.ext){
+        if (totals[k] != null && typeof e.ext[k] === 'number') totals[k] += e.ext[k] * q;
+      }
+    }
+  });
+  return { totals, kcal, withExt, total: entries.length };
+}
+
+// Format a nutrient amount to its unit and decimals (drops trailing .0).
+function fmtAmt(v, dec, unit){
+  const r = Math.round(v * Math.pow(10, dec)) / Math.pow(10, dec);
+  const s = dec > 0 ? r.toFixed(dec).replace(/\.?0+$/, '') : String(Math.round(r));
+  return s + ' ' + unit;
 }
 
 function render(){
@@ -927,11 +1102,68 @@ function render(){
   }).join('');
 
   syncDashboard(tot, goals, water);
+  if (activeTab === 'nutrients') renderNutrients();
 }
 
 function setMacro(key, val, goal){
   document.getElementById(key+'-txt').textContent = `${nf(val)} / ${nf(goal)}g`;
   document.getElementById(key+'-bar').style.width = Math.min(100, goal>0 ? val/goal*100 : 0) + '%';
+}
+
+// ── Tabs: Diary ⇆ Nutrients ──
+function setTab(t){
+  activeTab = t;
+  document.getElementById('tab-diary').classList.toggle('on', t === 'diary');
+  document.getElementById('tab-nutrients').classList.toggle('on', t === 'nutrients');
+  document.getElementById('view-diary').style.display     = t === 'diary' ? '' : 'none';
+  document.getElementById('view-nutrients').style.display = t === 'nutrients' ? '' : 'none';
+  if (t === 'nutrients') renderNutrients();
+}
+
+const INFO_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+
+// ── Full micronutrient breakdown for the selected day ──
+function renderNutrients(){
+  const entries = getLog(curDate);
+  const { totals, kcal, withExt, total } = extTotalsFor(entries);
+
+  const cov = document.getElementById('nutri-cov');
+  const groupsEl = document.getElementById('nutrient-groups');
+
+  if (!total){
+    cov.innerHTML = `${INFO_SVG}<span>Log foods to see a full vitamin &amp; mineral breakdown for the day.</span>`;
+    groupsEl.innerHTML = '';
+    return;
+  }
+  cov.innerHTML = `${INFO_SVG}<span><b>${nf(kcal)} kcal</b> logged · detailed micronutrients from <b>${withExt} of ${total}</b> item${total===1?'':'s'}. Scan barcodes or pick database staples for the richest data.</span>`;
+
+  groupsEl.innerHTML = NUTRIENT_GROUPS.map(g => {
+    const rows = NUTRIENTS.filter(n => n.group === g.id).map(n => {
+      const v = totals[n.key] || 0;
+      const amt = fmtAmt(v, n.dec, n.unit);
+      let bar, dv;
+      if (n.dv){
+        const pct = v / n.dv * 100;
+        const color = n.limit
+          ? (pct >= 100 ? 'var(--re)' : pct >= 66 ? 'var(--ye)' : 'var(--gr)')
+          : (pct >= 50 ? 'var(--gr)' : pct >= 20 ? 'var(--ye)' : 'var(--t3)');
+        bar = `<div class="nrow-bar"><div class="nrow-fill" style="width:${Math.min(100,pct).toFixed(0)}%;background:${color}"></div></div>`;
+        dv  = `<div class="nrow-dv ${(n.limit && pct > 100) ? 'over' : ''}">${Math.round(pct)}%</div>`;
+      } else {
+        bar = `<div class="nrow-bar" style="background:transparent"></div>`;
+        dv  = `<div class="nrow-dv">—</div>`;
+      }
+      return `<div class="nrow ${v <= 0 ? 'zero' : ''}">
+        <div class="nrow-l">${n.label}</div>
+        <div class="nrow-amt">${amt}</div>
+        ${bar}${dv}
+      </div>`;
+    }).join('');
+    return `<div class="card ngroup">
+      <div class="ngroup-hd"><div class="ngroup-ttl">${g.name}</div><div class="ngroup-sub">% Daily Value</div></div>
+      ${rows}
+    </div>`;
+  }).join('');
 }
 
 // Persist a compact summary the dashboard widget can read
@@ -1091,7 +1323,7 @@ function confirmFood(){
     const idx = entries.findIndex(e => e.id === editingId);
     if (idx >= 0){ entries[idx].qty = q; entries[idx].meal = pendingMeal; }
   } else {
-    entries.push({
+    const entry = {
       id: 'e-' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
       foodId: selFood.id,
       name: selFood.name,
@@ -1099,7 +1331,9 @@ function confirmFood(){
       qty: q,
       serving: selFood.serving,
       kcal: selFood.kcal, protein: selFood.protein, carbs: selFood.carbs, fat: selFood.fat,
-    });
+    };
+    if (selFood.ext) entry.ext = selFood.ext;   // snapshot micronutrients
+    entries.push(entry);
   }
   setLog(curDate, entries);
   closeFood();
@@ -1327,9 +1561,48 @@ function lookupManual(){
 function num(v){ const x = parseFloat(v); return isFinite(x) ? x : 0; }
 function r1(v){ const x = parseFloat(v); return isFinite(x) ? Math.round(x*10)/10 : 0; }
 
+// Open Food Facts nutriment key → our ext key + target unit
+const OFF_MAP = [
+  ['fiber','fiber','g'],['sugars','sugar','g'],['added-sugars','addedSugar','g'],['polyols','sugarAlcohol','g'],
+  ['saturated-fat','satFat','g'],['monounsaturated-fat','monoFat','g'],['polyunsaturated-fat','polyFat','g'],
+  ['trans-fat','transFat','g'],['omega-3-fat','omega3','g'],['omega-6-fat','omega6','g'],
+  ['cholesterol','cholesterol','mg'],['sodium','sodium','mg'],['potassium','potassium','mg'],
+  ['calcium','calcium','mg'],['iron','iron','mg'],['magnesium','magnesium','mg'],['zinc','zinc','mg'],
+  ['vitamin-a','vitA','mcg'],['vitamin-b1','b1','mg'],['vitamin-b2','b2','mg'],['vitamin-pp','b3','mg'],
+  ['pantothenic-acid','b5','mg'],['vitamin-b6','b6','mg'],['biotin','b7','mcg'],['vitamin-b9','b9','mcg'],
+  ['vitamin-b12','b12','mcg'],['vitamin-c','vitC','mg'],['vitamin-d','vitD','mcg'],['vitamin-e','vitE','mg'],
+  ['vitamin-k','vitK','mcg'],['caffeine','caffeine','mg'],['water','water','ml'],
+];
+const U2G = { g:1, mg:1e-3, 'µg':1e-6, mcg:1e-6, ug:1e-6, kg:1000, ml:1 };
+function convUnit(val, fromU, toU){
+  const fr = U2G[fromU], to = U2G[toU];
+  if (fr == null || to == null) return val;     // unknown unit → assume already in target
+  return val * fr / to;
+}
+// Build an ext{} from OFF nutriments on a fixed basis ('_serving' or '_100g').
+function offExt(n, basis){
+  const ext = {};
+  OFF_MAP.forEach(([off, key, target]) => {
+    const raw = n[off + basis];
+    if (raw == null) return;
+    const val = parseFloat(raw);
+    if (!isFinite(val) || val < 0) return;
+    const conv = convUnit(val, n[off + '_unit'] || 'g', target);
+    if (isFinite(conv)) ext[key] = Math.round(conv * 1000) / 1000;
+  });
+  if (ext.b9 == null && n['folates' + basis] != null) { const c = convUnit(parseFloat(n['folates' + basis]), n['folates_unit'] || 'µg', 'mcg'); if (isFinite(c)) ext.b9 = Math.round(c); }
+  if (ext.b3 == null && n['niacin' + basis] != null)  { const c = convUnit(parseFloat(n['niacin' + basis]),  n['niacin_unit']  || 'mg', 'mg'); if (isFinite(c)) ext.b3 = Math.round(c * 100) / 100; }
+  // Many products list salt, not sodium: sodium(mg) = salt(g) × 1000 / 2.5
+  if (ext.sodium == null && n['salt' + basis] != null) {
+    const saltG = convUnit(parseFloat(n['salt' + basis]), n['salt_unit'] || 'g', 'g');
+    if (isFinite(saltG)) ext.sodium = Math.round(saltG * 400);
+  }
+  return Object.keys(ext).length ? ext : null;
+}
+
 function buildFoodFromOFF(code, p){
   const n = p.nutriments || {};
-  let serving, kcal, prot, carb, fat;
+  let serving, kcal, prot, carb, fat, basis;
   // Prefer per-serving values when present
   let kcalServ = n['energy-kcal_serving'];
   if (kcalServ == null && n['energy-kj_serving'] != null) kcalServ = num(n['energy-kj_serving']) / 4.184;
@@ -1337,11 +1610,11 @@ function buildFoodFromOFF(code, p){
   if (kcal100 == null && n['energy-kj_100g'] != null) kcal100 = num(n['energy-kj_100g']) / 4.184;
 
   if (kcalServ != null && num(kcalServ) > 0){
-    serving = (p.serving_size || '1 serving').trim();
+    serving = (p.serving_size || '1 serving').trim(); basis = '_serving';
     kcal = num(kcalServ);
     prot = num(n['proteins_serving']); carb = num(n['carbohydrates_serving']); fat = num(n['fat_serving']);
   } else if (kcal100 != null && num(kcal100) > 0){
-    serving = '100 g';
+    serving = '100 g'; basis = '_100g';
     kcal = num(kcal100);
     prot = num(n['proteins_100g']); carb = num(n['carbohydrates_100g']); fat = num(n['fat_100g']);
   } else {
@@ -1351,7 +1624,10 @@ function buildFoodFromOFF(code, p){
   const brand = (p.brands || '').split(',')[0].trim();
   if (brand && name && !name.toLowerCase().includes(brand.toLowerCase())) name = `${name} (${brand})`;
   if (!name) name = brand || ('Product ' + code);
-  return { id:'off-'+code, name, cat:'Scanned', serving, kcal:Math.round(kcal), protein:r1(prot), carbs:r1(carb), fat:r1(fat), isScanned:true };
+  const food = { id:'off-'+code, name, cat:'Scanned', serving, kcal:Math.round(kcal), protein:r1(prot), carbs:r1(carb), fat:r1(fat), isScanned:true };
+  const ext = offExt(n, basis);
+  if (ext) food.ext = ext;
+  return food;
 }
 
 async function lookupBarcode(raw){
