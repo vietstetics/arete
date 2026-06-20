@@ -1,0 +1,66 @@
+/* ============================================================================
+ *  Global touch & button polish (loaded on every page)
+ *  - disables pinch / double-tap zoom (paired with the viewport meta)
+ *  - removes the grey tap-highlight flash and the click focus outline
+ *  - keeps a keyboard focus ring for accessibility
+ *  - gives buttons a satisfying "press" feel (quick scale-down)
+ * ==========================================================================*/
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+html, body {
+  touch-action: manipulation;   /* no double-tap-to-zoom, no 300ms tap delay */
+  overscroll-behavior: none;    /* no rubber-band / overscroll glow */
+}
+
+/* Kill the grey iOS/Android tap-highlight everywhere */
+* { -webkit-tap-highlight-color: rgba(0, 0, 0, 0); }
+
+/* Interactive things shouldn't select text or pop the callout menu on tap */
+button, a, label, summary,
+.btn, [role="button"], .ni, .mob-item, .tab, .chip, .ei-ct,
+.meal-add, .water-btn, .jstep-btn, .day-nav button, .icon-btn {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* No outline on click/tap; restore a clean ring only for keyboard users */
+:focus { outline: none; }
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+.btn:focus-visible,
+.ni:focus-visible,
+.tab:focus-visible,
+.chip:focus-visible {
+  outline: 2px solid var(--vi, #5E5CE6);
+  outline-offset: 2px;
+}
+
+/* Satisfying press feel — smooth, quick, and it settles back. Scoped to
+   button-like elements so large clickable cards/rows aren't affected. */
+button, .btn, [role="button"],
+.ni, .mob-item, .tab, .chip, .ei-ct, .ei-obs-btn,
+.meal-add, .water-btn, .jstep-btn, .day-nav button, .icon-btn,
+.mood-btn, .pill, .seg, .seg-btn {
+  transition: transform .11s cubic-bezier(.34, 1.56, .64, 1),
+              background-color .16s ease, box-shadow .16s ease, opacity .16s ease;
+  cursor: pointer;
+}
+button:active, .btn:active, [role="button"]:active,
+.ni:active, .mob-item:active, .tab:active, .chip:active, .ei-ct:active, .ei-obs-btn:active,
+.meal-add:active, .water-btn:active, .jstep-btn:active, .day-nav button:active, .icon-btn:active,
+.mood-btn:active, .pill:active, .seg:active, .seg-btn:active {
+  transform: scale(.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button, .btn, [role="button"], .ni, .mob-item, .tab, .chip,
+  .meal-add, .water-btn, .jstep-btn, .day-nav button, .icon-btn {
+    transition: background-color .16s ease, box-shadow .16s ease;
+  }
+  button:active, .btn:active, [role="button"]:active { transform: none; }
+}
