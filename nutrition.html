@@ -1754,33 +1754,9 @@ async function startCamera(){
   scanDetector = null;
   const myGen = ++scanGen;
   setScanStatus('Starting camera…');
-
-  // Decide native vs ZXing. Native BarcodeDetector is only trusted when it
-  // actually advertises product (EAN/UPC) formats.
-  let nativeFormats = null;
-  if ('BarcodeDetector' in window){
-    try {
-      const supported = await BarcodeDetector.getSupportedFormats();
-      const want = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','codabar'];
-      const f = want.filter(x => supported.includes(x));
-      if (f.length) nativeFormats = f;
-    } catch(e){ nativeFormats = null; }
-  }
-  if (myGen !== scanGen) return;
-
-  if (nativeFormats){
-    const ok = await startNative(myGen, nativeFormats);
-    if (!ok) return;
-    // Watchdog: native sometimes streams video but never decodes. If nothing
-    // is found in a few seconds, tear it down and switch to ZXing.
-    scanWatchdog = setTimeout(() => {
-      if (scanHandled || myGen !== scanGen || !scanDetector) return;
-      teardownNative();
-      setScanStatus('Switching to a stronger scanner…');
-      startZxing(myGen);
-    }, 5500);
-    return;
-  }
+  // ZXing is the reliable cross-browser engine. The browser's native
+  // BarcodeDetector renders video but frequently fails to decode product
+  // barcodes (and is missing on iOS Safari), so we don't depend on it.
   startZxing(myGen);
 }
 
@@ -1842,7 +1818,7 @@ async function startZxing(myGen){
     scanning = true;
     const onResult = (result) => { if (result && result.getText){ const t = result.getText(); if (t) onScanned(t); } };
     if (typeof zxingReader.decodeFromConstraints === 'function'){
-      await zxingReader.decodeFromConstraints({ video:{ facingMode:'environment' } }, 'scan-video', onResult);
+      await zxingReader.decodeFromConstraints({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } } }, 'scan-video', onResult);
     } else {
       await zxingReader.decodeFromVideoDevice(undefined, 'scan-video', onResult);
     }
