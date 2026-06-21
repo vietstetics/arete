@@ -198,7 +198,145 @@
     'Cable Adduction':   { primary: ['adductors-l','adductors-r'],   secondary: [] },
   };
 
-  // Sorted exercise names for autocomplete
+  // ─────────────────────────────────────────────────────────────
+  //  MUSCLE ALIAS MAP
+  //  Translates granular anatomical names (used by imported exercise
+  //  lists) → the coarse body-diagram muscle group ids above, so every
+  //  exercise drives the recovery map. L/R groups expand to both sides.
+  // ─────────────────────────────────────────────────────────────
+  const MUSCLE_ALIAS = {
+    // chest
+    chest:['chest-l','chest-r'], upper_chest:['chest-l','chest-r'], lower_chest:['chest-l','chest-r'],
+    serratus_anterior:['upper-back'],
+    // shoulders (no dedicated side-delt patch → maps to the front-delt region)
+    front_delts:['delt-front-l','delt-front-r'], side_delts:['delt-front-l','delt-front-r'],
+    rear_delts:['delt-rear-l','delt-rear-r'], shoulders:['delt-front-l','delt-front-r'],
+    supraspinatus:['traps'],
+    // back
+    lats:['lats-l','lats-r'], teres_major:['lats-l','lats-r'],
+    upper_back:['upper-back'], rhomboids:['upper-back'], mid_traps:['upper-back'],
+    upper_traps:['traps'], traps:['traps'], levator_scapulae:['traps'],
+    erector_spinae:['lower-back'],
+    // arms
+    biceps:['biceps-l','biceps-r'], brachialis:['biceps-l','biceps-r'],
+    triceps:['triceps-l','triceps-r'], triceps_long_head:['triceps-l','triceps-r'],
+    triceps_lateral_head:['triceps-l','triceps-r'], triceps_medial_head:['triceps-l','triceps-r'],
+    brachioradialis:['forearm-l','forearm-r'], forearms:['forearm-l','forearm-r'],
+    forearm_flexors:['forearm-l','forearm-r'], forearm_extensors:['forearm-l','forearm-r'],
+    forearm_pronators:['forearm-l','forearm-r'], forearm_supinators:['forearm-l','forearm-r'],
+    finger_flexors:['forearm-l','forearm-r'],
+    // legs
+    quadriceps:['quads-l','quads-r'], rectus_femoris:['quads-l','quads-r'],
+    adductors:['adductors-l','adductors-r'], adductor_magnus:['adductors-l','adductors-r'],
+    hamstrings:['hamstrings-l','hamstrings-r'],
+    glutes:['glutes-l','glutes-r'], upper_glutes:['glutes-l','glutes-r'],
+    glute_medius:['glutes-l','glutes-r'], glute_minimus:['glutes-l','glutes-r'],
+    gastrocnemius:['calves-l','calves-r'], soleus:['calves-l','calves-r'], tibialis_anterior:['calves-l','calves-r'],
+    // core
+    rectus_abdominis:['abs'], deep_core:['abs'], hip_flexors:['abs'],
+    obliques:['obliques-l','obliques-r'],
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  //  IMPORTED EXERCISES  (machine / cable focused library)
+  //  Recovery weighting: primary ≈ 1 effective set, secondary ≈ 0.5.
+  // ─────────────────────────────────────────────────────────────
+  const IMPORTED_EXERCISES = [
+    { name:'Incline Machine Press', category:'chest', primaryMuscles:['upper_chest'], secondaryMuscles:['front_delts','triceps'] },
+    { name:'Low-Incline Smith Press', category:'chest', primaryMuscles:['upper_chest'], secondaryMuscles:['front_delts','triceps'] },
+    { name:'Flat Machine Chest Press', category:'chest', primaryMuscles:['chest'], secondaryMuscles:['triceps','front_delts'] },
+    { name:'Converging Chest Press', category:'chest', primaryMuscles:['chest'], secondaryMuscles:['triceps','front_delts'] },
+    { name:'Pec Deck', category:'chest', primaryMuscles:['chest'], secondaryMuscles:['front_delts'] },
+    { name:'Cable Fly', category:'chest', primaryMuscles:['chest'], secondaryMuscles:['front_delts'] },
+    { name:'Chest-Biased Assisted Dip', category:'chest', primaryMuscles:['lower_chest','chest'], secondaryMuscles:['triceps','front_delts'] },
+    { name:'Medium-Grip Lat Pulldown', category:'back', primaryMuscles:['lats'], secondaryMuscles:['teres_major','biceps','brachialis'] },
+    { name:'Neutral-Grip Lat Pulldown', category:'back', primaryMuscles:['lats'], secondaryMuscles:['teres_major','biceps','brachialis'] },
+    { name:'Single-Arm Cable Lat Pulldown', category:'back', primaryMuscles:['lats'], secondaryMuscles:['teres_major','biceps'] },
+    { name:'One-Arm Lat-Focused Row', category:'back', primaryMuscles:['lats'], secondaryMuscles:['biceps','rear_delts'] },
+    { name:'Chest-Supported Upper-Back Row', category:'back', primaryMuscles:['mid_traps','rhomboids','upper_back'], secondaryMuscles:['rear_delts','lats','biceps'] },
+    { name:'Wide Chest-Supported Row', category:'back', primaryMuscles:['upper_back','rear_delts','rhomboids'], secondaryMuscles:['mid_traps','biceps'] },
+    { name:'Cable Pullover', category:'back', primaryMuscles:['lats','teres_major'], secondaryMuscles:['triceps_long_head','chest'] },
+    { name:'Reverse Pec Deck', category:'shoulders', primaryMuscles:['rear_delts'], secondaryMuscles:['rhomboids','mid_traps','upper_back'] },
+    { name:'Machine Shrug', category:'back', primaryMuscles:['upper_traps'], secondaryMuscles:['levator_scapulae'] },
+    { name:'Cable Lateral Raise', category:'shoulders', primaryMuscles:['side_delts'], secondaryMuscles:['supraspinatus','upper_traps'] },
+    { name:'Machine Lateral Raise', category:'shoulders', primaryMuscles:['side_delts'], secondaryMuscles:['upper_traps'] },
+    { name:'Dumbbell Lateral Raise', category:'shoulders', primaryMuscles:['side_delts'], secondaryMuscles:['upper_traps'] },
+    { name:'Cable Rear-Delt Fly', category:'shoulders', primaryMuscles:['rear_delts'], secondaryMuscles:['rhomboids','mid_traps','upper_back'] },
+    { name:'Full-ROM Machine Shoulder Press', category:'shoulders', primaryMuscles:['front_delts'], secondaryMuscles:['side_delts','triceps','upper_traps'] },
+    { name:'Top-Half Shoulder Press', category:'shoulders', primaryMuscles:['front_delts'], secondaryMuscles:['triceps','upper_traps','serratus_anterior'] },
+    { name:'Cable Front Raise', category:'shoulders', primaryMuscles:['front_delts'], secondaryMuscles:['upper_chest'] },
+    { name:'Recline Dumbbell Curl', category:'biceps', primaryMuscles:['biceps'], secondaryMuscles:['brachialis','forearm_flexors'] },
+    { name:'Recline Cable Curl', category:'biceps', primaryMuscles:['biceps'], secondaryMuscles:['brachialis','forearm_flexors'] },
+    { name:'Preacher Curl', category:'biceps', primaryMuscles:['biceps','brachialis'], secondaryMuscles:['forearm_flexors'] },
+    { name:'Machine Preacher Curl', category:'biceps', primaryMuscles:['biceps','brachialis'], secondaryMuscles:['forearm_flexors'] },
+    { name:'Bayesian Cable Curl', category:'biceps', primaryMuscles:['biceps'], secondaryMuscles:['brachialis','forearm_flexors'] },
+    { name:'Hammer Curl', category:'biceps', primaryMuscles:['brachialis','brachioradialis'], secondaryMuscles:['biceps'] },
+    { name:'Preacher Hammer Curl', category:'biceps', primaryMuscles:['brachialis','brachioradialis'], secondaryMuscles:['biceps'] },
+    { name:'Reverse Curl', category:'forearms', primaryMuscles:['brachioradialis','forearm_extensors'], secondaryMuscles:['brachialis','biceps'] },
+    { name:'Supinated Cable Curl', category:'biceps', primaryMuscles:['biceps'], secondaryMuscles:['brachialis','forearm_flexors'] },
+    { name:'Overhead Cable Triceps Extension', category:'triceps', primaryMuscles:['triceps_long_head'], secondaryMuscles:['triceps_lateral_head','triceps_medial_head'] },
+    { name:'Single-Arm Overhead Triceps Extension', category:'triceps', primaryMuscles:['triceps_long_head'], secondaryMuscles:['triceps_lateral_head','triceps_medial_head'] },
+    { name:'Cable Triceps Pushdown', category:'triceps', primaryMuscles:['triceps'], secondaryMuscles:[] },
+    { name:'Single-Arm Cross-Body Triceps Extension', category:'triceps', primaryMuscles:['triceps'], secondaryMuscles:[] },
+    { name:'Machine Dip', category:'triceps', primaryMuscles:['triceps'], secondaryMuscles:['chest','front_delts'] },
+    { name:'Close-Grip Machine Press', category:'triceps', primaryMuscles:['triceps'], secondaryMuscles:['chest','front_delts'] },
+    { name:'JM Press', category:'triceps', primaryMuscles:['triceps'], secondaryMuscles:['chest','front_delts'] },
+    { name:'Cable Skull Crusher', category:'triceps', primaryMuscles:['triceps'], secondaryMuscles:[] },
+    { name:'Hack Squat', category:'legs', primaryMuscles:['quadriceps'], secondaryMuscles:['glutes','adductors'] },
+    { name:'Pendulum Squat', category:'legs', primaryMuscles:['quadriceps'], secondaryMuscles:['glutes','adductors'] },
+    { name:'Leg Press', category:'legs', primaryMuscles:['quadriceps'], secondaryMuscles:['glutes','adductor_magnus'] },
+    { name:'Smith Machine Squat', category:'legs', primaryMuscles:['quadriceps','glutes'], secondaryMuscles:['adductors','hamstrings'] },
+    { name:'Bulgarian Split Squat', category:'legs', primaryMuscles:['quadriceps','glutes'], secondaryMuscles:['adductors','hamstrings'] },
+    { name:'Leg Extension', category:'legs', primaryMuscles:['quadriceps'], secondaryMuscles:[] },
+    { name:'Reclined Leg Extension', category:'legs', primaryMuscles:['rectus_femoris','quadriceps'], secondaryMuscles:[] },
+    { name:'Hip Adduction Machine', category:'legs', primaryMuscles:['adductors'], secondaryMuscles:[] },
+    { name:'Hip Thrust', category:'glutes', primaryMuscles:['glutes'], secondaryMuscles:['hamstrings','adductor_magnus'] },
+    { name:'Cable Hip Abduction', category:'glutes', primaryMuscles:['glute_medius','glute_minimus'], secondaryMuscles:['upper_glutes'] },
+    { name:'Seated Leg Curl', category:'hamstrings', primaryMuscles:['hamstrings'], secondaryMuscles:['gastrocnemius'] },
+    { name:'Prone Leg Curl', category:'hamstrings', primaryMuscles:['hamstrings'], secondaryMuscles:['gastrocnemius'] },
+    { name:'Romanian Deadlift', category:'hamstrings', primaryMuscles:['hamstrings','glutes'], secondaryMuscles:['erector_spinae','adductors','forearms'] },
+    { name:'Stiff-Leg Deadlift', category:'hamstrings', primaryMuscles:['hamstrings','glutes'], secondaryMuscles:['erector_spinae','adductors','forearms'] },
+    { name:'45-Degree Back Extension', category:'posterior_chain', primaryMuscles:['glutes','hamstrings'], secondaryMuscles:['erector_spinae'] },
+    { name:'Machine Hip Extension', category:'glutes', primaryMuscles:['glutes'], secondaryMuscles:['hamstrings'] },
+    { name:'Standing Calf Raise', category:'calves', primaryMuscles:['gastrocnemius'], secondaryMuscles:['soleus'] },
+    { name:'Leg-Press Calf Raise', category:'calves', primaryMuscles:['gastrocnemius'], secondaryMuscles:['soleus'] },
+    { name:'Seated Calf Raise', category:'calves', primaryMuscles:['soleus'], secondaryMuscles:['gastrocnemius'] },
+    { name:'Tibialis Raise', category:'calves', primaryMuscles:['tibialis_anterior'], secondaryMuscles:[] },
+    { name:'Machine Abdominal Crunch', category:'core', primaryMuscles:['rectus_abdominis'], secondaryMuscles:['obliques'] },
+    { name:'Cable Crunch', category:'core', primaryMuscles:['rectus_abdominis'], secondaryMuscles:['obliques'] },
+    { name:'Reverse Crunch', category:'core', primaryMuscles:['rectus_abdominis'], secondaryMuscles:['hip_flexors','obliques'] },
+    { name:'Hanging Knee Raise', category:'core', primaryMuscles:['rectus_abdominis','hip_flexors'], secondaryMuscles:['obliques','forearms'] },
+    { name:'Pallof Press', category:'core', primaryMuscles:['obliques','deep_core'], secondaryMuscles:['rectus_abdominis','shoulders'] },
+    { name:'Back Extension', category:'lower_back', primaryMuscles:['erector_spinae'], secondaryMuscles:['glutes','hamstrings'] },
+    { name:'Cable Wrist Curl', category:'forearms', primaryMuscles:['forearm_flexors'], secondaryMuscles:['finger_flexors'] },
+    { name:'Cable Wrist Extension', category:'forearms', primaryMuscles:['forearm_extensors'], secondaryMuscles:[] },
+    { name:'Wrist Pronation', category:'forearms', primaryMuscles:['forearm_pronators'], secondaryMuscles:[] },
+    { name:'Wrist Supination', category:'forearms', primaryMuscles:['forearm_supinators'], secondaryMuscles:['biceps'] },
+    { name:'Finger Curl', category:'forearms', primaryMuscles:['finger_flexors','forearm_flexors'], secondaryMuscles:[] },
+  ];
+
+  /** @type {Object.<string,string>} exercise name → category */
+  const EXERCISE_CATEGORY = {};
+  /** @type {Object.<string,{primaryMuscles:string[],secondaryMuscles:string[]}>} original granular muscles */
+  const EXERCISE_DETAIL = {};
+
+  function aliasToIds(names) {
+    const out = [];
+    (names || []).forEach(n => (MUSCLE_ALIAS[n] || []).forEach(id => { if (!out.includes(id)) out.push(id); }));
+    return out;
+  }
+
+  // Merge imported exercises into EXERCISE_MUSCLES (mapped to diagram ids).
+  IMPORTED_EXERCISES.forEach(ex => {
+    const primary   = aliasToIds(ex.primaryMuscles);
+    const priSet    = new Set(primary);
+    const secondary = aliasToIds(ex.secondaryMuscles).filter(id => !priSet.has(id));
+    EXERCISE_MUSCLES[ex.name] = { primary, secondary };
+    EXERCISE_CATEGORY[ex.name] = ex.category;
+    EXERCISE_DETAIL[ex.name]   = { primaryMuscles: ex.primaryMuscles, secondaryMuscles: ex.secondaryMuscles };
+  });
+
+  // Sorted exercise names for autocomplete (includes the imported library)
   const EXERCISE_NAMES = Object.keys(EXERCISE_MUSCLES).sort();
 
   // ─────────────────────────────────────────────────────────────
@@ -577,6 +715,9 @@
     MUSCLE_GROUPS,
     EXERCISE_MUSCLES,
     EXERCISE_NAMES,
+    EXERCISE_CATEGORY,
+    EXERCISE_DETAIL,
+    MUSCLE_ALIAS,
     // Pure calculation functions
     getRecoveryDaysFromSets,
     calculateElapsedRecovery,

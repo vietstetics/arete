@@ -344,7 +344,12 @@ const CAT_MAP = {
   'Core':      ['Plank','Crunch','Russian Twist','Hanging Leg Raise','Side Plank'],
   'Other':     ["Farmer's Carry",'Cable Adduction'],
 };
+// Imported exercises carry their own category (fitness.js) — normalise it to
+// the page's buckets; otherwise fall back to the name-based heuristic.
+const CAT_NORM = { chest:'Chest', shoulders:'Shoulders', back:'Back', posterior_chain:'Back', lower_back:'Back', biceps:'Arms', triceps:'Arms', forearms:'Arms', legs:'Legs', glutes:'Legs', hamstrings:'Legs', calves:'Legs', core:'Core' };
 function getCategory(name) {
+  const raw = F.EXERCISE_CATEGORY && F.EXERCISE_CATEGORY[name];
+  if (raw && CAT_NORM[raw]) return CAT_NORM[raw];
   for (const [cat, names] of Object.entries(CAT_MAP)) if (names.includes(name)) return cat;
   return 'Other';
 }
