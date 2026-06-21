@@ -1716,22 +1716,33 @@ async function startCamera(){
   // stop anything already running, then claim this session
   stopCamera();
   scanHandled = false;
-  const myGen = ++scanGen;
-
-  // Fast path: the native BarcodeDetector (Chrome / Edge / Android).
   scanDetector = null;
+  const myGen = ++scanGen;
+  setScanStatus('Starting camera…');
+
+  // Use the native BarcodeDetector ONLY if it actually supports product
+  // (EAN/UPC) barcodes — on some platforms it shows video but decodes nothing.
+  let nativeFormats = null;
   if ('BarcodeDetector' in window){
-    try { scanDetector = new BarcodeDetector(); } catch(e){ scanDetector = null; }
+    try {
+      const supported = await BarcodeDetector.getSupportedFormats();
+      const want = ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','codabar'];
+      const f = want.filter(x => supported.includes(x));
+      if (f.length) nativeFormats = f;
+    } catch(e){ nativeFormats = null; }
   }
+  if (myGen !== scanGen) return;
+
+  if (nativeFormats){
+    try { scanDetector = new BarcodeDetector({ formats: nativeFormats }); }
+    catch(e){ try { scanDetector = new BarcodeDetector(); } catch(_){ scanDetector = null; } }
+  }
+
   if (scanDetector){
-    setScanStatus('Starting camera…');
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } } });
-    } catch(e){
-      if (myGen !== scanGen) return;
-      return cameraError(e);
-    }
+    } catch(e){ if (myGen !== scanGen) return; return cameraError(e); }
     if (myGen !== scanGen){ stream.getTracks().forEach(t => t.stop()); return; }
     scanStream = stream;
     const v = document.getElementById('scan-video');
@@ -1741,11 +1752,11 @@ async function startCamera(){
     if (myGen !== scanGen){ stopCamera(); return; }
     setScanStatus('Point your camera at a barcode…');
     scanning = true;
-    scanTimer = setInterval(detectTick, 320);
+    scanTimer = setInterval(detectTick, 220);
     return;
   }
 
-  // Fallback: ZXing (works on iOS Safari, Firefox, etc.) — loaded on demand.
+  // Cross-browser engine: ZXing (iOS Safari, Firefox, desktop, …).
   setScanStatus('Loading scanner…');
   let ZX;
   try { ZX = await loadZXing(); }
@@ -1757,11 +1768,24 @@ async function startCamera(){
   }
   if (myGen !== scanGen) return;
   try {
-    zxingReader = new ZX.BrowserMultiFormatReader();
+    // Hints make ZXing reliably lock onto 1-D product barcodes.
+    let hints = undefined;
+    try {
+      if (ZX.DecodeHintType && ZX.BarcodeFormat){
+        hints = new Map();
+        hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
+          ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8,
+          ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E,
+          ZX.BarcodeFormat.CODE_128, ZX.BarcodeFormat.CODE_39, ZX.BarcodeFormat.ITF,
+        ]);
+        hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+      }
+    } catch(_){ hints = undefined; }
+    zxingReader = new ZX.BrowserMultiFormatReader(hints, 250);
     document.getElementById('scan-stage').style.display = '';
     setScanStatus('Point your camera at a barcode…');
     scanning = true;
-    const onResult = (result) => { if (result && result.getText) { const t = result.getText(); if (t) onScanned(t); } };
+    const onResult = (result, err) => { if (result && result.getText){ const t = result.getText(); if (t) onScanned(t); } };
     if (typeof zxingReader.decodeFromConstraints === 'function'){
       await zxingReader.decodeFromConstraints({ video:{ facingMode:'environment' } }, 'scan-video', onResult);
     } else {
@@ -1784,7 +1808,7 @@ async function detectTick(){
   if (!scanning || !scanDetector) return;
   if (detectTick._busy) return;
   const v = document.getElementById('scan-video');
-  if (!v || v.readyState < 2) return;
+  if (!v || v.readyState < 2 || !v.videoWidth) return;
   detectTick._busy = true;
   try {
     const codes = await scanDetector.detect(v);
