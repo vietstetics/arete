@@ -9,7 +9,7 @@
     "sync": "npm run build:web && cap sync",
     "open:ios": "cap open ios",
     "open:android": "cap open android",
-    "test:steps": "node --test features/steps/__tests__/"
+    "test:steps": "node --test \"features/steps/__tests__/*.test.js\""
   },
   "dependencies": {
     "@capacitor-mlkit/barcode-scanning": "^6.2.0",

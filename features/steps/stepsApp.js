@@ -20,6 +20,11 @@ const sync = createStepSyncService(service, repo);
 function getPerm() { try { return localStorage.getItem(PERM_KEY) || 'unset'; } catch { return 'unset'; } }
 function setPerm(v) { try { localStorage.setItem(PERM_KEY, v); } catch {} }
 
+// The web motion pedometer can only count while the app is open — say so.
+const permNote = service.source === 'phone-motion'
+  ? 'Steps are counted from your phone’s motion while JARVIS is open — keep the app open while you walk.'
+  : undefined;
+
 function cardModel() {
   const goal = repo.getGoal();
   return { ...dashboardStats(repo.all(), goal, todayKey()), source: service.source };
@@ -27,7 +32,8 @@ function cardModel() {
 
 /** 'granted' | 'needs-permission' | 'denied' | 'unavailable' */
 async function resolveState() {
-  if (!service.isNative) return 'unavailable';
+  // Works for the native plugin AND the web motion pedometer; isAvailable()
+  // is the single gate (manual service reports false → 'unavailable').
   if (!(await service.isAvailable())) return 'unavailable';
   const perm = getPerm();
   if (perm === 'granted') return 'granted';
@@ -67,6 +73,7 @@ export async function mountDashboard({ card, panel }) {
   else if (state === 'needs-permission') {
     renderPermission(panel, {
       state,
+      note: permNote,
       onEnable: () => requestThenSync(rerender, 60, (res) => {
         if (res === 'granted') hidePanel(); else showManual();
       }),
@@ -89,6 +96,7 @@ export async function mountStepsPage({ history, panel }) {
   else if (state === 'needs-permission') {
     renderPermission(panel, {
       state,
+      note: permNote,
       onEnable: () => requestThenSync(rerender, 90, (res) => {
         if (res === 'granted') renderPermission(panel, { state: 'granted' }); else showManual();
       }),

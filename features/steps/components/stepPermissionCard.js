@@ -22,10 +22,12 @@ export function renderPermission(target, opts = {}) {
   }
 
   if (state === 'needs-permission') {
+    const note = opts.note ? `<p style="color:var(--t3,#86868b)">${opts.note}</p>` : '';
     el.innerHTML = `<div class="jstep-panel">
       <h3>Turn on phone step tracking</h3>
       <p>${PRIVACY}</p>
       <p style="color:var(--t3,#86868b)">${DISCLOSURE}</p>
+      ${note}
       <button class="jstep-btn primary" data-act="enable" style="flex:none;width:100%">Enable step tracking</button>
     </div>`;
     const btn = el.querySelector('[data-act="enable"]');
