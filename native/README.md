@@ -84,3 +84,42 @@ and falls back to `TYPE_STEP_COUNTER` with a reboot-safe per-day baseline.
 - No GPS for step counting.
 - No raw motion samples leave the device — only **daily totals** are stored,
   and nothing is uploaded unless the user explicitly enables cloud sync.
+
+---
+
+# Barcode scanner (Nutrition) — native ML Kit
+
+Inside the installed app, the web `BarcodeDetector` / WebView camera is
+unreliable, so the Nutrition scanner uses the **native ML Kit barcode
+scanner** when running in Capacitor (it auto-detects and falls back to the
+web camera on the website). Install the plugin so the in-app scan works:
+
+```bash
+npm install @capacitor-mlkit/barcode-scanning
+npm run sync          # build:web + cap sync
+```
+
+The web app calls it through Capacitor's runtime
+(`Capacitor.registerPlugin('BarcodeScanner').scan()`), so no JS import or
+rebuild of the web bundle is needed — just install the plugin and `cap sync`.
+
+**iOS** — add to `ios/App/App/Info.plist`:
+
+```xml
+<key>NSCameraUsageDescription</key>
+<string>JARVIS uses the camera to scan food barcodes.</string>
+```
+
+**Android** — ML Kit pulls its own dependencies via Gradle. To keep the
+barcode model bundled at install time (instead of downloading on first use),
+add to `android/app/src/main/AndroidManifest.xml` inside `<application>`:
+
+```xml
+<meta-data
+  android:name="com.google.mlkit.vision.DEPENDENCIES"
+  android:value="barcode_ui" />
+```
+
+That's it — rebuild the app and the Nutrition "Scan" button opens the native
+scanner, reads the barcode, fills the number in, and looks it up in Open Food
+Facts.

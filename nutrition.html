@@ -1652,7 +1652,7 @@ document.addEventListener('keydown', e => {
 //  Product lookup via the Open Food Facts open database.
 // ══════════════════════════════════════════════════════════════
 let scanStream = null, scanTimer = null, scanDetector = null, scanning = false, scanMeal = 'snacks', scanGen = 0;
-let zxingReader = null, scanHandled = false, zxingPromise = null, scanWatchdog = null;
+let zxingReader = null, scanHandled = false, zxingPromise = null, scanWatchdog = null, scanIsNative = false;
 
 // Cross-browser barcode engine (loaded only when the native BarcodeDetector
 // isn't available — e.g. iOS Safari / Firefox). Pinned UMD build.
@@ -1696,8 +1696,14 @@ function setScanStatus(msg, type){
   el.className = 'scan-status' + (type ? ' ' + type : '');
 }
 
+function isNativePlatform(){
+  const c = window.Capacitor;
+  return !!(c && typeof c.isNativePlatform === 'function' && c.isNativePlatform());
+}
+
 function openScanner(meal){
   scanMeal = meal || defaultMealForNow();
+  scanIsNative = isNativePlatform();
   document.getElementById('scan-input').value = '';
   document.getElementById('scan-modal').classList.add('open');
   restartScan();
@@ -1709,7 +1715,37 @@ function restartScan(){
   document.getElementById('scan-addcustom').style.display = 'none';
   document.getElementById('scan-stage').classList.remove('ok');
   scanHandled = false;
-  startCamera();
+  if (scanIsNative) nativeScan(); else startCamera();
+}
+
+// In the installed app, use the native ML Kit barcode scanner (reliable),
+// not the WebView camera. Requires @capacitor-mlkit/barcode-scanning
+// (see native/README.md). Falls back to the web camera if unavailable.
+async function nativeScan(){
+  const cap = window.Capacitor;
+  const stage = document.getElementById('scan-stage');
+  if (stage) stage.style.display = 'none';   // the native scanner shows its own camera
+  setScanStatus('Opening camera scanner…');
+  try {
+    const Scanner = cap.registerPlugin('BarcodeScanner');
+    try { await Scanner.requestPermissions(); } catch(_) {}
+    const result = await Scanner.scan();       // opens the native scanner UI
+    if (scanHandled) return;
+    const code = result && result.barcodes && result.barcodes[0] && result.barcodes[0].rawValue;
+    if (code){
+      scanHandled = true;
+      const inp = document.getElementById('scan-input'); if (inp) inp.value = code;
+      lookupBarcode(code);
+    } else {
+      setScanStatus('No barcode detected — try again or type it below.', 'warn');
+      document.getElementById('scan-retry').style.display = 'inline-flex';
+    }
+  } catch(e){
+    // Plugin not installed / failed → use the in-app web camera instead.
+    scanIsNative = false;
+    if (stage) stage.style.display = '';
+    startCamera();
+  }
 }
 
 async function startCamera(){
