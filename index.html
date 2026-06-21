@@ -1215,22 +1215,55 @@ textarea{font-family:inherit;resize:none}
 </div>
 
 <script src="js/energy.js"></script>
+<script src="js/fitness.js"></script>
 <script>
-// ── MUSCLE RAW DATA (sets + lastTrainedAt drive all computed values) ──
-// To connect real workout logs: update sets and lastTrainedAt from workout history
-const MD_RAW = {
-  chest:       {n:'Chest',      sets:12, lastTrainedAt:'2026-06-15', tip:'Rest today. Full recovery before pressing movements.'},
-  shoulders:   {n:'Shoulders',  sets:9,  lastTrainedAt:'2026-06-13', tip:'Ready for overhead work. Good time for shoulder pressing.'},
-  biceps:      {n:'Biceps',     sets:10, lastTrainedAt:'2026-06-14', tip:'Light work is fine. Avoid heavy curls today.'},
-  triceps:     {n:'Triceps',    sets:8,  lastTrainedAt:'2026-06-15', tip:'Skip direct tricep work. Let them recover fully.'},
-  'upper-back':{n:'Upper Back', sets:14, lastTrainedAt:'2026-06-13', tip:'Ready for heavy rows and pull work.'},
-  abs:         {n:'Core & Abs', sets:0,  lastTrainedAt:null,          tip:'No training data recorded for this muscle group.'},
-  quadriceps:  {n:'Quadriceps', sets:16, lastTrainedAt:'2026-06-12', tip:'Excellent recovery. Ideal for squats and leg press today.'},
-  hamstrings:  {n:'Hamstrings', sets:12, lastTrainedAt:'2026-06-12', tip:'Ready to train. Pair with quad work for a full session.'},
-  glutes:      {n:'Glutes',     sets:10, lastTrainedAt:'2026-06-12', tip:'Strong recovery. Good time for heavy hip hinge movements.'},
-  calves:      {n:'Calves',     sets:8,  lastTrainedAt:'2026-06-14', tip:'Light calf work is fine. Avoid high-rep burnout sets.'},
-  forearms:    {n:'Forearms',   sets:0,  lastTrainedAt:null,          tip:'No training data logged.'},
+// ── MUSCLE RAW DATA — computed from your real logged workouts ──
+// Each dashboard group aggregates the underlying Fitness muscle states
+// (most-recent training + representative working-set count). Logging a
+// workout in Training updates these automatically. Falls back to a small
+// sample if Fitness/workout data isn't available.
+const MD_GROUPS = {
+  chest:        ['chest-l','chest-r'],
+  shoulders:    ['delt-front-l','delt-front-r','delt-rear-l','delt-rear-r'],
+  biceps:       ['biceps-l','biceps-r'],
+  triceps:      ['triceps-l','triceps-r'],
+  'upper-back': ['upper-back','lats-l','lats-r','traps'],
+  abs:          ['abs','obliques-l','obliques-r'],
+  quadriceps:   ['quads-l','quads-r','adductors-l','adductors-r'],
+  hamstrings:   ['hamstrings-l','hamstrings-r'],
+  glutes:       ['glutes-l','glutes-r'],
+  calves:       ['calves-l','calves-r'],
+  forearms:     ['forearm-l','forearm-r'],
 };
+const MD_NAMES = { chest:'Chest', shoulders:'Shoulders', biceps:'Biceps', triceps:'Triceps', 'upper-back':'Upper Back', abs:'Core & Abs', quadriceps:'Quadriceps', hamstrings:'Hamstrings', glutes:'Glutes', calves:'Calves', forearms:'Forearms' };
+
+function buildMD() {
+  const F = window.Fitness;
+  const out = {};
+  if (!F) {
+    Object.keys(MD_GROUPS).forEach(g => out[g] = { n: MD_NAMES[g], sets: 0, lastTrainedAt: null, tip: 'No training data logged.' });
+    return out;
+  }
+  try { F.seedMockData(); } catch (e) {}
+  const workouts = F.storageAdapter.getWorkouts();
+  const checkin  = F.storageAdapter.getLatestCheckin();
+  for (const g in MD_GROUPS) {
+    let sets = 0, last = null;
+    MD_GROUPS[g].forEach(id => {
+      const st = F.getMuscleRecoveryState(id, workouts, checkin);
+      sets = Math.max(sets, st.totalWorkingSets);           // representative, not double-counted L+R
+      if (st.lastTrainedAt && (!last || st.lastTrainedAt > last)) last = st.lastTrainedAt;
+    });
+    out[g] = {
+      n: MD_NAMES[g],
+      sets: Math.round(sets),
+      lastTrainedAt: last ? new Date(last).toISOString().slice(0, 10) : null,
+      tip: last ? 'Based on your logged training. Train again once it returns to Ready.' : 'No training logged — train this group to start tracking recovery.',
+    };
+  }
+  return out;
+}
+let MD_RAW = buildMD();
 
 // ── RECOVERY CALCULATION FUNCTIONS ──
 // Rules: 8-10 sets = 4 days, 6-7 sets = 3 days, 4-5 sets = 2 days, <4 sets = 1 day
