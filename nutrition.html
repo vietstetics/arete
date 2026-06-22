@@ -218,6 +218,9 @@ input,select,textarea{font-family:inherit}
 .meal-pick{flex:1;padding:10px;border-radius:10px;border:1px solid var(--bd);background:#fff;font-size:12.5px;font-weight:600;color:var(--t2);transition:all 130ms;text-align:center}
 .meal-pick.on{background:var(--vid);border-color:rgba(94,92,230,.35);color:var(--vi)}
 .meal-pick:hover{border-color:var(--bd2)}
+.unit-seg{display:inline-flex;background:rgba(16,40,28,.05);border-radius:11px;padding:3px;margin-bottom:12px}
+.useg{padding:6px 18px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--t2);transition:all 140ms}
+.useg.on{background:#fff;color:var(--gr);box-shadow:var(--sh0)}
 
 /* form */
 .form-row{margin-bottom:14px}
@@ -351,7 +354,7 @@ input,select,textarea{font-family:inherit}
     <div class="macros">
       <div class="cal-line">
         <span class="cal-big" id="cal-eaten">0</span>
-        <span class="cal-goal" id="cal-goal">/ 2,650 kcal</span>
+        <span class="cal-goal" id="cal-goal">/ 2,650 Calories</span>
         <span class="cal-rem" id="cal-rem">2,650 left</span>
       </div>
       <div class="macro-row">
@@ -436,7 +439,11 @@ input,select,textarea{font-family:inherit}
         <div class="pf-name" id="portion-name">—</div>
         <div class="pf-serv" id="portion-serv">—</div>
       </div>
-      <label class="form-label">Quantity (servings)</label>
+      <label class="form-label" id="qty-label">Quantity (servings)</label>
+      <div class="unit-seg" id="unit-seg" style="display:none">
+        <button type="button" class="useg on" id="useg-serving" onclick="setPortionUnit('serving')">Servings</button>
+        <button type="button" class="useg" id="useg-grams" onclick="setPortionUnit('grams')">Grams</button>
+      </div>
       <div class="qty-wrap">
         <div class="qty-stepper">
           <button onclick="bumpQty(-1)" aria-label="Decrease">−</button>
@@ -446,7 +453,7 @@ input,select,textarea{font-family:inherit}
         <span class="qty-x" id="qty-x">×&nbsp;1 serving</span>
       </div>
       <div class="calc-grid">
-        <div class="calc-cell"><div class="calc-v" id="calc-kcal">0</div><div class="calc-l">kcal</div></div>
+        <div class="calc-cell"><div class="calc-v" id="calc-kcal">0</div><div class="calc-l">Calories</div></div>
         <div class="calc-cell"><div class="calc-v" id="calc-p">0</div><div class="calc-l">Protein</div></div>
         <div class="calc-cell"><div class="calc-v" id="calc-c">0</div><div class="calc-l">Carbs</div></div>
         <div class="calc-cell"><div class="calc-v" id="calc-f">0</div><div class="calc-l">Fat</div></div>
@@ -1266,7 +1273,7 @@ function render(){
 
   // ── Calorie line ──
   document.getElementById('cal-eaten').textContent = nf(tot.kcal);
-  document.getElementById('cal-goal').textContent  = '/ ' + nf(goals.kcal) + ' kcal';
+  document.getElementById('cal-goal').textContent  = '/ ' + nf(goals.kcal) + ' Calories';
   const rem = goals.kcal - tot.kcal;
   const remEl = document.getElementById('cal-rem');
   if (rem >= 0){ remEl.textContent = nf(rem) + ' left'; remEl.classList.remove('over'); }
@@ -1315,7 +1322,7 @@ function render(){
         </div>
         <div>
           <div class="meal-name">${m.name}</div>
-          <div class="meal-cals">${nf(mt.kcal)} kcal · ${nf(mt.protein)}P ${nf(mt.carbs)}C ${nf(mt.fat)}F</div>
+          <div class="meal-cals">${nf(mt.kcal)} Cal · ${nf(mt.protein)}P ${nf(mt.carbs)}C ${nf(mt.fat)}F</div>
         </div>
         <button class="meal-add" onclick="openFood('${m.id}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1360,7 +1367,7 @@ function renderNutrients(){
     groupsEl.innerHTML = '';
     return;
   }
-  cov.innerHTML = `${INFO_SVG}<span><b>${nf(kcal)} kcal</b> logged · detailed micronutrients from <b>${withExt} of ${total}</b> item${total===1?'':'s'}. Scan barcodes or pick database staples for the richest data.</span>`;
+  cov.innerHTML = `${INFO_SVG}<span><b>${nf(kcal)} Calories</b> logged · detailed micronutrients from <b>${withExt} of ${total}</b> item${total===1?'':'s'}. Scan barcodes or pick database staples for the richest data.</span>`;
 
   groupsEl.innerHTML = NUTRIENT_GROUPS.map(g => {
     const rows = NUTRIENTS.filter(n => n.group === g.id).map(n => {
@@ -1490,7 +1497,7 @@ function renderResults(){
         <div class="res-name">${esc(x.name)}${x.isCustom?'<span class="custom-dot" title="Custom food"></span>':''}</div>
         <div class="res-meta">${esc(x.serving)} · ${nf(x.protein)}P ${nf(x.carbs)}C ${nf(x.fat)}F</div>
       </div>
-      <div class="res-kcal">${nf(x.kcal)}<small> kcal</small></div>
+      <div class="res-kcal">${nf(x.kcal)}<small> Cal</small></div>
     </div>
   `).join('');
 }
@@ -1503,9 +1510,24 @@ function pickFood(id){
   document.getElementById('qty-input').value = 1;
   openPortion();
 }
+// Pull a gram weight out of a serving string ("100 g", "1 egg (50g)" → 50).
+function servingGrams(serving){
+  const m = String(serving || '').match(/(\d+(?:\.\d+)?)\s*g\b/i);
+  return m ? parseFloat(m[1]) : null;
+}
+let portionUnit = 'serving';   // 'serving' | 'grams'
+
 function openPortion(){
   document.getElementById('portion-name').textContent = selFood.name;
-  document.getElementById('portion-serv').textContent = '1 serving = ' + selFood.serving + ' · ' + nf(selFood.kcal) + ' kcal';
+  document.getElementById('portion-serv').textContent = '1 serving = ' + selFood.serving + ' · ' + nf(selFood.kcal) + ' Calories';
+  // Reset to servings; only offer the Grams toggle when the serving has a weight.
+  portionUnit = 'serving';
+  const inp = document.getElementById('qty-input');
+  inp.step = 0.5;
+  document.getElementById('qty-label').textContent = 'Quantity (servings)';
+  document.getElementById('unit-seg').style.display = servingGrams(selFood.serving) ? '' : 'none';
+  document.getElementById('useg-serving').classList.add('on');
+  document.getElementById('useg-grams').classList.remove('on');
   renderMealPicker();
   recalc();
   showScreen('portion');
@@ -1515,17 +1537,44 @@ function renderMealPicker(){
     `<button class="meal-pick ${m.id===pendingMeal?'on':''}" onclick="pendingMeal='${m.id}';renderMealPicker()">${m.name}</button>`
   ).join('');
 }
+// Returns the serving multiplier (so all downstream math is unchanged). In
+// grams mode the input is grams, converted via the serving's gram weight.
 function getQty(){
-  let q = parseFloat(document.getElementById('qty-input').value);
-  if (!isFinite(q) || q < 0) q = 0;
-  return q;
+  let v = parseFloat(document.getElementById('qty-input').value);
+  if (!isFinite(v) || v < 0) v = 0;
+  if (portionUnit === 'grams'){
+    const g = servingGrams(selFood && selFood.serving);
+    return g ? v / g : 0;
+  }
+  return v;
 }
 function bumpQty(d){
-  let q = getQty() + d * 0.5;
-  if (q < 0) q = 0;
-  // keep tidy decimals
-  q = Math.round(q * 100) / 100;
-  document.getElementById('qty-input').value = q;
+  const inp = document.getElementById('qty-input');
+  const step = portionUnit === 'grams' ? 10 : 0.5;
+  let v = parseFloat(inp.value);
+  if (!isFinite(v)) v = 0;
+  v = Math.max(0, Math.round((v + d * step) * 100) / 100);
+  inp.value = v;
+  recalc();
+}
+function setPortionUnit(unit){
+  if (unit === portionUnit || !selFood) return;
+  const g = servingGrams(selFood.serving);
+  if (unit === 'grams' && !g) return;
+  const inp = document.getElementById('qty-input');
+  let v = parseFloat(inp.value); if (!isFinite(v) || v < 0) v = 0;
+  if (unit === 'grams'){
+    inp.value = Math.round(v * g * 10) / 10;   // servings → grams
+    inp.step = 10;
+    document.getElementById('qty-label').textContent = 'Quantity (grams)';
+  } else {
+    inp.value = g ? Math.round((v / g) * 100) / 100 : v;   // grams → servings
+    inp.step = 0.5;
+    document.getElementById('qty-label').textContent = 'Quantity (servings)';
+  }
+  portionUnit = unit;
+  document.getElementById('useg-serving').classList.toggle('on', unit === 'serving');
+  document.getElementById('useg-grams').classList.toggle('on', unit === 'grams');
   recalc();
 }
 function recalc(){
@@ -1535,7 +1584,12 @@ function recalc(){
   document.getElementById('calc-p').textContent    = nf(selFood.protein * q);
   document.getElementById('calc-c').textContent    = nf(selFood.carbs * q);
   document.getElementById('calc-f').textContent    = nf(selFood.fat * q);
-  document.getElementById('qty-x').innerHTML = '×&nbsp;' + esc(selFood.serving);
+  if (portionUnit === 'grams'){
+    const eq = Math.round(q * 100) / 100;
+    document.getElementById('qty-x').innerHTML = q > 0 ? '≈&nbsp;' + eq + (eq === 1 ? ' serving' : ' servings') : '&nbsp;';
+  } else {
+    document.getElementById('qty-x').innerHTML = '×&nbsp;' + esc(selFood.serving);
+  }
 }
 
 function confirmFood(){
