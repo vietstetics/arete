@@ -9,6 +9,21 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Match the app background so page loads never flash white between routes */
+  background-color: var(--bg, #F5F5F7);
+}
+
+/* ── Smooth page-to-page navigation ──────────────────────────────────────
+ * This is a multi-page app (each route is its own HTML file), so navigation
+ * is a full document load. The cross-document View Transitions API animates
+ * those loads into a smooth cross-fade instead of a hard white cut.
+ * Progressive enhancement: unsupported browsers simply navigate as before. */
+@view-transition { navigation: auto; }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .2s;
+  animation-timing-function: cubic-bezier(.4, 0, .2, 1);
 }
 html, body {
   touch-action: manipulation;   /* no double-tap-to-zoom, no 300ms tap delay */
@@ -57,10 +72,20 @@ button:active, .btn:active, [role="button"]:active,
   transform: scale(.94);
 }
 
+/* Full-width nav rows shrink very little, so also flash a background on press
+   — an unmistakable "I tapped that" cue before the next page loads. */
+.ni:active, .mob-item:active {
+  transform: scale(.985);
+  background-color: var(--s3, rgba(0, 0, 0, .07));
+}
+
 @media (prefers-reduced-motion: reduce) {
   button, .btn, [role="button"], .ni, .mob-item, .tab, .chip,
   .meal-add, .water-btn, .jstep-btn, .day-nav button, .icon-btn {
     transition: background-color .16s ease, box-shadow .16s ease;
   }
   button:active, .btn:active, [role="button"]:active { transform: none; }
+  /* No cross-fade for users who prefer reduced motion */
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none !important; }
 }
