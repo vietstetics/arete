@@ -231,12 +231,32 @@ input,select,textarea{font-family:inherit}
 .error-msg.show{display:block}
 
 /* ── SCANNER ──────────────────────────────────────────────────── */
-.scan-stage{position:relative;width:100%;aspect-ratio:1/1;max-height:340px;background:#0c0c0f;border-radius:14px;overflow:hidden;margin-bottom:14px}
+.scan-stage{position:relative;width:100%;aspect-ratio:4/3;max-height:330px;background:radial-gradient(120% 120% at 50% 28%,#16181d 0%,#0a0b0e 100%);border-radius:20px;overflow:hidden;margin-bottom:14px;box-shadow:inset 0 0 60px rgba(0,0,0,.5)}
 .scan-stage video{width:100%;height:100%;object-fit:cover;display:block}
-.scan-reticle{position:absolute;inset:24% 14%;border:2px solid rgba(255,255,255,.92);border-radius:14px;box-shadow:0 0 0 100vmax rgba(0,0,0,.42)}
-.scan-laser{position:absolute;left:14%;right:14%;height:2px;background:var(--gr);box-shadow:0 0 8px 1px var(--gr);animation:laser 2.2s ease-in-out infinite}
-@keyframes laser{0%,100%{top:26%}50%{top:72%}}
-.scan-stage.ok .scan-reticle{border-color:var(--gr)}
+/* Luxe viewfinder: dimmed surround, hairline frame + crisp corner brackets */
+.scan-reticle{
+  position:absolute;inset:30% 12%;border-radius:14px;--rc:rgba(255,255,255,.95);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),0 0 0 100vmax rgba(7,9,13,.52);
+  background:
+    linear-gradient(var(--rc),var(--rc)) left top,linear-gradient(var(--rc),var(--rc)) left top,
+    linear-gradient(var(--rc),var(--rc)) right top,linear-gradient(var(--rc),var(--rc)) right top,
+    linear-gradient(var(--rc),var(--rc)) left bottom,linear-gradient(var(--rc),var(--rc)) left bottom,
+    linear-gradient(var(--rc),var(--rc)) right bottom,linear-gradient(var(--rc),var(--rc)) right bottom;
+  background-repeat:no-repeat;
+  background-size:26px 2px,2px 26px,26px 2px,2px 26px,26px 2px,2px 26px,26px 2px,2px 26px;
+  transition:box-shadow .35s ease;
+}
+/* A single slow light-beam that glides down with a soft trail, then fades */
+.scan-laser{
+  position:absolute;left:13%;right:13%;top:30%;height:2px;border-radius:2px;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.92) 22%,rgba(255,255,255,.92) 78%,transparent);
+  box-shadow:0 0 18px 3px rgba(29,164,98,.42);
+  animation:sweep 3.2s cubic-bezier(.4,0,.2,1) infinite;
+}
+.scan-laser::before{content:'';position:absolute;left:0;right:0;bottom:100%;height:76px;background:linear-gradient(180deg,rgba(29,164,98,0),rgba(29,164,98,.18))}
+@keyframes sweep{0%{top:31%;opacity:0}16%{opacity:1}84%{opacity:1}100%{top:67%;opacity:0}}
+.scan-stage.ok .scan-reticle{--rc:#34D27E;box-shadow:inset 0 0 0 1.5px rgba(52,210,126,.55),0 0 26px rgba(52,210,126,.35),0 0 0 100vmax rgba(7,9,13,.45)}
+.scan-stage.ok .scan-laser{opacity:0;animation:none}
 .scan-status{font-size:13px;color:var(--t2);text-align:center;margin-bottom:12px;min-height:18px;font-weight:500}
 .scan-status.err{color:var(--re)}
 .scan-status.warn{color:var(--ye)}
