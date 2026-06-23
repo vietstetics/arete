@@ -123,3 +123,43 @@ add to `android/app/src/main/AndroidManifest.xml` inside `<application>`:
 That's it — rebuild the app and the Nutrition "Scan" button opens the native
 scanner, reads the barcode, fills the number in, and looks it up in Open Food
 Facts.
+
+---
+
+# Daily readiness from wearables (Apple Watch / WHOOP)
+
+The morning check-in can pull a readiness score from a wearable instead of
+the questions (`js/wearables.js`). If nothing is connected/available it falls
+back to the questions automatically — so the website always works.
+
+## Apple Watch (Apple Health / HealthKit) — native iOS only
+Apple Health is unavailable in a browser, so this lights up only in the
+installed iOS app. Install a HealthKit plugin and grant read access:
+
+```bash
+npm install @perfood/capacitor-healthkit
+npm run sync
+```
+
+`ios/App/App/Info.plist`:
+
+```xml
+<key>NSHealthShareUsageDescription</key>
+<string>JARVIS reads your Apple Watch sleep and recovery to estimate daily readiness.</string>
+```
+
+Enable the **HealthKit** capability in Xcode (Signing & Capabilities).
+`wearables.js` reads sleep + HRV + resting HR and maps them to a 0–100 score.
+
+## WHOOP (OAuth API)
+1. Create an app at **developer.whoop.com**; set the redirect URL to your site
+   origin (e.g. `https://your-app.vercel.app/`).
+2. Deploy a tiny token endpoint (e.g. a Vercel serverless function) that
+   exchanges the OAuth `code` for tokens using your **client secret** (kept
+   server-side) and returns the JSON token. Also handles refresh.
+3. Fill `CFG.whoop` in `js/wearables.js`: `clientId`, `redirectUri`,
+   `tokenProxy` (your endpoint URL). WHOOP's `recovery_score` (0–100) maps
+   straight to the readiness number.
+
+Until `clientId`/`tokenProxy` are set, the WHOOP button honestly reports
+"not set up" and the check-in uses the questions.

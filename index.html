@@ -376,6 +376,21 @@ textarea{font-family:inherit;resize:none}
 }
 .ci-btn-ghost:hover{color:rgba(0,0,0,.6)}
 
+/* DATA-SOURCE PICKER (Apple Watch / WHOOP / questions) */
+.ci-src-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px;margin:8px 0 14px}
+.ci-src{display:flex;align-items:center;gap:13px;width:100%;padding:14px 16px;border:1px solid rgba(0,0,0,.10);border-radius:16px;background:#fff;text-align:left;cursor:pointer;transition:all 150ms;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.ci-src:hover{border-color:rgba(0,0,0,.2);box-shadow:0 8px 24px rgba(0,0,0,.10);transform:translateY(-1px)}
+.ci-src:active{transform:scale(.985)}
+.ci-src:disabled{opacity:.5;pointer-events:none}
+.ci-src-ic{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#1D1D1F}
+.ci-src-tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.ci-src-tx b{font-size:14px;font-weight:700;color:#1D1D1F}
+.ci-src-tx small{font-size:11.5px;color:#9DA9A2;margin-top:1px}
+.ci-src-go{color:#C7C7CC;font-size:22px;font-weight:300;line-height:1}
+.ci-src-status{font-size:12.5px;color:#6E6E73;min-height:18px;margin-bottom:10px;text-align:center;max-width:380px;line-height:1.5}
+.ci-src-status.busy{color:var(--vi,#5E5CE6)}
+.ci-src-status.warn{color:var(--ye,#B07D28)}
+
 /* SKIP BANNER (on dashboard) */
 .skip-banner{
   background:rgba(29,164,98,.06);border:1px solid rgba(29,164,98,.18);
@@ -1187,7 +1202,32 @@ textarea{font-family:inherit;resize:none}
   <div id="ci-phase-greeting" class="ci-phase ci-active">
     <div class="ci-greeting" id="ci-greet-line">Good morning.<br>Let's assess your current state.</div>
     <div class="ci-greeting-sub">Takes about 60 seconds. One question at a time.</div>
-    <button class="ci-btn-primary" onclick="CI.startQuestions()">Begin check-in</button>
+    <button class="ci-btn-primary" onclick="CI.chooseSource()">Begin check-in</button>
+    <button class="ci-btn-ghost" onclick="CI.completeLater()">Complete later</button>
+  </div>
+
+  <!-- Phase: Data source — sync a wearable or answer the questions -->
+  <div id="ci-phase-source" class="ci-phase">
+    <div class="ci-greeting" style="margin-top:14px">Where should today's score come from?</div>
+    <div class="ci-greeting-sub">Sync a wearable for an automatic reading — or just answer a few quick questions.</div>
+    <div class="ci-src-list">
+      <button class="ci-src" id="ci-src-apple" onclick="CI.connectDevice('apple')">
+        <span class="ci-src-ic" style="background:rgba(16,40,28,.06)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="12" rx="3"/><path d="M9 6l.5-3h5l.5 3M9 18l.5 3h5l.5-3"/></svg>
+        </span>
+        <span class="ci-src-tx"><b>Apple Watch</b><small>Sleep &amp; recovery from Apple Health</small></span>
+        <span class="ci-src-go">›</span>
+      </button>
+      <button class="ci-src" id="ci-src-whoop" onclick="CI.connectDevice('whoop')">
+        <span class="ci-src-ic" style="background:rgba(94,92,230,.10);color:var(--vi,#5E5CE6)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l2-6 4 14 3-9 2 3h5"/></svg>
+        </span>
+        <span class="ci-src-tx"><b>WHOOP</b><small>Recovery score via the WHOOP API</small></span>
+        <span class="ci-src-go">›</span>
+      </button>
+    </div>
+    <div class="ci-src-status" id="ci-src-status"></div>
+    <button class="ci-btn-primary" onclick="CI.startQuestions()">Answer a few questions</button>
     <button class="ci-btn-ghost" onclick="CI.completeLater()">Complete later</button>
   </div>
 
@@ -1237,6 +1277,7 @@ textarea{font-family:inherit;resize:none}
 
 <script src="js/energy.js"></script>
 <script src="js/fitness.js"></script>
+<script src="js/wearables.js"></script>
 <script>
 // ── MUSCLE RAW DATA — computed from your real logged workouts ──
 // Each dashboard group aggregates the underlying Fitness muscle states
@@ -1892,6 +1933,53 @@ const CI = (() => {
     setAIState('speaking', '');
   }
 
+  // Show the wearable-vs-questions chooser.
+  function chooseSource() {
+    const status = document.getElementById('ci-src-status');
+    if (status) { status.textContent = ''; status.className = 'ci-src-status'; }
+    showPhase('ci-phase-source');
+  }
+
+  // Try a wearable; on success use its score, otherwise fall back to questions.
+  async function connectDevice(kind) {
+    const status = document.getElementById('ci-src-status');
+    const W = window.Wearables;
+    if (!W) { startQuestions(); return; }
+    if (status) { status.className = 'ci-src-status busy'; status.textContent = kind === 'apple' ? 'Connecting to Apple Health…' : 'Connecting to WHOOP…'; }
+    let res;
+    try { res = await W.connect(kind); } catch (e) { res = { ok: false, reason: 'Connection failed.' }; }
+    if (res && res.pending) return;                       // WHOOP redirect in flight
+    if (res && res.ok) { applyDeviceScore(res); return; }
+    if (status) { status.className = 'ci-src-status warn'; status.textContent = (res && res.reason || 'Not available.') + ' Using the questions instead…'; }
+    setTimeout(startQuestions, 1500);
+  }
+
+  // Save a wearable-sourced score through the same path the questions use.
+  function applyDeviceScore(res) {
+    const score = Math.min(100, Math.max(0, Math.round(res.score)));
+    const cat = scoreCategory(score);
+    saveCheckin({
+      id: Date.now().toString(), date: todayStr(), completedAt: new Date().toISOString(),
+      morningScore: score, scoreCategory: cat, source: res.source, sourceDetail: res.detail || '',
+      answers: {},
+    });
+    try { localStorage.setItem('jarvis_data_source', res.source); } catch {}
+    updateHeaderDot();
+    updateDashboard(score, cat);
+    if (window.EI && EI.render) EI.render();
+
+    showPhase('ci-phase-results');
+    if (typeof setAIState === 'function') setAIState('complete', '');
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('ci-score-num', score);
+    set('ci-score-label', cat);
+    set('ci-score-date', new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }));
+    set('ci-summary-text', res.detail || 'Synced from your wearable.');
+    set('ci-reco-text', buildReco(score));
+    const st = document.getElementById('ci-strengths'); if (st) st.innerHTML = '';
+    const ar = document.getElementById('ci-areas'); if (ar) ar.innerHTML = '';
+  }
+
   function nextQ() {
     const q = QUESTIONS[currentQ];
     if (answers[q.id] === undefined && q.default !== undefined) answers[q.id] = q.default;
@@ -2144,6 +2232,7 @@ const CI = (() => {
 
   function init() {
     updateHeaderDot();
+    if (window.Wearables && Wearables.handleRedirect) Wearables.handleRedirect();
     const checkin = loadCheckin();
     const today   = todayStr();
 
@@ -2196,7 +2285,7 @@ const CI = (() => {
     setAIState('idle', '');
   }
 
-  return { init, startQuestions, nextQ, viewDashboard, editAnswers, skipToday, completeLater, openOverlay, saveOnboarding };
+  return { init, startQuestions, chooseSource, connectDevice, nextQ, viewDashboard, editAnswers, skipToday, completeLater, openOverlay, saveOnboarding };
 })();
 window.CI = CI; // expose to inline HTML handlers
 
