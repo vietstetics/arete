@@ -1933,11 +1933,16 @@ const CI = (() => {
     setAIState('speaking', '');
   }
 
-  // Show the wearable-vs-questions chooser.
+  // Honor the saved preference (Settings → Daily readiness source): auto-use a
+  // wearable / questions without re-asking, or show the picker when set to 'ask'.
   function chooseSource() {
+    let pref = 'ask';
+    try { pref = localStorage.getItem('jarvis_readiness_source_pref') || 'ask'; } catch {}
+    if (pref === 'questions') { startQuestions(); return; }
     const status = document.getElementById('ci-src-status');
     if (status) { status.textContent = ''; status.className = 'ci-src-status'; }
     showPhase('ci-phase-source');
+    if (pref === 'apple' || pref === 'whoop') connectDevice(pref);  // auto-use; falls back if unavailable
   }
 
   // Try a wearable; on success use its score, otherwise fall back to questions.

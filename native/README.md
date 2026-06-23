@@ -152,14 +152,24 @@ Enable the **HealthKit** capability in Xcode (Signing & Capabilities).
 `wearables.js` reads sleep + HRV + resting HR and maps them to a 0–100 score.
 
 ## WHOOP (OAuth API)
+The serverless token endpoint is already included at **`api/whoop/token.js`**
+(Vercel deploys it automatically), and `js/wearables.js` is pre-wired to it
+(`tokenProxy: '/api/whoop/token'`). To turn WHOOP on:
+
 1. Create an app at **developer.whoop.com**; set the redirect URL to your site
    origin (e.g. `https://your-app.vercel.app/`).
-2. Deploy a tiny token endpoint (e.g. a Vercel serverless function) that
-   exchanges the OAuth `code` for tokens using your **client secret** (kept
-   server-side) and returns the JSON token. Also handles refresh.
-3. Fill `CFG.whoop` in `js/wearables.js`: `clientId`, `redirectUri`,
-   `tokenProxy` (your endpoint URL). WHOOP's `recovery_score` (0–100) maps
-   straight to the readiness number.
+2. In Vercel → Settings → **Environment Variables**, add `WHOOP_CLIENT_ID` and
+   `WHOOP_CLIENT_SECRET` (the secret stays server-side, in the function).
+3. Set `CFG.whoop.clientId` in `js/wearables.js` to the same client id (public —
+   it only starts the OAuth redirect).
 
-Until `clientId`/`tokenProxy` are set, the WHOOP button honestly reports
+WHOOP's `recovery_score` (0–100) maps straight to the readiness number. Until
+the client id + env vars are set, the WHOOP button honestly reports
 "not set up" and the check-in uses the questions.
+
+## Choosing the source (Settings)
+**Settings → Daily readiness source** lets you pick *Ask me each morning*
+(default), *Apple Watch*, *WHOOP*, or *Daily questions*. When set to a wearable,
+the morning check-in connects to it automatically — still falling back to the
+questions if it's unavailable. Stored in
+`localStorage['jarvis_readiness_source_pref']`.

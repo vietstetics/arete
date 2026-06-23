@@ -24,7 +24,9 @@ window.Wearables = (() => {
       redirectUri: location.origin + '/',    // must match the WHOOP app config
       // Serverless endpoint that exchanges ?code → tokens (keeps the secret
       // server-side) and refreshes them. POST {code} or {refresh_token}.
-      tokenProxy:  '',
+      // Pre-wired to the included Vercel function (api/whoop/token.js); it
+      // only does anything once clientId is set and the env vars are deployed.
+      tokenProxy:  '/api/whoop/token',
       scope: 'read:recovery read:sleep read:cycles offline',
       authUrl:  'https://api.prod.whoop.com/oauth/oauth2/auth',
       apiBase:  'https://api.prod.whoop.com/developer/v1',
