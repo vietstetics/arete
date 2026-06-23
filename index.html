@@ -102,8 +102,15 @@ textarea{font-family:inherit;resize:none}
 .ready:hover{border-color:var(--bd2);box-shadow:var(--sh1)}
 .ready-inner{padding:28px 30px;display:grid;grid-template-columns:auto 1fr auto;gap:28px;align-items:center}
 .ready-score-block{}
-.ready-num{font-size:88px;font-weight:700;line-height:1;letter-spacing:-.04em;color:var(--t1)}
-.ready-lbl{font-size:11px;font-weight:500;color:var(--gr);margin-top:4px;letter-spacing:0}
+.ready-ring{position:relative;width:140px;height:140px;flex-shrink:0}
+.ready-ring::before{content:'';position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(closest-side,var(--rg,transparent),transparent 70%);filter:blur(7px);opacity:.5;z-index:0;animation:readyBreath 3.6s ease-in-out infinite}
+.ready-ring svg{position:relative;z-index:1;width:140px;height:140px;transform:rotate(-90deg)}
+.ready-ring-bg{fill:none;stroke:rgba(16,40,28,.07);stroke-width:9}
+.ready-ring-fg{fill:none;stroke:url(#readyGrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:326.73;stroke-dashoffset:326.73;transition:stroke-dashoffset 1.25s cubic-bezier(.22,1,.36,1)}
+.ready-ring-center{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+@keyframes readyBreath{0%,100%{opacity:.34;transform:scale(.99)}50%{opacity:.64;transform:scale(1.012)}}
+.ready-num{font-size:46px;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--t1);font-variant-numeric:tabular-nums}
+.ready-lbl{font-size:10.5px;font-weight:700;color:var(--gr);margin-top:3px;letter-spacing:.05em;text-transform:uppercase}
 .ready-body{}
 .ready-eyebrow{font-size:11px;font-weight:500;color:var(--t3);margin-bottom:10px;letter-spacing:0}
 .ready-copy{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:18px;max-width:460px}
@@ -310,7 +317,7 @@ textarea{font-family:inherit;resize:none}
   .wrap{padding:18px 16px 36px}
   .hdr-date{display:none}
   .ready-inner{grid-template-columns:1fr;gap:16px}
-  .ready-num{font-size:64px}
+  .ready-ring{width:120px;height:120px}.ready-ring svg{width:120px;height:120px}.ready-num{font-size:40px}
   .ready-right{display:none}
   .g2{grid-template-columns:1fr}
   .g3{grid-template-columns:1fr}
@@ -643,8 +650,22 @@ textarea{font-family:inherit;resize:none}
     <div class="ready" id="ready-card" style="border-left-color:var(--gr)">
       <div class="ready-inner">
         <div class="ready-score-block">
-          <div class="ready-num" id="ready-num">82</div>
-          <div class="ready-lbl" id="ready-lbl">Ready</div>
+          <div class="ready-ring" id="ready-ring">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <defs>
+                <linearGradient id="readyGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop id="readyGrad-a" offset="0%" stop-color="#34D27E"/>
+                  <stop id="readyGrad-b" offset="100%" stop-color="#1DA462"/>
+                </linearGradient>
+              </defs>
+              <circle class="ready-ring-bg" cx="60" cy="60" r="52"/>
+              <circle class="ready-ring-fg" id="ready-ring-fg" cx="60" cy="60" r="52"/>
+            </svg>
+            <div class="ready-ring-center">
+              <div class="ready-num" id="ready-num">82</div>
+              <div class="ready-lbl" id="ready-lbl">Ready</div>
+            </div>
+          </div>
         </div>
         <div class="ready-body">
           <div class="ready-eyebrow">Daily Readiness</div>
@@ -1700,14 +1721,62 @@ const CI = (() => {
     localStorage.setItem('jarvis_sleep_log', JSON.stringify(log.slice(-60)));
   }
 
+  // Readiness colour: red → orange → amber → green, locked green from 70+.
+  function readyColor(score) {
+    const stops = [[0,[229,72,77]],[45,[232,128,58]],[60,[230,177,46]],[70,[29,164,98]],[100,[22,179,100]]];
+    const s = Math.max(0, Math.min(100, score || 0));
+    let a = stops[0], b = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) { if (s >= stops[i][0] && s <= stops[i + 1][0]) { a = stops[i]; b = stops[i + 1]; break; } }
+    const t = b[0] === a[0] ? 0 : (s - a[0]) / (b[0] - a[0]);
+    const rgb = a[1].map((c, i) => Math.round(c + (b[1][i] - c) * t));
+    return {
+      main:  `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`,
+      light: `rgb(${Math.min(255,rgb[0]+36)},${Math.min(255,rgb[1]+36)},${Math.min(255,rgb[2]+36)})`,
+      glow:  `rgba(${rgb[0]},${rgb[1]},${rgb[2]},.5)`,
+    };
+  }
+  let _readyRAF = null;
+  // Animate the ring sweeping up + the number counting up, coloured by score.
+  function setReadyVisual(score) {
+    score = Math.round(Math.max(0, Math.min(100, score || 0)));
+    const { main, light, glow } = readyColor(score);
+    const fg = document.getElementById('ready-ring-fg');
+    const ring = document.getElementById('ready-ring');
+    const numEl = document.getElementById('ready-num');
+    const ga = document.getElementById('readyGrad-a'), gb = document.getElementById('readyGrad-b');
+    if (ga) ga.setAttribute('stop-color', light);
+    if (gb) gb.setAttribute('stop-color', main);
+    if (ring) ring.style.setProperty('--rg', glow);
+    if (numEl) numEl.style.color = main;
+    const C = 2 * Math.PI * 52;
+    const target = C * (1 - score / 100);
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (_readyRAF) cancelAnimationFrame(_readyRAF);
+    if (reduce) {
+      if (fg) { fg.style.strokeDasharray = C; fg.style.strokeDashoffset = target; }
+      if (numEl) numEl.textContent = score;
+      return;
+    }
+    if (fg) {
+      fg.style.strokeDasharray = C;
+      fg.style.strokeDashoffset = C;        // start empty
+      void fg.getBoundingClientRect();        // reflow so the CSS transition runs
+      fg.style.strokeDashoffset = target;     // → sweep up to score
+    }
+    const dur = 1250, t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 3);
+    (function tick(now) {
+      const p = Math.min(1, (now - t0) / dur);
+      if (numEl) numEl.textContent = Math.round(score * ease(p));
+      if (p < 1) _readyRAF = requestAnimationFrame(tick);
+    })(performance.now());
+  }
+
   function updateDashboard(score, cat) {
-    const num  = document.getElementById('ready-num');
     const lbl  = document.getElementById('ready-lbl');
     const card = document.getElementById('ready-card');
-    if (num) num.textContent = score;
+    setReadyVisual(score);
     if (lbl) lbl.textContent = cat;
-    const color = score >= 75 ? 'var(--gr)' : score >= 55 ? 'var(--ye)' : 'var(--or)';
-    if (card) card.style.borderLeftColor = color;
+    if (card) card.style.borderLeftColor = readyColor(score).main;
 
     // Mini-metrics from today's check-in answers
     const c = loadCheckin();
@@ -2085,6 +2154,9 @@ const CI = (() => {
       registerWakeWatcher();
       return;
     }
+
+    // No check-in yet → still sweep the readiness ring up to its shown value.
+    setReadyVisual(parseInt((document.getElementById('ready-num') || {}).textContent, 10) || 0);
 
     // Brand-new user → one-time onboarding (any time of day).
     if (!localStorage.getItem('jarvis_sleep_schedule')) {
