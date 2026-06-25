@@ -247,8 +247,70 @@ window.Wearables = (() => {
     let s = null;
     if (id === 'apple') s = await statsApple();
     else if (id === 'whoop') s = await statsWhoop();
-    if (s) cacheStats(id, s);
+    if (s) { cacheStats(id, s); applyBestToData(); }
     return s;
+  }
+
+  // ── Feed connected-device readings into the app's real data ──────────────
+  // Uses the most accurate source per metric (PRIORITY) and writes into the
+  // same stores the dashboard / Energy Intelligence / steps already read, so a
+  // wearable contributes to the day score, the forecast and step totals.
+  const pad2 = (n) => String(n).padStart(2, '0');
+  function localDateStr(d) { d = d || new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function scoreCategory(s) {
+    if (s >= 90) return 'Peak Readiness';
+    if (s >= 75) return 'Strong Morning';
+    if (s >= 60) return 'Balanced';
+    if (s >= 40) return 'Low Readiness';
+    return 'Recovery Priority';
+  }
+  // Recovery (WHOOP) maps straight through; otherwise derive from sleep+HRV+RHR.
+  function scoreFromStats(s) {
+    if (s.recovery != null) return clamp(s.recovery);
+    let parts = [], w = 0;
+    if (s.sleepH != null) { parts.push(bell(s.sleepH, 8, 2) * 100 * 0.5); w += 0.5; }
+    if (s.hrv != null)    { parts.push(Math.min(100, s.hrv / 80 * 100) * 0.3); w += 0.3; }
+    if (s.rhr != null)    { parts.push(Math.min(100, Math.max(0, (75 - s.rhr) / 25 * 100)) * 0.2); w += 0.2; }
+    return w ? clamp(parts.reduce((a, b) => a + b, 0) / w) : null;
+  }
+  function upsertSleep(date, hours, src) {
+    let log; try { log = JSON.parse(localStorage.getItem('jarvis_sleep_log')) || []; } catch { log = []; }
+    const existing = log.find(r => r.date === date);
+    const lastWake = existing && existing.wake ? existing.wake : (log.length ? log[log.length - 1].wake : '07:00');
+    const [wh, wm] = String(lastWake || '07:00').split(':').map(Number);
+    const wakeMin = (wh || 7) * 60 + (wm || 0);
+    const onsetMin = ((wakeMin - Math.round(hours * 60)) % 1440 + 1440) % 1440;
+    const onset = pad2(Math.floor(onsetMin / 60)) + ':' + pad2(onsetMin % 60);
+    const rec = { date, onset, wake: lastWake || '07:00', quality: existing ? existing.quality : 7, source: src || 'wearable' };
+    const out = log.filter(r => r.date !== date); out.push(rec);
+    out.sort((a, b) => a.date < b.date ? -1 : 1);
+    try { localStorage.setItem('jarvis_sleep_log', JSON.stringify(out.slice(-60))); } catch {}
+  }
+  function upsertSteps(date, steps, src) {
+    let map; try { map = JSON.parse(localStorage.getItem('jarvis_steps')) || {}; } catch { map = {}; }
+    map[date] = { date, steps: Math.max(0, Math.round(steps)), goal: (map[date] && map[date].goal) || 10000, source: src || 'wearable', lastSyncedAt: new Date().toISOString() };
+    try { localStorage.setItem('jarvis_steps', JSON.stringify(map)); } catch {}
+  }
+  function applyDayScore(date, score, src, sleepH) {
+    if (score == null) return;
+    let ci = null; try { ci = JSON.parse(localStorage.getItem('jarvis_checkin')); } catch {}
+    const rec = (ci && ci.date === date) ? ci : { id: Date.now().toString(), date, answers: {} };
+    rec.morningScore = Math.round(score);
+    rec.scoreCategory = scoreCategory(rec.morningScore);
+    rec.source = src;
+    rec.completedAt = new Date().toISOString();
+    if (sleepH != null) rec.sleepDurationHours = Math.round(sleepH * 10) / 10;
+    try { localStorage.setItem('jarvis_checkin', JSON.stringify(rec)); } catch {}
+  }
+  function applyBestToData() {
+    const best = bestReadings();
+    if (!Object.keys(best).length) return;
+    const date = localDateStr();
+    const stats = {}; for (const k in best) stats[k] = best[k].value;
+    const src = (best.recovery && best.recovery.source) || (best.sleepH && best.sleepH.source) || 'wearable';
+    if (stats.sleepH != null) upsertSleep(date, stats.sleepH, src);
+    if (stats.steps != null) upsertSteps(date, stats.steps, (best.steps && best.steps.source) || src);
+    applyDayScore(date, scoreFromStats(stats), src, stats.sleepH);
   }
 
   // ── Connection state + cached readings (so the hub renders offline too) ──
@@ -258,6 +320,7 @@ window.Wearables = (() => {
     const c = getConnections();
     if (on) c[id] = Date.now(); else { delete c[id]; const s = getStatsCache(); delete s[id]; try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch {} }
     try { localStorage.setItem(CONN_KEY, JSON.stringify(c)); } catch {}
+    applyBestToData();   // recompute the day's contribution from remaining sources
   }
   function getStatsCache() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch { return {}; } }
   function cacheStats(id, s) { const c = getStatsCache(); c[id] = { ...s, _at: Date.now() }; try { localStorage.setItem(STATS_KEY, JSON.stringify(c)); } catch {} }
@@ -302,6 +365,6 @@ window.Wearables = (() => {
 
   return {
     connect, available, availableProvider, handleRedirect, isNativeIOS, isNativeAndroid,
-    PROVIDERS, latestStats, bestReadings, getConnections, setConnected, getStatsCache,
+    PROVIDERS, latestStats, bestReadings, getConnections, setConnected, getStatsCache, applyBestToData,
   };
 })();

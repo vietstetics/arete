@@ -42,18 +42,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .ph-sub{font-size:13.5px;color:var(--t2);margin-top:4px;max-width:620px;line-height:1.6}
 .card{background:#fff;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0)}
 
-/* readings panel */
-.read{padding:20px 22px;margin:20px 0 26px;background:linear-gradient(150deg,#fff,#F4FAF6);border-color:rgba(29,164,98,.14)}
-.read-h{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px}
-.read-h svg{color:var(--gr)}
-.read-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
-.rd{background:var(--s1);border-radius:14px;padding:13px 14px;text-align:left}
-.rd.empty{opacity:.55}
-.rd-v{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1}
-.rd-v small{font-size:11px;font-weight:600;color:var(--t3);margin-left:2px}
-.rd-l{font-size:11px;color:var(--t2);font-weight:600;margin-top:5px}
-.rd-src{font-size:10px;color:var(--gr);font-weight:700;margin-top:3px;text-transform:uppercase;letter-spacing:.03em}
-@media(max-width:760px){.read-grid{grid-template-columns:repeat(2,1fr)}}
+/* feeds-the-app note */
+.read{padding:16px 20px;margin:20px 0 22px;background:linear-gradient(150deg,#fff,#F4FAF6);border-color:rgba(29,164,98,.14)}
+.read-note{display:flex;align-items:flex-start;gap:11px;font-size:13px;color:var(--t2);line-height:1.6}
+.read-note svg{color:var(--gr);flex-shrink:0;margin-top:1px}
+.read-note b{color:var(--t1);font-weight:700}
 
 /* provider cards */
 .grp-h{font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin:24px 0 12px}
@@ -112,8 +105,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   <div class="ph-sub">Connect your trackers so JARVIS reads from the source — sleep, recovery, HRV, heart rate and steps — and always shows the most accurate number when more than one device agrees.</div>
 
   <div class="card read">
-    <div class="read-h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Your readings · most accurate source</div>
-    <div class="read-grid" id="readings"></div>
+    <div class="read-note">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+      <span>Connected sources flow straight into your data — feeding your <b>Daily Readiness</b> score, <b>Energy Intelligence</b> forecast and <b>step totals</b>. When more than one device reports the same metric, the most accurate one is used.</span>
+    </div>
   </div>
 
   <div id="providers"></div>
@@ -130,24 +125,6 @@ function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function pname(id){ const p=W.PROVIDERS.find(x=>x.id===id); return p?p.name:id; }
 function initials(name){ return name.replace(/[^A-Za-z ]/g,'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 
-const METRICS = [
-  { key:'recovery', label:'Recovery', unit:'%' },
-  { key:'sleepH',   label:'Sleep',    unit:'h' },
-  { key:'hrv',      label:'HRV',      unit:'ms' },
-  { key:'rhr',      label:'Resting HR', unit:'bpm' },
-  { key:'steps',    label:'Steps',    unit:'' },
-];
-
-function renderReadings(){
-  const best = W.bestReadings();
-  document.getElementById('readings').innerHTML = METRICS.map(m => {
-    const b = best[m.key];
-    if (!b) return `<div class="rd empty"><div class="rd-v">—</div><div class="rd-l">${m.label}</div><div class="rd-src">No source</div></div>`;
-    const val = m.key==='steps' ? Math.round(b.value).toLocaleString() : b.value;
-    return `<div class="rd"><div class="rd-v">${val}${m.unit?`<small>${m.unit}</small>`:''}</div><div class="rd-l">${m.label}</div><div class="rd-src">${esc(pname(b.source))}</div></div>`;
-  }).join('');
-}
-
 function statLine(stats){
   if (!stats) return '';
   const bits = [];
@@ -160,7 +137,6 @@ function statLine(stats){
 }
 
 function render(){
-  renderReadings();
   const conns = W.getConnections();
   const cache = W.getStatsCache();
   const groups = [...new Set(W.PROVIDERS.map(p=>p.group))];
@@ -205,6 +181,15 @@ function disconnect(id){ W.setConnected(id, false); toast(pname(id)+' disconnect
 
 if (W && W.handleRedirect) W.handleRedirect();
 render();
+
+// Re-sync already-connected sources on load so their latest readings flow
+// into the day score / Energy Intelligence / steps.
+async function syncConnected(){
+  const c = W.getConnections();
+  for (const id in c){ try { await W.latestStats(id); } catch(e){} }
+  render();
+}
+syncConnected();
 </script>
 <script src="js/mobilenav.js" defer></script>
 </body>
