@@ -159,11 +159,149 @@ window.Wearables = (() => {
     return { ok: false };
   }
 
-  async function connect(kind) {
-    if (kind === 'apple') return connectApple();
-    if (kind === 'whoop') return connectWhoop();
-    return { ok: false, reason: 'Unknown device.' };
+  const isNativeAndroid = () => {
+    const c = cap();
+    return !!(c && c.isNativePlatform && c.isNativePlatform() && c.getPlatform && c.getPlatform() === 'android');
+  };
+  const sumVal = (samples) => {
+    if (!Array.isArray(samples) || !samples.length) return null;
+    const nums = samples.map(s => Number(s.value ?? s.quantity ?? s.numericValue)).filter(n => isFinite(n));
+    return nums.length ? nums.reduce((a, b) => a + b, 0) : null;
+  };
+
+  // ── Connectable trackers (how each connects + what it provides) ──────────
+  const PROVIDERS = [
+    { id: 'apple',  name: 'Apple Watch',   group: 'Wearables',   method: 'Apple Health (iOS app)', color: '#1D1D1F',
+      blurb: 'Sleep, HRV, resting heart rate, steps & workouts from Apple Health.',
+      provides: ['Sleep', 'HRV', 'Resting HR', 'Steps'] },
+    { id: 'whoop',  name: 'WHOOP',         group: 'Wearables',   method: 'WHOOP API (OAuth)', color: '#0B0B0B',
+      blurb: 'Recovery, strain, sleep performance, HRV & resting heart rate.',
+      provides: ['Recovery', 'Sleep', 'HRV', 'Resting HR'] },
+    { id: 'oura',   name: 'Oura Ring',     group: 'Wearables',   method: 'Oura API (OAuth)', color: '#46469B',
+      blurb: 'Readiness, sleep stages, HRV & body temperature.',
+      provides: ['Readiness', 'Sleep', 'HRV'] },
+    { id: 'fitbit', name: 'Fitbit',        group: 'Wearables',   method: 'Fitbit API (OAuth)', color: '#00B0B9',
+      blurb: 'Sleep, steps, heart rate & HRV.',
+      provides: ['Sleep', 'Steps', 'Heart rate'] },
+    { id: 'garmin', name: 'Garmin',        group: 'Wearables',   method: 'Garmin Health API', color: '#007CC3',
+      blurb: 'Sleep, HRV, Body Battery, steps & activities.',
+      provides: ['Sleep', 'HRV', 'Steps'] },
+    { id: 'healthconnect', name: 'Health Connect', group: 'Phone health', method: 'Android app', color: '#3DDC84',
+      blurb: 'Android’s health hub — steps, sleep & heart rate from any synced app.',
+      provides: ['Steps', 'Sleep', 'Heart rate'] },
+    { id: 'strava', name: 'Strava',        group: 'Activity apps', method: 'Strava API (OAuth)', color: '#FC4C02',
+      blurb: 'Runs, rides & workouts to enrich your training load.',
+      provides: ['Workouts', 'Activities'] },
+  ];
+
+  // Which connected source is most trustworthy for each metric (first wins).
+  const PRIORITY = {
+    recovery: ['whoop', 'oura'],
+    sleepH:   ['oura', 'whoop', 'apple', 'fitbit', 'healthconnect'],
+    hrv:      ['whoop', 'oura', 'apple', 'fitbit'],
+    rhr:      ['whoop', 'oura', 'apple', 'fitbit'],
+    steps:    ['apple', 'healthconnect', 'fitbit', 'garmin'],
+  };
+
+  // ── Per-source stat readers (real for apple/whoop) ───────────────────────
+  async function statsApple() {
+    if (!isNativeIOS()) return null;
+    let HK; try { HK = cap().registerPlugin('CapacitorHealthkit'); } catch { return null; }
+    if (!HK) return null;
+    try {
+      const end = new Date(), start = new Date(end.getTime() - 36 * 3600e3).toISOString();
+      const q = (name) => HK.queryHKitSampleType({ sampleName: name, startDate: start, endDate: end.toISOString(), limit: 0 })
+        .then(r => (r && r.resultData) || []).catch(() => []);
+      const [sleep, hrv, rhr, steps] = await Promise.all([q('sleepAnalysis'), q('heartRateVariability'), q('restingHeartRate'), q('stepCount')]);
+      const out = {};
+      const sh = sleepHours(sleep); if (sh != null) out.sleepH = Math.round(sh * 10) / 10;
+      const h = avgVal(hrv); if (h != null) out.hrv = Math.round(h);
+      const r = avgVal(rhr); if (r != null) out.rhr = Math.round(r);
+      const st = sumVal(steps); if (st != null) out.steps = Math.round(st);
+      return Object.keys(out).length ? out : null;
+    } catch { return null; }
+  }
+  async function statsWhoop() {
+    const tok = loadTok(); if (!tok) return null;
+    try {
+      const r = await fetch(CFG.whoop.apiBase + '/recovery?limit=1', { headers: { Authorization: 'Bearer ' + tok.access_token } });
+      if (!r.ok) return null;
+      const j = await r.json(); const s = j.records && j.records[0] && j.records[0].score;
+      if (!s) return null;
+      const out = {};
+      if (s.recovery_score != null)     out.recovery = Math.round(s.recovery_score);
+      if (s.resting_heart_rate != null) out.rhr = Math.round(s.resting_heart_rate);
+      if (s.hrv_rmssd_milli != null)    out.hrv = Math.round(s.hrv_rmssd_milli);
+      try {
+        const sr = await fetch(CFG.whoop.apiBase + '/activity/sleep?limit=1', { headers: { Authorization: 'Bearer ' + tok.access_token } });
+        if (sr.ok) {
+          const ss = (await sr.json()).records?.[0]?.score?.stage_summary;
+          const ms = ss && (ss.total_in_bed_time_milli - (ss.total_awake_time_milli || 0));
+          if (ms) out.sleepH = Math.round(ms / 3600e3 * 10) / 10;
+        }
+      } catch {}
+      return Object.keys(out).length ? out : null;
+    } catch { return null; }
+  }
+  async function latestStats(id) {
+    let s = null;
+    if (id === 'apple') s = await statsApple();
+    else if (id === 'whoop') s = await statsWhoop();
+    if (s) cacheStats(id, s);
+    return s;
   }
 
-  return { connect, available, handleRedirect, isNativeIOS };
+  // ── Connection state + cached readings (so the hub renders offline too) ──
+  const CONN_KEY = 'jarvis_connections', STATS_KEY = 'jarvis_conn_stats';
+  function getConnections() { try { return JSON.parse(localStorage.getItem(CONN_KEY)) || {}; } catch { return {}; } }
+  function setConnected(id, on) {
+    const c = getConnections();
+    if (on) c[id] = Date.now(); else { delete c[id]; const s = getStatsCache(); delete s[id]; try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch {} }
+    try { localStorage.setItem(CONN_KEY, JSON.stringify(c)); } catch {}
+  }
+  function getStatsCache() { try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch { return {}; } }
+  function cacheStats(id, s) { const c = getStatsCache(); c[id] = { ...s, _at: Date.now() }; try { localStorage.setItem(STATS_KEY, JSON.stringify(c)); } catch {} }
+
+  // Best value per metric across connected sources → most accurate reading.
+  function bestReadings() {
+    const cache = getStatsCache(), out = {};
+    for (const metric in PRIORITY) {
+      for (const src of PRIORITY[metric]) {
+        const v = cache[src] && cache[src][metric];
+        if (v != null && isFinite(v)) { out[metric] = { value: v, source: src }; break; }
+      }
+    }
+    return out;
+  }
+
+  async function connectHealthConnect() {
+    if (!isNativeAndroid()) return { ok: false, reason: 'Health Connect needs the JARVIS Android app.' };
+    return { ok: false, reason: 'Health Connect isn’t wired into this build yet — see native/README.md.' };
+  }
+  function providerNeeds(kind) {
+    const p = PROVIDERS.find(x => x.id === kind);
+    return p ? `${p.name} needs setup (${p.method}) — see native/README.md.` : 'Unknown device.';
+  }
+
+  async function connect(kind) {
+    let res;
+    if (kind === 'apple') res = await connectApple();
+    else if (kind === 'whoop') res = await connectWhoop();
+    else if (kind === 'healthconnect') res = await connectHealthConnect();
+    else res = { ok: false, reason: providerNeeds(kind) };
+    if (res && res.ok) { setConnected(kind, true); latestStats(kind); }
+    return res;
+  }
+
+  function availableProvider(id) {
+    if (id === 'apple') return isNativeIOS();
+    if (id === 'whoop') return !!CFG.whoop.clientId;
+    if (id === 'healthconnect') return isNativeAndroid();
+    return false;   // OAuth providers need credentials wired in first
+  }
+
+  return {
+    connect, available, availableProvider, handleRedirect, isNativeIOS, isNativeAndroid,
+    PROVIDERS, latestStats, bestReadings, getConnections, setConnected, getStatsCache,
+  };
 })();

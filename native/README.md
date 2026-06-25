@@ -173,3 +173,17 @@ the client id + env vars are set, the WHOOP button honestly reports
 the morning check-in connects to it automatically — still falling back to the
 questions if it's unavailable. Stored in
 `localStorage['jarvis_readiness_source_pref']`.
+
+## Connections hub (`connections.html`)
+A dedicated page lists every tracker, its connect method, and what it
+provides, shows each connected source's latest stats, and surfaces the
+**most accurate reading per metric** (recovery, sleep, HRV, resting HR,
+steps) using a source-priority table in `js/wearables.js` (`PRIORITY`).
+Connection state lives in `localStorage['jarvis_connections']`; cached
+readings in `jarvis_conn_stats`.
+
+**Apple Watch** and **WHOOP** are wired (see above). **Oura, Fitbit, Garmin,
+Strava** are OAuth providers — wire each like WHOOP: register a developer
+app, add a token endpoint (mirror `api/whoop/token.js`), then add its
+`connect…()` + stat reader in `wearables.js`. Until then they honestly show
+"Needs setup". **Health Connect** (Android) is native, like HealthKit.
