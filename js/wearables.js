@@ -193,6 +193,27 @@ window.Wearables = (() => {
       blurb: 'Runs, rides & workouts to enrich your training load.',
       provides: ['Workouts', 'Activities'] },
   ];
+  // Plain-language "what tapping Connect does" for each tracker.
+  const HOW = {
+    apple:        'Grant Apple Health access in the iOS app',
+    whoop:        'Sign in with your WHOOP account',
+    oura:         'Sign in with your Oura account',
+    fitbit:       'Sign in with your Fitbit account',
+    garmin:       'Sign in with Garmin Connect',
+    healthconnect:'Allow Health Connect in the Android app',
+    strava:       'Sign in with your Strava account',
+  };
+  PROVIDERS.forEach(function (p) { p.how = HOW[p.id] || p.method; });
+
+  // Clear, user-facing state for each tracker.
+  //   connected → already linked   ·  ready → can connect right now
+  //   app       → needs the phone app  ·  soon → integration coming
+  function providerState(id) {
+    if (getConnections()[id]) return 'connected';
+    if (availableProvider(id)) return 'ready';
+    if (id === 'apple' || id === 'healthconnect') return 'app';
+    return 'soon';
+  }
 
   // Which connected source is most trustworthy for each metric (first wins).
   const PRIORITY = {
@@ -343,7 +364,7 @@ window.Wearables = (() => {
   }
   function providerNeeds(kind) {
     const p = PROVIDERS.find(x => x.id === kind);
-    return p ? `${p.name} needs setup (${p.method}) — see native/README.md.` : 'Unknown device.';
+    return p ? `${p.name} sign-in is coming soon — you'll connect it in one tap with your ${p.name} account.` : 'Unknown device.';
   }
 
   async function connect(kind) {
@@ -364,7 +385,7 @@ window.Wearables = (() => {
   }
 
   return {
-    connect, available, availableProvider, handleRedirect, isNativeIOS, isNativeAndroid,
+    connect, available, availableProvider, providerState, handleRedirect, isNativeIOS, isNativeAndroid,
     PROVIDERS, latestStats, bestReadings, getConnections, setConnected, getStatsCache, applyBestToData,
   };
 })();
