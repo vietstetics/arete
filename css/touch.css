@@ -89,3 +89,22 @@ button:active, .btn:active, [role="button"]:active,
   ::view-transition-old(root),
   ::view-transition-new(root) { animation: none !important; }
 }
+
+/* ── Native-app feel ─────────────────────────────────────────────────────
+ * Apps don't let you select their chrome or pop a long-press menu, and inner
+ * scrollers don't bleed their scroll out to the page. Inputs stay selectable. */
+* { -webkit-touch-callout: none; }
+body { -webkit-user-select: none; user-select: none; }
+input, textarea, select,
+[contenteditable], [contenteditable] * {
+  -webkit-user-select: text; user-select: text; -webkit-touch-callout: default;
+}
+img, a { -webkit-user-drag: none; }
+
+/* Momentum scrolling + contain the scroll so it never chains to the page or
+   the browser (kills the "rubber-band reveals the page behind" web tell). */
+.main, .modal, .modal-body, .modal-b, .pm-b, .cat-body, .exli, .res-list,
+.sched-wrap, .ci-overlay, .mnav-sheet {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}

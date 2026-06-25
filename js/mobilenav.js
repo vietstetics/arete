@@ -8,6 +8,15 @@
 (function () {
   if (window.__mnav) return; window.__mnav = true;
 
+  // Block the browser's left-edge swipe-back so the app doesn't navigate away
+  // like a website. Only fires for a drag that starts at the very screen edge,
+  // so normal scrolling and taps are untouched.
+  document.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 1 && e.touches[0].clientX <= 16) {
+      try { e.preventDefault(); } catch (_) {}
+    }
+  }, { passive: false });
+
   var ic = {
     home:    '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     train:   '<path d="M13 10V3L4 14h7v7l9-11h-7z"/>',
