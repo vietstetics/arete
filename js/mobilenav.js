@@ -43,7 +43,6 @@
   var MORE = [
     { href: 'connections.html', label: 'Connections', icon: ic.connect },
     { href: 'sleep.html',       label: 'Sleep',       icon: ic.sleep },
-    { href: 'programs.html',    label: 'Programs',    icon: ic.programs },
     { href: 'exercises.html',   label: 'Exercises',   icon: ic.exercises },
     { href: 'analytics.html',   label: 'Progress',    icon: ic.progress },
     { href: 'tasks.html',       label: 'Tasks',       icon: ic.tasks },
