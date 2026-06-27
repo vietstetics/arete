@@ -12,6 +12,7 @@
     "test:steps": "node --test \"features/steps/__tests__/*.test.js\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0",
     "@capacitor-mlkit/barcode-scanning": "^6.2.0",
     "@capacitor/android": "^6.1.0",
     "@capacitor/core": "^6.1.0",

@@ -238,3 +238,24 @@ sign‑in, pushed on change). Sign out from **Settings → Account**.
 - Passwords are hashed by Supabase (bcrypt); sessions are JWTs auto‑refreshed.
 - RLS means a user can only ever read/write their own `user_data` row.
 - Phone codes are one‑time SMS OTPs; email supports confirmation + reset.
+
+---
+
+# AI calorie estimate from a photo (Nutrition)
+
+Nutrition → Add Food → **"Estimate from a photo (AI)"** lets you snap/upload a
+meal photo; the image is resized in the browser and sent to a Vercel serverless
+function (`api/analyze-food.js`) that calls **Claude vision** to estimate the
+dish, its items, and per-item + total Calories/macros — then you add it to your
+diary. The result is constrained to a strict JSON schema.
+
+## Turn it on
+1. Get an Anthropic API key (console.anthropic.com).
+2. In Vercel → Settings → **Environment Variables**, add **`ANTHROPIC_API_KEY`**
+   (server-side only — never shipped to the browser).
+3. Deploy. `@anthropic-ai/sdk` is in package.json, so Vercel installs it for the
+   function automatically. Model: `claude-opus-4-8`.
+
+Until the key is set, the button shows "AI estimate isn't switched on yet".
+Estimates are approximate — they're labelled as a photo estimate in the diary
+and can be edited or removed like any entry.
