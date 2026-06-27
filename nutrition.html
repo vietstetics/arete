@@ -1877,12 +1877,17 @@ let zxingReader = null, scanHandled = false, zxingPromise = null, scanWatchdog =
 function loadZXing(){
   if (window.ZXing && window.ZXing.BrowserMultiFormatReader) return Promise.resolve(window.ZXing);
   if (zxingPromise) return zxingPromise;
+  const ready = () => window.ZXing && window.ZXing.BrowserMultiFormatReader;
   zxingPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js';
-    s.onload  = () => (window.ZXing && window.ZXing.BrowserMultiFormatReader) ? resolve(window.ZXing) : reject(new Error('zxing missing'));
-    s.onerror = () => reject(new Error('zxing failed to load'));
-    document.head.appendChild(s);
+    const add = (src, next) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => ready() ? resolve(window.ZXing) : next();
+      s.onerror = next;
+      document.head.appendChild(s);
+    };
+    // Local copy first — reliable, offline, no CDN/CSP dependency. CDN as backup.
+    add('js/zxing.min.js', () => add('https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js', () => reject(new Error('zxing failed to load'))));
   });
   return zxingPromise;
 }
@@ -2107,6 +2112,22 @@ function stopCamera(){
 // Works everywhere a file picker works (incl. iOS home-screen apps, where live
 // getUserMedia is blocked). One-shot decode, so TRY_HARDER is fine here.
 function scanPhoto(){ const f = document.getElementById('scan-photo-file'); f.value = ''; f.click(); }
+
+// Try the native BarcodeDetector on a still image (Android) — no ZXing needed.
+async function detectImageNative(file){
+  if (!('BarcodeDetector' in window) || !window.createImageBitmap) return null;
+  try {
+    const supported = await BarcodeDetector.getSupportedFormats();
+    const want = ['ean_13','ean_8','upc_a','upc_e','code_128'].filter(x => supported.includes(x));
+    if (!want.length) return null;
+    const det = new BarcodeDetector({ formats: want });
+    const bmp = await createImageBitmap(file);
+    const codes = await det.detect(bmp);
+    if (bmp.close) bmp.close();
+    return (codes && codes[0] && codes[0].rawValue) || null;
+  } catch(_) { return null; }
+}
+
 async function onScanPhoto(input){
   const file = input.files && input.files[0]; if (!file) return;
   stopCamera();
@@ -2115,6 +2136,11 @@ async function onScanPhoto(input){
   document.getElementById('scan-addcustom').style.display = 'none';
   document.getElementById('scan-stage').classList.remove('ok');
   setScanStatus('Reading the barcode…');
+
+  // 1) Native still-image decode (fast on Android, no library needed).
+  try { const code = await detectImageNative(file); if (code){ onScanned(code); return; } } catch(_) {}
+
+  // 2) ZXing one-shot decode (iOS / Firefox / anywhere native isn't available).
   let ZX;
   try { ZX = await loadZXing(); }
   catch(e){ setScanStatus('Couldn’t load the reader — type the number below.', 'warn'); return; }
