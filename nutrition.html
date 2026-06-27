@@ -1967,10 +1967,35 @@ async function startCamera(){
   scanDetector = null;
   const myGen = ++scanGen;
   setScanStatus('Starting camera…');
-  // ZXing is the reliable cross-browser engine. The browser's native
-  // BarcodeDetector renders video but frequently fails to decode product
-  // barcodes (and is missing on iOS Safari), so we don't depend on it.
-  startZxing(myGen);
+
+  // FAST PATH — the browser's native BarcodeDetector (Android Chrome/Edge) is
+  // hardware-accelerated and decodes near-instantly. Use it when it actually
+  // advertises the product (EAN/UPC) formats.
+  let nativeFormats = null;
+  if ('BarcodeDetector' in window){
+    try {
+      const supported = await BarcodeDetector.getSupportedFormats();
+      const want = ['ean_13','ean_8','upc_a','upc_e','code_128'];
+      const f = want.filter(x => supported.includes(x));
+      if (f.length) nativeFormats = f;
+    } catch(e){ nativeFormats = null; }
+  }
+  if (myGen !== scanGen) return;
+
+  if (nativeFormats){
+    const ok = await startNative(myGen, nativeFormats);
+    if (!ok) return;
+    loadZXing().catch(() => {});      // warm the fallback during the native window
+    // Watchdog: if native streams video but never decodes (older WebViews),
+    // switch to the ZXing engine automatically — no dead-end.
+    scanWatchdog = setTimeout(() => {
+      if (scanHandled || myGen !== scanGen || !scanDetector) return;
+      teardownNative();
+      startZxing(myGen);
+    }, 3500);
+    return;
+  }
+  startZxing(myGen);                   // iOS Safari / Firefox / no native support
 }
 
 async function startNative(myGen, formats){
@@ -1988,9 +2013,9 @@ async function startNative(myGen, formats){
   v.srcObject = scanStream;
   try { await v.play(); } catch(_) {}
   if (myGen !== scanGen){ stopCamera(); return false; }
-  setScanStatus('Point your camera at a barcode… (native)');
+  setScanStatus('Point your camera at a barcode…');
   scanning = true;
-  scanTimer = setInterval(detectTick, 200);
+  scanTimer = setInterval(detectTick, 120);
   return true;
 }
 
@@ -2017,17 +2042,18 @@ async function startZxing(myGen){
     try {
       if (ZX.DecodeHintType && ZX.BarcodeFormat){
         hints = new Map();
+        // Only the formats real food products use — fewer formats = faster.
         hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
           ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8,
-          ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E,
-          ZX.BarcodeFormat.CODE_128, ZX.BarcodeFormat.CODE_39, ZX.BarcodeFormat.ITF,
+          ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128,
         ]);
-        hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+        // No TRY_HARDER on purpose — it multiplies decode time per frame;
+        // clear product barcodes decode fast without it.
       }
     } catch(_){ hints = undefined; }
-    zxingReader = new ZX.BrowserMultiFormatReader(hints, 200);
+    zxingReader = new ZX.BrowserMultiFormatReader(hints, 120);
     document.getElementById('scan-stage').style.display = '';
-    setScanStatus('Point your camera at a barcode… (ZXing)');
+    setScanStatus('Point your camera at a barcode…');
     scanning = true;
     const onResult = (result) => { if (result && result.getText){ const t = result.getText(); if (t) onScanned(t); } };
     if (typeof zxingReader.decodeFromConstraints === 'function'){
