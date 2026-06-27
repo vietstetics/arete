@@ -10,6 +10,8 @@
 <meta name="theme-color" content="#F5F5F7">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/touch.css">
+<script src="js/auth.js"></script>
+<script src="js/authguard.js"></script>
 <title>JARVIS — Settings</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,6 +65,12 @@
     </div>
   </div>
 
+  <div class="set-card" id="account-card" style="display:none">
+    <div class="set-h">Account</div>
+    <div class="set-sub" id="account-who">Signed in</div>
+    <button onclick="signOutNow()" style="width:100%;padding:12px;border-radius:11px;border:1px solid rgba(240,114,106,.35);background:rgba(240,114,106,.10);color:#F0726A;font-size:13px;font-weight:700;cursor:pointer">Sign out</button>
+  </div>
+
   <div class="badge">More settings coming soon</div><br>
   <a href="index.html" class="back">← Back to Dashboard</a>
 </div></main>
@@ -73,6 +81,12 @@
   function paintSrc() { document.querySelectorAll('#src-opts .opt').forEach(b => b.classList.toggle('on', b.dataset.v === curSrc())); }
   function setSrc(v) { try { localStorage.setItem(SRC_KEY, v); } catch {} paintSrc(); }
   paintSrc();
+  function signOutNow(){ if (window.Auth) Auth.signOut().then(function(){ location.replace('login.html'); }); }
+  (async function(){
+    if (window.Auth && Auth.isConfigured()){
+      try { const u = await Auth.getUser(); if (u){ document.getElementById('account-card').style.display=''; document.getElementById('account-who').textContent = u.email || u.phone || 'Signed in'; } } catch(e){}
+    }
+  })();
 </script>
 <script src="js/mobilenav.js" defer></script>
 </body>

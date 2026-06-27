@@ -187,3 +187,54 @@ Strava** are OAuth providers — wire each like WHOOP: register a developer
 app, add a token endpoint (mirror `api/whoop/token.js`), then add its
 `connect…()` + stat reader in `wearables.js`. Until then they honestly show
 "Needs setup". **Health Connect** (Android) is native, like HealthKit.
+
+---
+
+# Accounts & secure cloud sync (Supabase)
+
+Sign‑in lives at **`login.html`** (email **or** phone, create‑account‑first).
+Every app page loads `js/auth.js` + `js/authguard.js`: when accounts are
+configured, no session → redirect to login, and the user's data syncs to
+their account. **Until you fill in the keys below, the app runs locally with
+no login wall** (nothing breaks pre‑launch).
+
+Backend is **Supabase** (hosted Postgres + Auth). The `anon` key is *public by
+design* — safe to ship; data is protected by Row‑Level Security, not by hiding
+the key. **Never** put the `service_role` key in the client.
+
+## Turn it on
+1. Create a project at **supabase.com**.
+2. **Auth → Providers**: enable **Email**. For phone login, enable **Phone**
+   and connect an SMS provider (e.g. Twilio — paid). Email is free.
+   - Tip: Auth → Email → turn "Confirm email" on for real security (the login
+     page already handles the "check your email" step).
+3. **SQL editor** → run:
+
+   ```sql
+   create table if not exists public.user_data (
+     user_id uuid primary key references auth.users(id) on delete cascade,
+     data jsonb not null default '{}'::jsonb,
+     updated_at timestamptz not null default now()
+   );
+   alter table public.user_data enable row level security;
+
+   create policy "own row - select" on public.user_data
+     for select using (auth.uid() = user_id);
+   create policy "own row - insert" on public.user_data
+     for insert with check (auth.uid() = user_id);
+   create policy "own row - update" on public.user_data
+     for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+   ```
+4. In **`js/auth.js`** set `CFG.url` (Project URL) and `CFG.anonKey`
+   (Project API keys → anon/public).
+5. **Auth → URL Configuration**: add your site origin (e.g.
+   `https://your-app.vercel.app`) to the redirect allow‑list.
+
+That's it — `login.html` then creates accounts, signs in by email/phone, and
+all `jarvis_*` data is mirrored to each user's `user_data` row (pulled on
+sign‑in, pushed on change). Sign out from **Settings → Account**.
+
+## Security notes
+- Passwords are hashed by Supabase (bcrypt); sessions are JWTs auto‑refreshed.
+- RLS means a user can only ever read/write their own `user_data` row.
+- Phone codes are one‑time SMS OTPs; email supports confirmation + reset.

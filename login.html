@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0E1512">
+<title>JARVIS — Sign in</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--gr:#1DA462;--grd:rgba(29,164,98,.14);--t1:#EAF2EC;--t2:#9DB0A6;--t3:#5E726A;--bd:rgba(255,255,255,.10);--bd2:rgba(255,255,255,.2);--re:#F0726A;--card:#121A16}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:radial-gradient(120% 90% at 50% 0%,#16241C 0%,#0C120F 60%,#0A0F0C 100%);color:var(--t1);-webkit-font-smoothing:antialiased;font-size:14px;display:flex;align-items:center;justify-content:center;padding:24px;min-height:100dvh}
+.wrap{width:100%;max-width:400px}
+.brand{display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:24px}
+.brand-i{width:38px;height:38px;border-radius:11px;background:var(--gr);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px -6px rgba(29,164,98,.6)}
+.brand-n{font-size:20px;font-weight:800;letter-spacing:-.03em}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:22px;padding:26px 24px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.title{font-size:20px;font-weight:800;letter-spacing:-.02em;text-align:center}
+.sub{font-size:13px;color:var(--t2);text-align:center;margin:6px 0 20px;line-height:1.5}
+.seg{display:flex;background:rgba(255,255,255,.05);border-radius:13px;padding:4px;margin-bottom:16px}
+.seg button{flex:1;padding:9px;border:none;background:none;color:var(--t2);font:700 13px/1 inherit;border-radius:9px;cursor:pointer;transition:all .15s}
+.seg button.on{background:var(--gr);color:#fff;box-shadow:0 4px 12px -3px rgba(29,164,98,.6)}
+.tog{display:flex;gap:8px;margin-bottom:16px}
+.tog button{flex:1;padding:9px;border:1px solid var(--bd);background:rgba(255,255,255,.03);color:var(--t2);font:600 12.5px/1 inherit;border-radius:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px}
+.tog button.on{border-color:var(--gr);color:var(--t1);background:var(--grd)}
+.tog svg{width:15px;height:15px}
+.field{margin-bottom:13px}
+.field label{font-size:11.5px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px}
+.field input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--bd);background:rgba(255,255,255,.04);color:var(--t1);font-size:15px;outline:none;transition:border-color .15s,box-shadow .15s}
+.field input:focus{border-color:var(--gr);box-shadow:0 0 0 3px rgba(29,164,98,.18)}
+.field input::placeholder{color:var(--t3)}
+.btn{width:100%;padding:14px;border-radius:13px;border:none;background:var(--gr);color:#fff;font:800 14.5px/1 inherit;cursor:pointer;transition:all .15s;margin-top:6px;box-shadow:0 8px 22px -6px rgba(29,164,98,.6)}
+.btn:hover{filter:brightness(1.07)}.btn:active{transform:scale(.985)}
+.btn:disabled{opacity:.55;pointer-events:none}
+.alt{font-size:12.5px;color:var(--t2);text-align:center;margin-top:16px}
+.alt a{color:var(--gr);font-weight:700;cursor:pointer}
+.msg{font-size:12.5px;text-align:center;margin-top:14px;min-height:16px;line-height:1.5}
+.msg.err{color:var(--re)}.msg.ok{color:var(--gr)}
+.hint{font-size:11px;color:var(--t3);margin-top:6px}
+.legal{font-size:11px;color:var(--t3);text-align:center;margin-top:18px;line-height:1.6}
+.notice{background:rgba(240,114,106,.10);border:1px solid rgba(240,114,106,.3);border-radius:12px;padding:12px 14px;font-size:12px;color:#F5A39D;line-height:1.55;margin-bottom:16px}
+.notice b{color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="brand-i"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+    <div class="brand-n">JARVIS</div>
+  </div>
+
+  <div class="card">
+    <div class="title" id="title">Create your account</div>
+    <div class="sub" id="sub">One account keeps your training, nutrition and readiness saved & synced — securely.</div>
+
+    <div id="config-notice" class="notice" style="display:none"></div>
+
+    <div class="seg" id="seg">
+      <button id="seg-up" class="on" onclick="setMode('signup')">Create account</button>
+      <button id="seg-in" onclick="setMode('signin')">Sign in</button>
+    </div>
+
+    <div class="tog" id="tog">
+      <button id="tog-email" class="on" onclick="setMethod('email')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email</button>
+      <button id="tog-phone" onclick="setMethod('phone')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/></svg>Phone</button>
+    </div>
+
+    <!-- EMAIL -->
+    <form id="form-email" onsubmit="return false">
+      <div class="field"><label for="email">Email</label><input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"></div>
+      <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" placeholder="••••••••"><div class="hint" id="pw-hint" style="display:none">At least 8 characters.</div></div>
+      <button class="btn" id="email-btn" onclick="submitEmail()">Create account</button>
+      <div class="alt" id="forgot-row" style="display:none"><a onclick="forgot()">Forgot password?</a></div>
+    </form>
+
+    <!-- PHONE -->
+    <form id="form-phone" style="display:none" onsubmit="return false">
+      <div class="field"><label for="phone">Phone number</label><input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+1 555 123 4567"><div class="hint">Include your country code, e.g. +1.</div></div>
+      <div class="field" id="code-field" style="display:none"><label for="code">Verification code</label><input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code"></div>
+      <button class="btn" id="phone-btn" onclick="submitPhone()">Send code</button>
+    </form>
+
+    <div class="msg" id="msg"></div>
+    <div class="alt" id="switch"></div>
+  </div>
+
+  <div class="legal">By continuing you agree to keep your data synced to your secure account.</div>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+let mode = 'signup';      // 'signup' | 'signin'
+let method = 'email';     // 'email' | 'phone'
+let codeSent = false;
+
+const $ = id => document.getElementById(id);
+function setMsg(t, type){ const m=$('msg'); m.textContent=t||''; m.className='msg'+(type?' '+type:''); }
+
+function setMode(m){
+  mode = m; setMsg('');
+  $('seg-up').classList.toggle('on', m==='signup');
+  $('seg-in').classList.toggle('on', m==='signin');
+  $('title').textContent = m==='signup' ? 'Create your account' : 'Welcome back';
+  $('sub').textContent = m==='signup'
+    ? 'One account keeps your training, nutrition and readiness saved & synced — securely.'
+    : 'Sign in to pick up exactly where you left off.';
+  $('pw').setAttribute('autocomplete', m==='signup' ? 'new-password' : 'current-password');
+  $('pw-hint').style.display = m==='signup' ? '' : 'none';
+  $('forgot-row').style.display = (m==='signin' && method==='email') ? '' : 'none';
+  $('email-btn').textContent = m==='signup' ? 'Create account' : 'Sign in';
+  resetPhone();
+}
+function setMethod(x){
+  method = x; setMsg('');
+  $('tog-email').classList.toggle('on', x==='email');
+  $('tog-phone').classList.toggle('on', x==='phone');
+  $('form-email').style.display = x==='email' ? '' : 'none';
+  $('form-phone').style.display = x==='phone' ? '' : 'none';
+  $('forgot-row').style.display = (mode==='signin' && x==='email') ? '' : 'none';
+  resetPhone();
+}
+function resetPhone(){ codeSent=false; $('code-field').style.display='none'; $('phone-btn').textContent='Send code'; }
+
+function fail(e){ setMsg((e && (e.message || e.error_description)) || 'Something went wrong. Try again.', 'err'); }
+function done(){ setMsg('Signed in — loading your data…','ok'); Auth.pull().catch(()=>{}).finally(()=>{ setTimeout(()=>location.replace('index.html'), 400); }); }
+
+async function submitEmail(){
+  const email = $('email').value.trim(), pw = $('pw').value;
+  if (!email || !pw) return setMsg('Enter your email and password.','err');
+  if (mode==='signup' && pw.length < 8) return setMsg('Password must be at least 8 characters.','err');
+  const btn = $('email-btn'); btn.disabled = true; setMsg(mode==='signup'?'Creating your account…':'Signing in…');
+  try {
+    if (mode==='signup'){
+      const { data, error } = await Auth.signUpEmail(email, pw);
+      if (error) throw error;
+      if (data.session){ return done(); }                 // auto sign-in (email confirmation off)
+      setMsg('Account created — check your email to confirm, then sign in.','ok');
+      setMode('signin');
+    } else {
+      const { error } = await Auth.signInEmail(email, pw);
+      if (error) throw error;
+      done();
+    }
+  } catch(e){ fail(e); } finally { btn.disabled = false; }
+}
+
+async function submitPhone(){
+  const phone = $('phone').value.replace(/[^\d+]/g,'');
+  if (!phone) return setMsg('Enter your phone number with country code.','err');
+  const btn = $('phone-btn');
+  if (!codeSent){
+    btn.disabled = true; setMsg('Texting you a code…');
+    try { const { error } = await Auth.sendPhoneCode(phone); if (error) throw error; codeSent=true; $('code-field').style.display=''; btn.textContent='Verify & continue'; setMsg('Code sent — enter it above.','ok'); $('code').focus(); }
+    catch(e){ fail(e); } finally { btn.disabled=false; }
+  } else {
+    const code = $('code').value.trim();
+    if (!code) return setMsg('Enter the code we texted you.','err');
+    btn.disabled = true; setMsg('Verifying…');
+    try { const { error } = await Auth.verifyPhoneCode(phone, code); if (error) throw error; done(); }
+    catch(e){ fail(e); } finally { btn.disabled=false; }
+  }
+}
+
+async function forgot(){
+  const email = $('email').value.trim();
+  if (!email) return setMsg('Enter your email first, then tap “Forgot password”.','err');
+  try { const { error } = await Auth.resetPassword(email); if (error) throw error; setMsg('Password reset link sent to your email.','ok'); }
+  catch(e){ fail(e); }
+}
+
+// Boot
+(async function(){
+  if (!Auth.isConfigured()){
+    $('config-notice').style.display='';
+    $('config-notice').innerHTML = '<b>Accounts aren’t switched on yet.</b> Add your Supabase URL + anon key in <code>js/auth.js</code> (see native/README.md). Until then the app works locally without an account.';
+    document.querySelectorAll('.btn').forEach(b=>b.disabled=true);
+    return;
+  }
+  const s = await Auth.getSession();
+  if (s) location.replace('index.html');     // already signed in
+})();
+</script>
+</body>
+</html>
