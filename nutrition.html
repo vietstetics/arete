@@ -549,10 +549,11 @@ input,select,textarea{font-family:inherit}
       <button class="icon-btn" onclick="closeScanner()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
-      <div class="scan-stage" id="scan-stage">
+      <div class="scan-stage" id="scan-stage" onclick="captureAndDecode()" style="cursor:pointer">
         <video id="scan-video" playsinline muted autoplay></video>
         <div class="scan-reticle"></div>
         <div class="scan-laser"></div>
+        <div style="position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:11.5px;font-weight:700;letter-spacing:.02em;color:rgba(255,255,255,.95);text-shadow:0 1px 4px rgba(0,0,0,.7);pointer-events:none">Line up the barcode &amp; tap to scan</div>
       </div>
       <div class="scan-status" id="scan-status">Starting camera…</div>
       <input id="scan-photo-file" type="file" accept="image/*" capture="environment" style="display:none" onchange="onScanPhoto(this)">
@@ -1978,103 +1979,78 @@ async function startCamera(){
   const myGen = ++scanGen;
   setScanStatus('Starting camera…');
 
-  // FAST PATH — the browser's native BarcodeDetector (Android Chrome/Edge) is
-  // hardware-accelerated and decodes near-instantly. Use it when it actually
-  // advertises the product (EAN/UPC) formats.
-  let nativeFormats = null;
-  if ('BarcodeDetector' in window){
-    try {
-      const supported = await BarcodeDetector.getSupportedFormats();
-      const want = ['ean_13','ean_8','upc_a','upc_e','code_128'];
-      const f = want.filter(x => supported.includes(x));
-      if (f.length) nativeFormats = f;
-    } catch(e){ nativeFormats = null; }
-  }
-  if (myGen !== scanGen) return;
-
-  if (nativeFormats){
-    const ok = await startNative(myGen, nativeFormats);
-    if (!ok) return;
-    loadZXing().catch(() => {});      // warm the fallback during the native window
-    // Watchdog: if native streams video but never decodes (older WebViews),
-    // switch to the ZXing engine automatically — no dead-end.
-    scanWatchdog = setTimeout(() => {
-      if (scanHandled || myGen !== scanGen || !scanDetector) return;
-      teardownNative();
-      startZxing(myGen);
-    }, 3500);
-    return;
-  }
-  startZxing(myGen);                   // iOS Safari / Firefox / no native support
-}
-
-async function startNative(myGen, formats){
-  try { scanDetector = new BarcodeDetector({ formats }); }
-  catch(e){ try { scanDetector = new BarcodeDetector(); } catch(_){ scanDetector = null; } }
-  if (!scanDetector){ startZxing(myGen); return false; }
+  // One camera + one decode loop. Native BarcodeDetector when it supports
+  // product formats (fast); otherwise ZXing's LOW-LEVEL decoder on captured
+  // frames — the high-level ZXing browser helpers don't decode in this build.
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } } });
-  } catch(e){ if (myGen !== scanGen) return false; cameraError(e); return false; }
-  if (myGen !== scanGen){ stream.getTracks().forEach(t => t.stop()); return false; }
+  } catch(e){ if (myGen !== scanGen) return; return cameraError(e); }
+  if (myGen !== scanGen){ stream.getTracks().forEach(t => t.stop()); return; }
   scanStream = stream;
   const v = document.getElementById('scan-video');
   document.getElementById('scan-stage').style.display = '';
-  v.srcObject = scanStream;
+  v.srcObject = stream;
   try { await v.play(); } catch(_) {}
-  if (myGen !== scanGen){ stopCamera(); return false; }
-  setScanStatus('Point your camera at a barcode…');
-  scanning = true;
-  scanTimer = setInterval(detectTick, 120);
-  return true;
-}
+  if (myGen !== scanGen){ stopCamera(); return; }
 
-function teardownNative(){
   scanDetector = null;
-  if (scanTimer){ clearInterval(scanTimer); scanTimer = null; }
-  if (scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-  const v = document.getElementById('scan-video'); if (v) v.srcObject = null;
+  if ('BarcodeDetector' in window){
+    try {
+      const supported = await BarcodeDetector.getSupportedFormats();
+      const want = ['ean_13','ean_8','upc_a','upc_e','code_128'].filter(x => supported.includes(x));
+      if (want.length) scanDetector = new BarcodeDetector({ formats: want });
+    } catch(_) { scanDetector = null; }
+  }
+  loadZXing().catch(() => {});         // warm the ZXing fallback for non-native
+  if (myGen !== scanGen) return;
+  setScanStatus('Point at the barcode, then tap the image to scan.');
+  scanning = true;
+  scanTimer = setInterval(() => liveTick(myGen), 220);
 }
 
-async function startZxing(myGen){
-  setScanStatus('Loading scanner…');
-  let ZX;
-  try { ZX = await loadZXing(); }
-  catch(e){
-    if (myGen !== scanGen) return;
-    document.getElementById('scan-stage').style.display = 'none';
-    setScanStatus('Live scanning needs an internet connection here — or type the number below.', 'warn');
-    return;
-  }
-  if (myGen !== scanGen) return;
-  try {
-    let hints = undefined;
+// Draw the current video frame to a reusable canvas (optionally downscaled).
+function frameToCanvas(v, maxW){
+  const w = v.videoWidth, h = v.videoHeight;
+  const scale = (maxW && w > maxW) ? maxW / w : 1;
+  const cv = frameToCanvas._cv || (frameToCanvas._cv = document.createElement('canvas'));
+  cv.width = Math.round(w * scale); cv.height = Math.round(h * scale);
+  cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+  return cv;
+}
+// Decode a canvas with ZXing's LOW-LEVEL path (the high-level helpers don't
+// decode in this build). `hard` → TRY_HARDER + both binarizers (one-shot use).
+function zxingDecodeCanvas(ZX, canvas, hard){
+  if (!ZX || !ZX.MultiFormatReader || !ZX.HTMLCanvasElementLuminanceSource) return null;
+  const hints = new Map();
+  hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8, ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128]);
+  if (hard) hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+  const bins = hard ? ['HybridBinarizer','GlobalHistogramBinarizer'] : ['HybridBinarizer'];
+  for (const B of bins){
     try {
-      if (ZX.DecodeHintType && ZX.BarcodeFormat){
-        hints = new Map();
-        // Only the formats real food products use — fewer formats = faster.
-        hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
-          ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8,
-          ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128,
-        ]);
-        // No TRY_HARDER on purpose — it multiplies decode time per frame;
-        // clear product barcodes decode fast without it.
-      }
-    } catch(_){ hints = undefined; }
-    zxingReader = new ZX.BrowserMultiFormatReader(hints, 120);
-    document.getElementById('scan-stage').style.display = '';
-    setScanStatus('Point your camera at a barcode…');
-    scanning = true;
-    const onResult = (result) => { if (result && result.getText){ const t = result.getText(); if (t) onScanned(t); } };
-    if (typeof zxingReader.decodeFromConstraints === 'function'){
-      await zxingReader.decodeFromConstraints({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } } }, 'scan-video', onResult);
-    } else {
-      await zxingReader.decodeFromVideoDevice(undefined, 'scan-video', onResult);
-    }
-  } catch(e){
-    if (myGen !== scanGen) return;
-    cameraError(e);
+      const src = new ZX.HTMLCanvasElementLuminanceSource(canvas);
+      const bmp = new ZX.BinaryBitmap(new ZX[B](src));
+      const r = new ZX.MultiFormatReader().decode(bmp, hints);
+      if (r && r.getText){ const t = r.getText(); if (t) return t; }
+    } catch(_) {}
   }
+  return null;
+}
+// Live decode loop: native detector first (fast), else ZXing on a downscaled frame.
+async function liveTick(myGen){
+  if (!scanning || scanHandled || myGen !== scanGen || liveTick._busy) return;
+  const v = document.getElementById('scan-video');
+  if (!v || !v.videoWidth || v.readyState < 2) return;
+  liveTick._busy = true;
+  try {
+    if (scanDetector){
+      try { const codes = await scanDetector.detect(v); if (codes && codes[0] && codes[0].rawValue){ onScanned(codes[0].rawValue); return; } } catch(_) {}
+    }
+    if (window.ZXing){
+      const code = zxingDecodeCanvas(window.ZXing, frameToCanvas(v, 1024), false);
+      if (code) onScanned(code);
+    }
+  } finally { liveTick._busy = false; }
 }
 
 function cameraError(e){
@@ -2113,6 +2089,45 @@ function stopCamera(){
 // getUserMedia is blocked). One-shot decode, so TRY_HARDER is fine here.
 function scanPhoto(){ const f = document.getElementById('scan-photo-file'); f.value = ''; f.click(); }
 
+// Tap the live camera → grab THAT frame and decode it hard (native first, then
+// ZXing with TRY_HARDER). User-controlled capture catches barcodes the passive
+// continuous scan misses (focus/framing), and it's the same reliable one-shot.
+let _capturing = false;
+async function captureAndDecode(){
+  if (_capturing || scanHandled) return;
+  const v = document.getElementById('scan-video');
+  if (!v || !v.videoWidth || v.readyState < 2) return;   // no live frame → ignore tap
+  _capturing = true;
+  setScanStatus('Reading…');
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+    canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+
+    // 1) Native detector on the captured frame (fast on Android).
+    try {
+      if ('BarcodeDetector' in window){
+        const supported = await BarcodeDetector.getSupportedFormats();
+        const want = ['ean_13','ean_8','upc_a','upc_e','code_128'].filter(x => supported.includes(x));
+        if (want.length){
+          const det = new BarcodeDetector({ formats: want });
+          const codes = await det.detect(canvas);
+          if (codes && codes[0] && codes[0].rawValue){ onScanned(codes[0].rawValue); return; }
+        }
+      }
+    } catch(_) {}
+
+    // 2) ZXing low-level decode (hard) on the captured frame.
+    try {
+      const ZX = await loadZXing();
+      const code = zxingDecodeCanvas(ZX, canvas, true);
+      if (code){ onScanned(code); return; }
+    } catch(_) {}
+
+    if (!scanHandled) setScanStatus('No barcode caught — fill the frame with it, hold steady, and tap again.', 'warn');
+  } finally { _capturing = false; }
+}
+
 // Try the native BarcodeDetector on a still image (Android) — no ZXing needed.
 async function detectImageNative(file){
   if (!('BarcodeDetector' in window) || !window.createImageBitmap) return null;
@@ -2140,34 +2155,26 @@ async function onScanPhoto(input){
   // 1) Native still-image decode (fast on Android, no library needed).
   try { const code = await detectImageNative(file); if (code){ onScanned(code); return; } } catch(_) {}
 
-  // 2) ZXing one-shot decode (iOS / Firefox / anywhere native isn't available).
+  // 2) ZXing low-level decode (hard) — draw the photo to a canvas, then decode.
   let ZX;
   try { ZX = await loadZXing(); }
   catch(e){ setScanStatus('Couldn’t load the reader — type the number below.', 'warn'); return; }
-  let reader;
-  try {
-    const hints = new Map();
-    if (ZX.DecodeHintType && ZX.BarcodeFormat){
-      hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
-        ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8,
-        ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E, ZX.BarcodeFormat.CODE_128,
-      ]);
-      hints.set(ZX.DecodeHintType.TRY_HARDER, true);
-    }
-    reader = new ZX.BrowserMultiFormatReader(hints);
-  } catch(_) { reader = new ZX.BrowserMultiFormatReader(); }
   const url = URL.createObjectURL(file);
   try {
-    const result = await reader.decodeFromImageUrl(url);
-    const code = result && result.getText && result.getText();
-    if (code) { onScanned(code); }
-    else throw new Error('no code');
+    const img = new Image();
+    img.src = url;
+    await (img.decode ? img.decode() : new Promise((res, rej) => { img.onload = res; img.onerror = rej; }));
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    cv.getContext('2d').drawImage(img, 0, 0);
+    const code = zxingDecodeCanvas(ZX, cv, true);
+    if (code){ onScanned(code); return; }
+    throw new Error('no code');
   } catch(e){
     setScanStatus('No barcode found in that photo — get closer, fill the frame, and keep it sharp.', 'warn');
     document.getElementById('scan-retry').style.display = 'inline-flex';
   } finally {
     URL.revokeObjectURL(url);
-    try { reader.reset(); } catch(_) {}
   }
 }
 
