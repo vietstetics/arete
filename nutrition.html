@@ -2000,15 +2000,26 @@ async function startCamera(){
   if ('BarcodeDetector' in window){
     try {
       const supported = await BarcodeDetector.getSupportedFormats();
-      const want = ['ean_13','ean_8','upc_a','upc_e','code_128'].filter(x => supported.includes(x));
+      const want = SCAN_FORMATS.filter(x => supported.includes(x));
       if (want.length) scanDetector = new BarcodeDetector({ formats: want });
     } catch(_) { scanDetector = null; }
   }
-  loadZXing().catch(() => {});         // warm the ZXing fallback for non-native
+  // Without a native detector the live loop NEEDS ZXing. Make sure it loads,
+  // and say so clearly if it can't — instead of a silently dead camera.
+  if (!scanDetector){
+    try { await loadZXing(); }
+    catch(e){
+      if (myGen !== scanGen) return;
+      setScanStatus('Scanner engine couldn’t load — tap “Take a photo of the barcode” or type the number below.', 'warn');
+      return;
+    }
+  } else {
+    loadZXing().catch(() => {});       // warm it for the hard tap-to-scan decode
+  }
   if (myGen !== scanGen) return;
-  setScanStatus('Point at the barcode, then tap the image to scan.');
+  setScanStatus('Point at the barcode, then tap to scan.');
   scanning = true;
-  scanTimer = setInterval(() => liveTick(myGen), 220);
+  scanTimer = setInterval(() => liveTick(myGen), 200);
 }
 
 // Draw the current video frame to a reusable canvas (optionally downscaled).
