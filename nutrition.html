@@ -1871,14 +1871,16 @@ document.addEventListener('keydown', e => {
 //  Product lookup via the Open Food Facts open database.
 // ══════════════════════════════════════════════════════════════
 let scanStream = null, scanTimer = null, scanDetector = null, scanning = false, scanMeal = 'snacks', scanGen = 0;
-let zxingReader = null, scanHandled = false, zxingPromise = null, scanWatchdog = null, scanIsNative = false;
+let scanHandled = false, zxingPromise = null, scanIsNative = false, _capturing = false;
+const SCAN_FORMATS = ['ean_13','ean_8','upc_a','upc_e','code_128'];   // product barcodes
 
-// Cross-browser barcode engine (loaded only when the native BarcodeDetector
-// isn't available — e.g. iOS Safari / Firefox). Pinned UMD build.
+// Load the vendored ZXing engine (local file first; CDN only as a backup). We
+// use its LOW-LEVEL decoder (MultiFormatReader) — the high-level browser
+// helpers don't decode in this build.
 function loadZXing(){
-  if (window.ZXing && window.ZXing.BrowserMultiFormatReader) return Promise.resolve(window.ZXing);
+  if (window.ZXing && window.ZXing.MultiFormatReader) return Promise.resolve(window.ZXing);
   if (zxingPromise) return zxingPromise;
-  const ready = () => window.ZXing && window.ZXing.BrowserMultiFormatReader;
+  const ready = () => window.ZXing && window.ZXing.MultiFormatReader;
   zxingPromise = new Promise((resolve, reject) => {
     const add = (src, next) => {
       const s = document.createElement('script');
@@ -2060,26 +2062,11 @@ function cameraError(e){
     : 'Live camera couldn’t start — tap “Take a photo of the barcode” above, or type it below.', 'warn');
 }
 
-async function detectTick(){
-  if (!scanning || !scanDetector) return;
-  if (detectTick._busy) return;
-  const v = document.getElementById('scan-video');
-  if (!v || v.readyState < 2 || !v.videoWidth) return;
-  detectTick._busy = true;
-  try {
-    const codes = await scanDetector.detect(v);
-    if (codes && codes.length && codes[0].rawValue) onScanned(codes[0].rawValue);
-  } catch(_) { /* transient frame error — ignore */ }
-  finally { detectTick._busy = false; }
-}
-
 function stopCamera(){
   scanning = false;
   scanGen++;                       // invalidate any in-flight startCamera()
-  if (scanWatchdog){ clearTimeout(scanWatchdog); scanWatchdog = null; }
   if (scanTimer){ clearInterval(scanTimer); scanTimer = null; }
   if (scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-  if (zxingReader){ try { zxingReader.reset(); } catch(_) {} zxingReader = null; }
   const v = document.getElementById('scan-video');
   if (v) v.srcObject = null;
 }
@@ -2092,7 +2079,6 @@ function scanPhoto(){ const f = document.getElementById('scan-photo-file'); f.va
 // Tap the live camera → grab THAT frame and decode it hard (native first, then
 // ZXing with TRY_HARDER). User-controlled capture catches barcodes the passive
 // continuous scan misses (focus/framing), and it's the same reliable one-shot.
-let _capturing = false;
 async function captureAndDecode(){
   if (_capturing || scanHandled) return;
   const v = document.getElementById('scan-video');
