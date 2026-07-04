@@ -45,7 +45,6 @@
     { href: 'sleep.html',       label: 'Sleep',       icon: ic.sleep },
     { href: 'exercises.html',   label: 'Exercises',   icon: ic.exercises },
     { href: 'analytics.html',   label: 'Progress',    icon: ic.progress },
-    { href: 'tasks.html',       label: 'Tasks',       icon: ic.tasks },
     { href: 'finance.html',     label: 'Finance',     icon: ic.finance },
     { href: 'settings.html',    label: 'Settings',    icon: ic.settings },
   ];

@@ -619,11 +619,7 @@ textarea{font-family:inherit;resize:none}
       <span class="ni-label">Connections</span>
     </a>
     <div class="nav-section">Life</div>
-    <a href="tasks.html" class="ni" title="Tasks">
-      <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      <span class="ni-label">Tasks</span>
-    </a>
-    <a href="analytics.html" class="ni" title="Progress">
+<a href="analytics.html" class="ni" title="Progress">
       <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
       <span class="ni-label">Progress</span>
     </a>
@@ -773,54 +769,14 @@ textarea{font-family:inherit;resize:none}
         <div class="cp">
           <div class="tasks-hd">
             <div class="cl" style="margin:0">Today</div>
-            <button class="btn btn-s btn-sm">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add
-            </button>
+            <span class="tasks-meta" id="dtask-prog" style="margin:0"></span>
           </div>
-          <div class="tasks-meta">3 of 5 done</div>
-          <div class="pbar"><div class="pf" data-v="60" style="background:var(--vi)"></div></div>
-          <div id="task-list">
-            <div class="task">
-              <div class="chk on" onclick="toggleTask(this)"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <div class="task-body">
-                <div class="task-name done">Morning check-in</div>
-                <div class="task-meta"><span class="task-time">7:00 AM</span><span class="tc tc-h">Health</span></div>
-              </div>
-            </div>
-            <div class="task">
-              <div class="chk on" onclick="toggleTask(this)"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <div class="task-body">
-                <div class="task-name done">Breakfast + protein</div>
-                <div class="task-meta"><span class="task-time">8:00 AM</span><span class="tc tc-h">Health</span></div>
-              </div>
-            </div>
-            <div class="task">
-              <div class="chk on" onclick="toggleTask(this)"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <div class="task-body">
-                <div class="task-name done">Log lunch</div>
-                <div class="task-meta"><span class="task-time">1:00 PM</span><span class="tc tc-h">Health</span></div>
-              </div>
-            </div>
-            <div class="task">
-              <div class="chk" onclick="toggleTask(this)"></div>
-              <div class="task-body">
-                <div class="task-name">Economics revision</div>
-                <div class="task-meta"><span class="task-time">3:30 PM</span><span class="tc tc-s">Study</span><div class="task-prio tp-hi"></div></div>
-              </div>
-            </div>
-            <div class="task">
-              <div class="chk" onclick="toggleTask(this)"></div>
-              <div class="task-body">
-                <div class="task-name">Lower-body workout</div>
-                <div class="task-meta"><span class="task-time">4:30 PM</span><span class="tc tc-f">Fitness</span><div class="task-prio tp-hi"></div></div>
-              </div>
-            </div>
+          <div class="pbar"><div class="pf" id="dtask-bar" style="background:var(--vi);width:0"></div></div>
+          <div style="display:flex;gap:7px;margin-bottom:12px">
+            <input id="dtask-input" placeholder="Add a task…" maxlength="200" autocomplete="off" onkeydown="if(event.key==='Enter')addDashTask()" style="flex:1;padding:8px 11px;border-radius:9px;border:1px solid var(--bd);background:var(--s2);color:var(--t1);font-size:13px;outline:none">
+            <button class="btn btn-p btn-sm" onclick="addDashTask()">Add</button>
           </div>
-          <div class="tasks-tip">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--vi)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Do economics before 3:30 PM — your focus peaks in the afternoon.
-          </div>
+          <div id="task-list"></div>
         </div>
       </div>
     </div>
@@ -1475,17 +1431,44 @@ function mmSwitch(view, btn){
 }
 
 // ── TASK TOGGLE ──
-function toggleTask(chk){
-  const nm = chk.closest('.task').querySelector('.task-name');
-  const on = chk.classList.contains('on');
-  if(on){
-    chk.classList.remove('on'); chk.innerHTML=''; nm.classList.remove('done');
-  } else {
-    chk.classList.add('on');
-    chk.innerHTML='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-    nm.classList.add('done');
+// ── Today's tasks (daily to-do; resets each day) ──
+const TASKS_KEY = 'jarvis_tasks', TASKS_RESET_KEY = 'jarvis_tasks_reset_date';
+function _tToday(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function loadTasks(){ try { return JSON.parse(localStorage.getItem(TASKS_KEY)) || []; } catch { return []; } }
+function saveTasks(){ try { localStorage.setItem(TASKS_KEY, JSON.stringify(dashTasks)); } catch {} }
+function escT(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+let dashTasks = loadTasks();
+function dashDailyReset(){
+  const today = _tToday();
+  if (localStorage.getItem(TASKS_RESET_KEY) !== today){
+    dashTasks.forEach(t => t.done = false); saveTasks();
+    try { localStorage.setItem(TASKS_RESET_KEY, today); } catch {}
   }
 }
+function addDashTask(){
+  const inp = document.getElementById('dtask-input'); const text = inp.value.trim(); if (!text) return;
+  dashTasks.push({ id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,5), text, done: false });
+  saveTasks(); inp.value = ''; renderDashTasks(); inp.focus();
+}
+function toggleDashTask(id){ const t = dashTasks.find(x => x.id === id); if (t){ t.done = !t.done; saveTasks(); renderDashTasks(); } }
+function deleteDashTask(id){ dashTasks = dashTasks.filter(x => x.id !== id); saveTasks(); renderDashTasks(); }
+function renderDashTasks(){
+  const list = document.getElementById('task-list'); if (!list) return;
+  const done = dashTasks.filter(t => t.done).length, total = dashTasks.length;
+  const prog = document.getElementById('dtask-prog'); if (prog) prog.textContent = total ? `${done} of ${total} done` : '';
+  const bar = document.getElementById('dtask-bar'); if (bar) bar.style.width = (total ? Math.round(done/total*100) : 0) + '%';
+  if (!total){ list.innerHTML = '<div style="padding:14px 6px;color:var(--t3);font-size:12.5px;text-align:center">No tasks yet — add one above.</div>'; return; }
+  const chk = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  list.innerHTML = dashTasks.map(t => `<div class="task">
+    <div class="chk ${t.done ? 'on' : ''}" onclick="toggleDashTask('${t.id}')">${t.done ? chk : ''}</div>
+    <div class="task-body" onclick="toggleDashTask('${t.id}')"><div class="task-name ${t.done ? 'done' : ''}">${escT(t.text)}</div></div>
+    <button onclick="deleteDashTask('${t.id}')" title="Delete" aria-label="Delete" style="background:none;border:none;color:var(--t3);cursor:pointer;padding:3px;flex-shrink:0;align-self:center">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+    </button>
+  </div>`).join('');
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden){ dashTasks = loadTasks(); dashDailyReset(); renderDashTasks(); } });
+dashDailyReset(); renderDashTasks();
 
 // ── JARVIS TEXTAREA ──
 function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
