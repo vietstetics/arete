@@ -2014,7 +2014,7 @@ async function startCamera(){
   if (myGen !== scanGen) return;
   setScanStatus('Point at the barcode, then tap to scan.');
   scanning = true;
-  scanTimer = setInterval(() => liveTick(myGen), 280);
+  scanTimer = setInterval(() => liveTick(myGen), 80);
 }
 
 // Draw the current video frame to a reusable canvas (optionally downscaled).
@@ -2028,13 +2028,14 @@ function frameToCanvas(v, maxW){
 }
 // Draw the CENTRE region of the frame at full resolution — where the user aims
 // the barcode. Keeps pixels on the barcode (vs downscaling the whole frame).
-function cropCanvas(v, wFrac, hFrac){
+function cropCanvas(v, wFrac, hFrac, maxW){
   const vw = v.videoWidth, vh = v.videoHeight;
   const cw = Math.max(1, Math.round(vw * wFrac)), ch = Math.max(1, Math.round(vh * hFrac));
   const sx = Math.round((vw - cw) / 2), sy = Math.round((vh - ch) / 2);
+  const scale = (maxW && cw > maxW) ? maxW / cw : 1;   // downscale for a fast decode
   const cv = cropCanvas._cv || (cropCanvas._cv = document.createElement('canvas'));
-  cv.width = cw; cv.height = ch;
-  cv.getContext('2d').drawImage(v, sx, sy, cw, ch, 0, 0, cw, ch);
+  cv.width = Math.round(cw * scale); cv.height = Math.round(ch * scale);
+  cv.getContext('2d').drawImage(v, sx, sy, cw, ch, 0, 0, cv.width, cv.height);
   return cv;
 }
 // Decode a canvas with ZXing's LOW-LEVEL path (the high-level helpers don't
@@ -2091,15 +2092,18 @@ async function liveTick(myGen){
   if (!v || !v.videoWidth || v.readyState < 2) return;
   liveTick._busy = true;
   try {
+    // Native detector — hardware-fast; when present, that's all we need.
     if (scanDetector){
-      try { const codes = await scanDetector.detect(v); if (codes && codes[0] && codes[0].rawValue){ onScanned(codes[0].rawValue); return; } } catch(_) {}
+      try { const codes = await scanDetector.detect(v); if (codes && codes[0] && codes[0].rawValue){ onScanned(codes[0].rawValue); } } catch(_) {}
+      return;
     }
     if (window.ZXing){
-      // Centre strip (full res) first — where the barcode is aimed.
-      let code = zxingDecodeCanvas(window.ZXing, cropCanvas(v, 0.9, 0.55), true);
-      // Every 3rd tick, a full robust pass (whole frame + rotations).
-      if (!code && ((liveTick._n = (liveTick._n || 0) + 1) % 3 === 0))
-        code = hardDecode(window.ZXing, frameToCanvas(v, 1280));
+      // FAST pass every tick: centre crop, downscaled, one binarizer, no
+      // TRY_HARDER — a well-framed barcode decodes in a few ms → feels instant.
+      let code = zxingDecodeCanvas(window.ZXing, cropCanvas(v, 0.92, 0.6, 900), false);
+      // Heavier pass every 4th tick for angled/awkward barcodes.
+      if (!code && ((liveTick._n = (liveTick._n || 0) + 1) % 4 === 0))
+        code = hardDecode(window.ZXing, cropCanvas(v, 0.98, 0.9));
       if (code) onScanned(code);
     }
   } finally { liveTick._busy = false; }
