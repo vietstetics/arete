@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Arete">
+<meta name="theme-color" content="#F4F6F5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="css/touch.css">
+<script src="js/auth.js"></script>
+<script src="js/authguard.js"></script>
+<title>Arete — Habits</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F6F5;--s1:rgba(16,40,28,.03);--s2:rgba(16,40,28,.05);--s3:rgba(16,40,28,.07);--s4:rgba(16,40,28,.10);
+  --bd:rgba(16,40,28,.07);--bd2:rgba(16,40,28,.14);--t1:#16241C;--t2:#5E6B63;--t3:#9AA8A0;
+  --gr:#1DA462;--grd:rgba(29,164,98,.10);--graphite:#2B3A33;--re:#C0403A;--ye:#B07D28;
+  --r:20px;--r-sm:13px;--sh0:0 2px 8px rgba(16,40,28,.05),0 10px 30px rgba(16,40,28,.05);--sh1:0 14px 44px rgba(16,40,28,.18);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;background:linear-gradient(180deg,#F5F8F6,#F1F4F2);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}button,input,select,textarea{font-family:inherit}
+button{cursor:pointer;border:none;background:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.app{display:flex;height:100vh;overflow:hidden}
+.main{flex:1;min-width:0;overflow-y:auto}
+.sb{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
+.sb-top{padding:22px 16px 16px;border-bottom:1px solid var(--bd)}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:0 4px}
+.sb-icon{width:30px;height:30px;border-radius:9px;background:var(--gr);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-name{font-size:15px;font-weight:800;letter-spacing:-.02em}
+.sb-nav{flex:1;padding:10px}
+.nav-section{font-size:10px;font-weight:600;color:var(--t3);padding:16px 8px 5px;letter-spacing:.04em}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;color:var(--t3);font-size:13px;font-weight:500;cursor:pointer;transition:background 160ms,color 160ms}
+.ni:hover{background:var(--s2);color:var(--t2)}
+.ni.on{background:var(--s2);color:var(--t1)}.ni.on .ni-ic{color:var(--gr)}
+.ni-ic{width:16px;height:16px;flex-shrink:0}
+.sb-foot{padding:14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#0F7A47,var(--gr));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.av-name{font-size:13px;font-weight:600}.av-plan{font-size:11px;color:var(--t3)}
+
+.pg{padding:30px 32px 80px;max-width:900px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+.ph-title{font-size:26px;font-weight:800;letter-spacing:-.03em}
+.ph-sub{font-size:13.5px;color:var(--t2);margin-top:4px;max-width:560px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 18px;border-radius:13px;font-size:13.5px;font-weight:700;transition:all 150ms;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-p{background:var(--gr);color:#fff;box-shadow:0 8px 18px -6px rgba(29,164,98,.5)}.btn-p:hover{background:#178a52}
+.btn-s{background:#fff;color:var(--t1);border:1px solid var(--bd)}.btn-s:hover{border-color:var(--bd2)}
+.btn-sm{padding:8px 13px;font-size:12.5px;border-radius:10px}
+.btn-xs{padding:6px 11px;font-size:11.5px;border-radius:9px}
+.card{background:#fff;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0)}
+
+.sec-h{font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin:26px 2px 12px;display:flex;align-items:center;gap:8px}
+.sec-h .n{background:var(--s2);color:var(--t2);border-radius:999px;padding:1px 8px;font-size:10.5px}
+
+/* focus (active) habit card */
+.hf{padding:20px 22px;margin-bottom:14px;position:relative;overflow:hidden}
+.hf::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--gr);border-radius:0 4px 4px 0}
+.hf-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.hf-name{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.hf-meta{font-size:12px;color:var(--t2);margin-top:2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.dot{width:3px;height:3px;border-radius:50%;background:var(--t3)}
+.cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:6px;background:var(--grd);color:var(--gr)}
+.hf-str{margin-left:auto;text-align:right;flex-shrink:0}
+.hf-str .v{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.hf-str .l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--t3)}
+.bar{height:7px;border-radius:999px;background:var(--s2);overflow:hidden;margin:4px 0 14px}
+.bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#6FCF97,var(--gr));transition:width .6s cubic-bezier(.34,1.2,.4,1)}
+.hf-prog{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:12px}
+.hf-prog b{color:var(--t1);font-weight:700}
+.rec{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:5px 11px;border-radius:999px;margin-bottom:14px}
+.rec.full{background:var(--grd);color:var(--gr)}
+.rec.min{background:rgba(176,125,40,.12);color:var(--ye)}
+.hf-cue{font-size:12.5px;color:var(--t2);margin-bottom:14px;line-height:1.5}
+.hf-cue b{color:var(--t1);font-weight:600}
+.hf-acts{display:flex;flex-wrap:wrap;gap:8px}
+.done-pill{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--gr);background:var(--grd);padding:9px 14px;border-radius:11px}
+.txt-btn{background:none;border:none;color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;padding:9px 6px}
+.txt-btn:hover{color:var(--t1)}
+
+/* nudges */
+.nudge{border-radius:14px;padding:13px 15px;margin-bottom:14px;font-size:12.5px;line-height:1.55}
+.nudge.recover{background:rgba(192,64,58,.06);border:1px solid rgba(192,64,58,.18)}
+.nudge.auto{background:var(--grd);border:1px solid rgba(29,164,98,.2)}
+.nudge b{font-weight:700}
+.nudge-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.pill{padding:7px 12px;border-radius:10px;border:1px solid var(--bd);background:#fff;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer}
+.pill:hover{border-color:var(--bd2);color:var(--t1)}
+.pill.on{background:var(--gr);color:#fff;border-color:var(--gr)}
+
+/* compact rows (support / queue / lifestyle) */
+.row{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--bd)}
+.row:last-child{border-bottom:0}
+.chk{width:23px;height:23px;border-radius:7px;border:2px solid var(--bd2);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:transparent;transition:all 130ms}
+.chk.on{background:var(--gr);border-color:var(--gr);color:#fff}
+.row-body{flex:1;min-width:0}
+.row-name{font-size:14px;font-weight:600}
+.row.done .row-name{color:var(--t3);text-decoration:line-through}
+.row-meta{font-size:11.5px;color:var(--t3);margin-top:1px}
+.row-act{flex-shrink:0;color:var(--t3);cursor:pointer;padding:5px;border-radius:8px;background:none;border:none}
+.row-act:hover{color:var(--re);background:rgba(192,64,58,.08)}
+.empty{padding:22px 18px;text-align:center;color:var(--t3);font-size:12.5px}
+
+/* modal */
+.mb{position:fixed;inset:0;background:rgba(16,24,20,.35);z-index:300;display:none;backdrop-filter:blur(3px)}
+.mb.open{display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:640px){.mb.open{align-items:center}}
+.modal{background:#fff;width:560px;max-width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;border-radius:24px 24px 0 0;box-shadow:var(--sh1);animation:mup .28s cubic-bezier(.22,1,.36,1)}
+@media(min-width:640px){.modal{border-radius:24px}}
+@keyframes mup{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+.mh{padding:18px 22px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.mh-t{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.mb-body{padding:18px 22px;overflow-y:auto}
+.mf{padding:14px 22px 18px;border-top:1px solid var(--bd);display:flex;gap:8px}
+.fld{margin-bottom:15px}
+.fld label{font-size:12px;font-weight:700;color:var(--t1);display:block;margin-bottom:3px}
+.fld .q{font-size:11.5px;color:var(--t3);margin-bottom:7px}
+.in,.sel{width:100%;padding:11px 13px;border-radius:11px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:14px;outline:none;transition:border-color 140ms}
+.in:focus,.sel:focus{border-color:var(--gr);box-shadow:0 0 0 3px rgba(29,164,98,.12)}
+.in::placeholder{color:var(--t3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;gap:7px;flex-wrap:wrap}
+.seg .opt{flex:1;min-width:90px;padding:9px;border:1px solid var(--bd);border-radius:10px;background:#fff;font-size:12.5px;font-weight:600;color:var(--t2);text-align:center}
+.seg .opt.on{border-color:var(--gr);background:var(--grd);color:var(--gr)}
+.conf-val{font-size:13px;font-weight:800;color:var(--gr)}
+.hint-load{font-size:11.5px;color:var(--ye);margin-top:6px;display:none}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--graphite);color:#fff;font-size:13px;font-weight:500;padding:11px 20px;border-radius:12px;box-shadow:var(--sh1);opacity:0;pointer-events:none;transition:all 220ms;z-index:400;max-width:calc(100vw - 32px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.mob-back{display:none;position:fixed;top:0;left:0;right:0;z-index:50;align-items:center;gap:5px;padding:12px 16px;background:rgba(244,246,245,.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);font-size:14px;font-weight:600;color:var(--gr)}
+.mob-back svg{width:18px;height:18px}
+@media(max-width:767px){.sb{display:none}.pg{padding:16px 16px 80px;padding-top:60px!important}.mob-back{display:flex}.ph-title{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="app">
+<a href="index.html" class="mob-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Dashboard</a>
+<aside class="sb">
+  <div class="sb-top"><div class="sb-brand"><div class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><span class="sb-name">Arete</span></div></div>
+  <nav class="sb-nav">
+    <div class="nav-section">Main</div>
+    <a href="index.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></a>
+    <a href="workouts.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Training</span></a>
+    <a href="recovery.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>Recovery</span></a>
+    <a href="nutrition.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span>Nutrition</span></a>
+    <a href="sleep.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></a>
+    <a href="habits.html" class="ni on"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/><path d="M4 12v6a2 2 0 0 0 2 2h12"/></svg><span>Habits</span></a>
+    <a href="connections.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a3 3 0 0 1 3-3h2.5a3.5 3.5 0 0 0 0-7H11M15 12a3 3 0 0 1-3 3H9.5a3.5 3.5 0 0 0 0 7H13"/></svg><span>Connections</span></a>
+    <div class="nav-section">Life</div>
+    <a href="analytics.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span>Progress</span></a>
+    <a href="settings.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
+  </nav>
+  <a href="settings.html" class="sb-foot"><div class="av">J</div><div><div class="av-name">Joseph N.</div><div class="av-plan">Arete Pro</div></div></a>
+</aside>
+
+<main class="main">
+<div class="pg">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Habits</div>
+      <div class="ph-sub">Build excellence through repetition. Turn your goals into daily systems — one habit at a time.</div>
+    </div>
+    <button class="btn btn-p" onclick="openCreate()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New habit
+    </button>
+  </div>
+
+  <div id="today-focus"></div>
+  <div id="support"></div>
+  <div id="queue"></div>
+  <div id="lifestyle"></div>
+</div>
+</main>
+</div>
+
+<!-- Create / edit habit -->
+<div class="mb" id="create-mb" onclick="if(event.target===this)closeCreate()">
+  <div class="modal">
+    <div class="mh"><div class="mh-t" id="create-title">Build a new habit</div><button class="row-act" style="color:var(--t3)" onclick="closeCreate()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb-body" id="create-body"></div>
+    <div class="mf"><button class="btn btn-s btn-sm" style="flex:1" onclick="closeCreate()">Cancel</button><button class="btn btn-p btn-sm" style="flex:2" onclick="saveCreate()" id="create-save">Add habit</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/habits.js"></script>
+<script>
+const H = window.Habits;
+let editingId = null;
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2600); }
+const CHK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+function fmtVal(m){
+  if (m.value == null) return '';
+  if (m.target && m.target > 1) return `${m.value.toLocaleString()} / ${m.target.toLocaleString()}${m.unit?' '+m.unit:''}`;
+  return m.value ? 'Done' : 'Not yet';
+}
+
+// ── Today's Focus (active) ──────────────────────────────────────────────
+function renderFocus(){
+  const el = document.getElementById('today-focus');
+  const active = H.byStatus('active').map(h => H.summary(h));
+  let html = `<div class="sec-h">Today’s Focus <span class="n">${active.length}/${H.MAX_ACTIVE}</span></div>`;
+  if (!active.length){
+    html += `<div class="card empty" style="padding:34px 20px">No active habits yet.<br><br><button class="btn btn-p btn-sm" onclick="openCreate()">Choose your first habit</button></div>`;
+    el.innerHTML = html; return;
+  }
+  html += active.map(s => {
+    const recFull = s.recommended === 'full';
+    const nudge =
+      s.missedOpen ? `<div class="nudge recover"><b>You missed ${s.missedOpen}.</b> No problem — what got in the way?<div class="nudge-row">${
+        Object.keys(H.RECOVERY).map(r=>`<button class="pill" onclick="recover('${s.id}','${s.missedOpen}','${r}')">${r.replace(/_/g,' ')}</button>`).join('')}</div></div>` :
+      s.needsAutomaticity ? `<div class="nudge auto"><b>How automatic did this feel today?</b> 1 = I forced it · 10 = it felt natural.<div class="nudge-row">${
+        [2,4,6,8,10].map(v=>`<button class="pill" onclick="rateAuto('${s.id}',${v})">${v}</button>`).join('')}</div></div>` : '';
+    return `<div class="card hf">
+      <div class="hf-top">
+        <div>
+          <div class="hf-name">${esc(s.name)}</div>
+          <div class="hf-meta"><span class="cat">${s.category}</span><span class="dot"></span>Day ${s.day} / 66<span class="dot"></span>${s.stage}</div>
+        </div>
+        <div class="hf-str"><div class="v">${s.strength}%</div><div class="l">${s.strengthLabel}</div></div>
+      </div>
+      <div class="bar"><i style="width:${s.strength}%"></i></div>
+      ${s.measure.value != null && (s.measure.target>1) ? `<div class="hf-prog"><span>Today</span><b>${fmtVal(s.measure)}</b></div><div class="bar" style="margin-top:0"><i style="width:${s.measure.pct}%"></i></div>` : ''}
+      ${s.cue && s.cue.description ? `<div class="hf-cue"><b>Cue:</b> ${esc(s.cue.description)}${s.cue.plannedTime?` · ${esc(s.cue.plannedTime)}`:''}</div>` : ''}
+      <div class="rec ${recFull?'full':'min'}">Recommended: ${recFull?'full version':'minimum version'}</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:14px">${recFull?esc(s.fullVersion||s.name):esc(s.minimumVersion||s.fullVersion||s.name)}</div>
+      ${nudge}
+      ${s.doneToday
+        ? `<div class="hf-acts"><span class="done-pill">${CHK} ${s.todayStatus==='completed_minimum'?'Minimum done':'Completed'}</span><button class="txt-btn" onclick="undo('${s.id}')">Undo</button><button class="txt-btn" onclick="edit('${s.id}')">Edit</button></div>`
+        : `<div class="hf-acts"><button class="btn btn-p btn-sm" onclick="log('${s.id}','full')">Complete full</button><button class="btn btn-s btn-sm" onclick="log('${s.id}','minimum')">Minimum</button><button class="txt-btn" onclick="edit('${s.id}')">Edit</button></div>`}
+    </div>`;
+  }).join('');
+  el.innerHTML = html;
+}
+
+// ── Support / Queue / Lifestyle ─────────────────────────────────────────
+function renderList(elId, status, title, opts){
+  const el = document.getElementById(elId);
+  const items = H.byStatus(status).map(h => H.summary(h));
+  if (!items.length && !opts.showEmpty){ el.innerHTML = ''; return; }
+  let rows = items.map(s => {
+    const meta = status==='support' ? `${s.measure.target>1?fmtVal(s.measure):(s.cue.description||s.category)}`
+              : status==='queued' ? `${s.category} · saved for later`
+              : `Lifestyle · Day ${s.day} · ${s.strengthLabel}`;
+    const left = status==='support'
+      ? `<div class="chk ${s.doneToday?'on':''}" onclick="toggleSupport('${s.id}')">${s.doneToday?CHK:''}</div>`
+      : `<div style="width:23px;flex-shrink:0;text-align:center;color:var(--gr)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${status==='lifestyle'?'<path d="M20 6 9 17l-5-5"/>':'<circle cx="12" cy="12" r="9"/><path d="M12 8v4l2 2"/>'}</svg></div>`;
+    const act = status==='queued'
+      ? `<button class="btn btn-s btn-xs" onclick="activate('${s.id}')">Activate</button><button class="row-act" onclick="del('${s.id}')" title="Delete"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>`
+      : `<button class="row-act" onclick="edit('${s.id}')" title="Edit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>`;
+    return `<div class="row ${s.doneToday && status==='support'?'done':''}">
+      ${left}
+      <div class="row-body"><div class="row-name">${esc(s.name)}</div><div class="row-meta">${esc(meta)}</div></div>
+      ${act}
+    </div>`;
+  }).join('') || `<div class="empty">${opts.empty}</div>`;
+  el.innerHTML = `<div class="sec-h">${title} <span class="n">${items.length}</span></div><div class="card">${rows}</div>`;
+}
+function renderAll(){
+  H.refresh();
+  renderFocus();
+  renderList('support','support','Support Habits',{showEmpty:false,empty:''});
+  renderList('queue','queued','Habit Queue',{showEmpty:false,empty:''});
+  renderList('lifestyle','lifestyle','Lifestyle Habits',{showEmpty:false,empty:''});
+}
+
+// ── Actions ─────────────────────────────────────────────────────────────
+function log(id, version){ H.setLog(id, version==='full'?'completed_full':'completed_minimum'); toast(version==='full'?'Completed — nice work.':'Minimum done — habit protected.'); renderAll(); }
+function undo(id){ H.setLog(id, 'missed'); H.setLog(id, 'not_required'); renderAll(); }   // clear today's completion
+function toggleSupport(id){ const s=H.summary(H.get(id)); if(s.doneToday){ H.setLog(id,'not_required'); } else { H.setLog(id,'completed_full'); } renderAll(); }
+function rateAuto(id, val){ H.setAutomaticity(id, val); toast('Logged — Arete is learning your rhythm.'); renderAll(); }
+function recover(id, date, reason){ const tip = H.recordMiss(id, date, reason); toast(tip); renderAll(); }
+function activate(id){
+  if (H.activeCount() >= H.MAX_ACTIVE){ toast('Arete recommends keeping only 1–3 active habits. Finish one first.'); return; }
+  H.setStatus(id,'active'); const h=H.get(id); if(h && !h.startDate) H.update(id,{startDate:new Date().toISOString().slice(0,10)}); toast('Now active — day 1 of your 66-day journey.'); renderAll();
+}
+function del(id){ if(confirm('Delete this habit and its history?')){ H.remove(id); renderAll(); } }
+
+// ── Create / edit flow (the 8 questions) ────────────────────────────────
+function createBody(h){
+  h = h || {};
+  const cue = h.cue || {};
+  const catOpts = H.CATEGORIES.map(c=>`<option value="${c}" ${h.category===c?'selected':''}>${c}</option>`).join('');
+  const typeOpts = H.TARGET_TYPES.map(t=>`<option value="${t}" ${h.targetType===t?'selected':''}>${t.replace(/_/g,' ')}</option>`).join('');
+  return `
+    <div class="fld"><label>What habit do you want to build?</label><input class="in" id="f-name" maxlength="80" value="${esc(h.name||'')}" placeholder="e.g. Hit protein target"></div>
+    <div class="fld"><label>Why does this matter to you?</label><div class="q">Your reason keeps the habit alive on hard days.</div><input class="in" id="f-reason" maxlength="160" value="${esc(h.reason||'')}" placeholder="e.g. Build a strong, capable body"></div>
+    <div class="grid2">
+      <div class="fld"><label>Category</label><select class="sel" id="f-cat">${catOpts}</select></div>
+      <div class="fld"><label>Type</label><select class="sel" id="f-type" onchange="onTypeChange()">${typeOpts}</select></div>
+    </div>
+    <div class="grid2" id="f-target-wrap">
+      <div class="fld"><label>Target</label><input class="in" id="f-target" type="number" min="0" step="1" value="${h.targetValue??''}" placeholder="e.g. 170"></div>
+      <div class="fld"><label>Unit</label><input class="in" id="f-unit" value="${esc(h.targetUnit||'')}" placeholder="g · steps · min · L"></div>
+    </div>
+    <div class="fld"><label>What will trigger this habit?</label><div class="q">A cue makes it automatic. Best cues come after something you already do.</div>
+      <div class="seg" id="f-cuetype">
+        ${['time','after_action','app_event'].map(t=>`<button type="button" class="opt ${((cue.type||'time')===t)?'on':''}" data-v="${t}" onclick="pickCue(this)">${t==='after_action'?'After an action':t==='app_event'?'App event':'A set time'}</button>`).join('')}
+      </div>
+      <input class="in" id="f-cue" style="margin-top:9px" maxlength="120" value="${esc(cue.description||'')}" placeholder="e.g. After I make my morning coffee">
+    </div>
+    <div class="fld"><label>When will you do it?</label><input class="in" id="f-time" value="${esc(cue.plannedTime||'')}" placeholder="e.g. 7:00 AM"></div>
+    <div class="fld"><label>Full version</label><div class="q">The complete habit on a good day.</div><input class="in" id="f-full" maxlength="120" value="${esc(h.fullVersion||'')}" placeholder="e.g. Eat 170g protein across the day"></div>
+    <div class="fld"><label>Minimum version</label><div class="q">The tiny version to protect the habit on low-energy days.</div><input class="in" id="f-min" maxlength="120" value="${esc(h.minimumVersion||'')}" placeholder="e.g. One protein-rich meal"></div>
+    <div class="fld"><label>How confident are you that you can do this tomorrow? <span class="conf-val" id="f-conf-v">${h.confidence||7}</span>/10</label><input type="range" id="f-conf" min="1" max="10" value="${h.confidence||7}" style="width:100%" oninput="document.getElementById('f-conf-v').textContent=this.value"></div>
+    <div class="fld"><label>Where should this live?</label>
+      <div class="seg" id="f-status">
+        ${['active','support','queued'].map(st=>`<button type="button" class="opt ${((h.status||'active')===st)?'on':''}" data-v="${st}" onclick="pickStatus(this)">${st[0].toUpperCase()+st.slice(1)}</button>`).join('')}
+      </div>
+      <div class="hint-load" id="f-loadhint">You can add this, but Arete recommends only 1–3 active habits. Consider the Queue instead.</div>
+    </div>`;
+}
+function pickCue(b){ b.parentElement.querySelectorAll('.opt').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
+function pickStatus(b){ b.parentElement.querySelectorAll('.opt').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  document.getElementById('f-loadhint').style.display = (b.dataset.v==='active' && H.activeCount()>=H.MAX_ACTIVE) ? 'block' : 'none'; }
+function onTypeChange(){}
+function openCreate(){ editingId=null; document.getElementById('create-title').textContent='Build a new habit'; document.getElementById('create-save').textContent='Add habit'; document.getElementById('create-body').innerHTML=createBody(); document.getElementById('create-mb').classList.add('open'); }
+function edit(id){ const h=H.get(id); if(!h) return; editingId=id; document.getElementById('create-title').textContent='Edit habit'; document.getElementById('create-save').textContent='Save changes'; document.getElementById('create-body').innerHTML=createBody(h); document.getElementById('create-mb').classList.add('open'); }
+function closeCreate(){ document.getElementById('create-mb').classList.remove('open'); }
+function segVal(id){ const on=document.querySelector('#'+id+' .opt.on'); return on?on.dataset.v:null; }
+function saveCreate(){
+  const name = document.getElementById('f-name').value.trim();
+  if (!name){ toast('Give your habit a name.'); return; }
+  const data = {
+    name,
+    reason: document.getElementById('f-reason').value.trim(),
+    category: document.getElementById('f-cat').value,
+    targetType: document.getElementById('f-type').value,
+    targetValue: document.getElementById('f-target').value !== '' ? Number(document.getElementById('f-target').value) : undefined,
+    targetUnit: document.getElementById('f-unit').value.trim() || undefined,
+    cue: { type: segVal('f-cuetype')||'time', description: document.getElementById('f-cue').value.trim(), plannedTime: document.getElementById('f-time').value.trim() || undefined },
+    fullVersion: document.getElementById('f-full').value.trim() || name,
+    minimumVersion: document.getElementById('f-min').value.trim(),
+    confidence: Number(document.getElementById('f-conf').value),
+    status: segVal('f-status') || 'active',
+  };
+  if (!editingId && data.status === 'active' && H.activeCount() >= H.MAX_ACTIVE){
+    if (confirm('Arete recommends keeping only 1–3 active habits at once.\n\nMove this to your Queue instead? (OK = Queue, Cancel = add as Active anyway)')) data.status = 'queued';
+  }
+  if (editingId){ H.update(editingId, data); toast('Habit updated.'); }
+  else { H.create(data); toast(data.status==='active'?'Habit added — day 1 begins.':'Habit saved to your '+data.status+'.'); }
+  closeCreate(); renderAll();
+}
+
+renderAll();
+</script>
+<script src="js/mobilenav.js" defer></script>
+</body>
+</html>
