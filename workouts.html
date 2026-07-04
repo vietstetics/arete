@@ -74,6 +74,28 @@ input,select,textarea{font-family:inherit}
 .wtab{padding:8px 18px;border-radius:9px;font-size:13px;font-weight:600;color:var(--t2);transition:all 140ms}
 .wtab.on{background:#fff;color:var(--t1);box-shadow:var(--sh0)}
 
+/* workout home */
+.hero{padding:20px;margin-bottom:16px}
+.hero h3{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.hero>p{font-size:12.5px;color:var(--t3);margin:3px 0 14px}
+.sugg{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--bd);border-radius:12px;background:var(--s1);margin-bottom:10px;flex-wrap:wrap}
+.sugg-tag{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gr);background:var(--grd);padding:3px 7px;border-radius:6px;flex-shrink:0}
+.sugg-body{flex:1;min-width:130px}
+.sugg-nm{font-size:13.5px;font-weight:600}
+.sugg-mt{font-size:11.5px;color:var(--t3)}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin:20px 2px 10px}
+.sec-h span{font-size:13px;font-weight:600}
+.rt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.rt-card{background:#fff;border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh0);padding:14px;display:flex;flex-direction:column}
+.rt-nm{font-size:13.5px;font-weight:600}
+.rt-mt{font-size:11.5px;color:var(--t3);margin:2px 0 12px;line-height:1.45}
+.rt-foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
+.up-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bd)}
+.up-row:last-child{border-bottom:0}
+.up-date{font-size:11.5px;font-weight:600;color:var(--t2);width:82px;flex-shrink:0}
+.up-nm{flex:1;font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 /* log layout */
 .log-grid{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start}
 .wk-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--bd)}
@@ -116,20 +138,6 @@ input,select,textarea{font-family:inherit}
 .vol-row{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--bd)}
 .vol-row:last-child{border:0}
 .vol-row b{font-weight:700}
-
-/* plan calendar */
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-.cal-h{font-size:10.5px;font-weight:600;color:var(--t3);text-align:center;text-transform:uppercase;letter-spacing:.04em;padding-bottom:2px}
-.day{min-height:104px;border:1px solid var(--bd);border-radius:11px;background:#fff;padding:8px;display:flex;flex-direction:column;gap:5px;transition:border-color 130ms}
-.day:hover{border-color:var(--bd2)}
-.day.today{border-color:var(--vi);box-shadow:0 0 0 1px var(--vi)}
-.day.past{opacity:.55}
-.day-num{font-size:11px;font-weight:600;color:var(--t2);display:flex;justify-content:space-between;align-items:center}
-.day-add{color:var(--t3);font-size:15px;line-height:1;padding:0 3px;border-radius:5px}
-.day-add:hover{background:var(--s2);color:var(--vi)}
-.pchip{font-size:11px;font-weight:600;padding:5px 7px;border-radius:8px;background:var(--vid);color:var(--vi);cursor:pointer;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pchip.done{background:var(--grd);color:var(--gr)}
-.pchip small{display:block;font-weight:500;opacity:.8;font-size:9.5px}
 
 /* history */
 .hrow{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--bd);cursor:pointer}
@@ -174,8 +182,10 @@ input,select,textarea{font-family:inherit}
 @media(max-width:920px){ .log-grid{grid-template-columns:1fr} .side{position:static} }
 @media(max-width:767px){
   .sb{display:none}.pg{padding:18px 16px 64px}.mob-back{display:flex}.pg{padding-top:60px!important}
-  .ph{flex-direction:column}.cal{grid-template-columns:repeat(7,1fr);gap:4px}.day{min-height:80px;padding:5px}
+  .ph{flex-direction:column}
   .set-row{grid-template-columns:28px 1fr 1fr 34px 26px;gap:5px}
+  .rt-grid{grid-template-columns:1fr 1fr}
+  .hero-actions .btn{flex:1;justify-content:center}
 }
 
 /* ── PROGRAMS TAB (merged from the Programs page) ─────────────── */
@@ -313,14 +323,13 @@ input,select,textarea{font-family:inherit}
   <div class="ph">
     <div>
       <div class="ph-title">Training</div>
-      <div class="ph-sub">Log workouts, plan your week, and watch your muscles recover on the body map.</div>
+      <div class="ph-sub">Start a workout in one tap — from scratch, a routine, or today’s program.</div>
     </div>
   </div>
 
   <div class="wtabs">
-    <button class="wtab on" data-tab="log"      onclick="setTab('log')">Log</button>
+    <button class="wtab on" data-tab="log"      onclick="setTab('log')">Workout</button>
     <button class="wtab"    data-tab="programs" onclick="setTab('programs')">Programs</button>
-    <button class="wtab"    data-tab="plan"     onclick="setTab('plan')">Plan</button>
     <button class="wtab"    data-tab="history"  onclick="setTab('history')">History</button>
   </div>
 
@@ -346,7 +355,6 @@ input,select,textarea{font-family:inherit}
     </div>
   </div>
 
-  <div id="view-plan" style="display:none"></div>
   <div id="view-history" style="display:none"></div>
 </div>
 </main>
@@ -366,13 +374,14 @@ input,select,textarea{font-family:inherit}
 <!-- Plan a workout -->
 <div class="modal-bk" id="plan-modal" onclick="if(event.target===this)closePlan()">
   <div class="modal" style="width:420px">
-    <div class="modal-h"><div class="modal-t" id="plan-title">Plan a workout</div><button class="icon-btn" onclick="closePlan()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-h"><div class="modal-t">Schedule a workout</div><button class="icon-btn" onclick="closePlan()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-b">
       <div class="fld"><label>Workout name</label><input id="plan-name" placeholder="e.g. Push Day"></div>
+      <div class="fld"><label>Date</label><input id="plan-date" type="date"></div>
       <div class="fld"><label>Start from</label><select id="plan-template"></select></div>
-      <div style="font-size:11.5px;color:var(--t3);line-height:1.5">Scheduled workouts appear on your calendar. Tap one to start it on the day.</div>
+      <div style="font-size:11.5px;color:var(--t3);line-height:1.5">It’ll wait under <b>Scheduled</b> on your Workout screen — start it with one tap on the day.</div>
     </div>
-    <div class="modal-f"><button class="btn btn-s btn-sm" onclick="closePlan()">Cancel</button><button class="btn btn-p btn-sm" onclick="savePlan()">Add to calendar</button></div>
+    <div class="modal-f"><button class="btn btn-s btn-sm" onclick="closePlan()">Cancel</button><button class="btn btn-p btn-sm" onclick="savePlan()">Schedule</button></div>
   </div>
 </div>
 
@@ -446,11 +455,9 @@ function setTab(t){
   document.querySelectorAll('.wtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
   document.getElementById('view-log').style.display      = t==='log'?'':'none';
   document.getElementById('view-programs').style.display = t==='programs'?'':'none';
-  document.getElementById('view-plan').style.display     = t==='plan'?'':'none';
   document.getElementById('view-history').style.display  = t==='history'?'':'none';
   if(t==='log') renderLog();
   if(t==='programs') programsBoot();
-  if(t==='plan') renderPlan();
   if(t==='history') renderHistory();
 }
 
@@ -460,14 +467,33 @@ function setTab(t){
 function renderLog(){
   const host = document.getElementById('view-log');
   if(!active){
-    host.innerHTML = `<div class="card"><div class="empty">
-      <h3>No workout in progress</h3>
-      <p style="font-size:12.5px;margin-bottom:16px">Start a fresh session or load one of your templates.</p>
-      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-p btn-sm" onclick="startWorkout()">＋ Start workout</button>
-        ${templates().length?'<button class="btn btn-s btn-sm" onclick="openTemplatePick()">Use a template</button>':''}
+    const tpls = templates();
+    const tk = todayKey();
+    const sugg = todayFromPrograms();
+    const plansToday = planned().filter(p=>p.plannedFor===tk);
+    const upcoming = planned().filter(p=>p.plannedFor>tk).sort((a,b)=>a.plannedFor<b.plannedFor?-1:1);
+
+    const suggCards =
+      plansToday.map(p=>suggCard('Scheduled today', p.name, `${p.exercises.length} exercise${p.exercises.length===1?'':'s'}`, `startPlanned('${p.id}')`)).join('') +
+      (sugg ? suggCard('Today in your program', sugg.day.name, `${esc(sugg.prog.name)} · ${sugg.day.exercises.length} exercises`, `startProgramWorkout('${sugg.prog.id}',${sugg.di})`) : '');
+
+    host.innerHTML = `
+    <div class="card hero">
+      <h3>Ready to train?</h3>
+      <p>${suggCards ? 'Today’s session is ready — or start from scratch.' : 'Start from scratch, or tap a routine below.'}</p>
+      ${suggCards}
+      <div class="hero-actions">
+        <button class="btn btn-p" onclick="startWorkout()">＋ Start empty workout</button>
+        <button class="btn btn-s" onclick="openPlan()">Schedule for later</button>
       </div>
-    </div></div>`;
+    </div>
+
+    <div class="sec-h"><span>My routines</span></div>
+    ${tpls.length ? `<div class="rt-grid">${tpls.map(rtCard).join('')}</div>`
+      : `<div class="card" style="padding:16px 18px;font-size:12.5px;color:var(--t3);line-height:1.55">No routines yet. Build a workout, tap <b>Save as routine</b>, and it’ll live here for one-tap starts.</div>`}
+
+    ${upcoming.length ? `<div class="sec-h"><span>Scheduled</span></div>
+    <div class="card">${upcoming.map(upRow).join('')}</div>` : ''}`;
     return;
   }
   const t = targetMuscles(active);
@@ -490,7 +516,7 @@ function renderLog(){
         <textarea class="notes-in" placeholder="Session notes (optional)…" oninput="active.notes=this.value;saveActive()">${esc(active.notes||'')}</textarea>
       </div>
       <div class="ex-foot" style="border-top:1px solid var(--bd);display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-s btn-sm" onclick="saveTemplate()">Save as template</button>
+        <button class="btn btn-s btn-sm" onclick="saveTemplate()">Save as routine</button>
         <button class="btn btn-gr btn-sm" style="margin-left:auto" onclick="finishWorkout()">✓ Finish &amp; log workout</button>
       </div>
     </div>
@@ -602,6 +628,38 @@ function recolorDiagram(){
   });
 }
 
+// ── workout home helpers ──
+function suggCard(tag, name, meta, onclick){
+  return `<div class="sugg"><span class="sugg-tag">${esc(tag)}</span>
+    <div class="sugg-body"><div class="sugg-nm">${esc(name)}</div><div class="sugg-mt">${meta}</div></div>
+    <button class="btn btn-gr btn-sm" onclick="${onclick}">Start</button></div>`;
+}
+function rtCard(t){
+  const sets=t.exercises.reduce((n,e)=>n+((e.sets||[]).filter(s=>s.type!=='warmup').length||0),0);
+  const mus=[...new Set(t.exercises.flatMap(e=>(e.primaryMuscles||[]).map(shortMuscle)))].slice(0,3).join(' · ');
+  return `<div class="rt-card">
+    <div class="rt-nm">${esc(t.name)}</div>
+    <div class="rt-mt">${t.exercises.length} exercise${t.exercises.length===1?'':'s'} · ${sets} sets${mus?'<br>'+esc(mus):''}</div>
+    <div class="rt-foot"><button class="btn btn-vi btn-sm" onclick="startRoutine('${t.id}')">Start</button>
+      <button class="icon-btn" title="Delete routine" onclick="delRoutine('${t.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></div>
+  </div>`;
+}
+function upRow(p){
+  const lbl=new Date(p.plannedFor+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+  return `<div class="up-row"><span class="up-date">${lbl}</span><span class="up-nm">${esc(p.name)}</span>
+    <button class="btn btn-s btn-xs" onclick="startPlanned('${p.id}')">Start now</button>
+    <button class="icon-btn" title="Remove" onclick="delPlanned('${p.id}')" style="color:var(--re)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`;
+}
+function todayFromPrograms(){
+  const di=new Date().getDay();
+  for(const p of getPrograms()){ const d=p.days && p.days[di]; if(d && d.exercises && d.exercises.length) return {prog:p, day:d, di}; }
+  return null;
+}
+function startRoutine(id){ const t=templates().find(x=>x.id===id); if(!t) return; active=instantiate(t); saveActive(); renderLog(); window.scrollTo({top:0}); }
+function delRoutine(id){ if(!confirm('Delete this routine?')) return; wj(K_TPL, templates().filter(t=>t.id!==id)); renderLog(); }
+function startPlanned(id){ const p=allWorkouts().find(w=>w.id===id); if(!p) return; active=p; active.startedAt=Date.now(); delete active.plannedFor; saveActive(); F.storageAdapter.deleteWorkout(id); renderLog(); window.scrollTo({top:0}); }
+function delPlanned(id){ F.storageAdapter.deleteWorkout(id); renderLog(); }
+
 // ── workout actions ──
 function startWorkout(name){ active = newActive(name); saveActive(); renderLog(); }
 function discardWorkout(){ if(!confirm('Discard this workout?')) return; active=null; localStorage.removeItem(K_ACTIVE); renderLog(); }
@@ -650,14 +708,14 @@ function finishWorkout(){
   setTab('log');
 }
 
-// ── templates ──
+// ── routines (saved workouts you can start with one tap) ──
 function saveTemplate(){
   if(!active || !active.exercises.length){ toast('Nothing to save yet'); return; }
-  const name = prompt('Template name:', active.name) ; if(!name) return;
+  const name = prompt('Routine name:', active.name) ; if(!name) return;
   const tpls=templates();
   tpls.unshift({ id:'t-'+F.uid(), name, exercises: active.exercises.map(e=>({ name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, sets:e.sets.map(s=>({type:s.type, weight:s.weight, reps:s.reps})) })) });
   wj(K_TPL, tpls.slice(0,40));
-  toast('Template saved');
+  toast('Routine saved — it’s on your Workout screen');
 }
 function instantiate(tpl){
   return { id:'w-'+F.uid(), name:tpl.name, startedAt:Date.now(), notes:'',
@@ -665,77 +723,29 @@ function instantiate(tpl){
       primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary,
       sets:(e.sets||[{type:'working'}]).map(s=>({ id:'s-'+F.uid(), type:s.type||'working', weight:s.weight??'', unit:'kg', reps:s.reps??'', completed:false })) }; }) };
 }
-function openTemplatePick(){
-  const tpls=templates(); if(!tpls.length){ toast('No templates yet'); return; }
-  const name = prompt('Load template:\n'+tpls.map((t,i)=>`${i+1}. ${t.name}`).join('\n')+'\n\nEnter number:');
-  const i=parseInt(name,10)-1; if(!(i>=0&&i<tpls.length)) return;
-  active = instantiate(tpls[i]); saveActive(); renderLog();
-}
-
 // ════════════════════════════════════════════════════════════════
-//  PLAN TAB — 2-week calendar
+//  SCHEDULE MODAL (scheduled workouts live on the Workout screen)
 // ════════════════════════════════════════════════════════════════
-function renderPlan(){
-  const host=document.getElementById('view-plan');
-  const start=new Date(); start.setHours(0,0,0,0);
-  start.setDate(start.getDate() - ((start.getDay()+6)%7)); // back to Monday
-  const todayK=todayKey();
-  const plans=planned();
-  const days=[];
-  for(let i=0;i<14;i++){ const d=new Date(start); d.setDate(start.getDate()+i); days.push(d); }
-  const dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-
-  const cell=(d)=>{
-    const k=todayKey(d);
-    const isToday=k===todayK;
-    const isPast=k<todayK;
-    const dayPlans=plans.filter(p=>p.plannedFor===k);
-    const chips=dayPlans.map(p=>{
-      const t=targetMuscles(p);
-      const tg=[...t.pri].slice(0,3).map(shortMuscle).join(' · ');
-      return `<div class="pchip" onclick="planMenu('${p.id}')">${esc(p.name)}${tg?`<small>${esc(tg)}</small>`:''}</div>`;
-    }).join('');
-    return `<div class="day ${isToday?'today':''} ${isPast?'past':''}">
-      <div class="day-num"><span>${d.getDate()}</span>${!isPast?`<span class="day-add" onclick="openPlan('${k}')">＋</span>`:''}</div>
-      ${chips}
-    </div>`;
-  };
-
-  host.innerHTML = `
-    <div class="ph" style="margin-bottom:14px"><div><div style="font-size:15px;font-weight:600">Plan your week</div><div class="ph-sub">Schedule sessions ahead — tap one on its day to start logging.</div></div>
-      <button class="btn btn-p btn-sm" onclick="openPlan('${todayK}')">＋ Plan workout</button></div>
-    <div class="card" style="padding:16px">
-      <div class="cal" style="margin-bottom:8px">${dow.map(d=>`<div class="cal-h">${d}</div>`).join('')}</div>
-      <div class="cal">${days.slice(0,7).map(cell).join('')}</div>
-      <div class="cal" style="margin-top:8px">${days.slice(7,14).map(cell).join('')}</div>
-    </div>`;
-}
-
-let planDate=null;
 function openPlan(dateKey){
-  planDate=dateKey;
   document.getElementById('plan-name').value='';
+  document.getElementById('plan-date').value = dateKey || todayKey();
   const sel=document.getElementById('plan-template');
   sel.innerHTML='<option value="">Blank workout</option>'+templates().map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
-  document.getElementById('plan-title').textContent='Plan for '+new Date(dateKey+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
   document.getElementById('plan-modal').classList.add('open');
   setTimeout(()=>document.getElementById('plan-name').focus(),60);
 }
 function closePlan(){ document.getElementById('plan-modal').classList.remove('open'); }
 function savePlan(){
+  const date=document.getElementById('plan-date').value;
+  if(!date){ toast('Pick a date'); return; }
   const tid=document.getElementById('plan-template').value;
   const tpl=templates().find(t=>t.id===tid);
   let name=document.getElementById('plan-name').value.trim() || (tpl?tpl.name:'Workout');
   const wk = tpl ? instantiate(tpl) : { id:'w-'+F.uid(), name, startedAt:0, notes:'', exercises:[] };
-  wk.name=name; wk.plannedFor=planDate; wk.status='planned'; delete wk.completedAt;
+  wk.name=name; wk.plannedFor=date; wk.status='planned'; delete wk.completedAt;
   F.storageAdapter.saveWorkout(wk);
-  closePlan(); renderPlan(); toast('Added to calendar');
-}
-function planMenu(id){
-  const p=allWorkouts().find(w=>w.id===id); if(!p) return;
-  const choice = prompt(`"${p.name}"\n\n1. Start now (log it)\n2. Delete\n\nEnter number:`);
-  if(choice==='1'){ active=p; active.startedAt=Date.now(); delete active.plannedFor; saveActive(); F.storageAdapter.deleteWorkout(id); setTab('log'); }
-  else if(choice==='2'){ F.storageAdapter.deleteWorkout(id); renderPlan(); }
+  closePlan(); renderLog();
+  toast('Scheduled for '+new Date(date+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}));
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -744,7 +754,7 @@ function planMenu(id){
 function renderHistory(){
   const host=document.getElementById('view-history');
   const list=completed();
-  if(!list.length){ host.innerHTML='<div class="card"><div class="empty"><h3>No workouts logged yet</h3><p style="font-size:12.5px">Finish a session in the Log tab and it’ll show up here.</p></div></div>'; return; }
+  if(!list.length){ host.innerHTML='<div class="card"><div class="empty"><h3>No workouts logged yet</h3><p style="font-size:12.5px">Finish a session on the Workout tab and it’ll show up here.</p></div></div>'; return; }
   // 7-day volume
   const wk = list.filter(w=>w.completedAt > Date.now()-7*864e5);
   const wkSets = wk.reduce((n,w)=>n+w.exercises.reduce((m,e)=>m+e.sets.filter(s=>s.type==='working'&&s.completed).length,0),0);
@@ -1031,8 +1041,10 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCatalog
 
 // init — open the tab named in the URL hash (e.g. workouts.html#programs)
 (function(){
-  const h = (location.hash || '').replace('#','');
-  setTab(['log','programs','plan','history'].includes(h) ? h : 'log');
+  seedPrograms(); // so "Today in your program" can suggest a session on first visit
+  let h = (location.hash || '').replace('#','');
+  if(h==='plan') h='log'; // old Plan tab now lives on the Workout screen
+  setTab(['log','programs','history'].includes(h) ? h : 'log');
 })();
 </script>
 <script src="js/mobilenav.js" defer></script>
