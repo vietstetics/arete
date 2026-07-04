@@ -177,6 +177,7 @@
     'Barbell Curl':      { primary: ['biceps-l','biceps-r'],         secondary: ['forearm-l','forearm-r'] },
     'Hammer Curl':       { primary: ['biceps-l','biceps-r'],         secondary: ['forearm-l','forearm-r'] },
     "Preacher Curl":     { primary: ['biceps-l','biceps-r'],         secondary: [] },
+    'Recline Curl':      { primary: ['biceps-l','biceps-r'],         secondary: ['forearm-l','forearm-r'] },
     'Tricep Pushdown':   { primary: ['triceps-l','triceps-r'],       secondary: [] },
     'Skull Crusher':     { primary: ['triceps-l','triceps-r'],       secondary: [] },
     'Dip':               { primary: ['triceps-l','triceps-r'],       secondary: ['chest-l','chest-r','delt-front-l','delt-front-r'] },
