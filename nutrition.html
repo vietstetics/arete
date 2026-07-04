@@ -2062,6 +2062,34 @@ function zxingDecodeCanvas(ZX, canvas, hard){
   }
   return null;
 }
+// Rotate a canvas by a multiple of 90° (barcodes held vertically/at an angle).
+function rotateCanvas(src, deg){
+  const swap = (deg % 180) !== 0;
+  const c = document.createElement('canvas');
+  c.width = swap ? src.height : src.width;
+  c.height = swap ? src.width : src.height;
+  const ctx = c.getContext('2d');
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate(deg * Math.PI / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return c;
+}
+// Centre crop to a fraction of the canvas.
+function cropOf(src, wFrac, hFrac){
+  const cw = Math.max(1, Math.round(src.width * wFrac)), ch = Math.max(1, Math.round(src.height * hFrac));
+  const sx = Math.round((src.width - cw) / 2), sy = Math.round((src.height - ch) / 2);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  c.getContext('2d').drawImage(src, sx, sy, cw, ch, 0, 0, cw, ch);
+  return c;
+}
+// One-shot robust decode (tap / photo): try the frame + a centre crop, each
+// also rotated 90°, with TRY_HARDER + both binarizers.
+function hardDecode(ZX, canvas){
+  const variants = [canvas, cropOf(canvas, 0.72, 0.72)];
+  variants.slice().forEach(c => variants.push(rotateCanvas(c, 90)));
+  for (const c of variants){ const code = zxingDecodeCanvas(ZX, c, true); if (code) return code; }
+  return null;
+}
 // Live decode loop: native detector first (fast + robust), else ZXing with
 // TRY_HARDER on the centred region (and the whole frame every few ticks).
 async function liveTick(myGen){
@@ -2076,9 +2104,9 @@ async function liveTick(myGen){
     if (window.ZXing){
       // Centre strip (full res) first — where the barcode is aimed.
       let code = zxingDecodeCanvas(window.ZXing, cropCanvas(v, 0.9, 0.55), true);
-      // Every 3rd tick also try the whole frame (barcode off-centre / far).
+      // Every 3rd tick, a full robust pass (whole frame + rotations).
       if (!code && ((liveTick._n = (liveTick._n || 0) + 1) % 3 === 0))
-        code = zxingDecodeCanvas(window.ZXing, frameToCanvas(v, 1280), true);
+        code = hardDecode(window.ZXing, frameToCanvas(v, 1280));
       if (code) onScanned(code);
     }
   } finally { liveTick._busy = false; }
@@ -2132,10 +2160,10 @@ async function captureAndDecode(){
       }
     } catch(_) {}
 
-    // 2) ZXing low-level decode (hard) on the captured frame.
+    // 2) ZXing robust decode (crops + rotations) on the captured frame.
     try {
       const ZX = await loadZXing();
-      const code = zxingDecodeCanvas(ZX, canvas, true);
+      const code = hardDecode(ZX, canvas);
       if (code){ onScanned(code); return; }
     } catch(_) {}
 
@@ -2182,7 +2210,7 @@ async function onScanPhoto(input){
     const cv = document.createElement('canvas');
     cv.width = img.naturalWidth; cv.height = img.naturalHeight;
     cv.getContext('2d').drawImage(img, 0, 0);
-    const code = zxingDecodeCanvas(ZX, cv, true);
+    const code = hardDecode(ZX, cv);
     if (code){ onScanned(code); return; }
     throw new Error('no code');
   } catch(e){
