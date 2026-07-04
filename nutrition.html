@@ -1986,10 +1986,12 @@ async function startCamera(){
   // frames — the high-level ZXing browser helpers don't decode in this build.
   let stream;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } } });
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1920 }, height:{ ideal:1080 } } });
   } catch(e){ if (myGen !== scanGen) return; return cameraError(e); }
   if (myGen !== scanGen){ stream.getTracks().forEach(t => t.stop()); return; }
   scanStream = stream;
+  // Continuous autofocus so close-up barcodes are sharp enough to decode.
+  try { const tr = stream.getVideoTracks()[0]; if (tr && tr.applyConstraints) await tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch(_) {}
   const v = document.getElementById('scan-video');
   document.getElementById('scan-stage').style.display = '';
   v.srcObject = stream;
@@ -2019,7 +2021,7 @@ async function startCamera(){
   if (myGen !== scanGen) return;
   setScanStatus('Point at the barcode, then tap to scan.');
   scanning = true;
-  scanTimer = setInterval(() => liveTick(myGen), 200);
+  scanTimer = setInterval(() => liveTick(myGen), 280);
 }
 
 // Draw the current video frame to a reusable canvas (optionally downscaled).
@@ -2029,6 +2031,17 @@ function frameToCanvas(v, maxW){
   const cv = frameToCanvas._cv || (frameToCanvas._cv = document.createElement('canvas'));
   cv.width = Math.round(w * scale); cv.height = Math.round(h * scale);
   cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+  return cv;
+}
+// Draw the CENTRE region of the frame at full resolution — where the user aims
+// the barcode. Keeps pixels on the barcode (vs downscaling the whole frame).
+function cropCanvas(v, wFrac, hFrac){
+  const vw = v.videoWidth, vh = v.videoHeight;
+  const cw = Math.max(1, Math.round(vw * wFrac)), ch = Math.max(1, Math.round(vh * hFrac));
+  const sx = Math.round((vw - cw) / 2), sy = Math.round((vh - ch) / 2);
+  const cv = cropCanvas._cv || (cropCanvas._cv = document.createElement('canvas'));
+  cv.width = cw; cv.height = ch;
+  cv.getContext('2d').drawImage(v, sx, sy, cw, ch, 0, 0, cw, ch);
   return cv;
 }
 // Decode a canvas with ZXing's LOW-LEVEL path (the high-level helpers don't
@@ -2049,7 +2062,8 @@ function zxingDecodeCanvas(ZX, canvas, hard){
   }
   return null;
 }
-// Live decode loop: native detector first (fast), else ZXing on a downscaled frame.
+// Live decode loop: native detector first (fast + robust), else ZXing with
+// TRY_HARDER on the centred region (and the whole frame every few ticks).
 async function liveTick(myGen){
   if (!scanning || scanHandled || myGen !== scanGen || liveTick._busy) return;
   const v = document.getElementById('scan-video');
@@ -2060,7 +2074,11 @@ async function liveTick(myGen){
       try { const codes = await scanDetector.detect(v); if (codes && codes[0] && codes[0].rawValue){ onScanned(codes[0].rawValue); return; } } catch(_) {}
     }
     if (window.ZXing){
-      const code = zxingDecodeCanvas(window.ZXing, frameToCanvas(v, 1024), false);
+      // Centre strip (full res) first — where the barcode is aimed.
+      let code = zxingDecodeCanvas(window.ZXing, cropCanvas(v, 0.9, 0.55), true);
+      // Every 3rd tick also try the whole frame (barcode off-centre / far).
+      if (!code && ((liveTick._n = (liveTick._n || 0) + 1) % 3 === 0))
+        code = zxingDecodeCanvas(window.ZXing, frameToCanvas(v, 1280), true);
       if (code) onScanned(code);
     }
   } finally { liveTick._busy = false; }
