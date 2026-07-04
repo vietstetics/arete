@@ -577,6 +577,17 @@ textarea{font-family:inherit;resize:none}
 @media(max-width:767px){
   .ei-obs{right:12px;left:12px;width:auto;bottom:84px}
 }
+
+.appgrid{display:none}
+@media(max-width:767px){
+.appgrid{display:block;margin-bottom:14px}
+.agrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.ag{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 2px;border-radius:14px;color:var(--t1);transition:background 140ms}
+.ag:active{background:var(--s2)}
+.ag-ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center}
+.ag-ic svg{width:21px;height:21px}
+.ag-l{font-size:10.5px;font-weight:600;color:var(--t2);text-align:center;line-height:1.2}
+}
 </style>
 </head>
 <body>
@@ -721,6 +732,14 @@ textarea{font-family:inherit;resize:none}
             <text x="146" y="20" font-size="8" fill="#4ADE80" font-family="Inter">82</text>
           </svg>
         </div>
+      </div>
+    </div>
+
+    <!-- MOBILE APP GRID (everything else) -->
+    <div class="card appgrid">
+      <div class="cp">
+        <div class="cl" style="margin:0 0 12px">Explore</div>
+        <div class="agrid"><a class="ag" href="habits.html"><span class="ag-ic" style="background:rgba(29,164,98,.12);color:#1DA462"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/><path d="M4 12v6a2 2 0 0 0 2 2h12"/></svg></span><span class="ag-l">Habits</span></a><a class="ag" href="sleep.html"><span class="ag-ic" style="background:rgba(94,92,230,.12);color:#5E5CE6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span><span class="ag-l">Sleep</span></a><a class="ag" href="connections.html"><span class="ag-ic" style="background:rgba(14,156,192,.12);color:#0E9CC0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a3 3 0 0 1 3-3h2.5a3.5 3.5 0 0 0 0-7H11M15 12a3 3 0 0 1-3 3H9.5a3.5 3.5 0 0 0 0 7H13"/></svg></span><span class="ag-l">Connections</span></a><a class="ag" href="analytics.html"><span class="ag-ic" style="background:rgba(59,130,246,.12);color:#3B82F6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="ag-l">Progress</span></a><a class="ag" href="exercises.html"><span class="ag-ic" style="background:rgba(176,125,40,.14);color:#B07D28"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg></span><span class="ag-l">Exercises</span></a><a class="ag" href="nutrition.html"><span class="ag-ic" style="background:rgba(192,85,42,.12);color:#C0552A"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></span><span class="ag-l">Nutrition</span></a><a class="ag" href="finance.html"><span class="ag-ic" style="background:rgba(29,164,98,.12);color:#1DA462"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="ag-l">Finance</span></a><a class="ag" href="settings.html"><span class="ag-ic" style="background:rgba(0,0,0,.06);color:#6E6E73"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="ag-l">Settings</span></a></div>
       </div>
     </div>
 

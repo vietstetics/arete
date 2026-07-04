@@ -91,25 +91,7 @@
       b.onclick = function () { if (t.href !== cur) location.href = t.href; };
       bar.appendChild(b);
     });
-    var more = document.createElement('button');
-    more.className = (inMore ? 'on' : '');
-    more.innerHTML = svg(ic.more) + '<span>More</span>';
-    bar.appendChild(more);
-
-    var bk = document.createElement('div'); bk.className = 'mnav-sheet-bk';
-    var sheet = document.createElement('div'); sheet.className = 'mnav-sheet';
-    sheet.innerHTML = '<div class="mnav-grab"></div>' + MORE.map(function (m) {
-      return '<a href="' + m.href + '" class="' + (m.href === cur ? 'on' : '') + '">' + svg(m.icon) + m.label + '</a>';
-    }).join('');
-    bk.appendChild(sheet);
-
-    function open() { bk.classList.add('open'); requestAnimationFrame(function () { sheet.classList.add('open'); }); }
-    function close() { sheet.classList.remove('open'); bk.classList.remove('open'); }
-    more.onclick = open;
-    bk.onclick = function (e) { if (e.target === bk) close(); };
-
     document.body.appendChild(bar);
-    document.body.appendChild(bk);
   }
 
   if (document.body) build();
