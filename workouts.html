@@ -781,8 +781,18 @@ function renderVidInput(){
     <div class="fld"><label>Video link</label><input id="vid-url" placeholder="Paste a TikTok / YouTube / Reels link…" inputmode="url" autocomplete="off"></div>
     <div class="fld"><label>Caption text (optional)</label>
       <textarea class="notes-in" id="vid-text" placeholder="If the link can’t be read, paste the video’s caption or description here…"></textarea></div>
-    <div id="vid-err" style="display:none;font-size:12px;color:var(--re);margin-bottom:10px;line-height:1.5"></div>
-    <div style="font-size:11.5px;color:var(--t3);line-height:1.5">Arete reads the video’s caption/description — where most creators list the routine — and pulls out every exercise with sets × reps, split into days. Uses your Anthropic API key from <a href="settings.html" style="color:var(--vi);font-weight:600">Settings</a> (falls back to a basic on-device parse of pasted text if none is set).</div>`;
+    <div style="display:flex;align-items:center;gap:10px;margin:2px 0 12px">
+      <div style="flex:1;height:1px;background:var(--bd)"></div>
+      <span style="font-size:10px;color:var(--t3);font-weight:700;letter-spacing:.06em">OR · NO API KEY NEEDED</span>
+      <div style="flex:1;height:1px;background:var(--bd)"></div>
+    </div>
+    <button class="btn btn-s btn-sm" style="width:100%;justify-content:center" onclick="document.getElementById('vid-file').click()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>
+      Analyse a video file
+    </button>
+    <input type="file" id="vid-file" accept="video/*" style="display:none" onchange="vidPickFile(this)">
+    <div style="font-size:11px;color:var(--t3);line-height:1.5;margin-top:8px">Save the video first (TikTok → Share → <b>Save video</b>), then pick it here. Arete plays it on-device and reads the exercises shown on screen — nothing is uploaded, no key used.</div>
+    <div id="vid-err" style="display:none;font-size:12px;color:var(--re);margin:10px 0 0;line-height:1.5"></div>`;
   document.getElementById('vid-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="closeVid()">Cancel</button><button class="btn btn-p btn-sm" id="vid-go" onclick="vidGo()">Recognise workout</button>`;
 }
 function getAiKey(){ try{ return (localStorage.getItem('arete_anthropic_key')||'').trim(); }catch{ return ''; } }
@@ -829,6 +839,146 @@ function localParseWorkout(text){
   return { found:days.some(d=>d.exercises.length), programName:'Imported workout',
     days:days.filter(d=>d.exercises.length), note:'Parsed on-device from the pasted text.' };
 }
+
+// ── VIDEO FILE ANALYSER — zero API keys. Plays the video on-device,
+//    OCRs sampled frames (Tesseract.js, lazy-loaded WASM) and parses the
+//    on-screen text into exercises. Nothing leaves the phone.
+let vidCancelled=false;
+function vidPickFile(input){
+  const file=input.files && input.files[0]; input.value='';
+  if(!file) return;
+  runVideoOcr(file).catch(e=>{ renderVidInput(); if(String(e.message||e)!=='cancelled') vidErr('Couldn’t analyse that video — '+(e.message||e)); });
+}
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('couldn’t load the on-device text reader (check your connection)'));
+    document.head.appendChild(s);
+  });
+}
+function seekTo(v,t){
+  return new Promise((res,rej)=>{
+    const ok=()=>{ v.removeEventListener('seeked',ok); res(); };
+    v.addEventListener('seeked',ok);
+    v.onerror=()=>rej(new Error('video decode error'));
+    v.currentTime=t;
+  });
+}
+function renderVidProgress(){
+  document.getElementById('vid-body').innerHTML=`
+    <div style="text-align:center;padding:12px 4px 4px">
+      <div id="vp-status" style="font-size:13px;font-weight:600;margin-bottom:12px">Loading the on-device text reader…</div>
+      <div style="height:7px;border-radius:999px;background:var(--s2);overflow:hidden;margin-bottom:10px"><i id="vp-bar" style="display:block;height:100%;width:0%;border-radius:999px;background:var(--vi);transition:width .3s"></i></div>
+      <div id="vp-found" style="font-size:12px;color:var(--t3)">Reading the exercises shown on screen — this runs entirely on your device.</div>
+    </div>`;
+  document.getElementById('vid-foot').innerHTML=`<button class="btn btn-s btn-sm" style="flex:1" onclick="vidCancelled=true">Cancel</button>`;
+}
+function vidProgress(done,total,found){
+  const bar=document.getElementById('vp-bar'), st=document.getElementById('vp-status'), fd=document.getElementById('vp-found');
+  if(bar) bar.style.width=Math.round(done/total*100)+'%';
+  if(st) st.textContent=`Reading frame ${done} of ${total}…`;
+  if(fd && found>0) fd.textContent=`${found} exercise${found===1?'':'s'} spotted so far`;
+}
+async function runVideoOcr(file){
+  vidCancelled=false; renderVidProgress();
+  await loadTesseract();
+  const worker=await Tesseract.createWorker('eng');
+  const src=URL.createObjectURL(file);
+  try{
+    const video=document.createElement('video');
+    video.muted=true; video.playsInline=true; video.preload='auto'; video.src=src;
+    await new Promise((res,rej)=>{ video.onloadedmetadata=res; video.onerror=()=>rej(new Error('your browser can’t decode this video format')); });
+    if(!isFinite(video.duration)){ // MediaRecorder blobs report Infinity until seeked far
+      await seekTo(video,1e9); video.currentTime=0;
+    }
+    const dur=video.duration;
+    if(!isFinite(dur)||dur<=0) throw new Error('couldn’t read the video length');
+    const MAXF=28, step=Math.max(0.8,dur/MAXF), total=Math.min(MAXF,Math.max(1,Math.ceil(dur/step)));
+    const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const seen=new Set(), lines=[];
+    let frames=0;
+    for(let t=Math.min(0.3,dur/2); t<dur && frames<MAXF; t+=step){
+      if(vidCancelled) throw new Error('cancelled');
+      await seekTo(video,t);
+      const scale=Math.min(1,900/(video.videoWidth||900));
+      canvas.width=Math.round((video.videoWidth||900)*scale);
+      canvas.height=Math.round((video.videoHeight||900)*scale);
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const {data}=await worker.recognize(canvas);
+      String(data.text||'').split(/\n+/).forEach(l=>{
+        l=l.replace(/\s+/g,' ').trim();
+        const k=l.toLowerCase().replace(/[^a-z0-9]/g,'');
+        if(l.length>2 && k.length>2 && !seen.has(k)){ seen.add(k); lines.push(l); }
+      });
+      frames++;
+      vidProgress(frames,total,lines.filter(l=>/\d\s*[xX×]\s*\d/.test(l)).length);
+    }
+    const parsed=ocrParseWorkout(lines);
+    if(!parsed.days.length){
+      renderVidInput();
+      vidErr('No workout text found in the video frames. This works when the video shows the exercises as on-screen text — if this one only says them out loud, paste the caption instead.');
+      return;
+    }
+    parsed.programName=(file.name||'').replace(/\.[^.]+$/,'').slice(0,40)||'From video';
+    vidResult=parsed; renderVidPreview();
+  } finally {
+    URL.revokeObjectURL(src);
+    try{ await worker.terminate(); }catch(e){}
+  }
+}
+// OCR-tolerant parsing: pairs a bare exercise-name line with a "3x12" on the
+// next line, and snaps garbled names to the exercise database by similarity.
+const OCR_JUNK=/^(follow|like|share|subscribe|comment|save|link in bio|full workout|workout|gym|fitness|viral|fyp|foryou|tiktok|part \d+|rest\s*\d*|min(ute)?s?\s*rest)/i;
+function normName(s){ return String(s).toLowerCase().replace(/[^a-z0-9]/g,''); }
+function nameSim(a,b){
+  a=normName(a); b=normName(b);
+  if(!a||!b) return 0; if(a===b) return 1;
+  if(a.length>4&&b.includes(a)) return .95; if(b.length>4&&a.includes(b)) return .95;
+  const bg=s=>{ const r=new Set(); for(let i=0;i<s.length-1;i++) r.add(s.slice(i,i+2)); return r; };
+  const A=bg(a),B=bg(b); let n=0; A.forEach(x=>{ if(B.has(x)) n++; });
+  return 2*n/(A.size+B.size);
+}
+function snapName(raw){
+  raw=raw.replace(/[|_~=<>[\]{}]/g,' ').replace(/\s+/g,' ').trim();
+  if(raw.length<3||raw.length>50) return null;
+  let best=null,score=.68;
+  F.EXERCISE_NAMES.forEach(n=>{ const s=nameSim(raw,n); if(s>score){ score=s; best=n; } });
+  if(best) return best;
+  const letters=(raw.match(/[A-Za-z]/g)||[]).length;
+  if(letters<4||letters/raw.length<.6) return null;
+  return raw.toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());
+}
+function ocrParseWorkout(lines){
+  const days=[]; let cur=null, pendingName=null;
+  const dayRe=/^(day\s*\d+|push|pull|legs?|upper|lower|full\s*body|chest|back|shoulders?|arms?|glutes?|core)\s*(day)?\s*[:\-–—]?\s*$/i;
+  const exRe=/^(.*?[A-Za-z].*?)\s*[-–—:|]?\s*(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)(?:\s*(?:reps?|ea(?:ch)?|per\s*side))?\s*$/;
+  const exRe2=/^(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)\s+(.*[A-Za-z].*)$/;
+  const exRe3=/^(.*?[A-Za-z].*?)\s*[-–—:|]?\s*(\d{1,2})\s*sets?\s*(?:of|[xX×])?\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)\s*(?:reps?)?\s*$/i;
+  const srOnly=/^(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)(?:\s*(?:reps?|ea(?:ch)?|per\s*side))?$/;
+  const push=(name,sets,reps)=>{
+    name=snapName(name); if(!name) return;
+    if(!cur){ cur={name:'Workout',exercises:[]}; days.push(cur); }
+    if(cur.exercises.some(e=>nameSim(e.name,name)>.9)) return; // seen on an earlier frame
+    cur.exercises.push({name,sets:Math.min(10,+sets||3),reps:String(reps).replace(/\s/g,'')||'8-12'});
+  };
+  lines.forEach(line=>{
+    line=line.replace(/[#@]\S+/g,'').replace(/\s+/g,' ').trim();
+    if(!line||OCR_JUNK.test(line)) { pendingName=null; return; }
+    let m;
+    if(dayRe.test(line)&&line.length<32){ cur={name:line.replace(/[:\-–—]+\s*$/,'').trim().toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()),exercises:[]}; days.push(cur); pendingName=null; }
+    else if((m=srOnly.exec(line))){ if(pendingName){ push(pendingName,m[1],m[2]); pendingName=null; } }
+    else if((m=exRe.exec(line))) { push(m[1],m[2],m[3]); pendingName=null; }
+    else if((m=exRe2.exec(line))) { push(m[3],m[1],m[2]); pendingName=null; }
+    else if((m=exRe3.exec(line))) { push(m[1],m[2],m[3]); pendingName=null; }
+    else if(/^[A-Za-z][A-Za-z '()\/&.-]{3,45}$/.test(line)&&line.split(' ').length<=5) pendingName=line;
+    else pendingName=null;
+  });
+  return { found:days.some(d=>d.exercises.length), programName:'From video',
+    days:days.filter(d=>d.exercises.length),
+    note:'Read from the video’s on-screen text — fully on-device, no API key.' };
+}
 function renderVidPreview(){
   const j=vidResult;
   document.getElementById('vid-body').innerHTML = `
@@ -842,7 +992,24 @@ function renderVidPreview(){
           <button class="icon-btn" style="width:24px;height:24px" title="Remove" onclick="vidRemove(${di},${ei})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
         </div>`).join('')}`).join('')}
     ${j.note?`<div style="font-size:11.5px;color:var(--t3);line-height:1.5;margin-top:8px">${esc(j.note)}</div>`:''}`;
-  document.getElementById('vid-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="renderVidInput()">Back</button><button class="btn btn-p btn-sm" onclick="vidAdd()">Add to Programs</button>`;
+  document.getElementById('vid-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="renderVidInput()">Back</button>`
+    + (j.days.length===1?`<button class="btn btn-gr btn-sm" onclick="vidStartNow()">Start now</button>`:'')
+    + `<button class="btn btn-p btn-sm" onclick="vidAdd()">Add to Programs</button>`;
+}
+// One-session video → load it straight into the logger, ready to train.
+function vidStartNow(){
+  const j=vidResult; if(!j||!j.days.length) return;
+  if(active && active.exercises && active.exercises.length && !confirm('Replace your current workout in Log?')) return;
+  const d=j.days[0];
+  const name=document.getElementById('vid-name').value.trim()||d.name||'From video';
+  active={ id:'w-'+F.uid(), name, startedAt:Date.now(), notes:'', exercises:d.exercises.map(ex=>{
+    const m=musclesFor(ex.name); const sets=[];
+    for(let i=0;i<Math.max(1,ex.sets||3);i++) sets.push({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:ex.reps||'', completed:false });
+    return { id:'e-'+F.uid(), name:ex.name, primaryMuscles:m.primary, secondaryMuscles:m.secondary, sets };
+  }) };
+  saveActive(); closeVid(); setTab('log');
+  window.scrollTo({top:0});
+  toast('Workout loaded — finish to log it');
 }
 function vidRemove(di,ei){
   vidResult.days[di].exercises.splice(ei,1);
