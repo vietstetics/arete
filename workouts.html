@@ -884,7 +884,11 @@ function vidProgress(done,total,found){
 async function runVideoOcr(file){
   vidCancelled=false; renderVidProgress();
   await loadTesseract();
-  const worker=await Tesseract.createWorker('eng');
+  // A pool of OCR workers so dense sampling stays fast. The first one warms
+  // the language-data cache; the rest then load instantly from it.
+  const N=Math.min(4,Math.max(2,(navigator.hardwareConcurrency||4)-1));
+  const workers=[await Tesseract.createWorker('eng')];
+  workers.push(...await Promise.all(Array.from({length:N-1},()=>Tesseract.createWorker('eng'))));
   const src=URL.createObjectURL(file);
   try{
     const video=document.createElement('video');
@@ -895,26 +899,54 @@ async function runVideoOcr(file){
     }
     const dur=video.duration;
     if(!isFinite(dur)||dur<=0) throw new Error('couldn’t read the video length');
-    const MAXF=28, step=Math.max(0.8,dur/MAXF), total=Math.min(MAXF,Math.max(1,Math.ceil(dur/step)));
+    // Overlay text often flashes for well under a second — sample every ~0.4s
+    // so brief captions land on at least one frame, and let the worker pool
+    // absorb the extra frames.
+    const MAXF=72, step=Math.max(0.4,dur/MAXF);
+    const total=Math.min(MAXF,Math.max(1,Math.floor((dur-0.1)/step)+1));
     const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const tCan=document.createElement('canvas'); tCan.width=24; tCan.height=24;
+    const tCtx=tCan.getContext('2d',{willReadFrequently:true});
     const seen=new Set(), lines=[];
-    let frames=0;
-    for(let t=Math.min(0.3,dur/2); t<dur && frames<MAXF; t+=step){
-      if(vidCancelled) throw new Error('cancelled');
-      await seekTo(video,t);
-      const scale=Math.min(1,900/(video.videoWidth||900));
-      canvas.width=Math.round((video.videoWidth||900)*scale);
-      canvas.height=Math.round((video.videoHeight||900)*scale);
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-      const {data}=await worker.recognize(canvas);
-      String(data.text||'').split(/\n+/).forEach(l=>{
+    let grabbed=0, handled=0, prevSig=null;
+    const found=()=>lines.filter(l=>/\d\s*[xX×]\s*\d/.test(l)).length;
+    const takeText=(text)=>{
+      String(text||'').split(/\n+/).forEach(l=>{
         l=l.replace(/\s+/g,' ').trim();
         const k=l.toLowerCase().replace(/[^a-z0-9]/g,'');
         if(l.length>2 && k.length>2 && !seen.has(k)){ seen.add(k); lines.push(l); }
       });
-      frames++;
-      vidProgress(frames,total,lines.filter(l=>/\d\s*[xX×]\s*\d/.test(l)).length);
+    };
+    const idle=[...workers], active=new Set();
+    async function dispatch(blob){
+      while(!idle.length) await Promise.race(active);
+      const w=idle.pop();
+      const p=w.recognize(blob)
+        .then(({data})=>takeText(data.text))
+        .catch(()=>{})
+        .finally(()=>{ idle.push(w); active.delete(p); handled++; vidProgress(handled,total,found()); });
+      active.add(p);
     }
+    for(let t=Math.min(0.15,dur/2); t<dur && grabbed<MAXF; t+=step){
+      if(vidCancelled) break;
+      await seekTo(video,t);
+      // cheap 24px signature — skip OCR on frames identical to the previous one
+      tCtx.drawImage(video,0,0,24,24);
+      const px=tCtx.getImageData(0,0,24,24).data;
+      const sig=new Uint8Array(576);
+      for(let i=0;i<576;i++) sig[i]=(px[i*4]+px[i*4+1]+px[i*4+2])/3;
+      grabbed++;
+      if(prevSig){ let d=0; for(let i=0;i<576;i++) d+=Math.abs(sig[i]-prevSig[i]); if(d/576<3){ handled++; vidProgress(handled,total,found()); continue; } }
+      prevSig=sig;
+      const scale=Math.min(1,900/(video.videoWidth||900));
+      canvas.width=Math.round((video.videoWidth||900)*scale);
+      canvas.height=Math.round((video.videoHeight||900)*scale);
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.8));
+      if(blob) await dispatch(blob); else { handled++; }
+    }
+    await Promise.all([...active]);
+    if(vidCancelled) throw new Error('cancelled');
     const parsed=ocrParseWorkout(lines);
     if(!parsed.days.length){
       renderVidInput();
@@ -925,7 +957,7 @@ async function runVideoOcr(file){
     vidResult=parsed; renderVidPreview();
   } finally {
     URL.revokeObjectURL(src);
-    try{ await worker.terminate(); }catch(e){}
+    workers.forEach(w=>{ try{ w.terminate(); }catch(e){} });
   }
 }
 // OCR-tolerant parsing: pairs a bare exercise-name line with a "3x12" on the
@@ -967,7 +999,12 @@ function ocrParseWorkout(lines){
     line=line.replace(/[#@]\S+/g,'').replace(/\s+/g,' ').trim();
     if(!line||OCR_JUNK.test(line)) { pendingName=null; return; }
     let m;
-    if(dayRe.test(line)&&line.length<32){ cur={name:line.replace(/[:\-–—]+\s*$/,'').trim().toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()),exercises:[]}; days.push(cur); pendingName=null; }
+    if(dayRe.test(line)&&line.length<32){
+      const nm=line.replace(/[:\-–—]+\s*$/,'').trim().toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());
+      const existing=days.find(d=>nameSim(d.name,nm)>.85); // same header re-read on a later frame
+      if(existing) cur=existing; else { cur={name:nm,exercises:[]}; days.push(cur); }
+      pendingName=null;
+    }
     else if((m=srOnly.exec(line))){ if(pendingName){ push(pendingName,m[1],m[2]); pendingName=null; } }
     else if((m=exRe.exec(line))) { push(m[1],m[2],m[3]); pendingName=null; }
     else if((m=exRe2.exec(line))) { push(m[3],m[1],m[2]); pendingName=null; }
