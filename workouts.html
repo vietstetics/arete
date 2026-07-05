@@ -174,6 +174,13 @@ input,select,textarea{font-family:inherit}
 .fld input,.fld select{width:100%;padding:9px 12px;border:1px solid var(--bd);border-radius:9px;font-size:13.5px;outline:none}
 .fld input:focus{border-color:var(--vi)}
 
+/* video-import preview */
+.vp-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--bd);border-radius:9px;margin-bottom:5px}
+.vp-nm{flex:1;font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vp-sr{font-size:12px;color:var(--t2);font-variant-numeric:tabular-nums;flex-shrink:0}
+.vp-day{font-size:12px;font-weight:700;margin:10px 0 6px}
+.vp-day span{color:var(--t3);font-weight:500}
+
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:#1D1D1F;color:#fff;font-size:13px;font-weight:500;padding:11px 20px;border-radius:12px;box-shadow:var(--sh1);opacity:0;pointer-events:none;transition:all 220ms;z-index:400}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -340,6 +347,7 @@ input,select,textarea{font-family:inherit}
       <div><div style="font-size:15px;font-weight:600">Programs</div><div class="ph-sub">Weekly training schedules that repeat automatically. Tap a day’s <b>Start</b> to log it.</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a href="exercises.html" class="btn btn-s btn-sm">Exercise database</a>
+        <button class="btn btn-s btn-sm" onclick="openVid()">Import from video</button>
         <button class="btn btn-p btn-sm" onclick="createProgram()">＋ New Program</button>
       </div>
     </div>
@@ -382,6 +390,15 @@ input,select,textarea{font-family:inherit}
       <div style="font-size:11.5px;color:var(--t3);line-height:1.5">It’ll wait under <b>Scheduled</b> on your Workout screen — start it with one tap on the day.</div>
     </div>
     <div class="modal-f"><button class="btn btn-s btn-sm" onclick="closePlan()">Cancel</button><button class="btn btn-p btn-sm" onclick="savePlan()">Schedule</button></div>
+  </div>
+</div>
+
+<!-- Import a workout from a video (TikTok / YouTube / Reels / any link) -->
+<div class="modal-bk" id="vid-modal" onclick="if(event.target===this)closeVid()">
+  <div class="modal" style="width:520px">
+    <div class="modal-h"><div class="modal-t">Import workout from a video</div><button class="icon-btn" onclick="closeVid()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-b" id="vid-body"></div>
+    <div class="modal-f" id="vid-foot"></div>
   </div>
 </div>
 
@@ -484,6 +501,7 @@ function renderLog(){
       ${suggCards}
       <div class="hero-actions">
         <button class="btn btn-p" onclick="startWorkout()">＋ Start empty workout</button>
+        <button class="btn btn-s" onclick="openVid()">Import from video</button>
         <button class="btn btn-s" onclick="openPlan()">Schedule for later</button>
       </div>
     </div>
@@ -746,6 +764,93 @@ function savePlan(){
   F.storageAdapter.saveWorkout(wk);
   closePlan(); renderLog();
   toast('Scheduled for '+new Date(date+'T00:00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}));
+}
+
+// ════════════════════════════════════════════════════════════════
+//  IMPORT FROM VIDEO — paste a TikTok/YouTube/Reels link, the server
+//  reads the caption/description and AI extracts the split; the result
+//  lands in Programs. On-device text parser as offline fallback.
+// ════════════════════════════════════════════════════════════════
+let vidResult = null;
+function openVid(){ vidResult=null; renderVidInput(); document.getElementById('vid-modal').classList.add('open'); setTimeout(()=>{ const el=document.getElementById('vid-url'); if(el) el.focus(); },60); }
+function closeVid(){ document.getElementById('vid-modal').classList.remove('open'); }
+function vidErr(msg){ const el=document.getElementById('vid-err'); if(el){ el.textContent=msg; el.style.display='block'; } }
+function renderVidInput(){
+  document.getElementById('vid-body').innerHTML = `
+    <div class="fld"><label>Video link</label><input id="vid-url" placeholder="Paste a TikTok / YouTube / Reels link…" inputmode="url" autocomplete="off"></div>
+    <div class="fld"><label>Caption text (optional)</label>
+      <textarea class="notes-in" id="vid-text" placeholder="If the link can’t be read, paste the video’s caption or description here…"></textarea></div>
+    <div id="vid-err" style="display:none;font-size:12px;color:var(--re);margin-bottom:10px;line-height:1.5"></div>
+    <div style="font-size:11.5px;color:var(--t3);line-height:1.5">Arete reads the video’s caption/description — where most creators list the routine — and pulls out every exercise with sets × reps, split into days.</div>`;
+  document.getElementById('vid-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="closeVid()">Cancel</button><button class="btn btn-p btn-sm" id="vid-go" onclick="vidGo()">Recognise workout</button>`;
+}
+async function vidGo(){
+  const url=document.getElementById('vid-url').value.trim();
+  const text=document.getElementById('vid-text').value.trim();
+  if(!url && !text){ vidErr('Paste a video link, or the caption text.'); return; }
+  const btn=document.getElementById('vid-go'); btn.disabled=true; btn.textContent='Reading the video…';
+  try{
+    const r=await fetch('/api/parse-workout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,text})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.message||j.error||('HTTP '+r.status));
+    if(!j.found || !(j.days||[]).some(d=>d.exercises.length)) throw new Error(j.note||'No workout found in that video’s caption. Paste the routine text and try again.');
+    j.days=j.days.filter(d=>d.exercises.length);
+    vidResult=j; renderVidPreview();
+  }catch(e){
+    if(text){ const local=localParseWorkout(text); if(local.days.length){ vidResult=local; renderVidPreview(); return; } }
+    vidErr(String(e && e.message || e)); btn.disabled=false; btn.textContent='Recognise workout';
+  }
+}
+// Fallback: parse "Exercise 4x8" / "4x8 Exercise" lines + day headings locally.
+function localParseWorkout(text){
+  const days=[]; let cur=null;
+  const dayRe=/^(day\s*\d+|push|pull|legs?|upper|lower|full\s*body|chest|back|shoulders?|arms?|glutes?|core|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i;
+  const exRe=/^[-•*\d.)\s]*([A-Za-z][A-Za-z '()\/&-]{2,50}?)\s*[-–—:]?\s*(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)/;
+  const exRe2=/^[-•*\d.)\s]*(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)\s+([A-Za-z][A-Za-z '()\/&-]{2,50})/;
+  const tc=s=>s.toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase()).trim();
+  const add=(name,sets,reps)=>{ if(!cur){ cur={name:'Workout',exercises:[]}; days.push(cur);} cur.exercises.push({name:tc(name),sets:+sets,reps:reps.replace(/\s/g,'')}); };
+  text.split(/\n+/).forEach(line=>{
+    line=line.replace(/[#@]\S+/g,'').trim(); if(!line) return;
+    let m;
+    if((m=exRe.exec(line))) add(m[1],m[2],m[3]);
+    else if((m=exRe2.exec(line))) add(m[3],m[1],m[2]);
+    else if(dayRe.test(line) && line.length<40){ cur={name:tc(line.replace(/[:\-–—]+\s*$/,'')),exercises:[]}; days.push(cur); }
+  });
+  return { found:days.some(d=>d.exercises.length), programName:'Imported workout',
+    days:days.filter(d=>d.exercises.length), note:'Parsed on-device from the pasted text.' };
+}
+function renderVidPreview(){
+  const j=vidResult;
+  document.getElementById('vid-body').innerHTML = `
+    <div class="fld"><label>Program name</label><input id="vid-name" value="${esc(j.programName||'Imported workout')}"></div>
+    ${j.days.map((d,di)=>`
+      <div class="vp-day">${esc(d.name)} <span>· ${d.exercises.length} exercise${d.exercises.length===1?'':'s'}</span></div>
+      ${d.exercises.map((e,ei)=>`
+        <div class="vp-row">
+          <span class="vp-nm">${esc(e.name)}</span>
+          <span class="vp-sr">${e.sets}×${esc(e.reps)}</span>
+          <button class="icon-btn" style="width:24px;height:24px" title="Remove" onclick="vidRemove(${di},${ei})"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        </div>`).join('')}`).join('')}
+    ${j.note?`<div style="font-size:11.5px;color:var(--t3);line-height:1.5;margin-top:8px">${esc(j.note)}</div>`:''}`;
+  document.getElementById('vid-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="renderVidInput()">Back</button><button class="btn btn-p btn-sm" onclick="vidAdd()">Add to Programs</button>`;
+}
+function vidRemove(di,ei){
+  vidResult.days[di].exercises.splice(ei,1);
+  vidResult.days=vidResult.days.filter(d=>d.exercises.length);
+  if(!vidResult.days.length){ renderVidInput(); vidErr('All exercises removed — start over.'); return; }
+  renderVidPreview();
+}
+function vidAdd(){
+  const j=vidResult; if(!j||!j.days.length) return;
+  const name=document.getElementById('vid-name').value.trim()||'Imported workout';
+  const SLOTS={1:[1],2:[1,4],3:[1,3,5],4:[1,2,4,5],5:[1,2,3,4,5],6:[1,2,3,4,5,6],7:[1,2,3,4,5,6,0]};
+  const slots=SLOTS[Math.min(j.days.length,7)];
+  const days={0:null,1:null,2:null,3:null,4:null,5:null,6:null};
+  j.days.slice(0,7).forEach((d,i)=>{ days[slots[i]]={ name:d.name, exercises:d.exercises.map(e=>({ name:e.name, targetSets:Math.max(1,Math.round(e.sets)||3), targetReps:String(e.reps||'8-12') })) }; });
+  const prog={ id:F.uid(), name, createdAt:Date.now(), days };
+  saveProgram(prog); selectedId=prog.id; editingDayIdx=null;
+  closeVid(); setTab('programs');
+  toast(`“${name}” added — ${j.days.length} day${j.days.length===1?'':'s'} on your week`);
 }
 
 // ════════════════════════════════════════════════════════════════
