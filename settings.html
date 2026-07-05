@@ -65,6 +65,19 @@
     </div>
   </div>
 
+  <div class="set-card">
+    <div class="set-h">AI features</div>
+    <div class="set-sub">Powers video-workout import and the nutrition photo scanner. Your key is stored only in this browser and sent directly with each request — never saved on the server, never shared with other users.</div>
+    <input id="ak-in" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false"
+      style="width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--bd);background:var(--s2);color:var(--t1);font-size:13px;outline:none;margin-bottom:8px">
+    <div style="display:flex;gap:8px">
+      <button onclick="saveKey()" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--vi);background:rgba(167,139,250,.14);color:var(--vi);font-size:13px;font-weight:700;cursor:pointer">Save key</button>
+      <button onclick="clearKey()" style="padding:11px 14px;border-radius:10px;border:1px solid var(--bd);background:var(--s2);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer">Remove</button>
+    </div>
+    <div id="ak-status" style="font-size:11.5px;color:var(--t2);margin-top:8px;line-height:1.5"></div>
+    <div style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.5">Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style="color:var(--vi)">console.anthropic.com/settings/keys</a> — new accounts get free starting credit.</div>
+  </div>
+
   <div class="set-card" id="account-card" style="display:none">
     <div class="set-h">Account</div>
     <div class="set-sub" id="account-who">Signed in</div>
@@ -76,6 +89,22 @@
 </div></main>
 </div>
 <script>
+  const AK_KEY = 'arete_anthropic_key';
+  function paintKey(){
+    const has = !!(localStorage.getItem(AK_KEY)||'').trim();
+    document.getElementById('ak-status').textContent = has ? 'A key is saved on this device.' : 'No key saved — AI features will ask for one when used.';
+  }
+  function saveKey(){
+    const v=document.getElementById('ak-in').value.trim();
+    if(!v){ document.getElementById('ak-status').textContent='Paste a key first.'; return; }
+    if(!/^sk-ant-/.test(v)){ document.getElementById('ak-status').textContent='That doesn’t look like an Anthropic key (should start with sk-ant-).'; return; }
+    localStorage.setItem(AK_KEY, v);
+    document.getElementById('ak-in').value='';
+    paintKey();
+  }
+  function clearKey(){ localStorage.removeItem(AK_KEY); document.getElementById('ak-in').value=''; paintKey(); }
+  paintKey();
+
   const SRC_KEY = 'jarvis_readiness_source_pref';
   function curSrc() { try { return localStorage.getItem(SRC_KEY) || 'ask'; } catch { return 'ask'; } }
   function paintSrc() { document.querySelectorAll('#src-opts .opt').forEach(b => b.classList.toggle('on', b.dataset.v === curSrc())); }

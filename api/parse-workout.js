@@ -113,12 +113,18 @@ async function captionFor(url) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST' }); return; }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) { res.status(500).json({ error: 'ANTHROPIC_API_KEY is not set on the server.' }); return; }
-
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
   body = body || {};
+
+  // Bring-your-own-key: every visitor supplies their own Anthropic key from
+  // Settings, so this shared endpoint never bills the app owner's account.
+  // The key is used for this request only — never logged or persisted.
+  const apiKey = typeof body.apiKey === 'string' ? body.apiKey.trim() : '';
+  if (!apiKey || !/^sk-ant-/.test(apiKey)) {
+    res.status(401).json({ error: 'missing_key', message: 'Add your Anthropic API key in Settings to use this feature.' });
+    return;
+  }
 
   const url = typeof body.url === 'string' ? body.url.trim() : '';
   const pasted = typeof body.text === 'string' ? body.text.trim() : '';

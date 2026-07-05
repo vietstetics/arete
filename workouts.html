@@ -775,22 +775,32 @@ let vidResult = null;
 function openVid(){ vidResult=null; renderVidInput(); document.getElementById('vid-modal').classList.add('open'); setTimeout(()=>{ const el=document.getElementById('vid-url'); if(el) el.focus(); },60); }
 function closeVid(){ document.getElementById('vid-modal').classList.remove('open'); }
 function vidErr(msg){ const el=document.getElementById('vid-err'); if(el){ el.textContent=msg; el.style.display='block'; } }
+function vidErrHtml(html){ const el=document.getElementById('vid-err'); if(el){ el.innerHTML=html; el.style.display='block'; } }
 function renderVidInput(){
   document.getElementById('vid-body').innerHTML = `
     <div class="fld"><label>Video link</label><input id="vid-url" placeholder="Paste a TikTok / YouTube / Reels link…" inputmode="url" autocomplete="off"></div>
     <div class="fld"><label>Caption text (optional)</label>
       <textarea class="notes-in" id="vid-text" placeholder="If the link can’t be read, paste the video’s caption or description here…"></textarea></div>
     <div id="vid-err" style="display:none;font-size:12px;color:var(--re);margin-bottom:10px;line-height:1.5"></div>
-    <div style="font-size:11.5px;color:var(--t3);line-height:1.5">Arete reads the video’s caption/description — where most creators list the routine — and pulls out every exercise with sets × reps, split into days.</div>`;
+    <div style="font-size:11.5px;color:var(--t3);line-height:1.5">Arete reads the video’s caption/description — where most creators list the routine — and pulls out every exercise with sets × reps, split into days. Uses your Anthropic API key from <a href="settings.html" style="color:var(--vi);font-weight:600">Settings</a> (falls back to a basic on-device parse of pasted text if none is set).</div>`;
   document.getElementById('vid-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="closeVid()">Cancel</button><button class="btn btn-p btn-sm" id="vid-go" onclick="vidGo()">Recognise workout</button>`;
 }
+function getAiKey(){ try{ return (localStorage.getItem('arete_anthropic_key')||'').trim(); }catch{ return ''; } }
 async function vidGo(){
   const url=document.getElementById('vid-url').value.trim();
   const text=document.getElementById('vid-text').value.trim();
   if(!url && !text){ vidErr('Paste a video link, or the caption text.'); return; }
+  const apiKey=getAiKey();
+  if(!apiKey){
+    // No key on this device — fall back to the free on-device parser (needs pasted text; can't read a link).
+    if(text){ const local=localParseWorkout(text); if(local.days.length){ vidResult=local; renderVidPreview(); return; } }
+    vidErrHtml('Add your free Anthropic API key in Settings to recognise videos automatically — or paste the caption text below for a basic on-device parse.'
+      + ' <a href="settings.html" style="color:var(--vi);font-weight:600">Open Settings →</a>');
+    return;
+  }
   const btn=document.getElementById('vid-go'); btn.disabled=true; btn.textContent='Reading the video…';
   try{
-    const r=await fetch('/api/parse-workout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,text})});
+    const r=await fetch('/api/parse-workout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,text,apiKey})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(j.message||j.error||('HTTP '+r.status));
     if(!j.found || !(j.days||[]).some(d=>d.exercises.length)) throw new Error(j.note||'No workout found in that video’s caption. Paste the routine text and try again.');
