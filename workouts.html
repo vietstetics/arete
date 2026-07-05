@@ -899,18 +899,21 @@ async function runVideoOcr(file){
     }
     const dur=video.duration;
     if(!isFinite(dur)||dur<=0) throw new Error('couldn’t read the video length');
-    // Overlay text often flashes for well under a second — sample every ~0.4s
-    // so brief captions land on at least one frame, and let the worker pool
-    // absorb the extra frames.
-    const MAXF=72, step=Math.max(0.4,dur/MAXF);
+    // Overlay text often flashes for well under a second — sample every ~0.45s
+    // so brief captions land on at least one frame.
+    const MAXF=96, step=Math.max(0.45,dur/MAXF);
     const total=Math.min(MAXF,Math.max(1,Math.floor((dur-0.1)/step)+1));
+    const W=720;
     const canvas=document.createElement('canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const bCan=document.createElement('canvas'), bCtx=bCan.getContext('2d');
     const tCan=document.createElement('canvas'); tCan.width=24; tCan.height=24;
     const tCtx=tCan.getContext('2d',{willReadFrequently:true});
     const seen=new Set(), lines=[];
-    let grabbed=0, handled=0, prevSig=null;
+    let grabbed=0, prevSig=null;
     const found=()=>lines.filter(l=>/\d\s*[xX×]\s*\d/.test(l)).length;
-    const takeText=(text)=>{
+    const trace=window._vidTrace; // set window._vidTrace=[] before importing to capture diagnostics
+    const takeText=(text,tag)=>{
+      if(trace) trace.push({ocr:tag,text:String(text||'').replace(/\n+/g,' | ').slice(0,160)});
       String(text||'').split(/\n+/).forEach(l=>{
         l=l.replace(/\s+/g,' ').trim();
         const k=l.toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -918,39 +921,76 @@ async function runVideoOcr(file){
       });
     };
     const idle=[...workers], active=new Set();
-    async function dispatch(blob){
+    async function dispatch(blob,tag){
       while(!idle.length) await Promise.race(active);
       const w=idle.pop();
       const p=w.recognize(blob)
-        .then(({data})=>takeText(data.text))
+        .then(({data})=>takeText(data.text,tag))
         .catch(()=>{})
-        .finally(()=>{ idle.push(w); active.delete(p); handled++; vidProgress(handled,total,found()); });
+        .finally(()=>{ idle.push(w); active.delete(p); });
       active.add(p);
     }
+    // Raw frames OCR terribly when text sits on busy footage — Tesseract's
+    // global threshold drowns the letters in the background. So each frame
+    // gets a BINARISED pass keyed to how overlays actually look:
+    //  - every frame: bright text with a dark outline (the TikTok default) —
+    //    keep pixels that are bright AND have a dark pixel within 4px.
+    //  - every 3rd frame: the raw frame (colored/gradient text).
+    //  - every 3rd frame: dark text on a light pill (native captions).
+    const bin=(w,h,mask)=>{
+      bCan.width=w; bCan.height=h;
+      const out=bCtx.createImageData(w,h);
+      let ink=0;
+      for(let i=0;i<w*h;i++){ const v=mask(i)?0:255; if(!v) ink++; out.data[i*4]=out.data[i*4+1]=out.data[i*4+2]=v; out.data[i*4+3]=255; }
+      bCtx.putImageData(out,0,0);
+      return ink/(w*h);
+    };
+    const toBlob=(c,type,q)=>new Promise(r=>c.toBlob(r,type,q));
     for(let t=Math.min(0.15,dur/2); t<dur && grabbed<MAXF; t+=step){
       if(vidCancelled) break;
       await seekTo(video,t);
-      // cheap 24px signature — skip OCR on frames identical to the previous one
+      grabbed++;
+      // cheap 24px signature — skip frames identical to the previous one
       tCtx.drawImage(video,0,0,24,24);
       const px=tCtx.getImageData(0,0,24,24).data;
       const sig=new Uint8Array(576);
       for(let i=0;i<576;i++) sig[i]=(px[i*4]+px[i*4+1]+px[i*4+2])/3;
-      grabbed++;
-      if(prevSig){ let d=0; for(let i=0;i<576;i++) d+=Math.abs(sig[i]-prevSig[i]); if(d/576<3){ handled++; vidProgress(handled,total,found()); continue; } }
+      // Skip only true freeze-frames (near-zero diff). Anything higher risks
+      // dropping frames where brief overlay text just appeared — at thumbnail
+      // scale, new text on a moving background dilutes to a tiny mean diff.
+      if(prevSig){ let df=0; for(let i=0;i<576;i++) df+=Math.abs(sig[i]-prevSig[i]); if(df/576<0.8){ vidProgress(grabbed,total,found()); continue; } }
       prevSig=sig;
-      const scale=Math.min(1,900/(video.videoWidth||900));
-      canvas.width=Math.round((video.videoWidth||900)*scale);
-      canvas.height=Math.round((video.videoHeight||900)*scale);
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-      const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.8));
-      if(blob) await dispatch(blob); else { handled++; }
+      const scale=Math.min(1,W/(video.videoWidth||W));
+      const w=Math.round((video.videoWidth||W)*scale), h=Math.round((video.videoHeight||W)*scale);
+      canvas.width=w; canvas.height=h;
+      ctx.drawImage(video,0,0,w,h);
+      const d=ctx.getImageData(0,0,w,h).data, n=w*h;
+      const lum=new Float32Array(n);
+      for(let i=0;i<n;i++) lum[i]=0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2];
+      const R=4, darkAt=i=>lum[i]<90, brightAt=i=>lum[i]>170;
+      const near=(i,test)=>{ const x=i%w, y=(i/w)|0; return (x>=R&&test(i-R))||(x<w-R&&test(i+R))||(y>=R&&test(i-R*w))||(y<h-R&&test(i+R*w)); };
+      // bright text with a dark outline (the TikTok default) — every frame
+      const fracB=bin(w,h,i=>lum[i]>190&&near(i,darkAt));
+      if(trace) trace.push({t:+t.toFixed(2),fracB:+fracB.toFixed(4)});
+      if(fracB>0.0004&&fracB<0.3){ const bl=await toBlob(bCan,'image/png'); if(bl) await dispatch(bl,'bright@'+t.toFixed(1)); }
+      // dark text with a bright surround (caption pills) — every frame; the
+      // bright-neighbour requirement keeps dark footage from counting as ink
+      const fracD=bin(w,h,i=>lum[i]<70&&near(i,brightAt));
+      if(fracD>0.0004&&fracD<0.2){ const bl=await toBlob(bCan,'image/png'); if(bl) await dispatch(bl,'dark@'+t.toFixed(1)); }
+      // raw frame (colored/gradient text) — every 3rd frame
+      if(grabbed%3===1){ const bl=await toBlob(canvas,'image/jpeg',0.8); if(bl) await dispatch(bl,'raw@'+t.toFixed(1)); }
+      vidProgress(grabbed,total,found());
     }
+    const stEl=document.getElementById('vp-status'); if(stEl) stEl.textContent='Finishing the last frames…';
     await Promise.all([...active]);
     if(vidCancelled) throw new Error('cancelled');
+    window._vidLines=lines; // kept for the "show what I read" diagnostic
     const parsed=ocrParseWorkout(lines);
     if(!parsed.days.length){
       renderVidInput();
-      vidErr('No workout text found in the video frames. This works when the video shows the exercises as on-screen text — if this one only says them out loud, paste the caption instead.');
+      vidErrHtml(lines.length
+        ? 'I read text in the video but couldn’t recognise a workout in it. <a href="#" onclick="vidShowRead();return false" style="color:var(--vi);font-weight:600">Show what I read</a> — or paste the caption below and try again.'
+        : 'No readable text found in the video frames. If the workout is only spoken (no on-screen text), paste the caption instead.');
       return;
     }
     parsed.programName=(file.name||'').replace(/\.[^.]+$/,'').slice(0,40)||'From video';
@@ -959,6 +999,11 @@ async function runVideoOcr(file){
     URL.revokeObjectURL(src);
     workers.forEach(w=>{ try{ w.terminate(); }catch(e){} });
   }
+}
+function vidShowRead(){
+  const l=window._vidLines||[];
+  const el=document.getElementById('vid-err');
+  if(el) el.innerHTML='<b>Text read from the video:</b><br><span style="color:var(--t2)">'+l.slice(0,40).map(esc).join('<br>')+(l.length>40?'<br>…':'')+'</span>';
 }
 // OCR-tolerant parsing: pairs a bare exercise-name line with a "3x12" on the
 // next line, and snaps garbled names to the exercise database by similarity.
@@ -988,6 +1033,7 @@ function ocrParseWorkout(lines){
   const exRe=/^(.*?[A-Za-z].*?)\s*[-–—:|]?\s*(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)(?:\s*(?:reps?|ea(?:ch)?|per\s*side))?\s*$/;
   const exRe2=/^(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)\s+(.*[A-Za-z].*)$/;
   const exRe3=/^(.*?[A-Za-z].*?)\s*[-–—:|]?\s*(\d{1,2})\s*sets?\s*(?:of|[xX×])?\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)\s*(?:reps?)?\s*$/i;
+  const exRe4=/^(.*?[A-Za-z].*?)\s*[-–—:|]?\s*(\d{1,3})\s*reps?\s*$/i; // reps only → default 3 sets
   const srOnly=/^(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)(?:\s*(?:reps?|ea(?:ch)?|per\s*side))?$/;
   const push=(name,sets,reps)=>{
     name=snapName(name); if(!name) return;
@@ -1009,6 +1055,7 @@ function ocrParseWorkout(lines){
     else if((m=exRe.exec(line))) { push(m[1],m[2],m[3]); pendingName=null; }
     else if((m=exRe2.exec(line))) { push(m[3],m[1],m[2]); pendingName=null; }
     else if((m=exRe3.exec(line))) { push(m[1],m[2],m[3]); pendingName=null; }
+    else if((m=exRe4.exec(line))) { push(m[1],3,m[2]); pendingName=null; }
     else if(/^[A-Za-z][A-Za-z '()\/&.-]{3,45}$/.test(line)&&line.split(' ').length<=5) pendingName=line;
     else pendingName=null;
   });
