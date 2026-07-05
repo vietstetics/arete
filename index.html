@@ -2706,15 +2706,16 @@ function startCanvas() {
 <script>
 (function(){
   if(!window.Habits) return;
-  try{ Habits.refresh(); }catch(e){}
   var wrap=document.getElementById("dash-habits"); if(!wrap) return;
   var meta=document.getElementById("dash-hab-meta");
-  var active=Habits.byStatus("active").map(function(x){return Habits.summary(x);});
-  if(!active.length){ if(meta) meta.textContent="No active habits yet"; wrap.innerHTML='<a href="habits.html" style="color:var(--vi);font-size:12.5px;font-weight:600">Build your first habit &rarr;</a>'; return; }
-  var done=active.filter(function(a){return a.doneToday;}).length;
-  if(meta) meta.textContent=done+" of "+active.length+" done · "+active[0].stage;
+  var qs;
+  try{ qs=Habits.questsToday(); }catch(e){ return; }
+  if(!qs.length){ if(meta) meta.textContent="No quests yet"; wrap.innerHTML='<a href="habits.html" style="color:var(--vi);font-size:12.5px;font-weight:600">Add your first habit &rarr;</a>'; return; }
+  var done=qs.filter(function(q){return q.doneToday;}).length;
+  var c=Habits.character();
+  if(meta) meta.textContent=done+" of "+qs.length+" quests cleared · Lv "+c.level+" · "+c.xp.toLocaleString()+" XP"+(Habits.perfectToday()?" · perfect day":"");
   var chk='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  wrap.innerHTML=active.map(function(a){return '<div class="task"><div class="chk '+(a.doneToday?"on":"")+'">'+(a.doneToday?chk:"")+'</div><div class="task-body"><div class="task-name '+(a.doneToday?"done":"")+'">'+String(a.name).replace(/</g,"&lt;")+'</div><div class="task-meta"><span class="task-time">Day '+a.day+'/66</span><span class="tc tc-h">'+a.strength+'% '+a.strengthLabel+'</span></div></div></div>';}).join("");
+  wrap.innerHTML=qs.map(function(q){return '<div class="task"><div class="chk '+(q.doneToday?"on":"")+'">'+(q.doneToday?chk:"")+'</div><div class="task-body"><div class="task-name '+(q.doneToday?"done":"")+'">'+String(q.skill.name).replace(/</g,"&lt;")+'</div><div class="task-meta"><span class="task-time">'+q.name+'</span><span class="tc tc-h">'+q.xp.toLocaleString()+' XP · '+(Math.round(q.mult*100)/100)+'&times;</span></div></div></div>';}).join("");
 })();
 </script>
 <script src="js/mobilenav.js" defer></script>
