@@ -350,10 +350,10 @@ textarea{font-family:inherit;resize:none}
 .ci-overlay.ci-hidden{opacity:0;pointer-events:none}
 .ci-overlay.ci-gone{display:none}
 
-/* AI CANVAS */
-#ai-canvas{
-  width:180px;height:180px;flex-shrink:0;
-  filter:drop-shadow(0 0 20px rgba(29,164,98,.22));
+/* COACH MASCOT */
+#ci-mascot{
+  flex-shrink:0;
+  filter:drop-shadow(0 14px 26px rgba(29,164,98,.28));
 }
 .ci-status-lbl{
   font-size:11px;font-weight:500;letter-spacing:.04em;
@@ -1154,8 +1154,8 @@ textarea{font-family:inherit;resize:none}
 <!-- ══ MORNING CHECK-IN OVERLAY ══ -->
 <div id="ci-overlay" class="ci-overlay ci-gone" role="dialog" aria-modal="true" aria-label="Morning Check-In">
 
-  <!-- Opal-Emerald AI Core -->
-  <canvas id="ai-canvas" width="180" height="180" aria-hidden="true"></canvas>
+  <!-- Emerald coach mascot (replaces the abstract AI orb) -->
+  <div id="ci-mascot" aria-hidden="true"></div>
   <div id="ai-status" class="ci-status-lbl"></div>
 
   <!-- Phase: Late-day prompt (opened app after morning window) -->
@@ -2703,6 +2703,8 @@ function startCanvas() {
   mountDashboard({ card: '#step-card-mount', panel: '#step-panel-mount' });
 </script>
 
+<script src="js/mascot.js"></script>
+<script>AreteMascot.mount(document.getElementById('ci-mascot'), 158);</script>
 <script>
 (function(){
   if(!window.Habits) return;
