@@ -932,19 +932,74 @@ async function runVideoOcr(file){
     }
     // Raw frames OCR terribly when text sits on busy footage — Tesseract's
     // global threshold drowns the letters in the background. So each frame
-    // gets a BINARISED pass keyed to how overlays actually look:
-    //  - every frame: bright text with a dark outline (the TikTok default) —
-    //    keep pixels that are bright AND have a dark pixel within 4px.
-    //  - every 3rd frame: the raw frame (colored/gradient text).
-    //  - every 3rd frame: dark text on a light pill (native captions).
-    const bin=(w,h,mask)=>{
-      bCan.width=w; bCan.height=h;
-      const out=bCtx.createImageData(w,h);
-      let ink=0;
-      for(let i=0;i<w*h;i++){ const v=mask(i)?0:255; if(!v) ink++; out.data[i*4]=out.data[i*4+1]=out.data[i*4+2]=v; out.data[i*4+3]=255; }
-      bCtx.putImageData(out,0,0);
-      return ink/(w*h);
+    // gets BINARISED text-extraction passes keyed to how overlays look:
+    //  - bright text near dark (outline/shadow — the TikTok default), and
+    //    dark text near bright (caption pills), every frame;
+    //  - the raw frame every 3rd frame (colored/gradient text).
+    // Seeds are pixels near opposite-luminance context; a constrained grow
+    // then fills thick stroke interiors the seed test alone would hollow out.
+    // Finally the text region is CROPPED and UPSCALED before OCR — real
+    // overlay text is often too small to read at frame scale.
+    const nearPass=(test,w,h,R)=>{
+      const out=new Uint8Array(w*h);
+      for(let y=0;y<h;y++){
+        const row=y*w; let last=-1e9;
+        for(let x=0;x<w;x++){ if(test(row+x)) last=x; if(x-last<=R) out[row+x]=1; }
+        last=1e9;
+        for(let x=w-1;x>=0;x--){ if(test(row+x)) last=x; if(last-x<=R) out[row+x]=1; }
+      }
+      for(let x=0;x<w;x++){
+        let last=-1e9;
+        for(let y=0;y<h;y++){ const i=y*w+x; if(test(i)) last=y; if(y-last<=R) out[i]=1; }
+        last=1e9;
+        for(let y=h-1;y>=0;y--){ const i=y*w+x; if(test(i)) last=y; if(last-y<=R) out[i]=1; }
+      }
+      return out;
     };
+    const grow=(mask,allow,w,h,iters)=>{
+      for(let k=0;k<iters;k++){
+        const nm=new Uint8Array(mask);
+        for(let i=0;i<w*h;i++){
+          if(mask[i]||!allow[i]) continue;
+          const x=i%w;
+          if((x>0&&mask[i-1])||(x<w-1&&mask[i+1])||(i>=w&&mask[i-w])||(i+w<w*h&&mask[i+w])) nm[i]=1;
+        }
+        mask=nm;
+      }
+      return mask;
+    };
+    function textMask(lum,w,h,polarity){
+      const isInk = polarity>0 ? (i=>lum[i]>185) : (i=>lum[i]<75);
+      const isCtx = polarity>0 ? (i=>lum[i]<100) : (i=>lum[i]>165);
+      const R=Math.max(4,Math.round(w/135)); // outline search radius scales with resolution
+      const nearCtx=nearPass(isCtx,w,h,R);
+      const n=w*h, allow=new Uint8Array(n);
+      let mask=new Uint8Array(n), seeds=0;
+      for(let i=0;i<n;i++){ if(isInk(i)){ allow[i]=1; if(nearCtx[i]){ mask[i]=1; seeds++; } } }
+      if(!seeds) return null;
+      mask=grow(mask,allow,w,h,3); // fill thick stroke interiors
+      let minX=w,maxX=0,minY=h,maxY=0,ink=0;
+      for(let i=0;i<n;i++) if(mask[i]){ ink++; const x=i%w,y=(i/w)|0; if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; }
+      const frac=ink/n;
+      if(frac<0.0003||frac>0.35) return null;
+      return {mask,minX,maxX,minY,maxY,frac};
+    }
+    const mCan=document.createElement('canvas'), mCtx=mCan.getContext('2d');
+    function maskToBlob(m,w,h){
+      mCan.width=w; mCan.height=h;
+      const out=mCtx.createImageData(w,h);
+      for(let i=0;i<w*h;i++){ const v=m.mask[i]?0:255; out.data[i*4]=out.data[i*4+1]=out.data[i*4+2]=v; out.data[i*4+3]=255; }
+      mCtx.putImageData(out,0,0);
+      const pad=14;
+      const x0=Math.max(0,m.minX-pad), y0=Math.max(0,m.minY-pad);
+      const bw=Math.min(w-1,m.maxX+pad)-x0+1, bh=Math.min(h-1,m.maxY+pad)-y0+1;
+      const scale=Math.min(3,Math.max(1,1000/bw)); // upscale small text regions for OCR
+      bCan.width=Math.round(bw*scale); bCan.height=Math.round(bh*scale);
+      bCtx.imageSmoothingEnabled=true;
+      bCtx.fillStyle='#fff'; bCtx.fillRect(0,0,bCan.width,bCan.height);
+      bCtx.drawImage(mCan,x0,y0,bw,bh,0,0,bCan.width,bCan.height);
+      return new Promise(r=>bCan.toBlob(r,'image/png'));
+    }
     const toBlob=(c,type,q)=>new Promise(r=>c.toBlob(r,type,q));
     for(let t=Math.min(0.15,dur/2); t<dur && grabbed<MAXF; t+=step){
       if(vidCancelled) break;
@@ -960,23 +1015,23 @@ async function runVideoOcr(file){
       // scale, new text on a moving background dilutes to a tiny mean diff.
       if(prevSig){ let df=0; for(let i=0;i<576;i++) df+=Math.abs(sig[i]-prevSig[i]); if(df/576<0.8){ vidProgress(grabbed,total,found()); continue; } }
       prevSig=sig;
-      const scale=Math.min(1,W/(video.videoWidth||W));
-      const w=Math.round((video.videoWidth||W)*scale), h=Math.round((video.videoHeight||W)*scale);
+      // process at native resolution (cap 1080 wide) — downscaling makes
+      // real overlay text too small for OCR
+      const natW=video.videoWidth||W, natH=video.videoHeight||W;
+      const scale=Math.min(1,1080/natW);
+      const w=Math.round(natW*scale), h=Math.round(natH*scale);
       canvas.width=w; canvas.height=h;
       ctx.drawImage(video,0,0,w,h);
       const d=ctx.getImageData(0,0,w,h).data, n=w*h;
       const lum=new Float32Array(n);
       for(let i=0;i<n;i++) lum[i]=0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2];
-      const R=4, darkAt=i=>lum[i]<90, brightAt=i=>lum[i]>170;
-      const near=(i,test)=>{ const x=i%w, y=(i/w)|0; return (x>=R&&test(i-R))||(x<w-R&&test(i+R))||(y>=R&&test(i-R*w))||(y<h-R&&test(i+R*w)); };
-      // bright text with a dark outline (the TikTok default) — every frame
-      const fracB=bin(w,h,i=>lum[i]>190&&near(i,darkAt));
-      if(trace) trace.push({t:+t.toFixed(2),fracB:+fracB.toFixed(4)});
-      if(fracB>0.0004&&fracB<0.3){ const bl=await toBlob(bCan,'image/png'); if(bl) await dispatch(bl,'bright@'+t.toFixed(1)); }
-      // dark text with a bright surround (caption pills) — every frame; the
-      // bright-neighbour requirement keeps dark footage from counting as ink
-      const fracD=bin(w,h,i=>lum[i]<70&&near(i,brightAt));
-      if(fracD>0.0004&&fracD<0.2){ const bl=await toBlob(bCan,'image/png'); if(bl) await dispatch(bl,'dark@'+t.toFixed(1)); }
+      // bright text near dark (outlines/shadows) — every frame
+      const mB=textMask(lum,w,h,1);
+      if(trace) trace.push({t:+t.toFixed(2),fracB:mB?+mB.frac.toFixed(4):0});
+      if(mB){ const bl=await maskToBlob(mB,w,h); if(bl) await dispatch(bl,'bright@'+t.toFixed(1)); }
+      // dark text near bright (caption pills) — every frame
+      const mD=textMask(lum,w,h,-1);
+      if(mD){ const bl=await maskToBlob(mD,w,h); if(bl) await dispatch(bl,'dark@'+t.toFixed(1)); }
       // raw frame (colored/gradient text) — every 3rd frame
       if(grabbed%3===1){ const bl=await toBlob(canvas,'image/jpeg',0.8); if(bl) await dispatch(bl,'raw@'+t.toFixed(1)); }
       vidProgress(grabbed,total,found());
@@ -1047,7 +1102,10 @@ function ocrParseWorkout(lines){
     let m;
     if(dayRe.test(line)&&line.length<32){
       const nm=line.replace(/[:\-–—]+\s*$/,'').trim().toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase());
-      const existing=days.find(d=>nameSim(d.name,nm)>.85); // same header re-read on a later frame
+      // "PUSH DAY", "PUSH" and "Push day 💪" are the same header re-read on
+      // different frames/passes — normalise away "day" before comparing
+      const dayKey=s=>String(s).toLowerCase().replace(/\bday\b/g,'').replace(/[^a-z0-9]/g,'').replace(/s$/,'');
+      const existing=days.find(d=>dayKey(d.name)===dayKey(nm)||nameSim(d.name,nm)>.85);
       if(existing) cur=existing; else { cur={name:nm,exercises:[]}; days.push(cur); }
       pendingName=null;
     }
