@@ -65,6 +65,16 @@ window.Auth = (() => {
 
   async function signOut() { try { const c = await getClient(); await c.auth.signOut(); } catch {} }
 
+  // ── Social sign-in (Google / Apple / Facebook via Supabase OAuth) ─────────
+  // Full-page redirect to the provider; Supabase handles the token exchange
+  // and lands back on login.html, where detectSessionInUrl picks the session
+  // up and the boot check forwards into the app. Each provider must be
+  // enabled in Supabase → Authentication → Providers.
+  async function signInOAuth(provider) {
+    const c = await getClient();
+    return c.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + '/login.html' } });
+  }
+
   // ── Secure per-user cloud sync of the app's data (all jarvis_* keys) ──────
   const PREFIX = 'jarvis_';
   function snapshot() {
@@ -130,7 +140,7 @@ window.Auth = (() => {
 
   return {
     CFG, isConfigured, getClient, getUser, getSession,
-    signUpEmail, signInEmail, resetPassword, sendPhoneCode, verifyPhoneCode, signOut,
+    signUpEmail, signInEmail, resetPassword, sendPhoneCode, verifyPhoneCode, signOut, signInOAuth,
     localSignUp, localSignIn, localSession, localSignOut, sessionAny, signOutAny,
     pull, push, watch,
   };
