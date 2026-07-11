@@ -92,9 +92,46 @@ window.Auth = (() => {
     localStorage.setItem = function (k, v) { orig(k, v); if (typeof k === 'string' && k.indexOf(PREFIX) === 0) schedulePush(); };
   }
 
+  // ── Device accounts (used until Supabase is configured) ──────────────────
+  // The account wall is mandatory either way. Without cloud config, accounts
+  // live on this device: the password is salted + SHA-256 hashed (never stored
+  // raw) and the session flag unlocks the app. Pasting Supabase creds into CFG
+  // upgrades the same UI to real cloud accounts with sync — no code changes.
+  const ACC_KEY = 'arete_accounts', SES_KEY = 'arete_session';
+  function _accounts() { try { return JSON.parse(localStorage.getItem(ACC_KEY)) || {}; } catch { return {}; } }
+  async function _hash(pw, salt) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pw));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function localSignUp(email, pw) {
+    email = String(email || '').trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Enter a valid email address.');
+    if ((pw || '').length < 8) throw new Error('Password must be at least 8 characters.');
+    const acc = _accounts();
+    if (acc[email]) throw new Error('An account with that email already exists on this device — sign in instead.');
+    const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    acc[email] = { salt, hash: await _hash(pw, salt), createdAt: Date.now() };
+    localStorage.setItem(ACC_KEY, JSON.stringify(acc));
+    localStorage.setItem(SES_KEY, JSON.stringify({ email, at: Date.now() }));
+    return { email };
+  }
+  async function localSignIn(email, pw) {
+    email = String(email || '').trim().toLowerCase();
+    const a = _accounts()[email];
+    if (!a) throw new Error('No account with that email on this device — create one first.');
+    if (await _hash(pw, a.salt) !== a.hash) throw new Error('Wrong password.');
+    localStorage.setItem(SES_KEY, JSON.stringify({ email, at: Date.now() }));
+    return { email };
+  }
+  function localSession() { try { return JSON.parse(localStorage.getItem(SES_KEY)); } catch { return null; } }
+  function localSignOut() { localStorage.removeItem(SES_KEY); }
+  async function sessionAny() { return isConfigured() ? getSession() : localSession(); }
+  async function signOutAny() { if (isConfigured()) await signOut(); localSignOut(); }
+
   return {
     CFG, isConfigured, getClient, getUser, getSession,
     signUpEmail, signInEmail, resetPassword, sendPhoneCode, verifyPhoneCode, signOut,
+    localSignUp, localSignIn, localSession, localSignOut, sessionAny, signOutAny,
     pull, push, watch,
   };
 })();

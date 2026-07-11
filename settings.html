@@ -110,11 +110,13 @@
   function paintSrc() { document.querySelectorAll('#src-opts .opt').forEach(b => b.classList.toggle('on', b.dataset.v === curSrc())); }
   function setSrc(v) { try { localStorage.setItem(SRC_KEY, v); } catch {} paintSrc(); }
   paintSrc();
-  function signOutNow(){ if (window.Auth) Auth.signOut().then(function(){ location.replace('login.html'); }); }
+  function signOutNow(){ if (window.Auth) Auth.signOutAny().then(function(){ location.replace('login.html'); }); }
   (async function(){
-    if (window.Auth && Auth.isConfigured()){
-      try { const u = await Auth.getUser(); if (u){ document.getElementById('account-card').style.display=''; document.getElementById('account-who').textContent = u.email || u.phone || 'Signed in'; } } catch(e){}
-    }
+    if (!window.Auth) return;
+    try {
+      const u = Auth.isConfigured() ? await Auth.getUser() : Auth.localSession();
+      if (u){ document.getElementById('account-card').style.display=''; document.getElementById('account-who').textContent = u.email || u.phone || 'Signed in'; }
+    } catch(e){}
   })();
 </script>
 <script src="js/mobilenav.js" defer></script>

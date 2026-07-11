@@ -111,7 +111,7 @@ function setMode(m){
     : 'Sign in to pick up exactly where you left off.';
   $('pw').setAttribute('autocomplete', m==='signup' ? 'new-password' : 'current-password');
   $('pw-hint').style.display = m==='signup' ? '' : 'none';
-  $('forgot-row').style.display = (m==='signin' && method==='email') ? '' : 'none';
+  $('forgot-row').style.display = (m==='signin' && method==='email' && Auth.isConfigured()) ? '' : 'none';
   $('email-btn').textContent = m==='signup' ? 'Create account' : 'Sign in';
   resetPhone();
 }
@@ -121,13 +121,17 @@ function setMethod(x){
   $('tog-phone').classList.toggle('on', x==='phone');
   $('form-email').style.display = x==='email' ? '' : 'none';
   $('form-phone').style.display = x==='phone' ? '' : 'none';
-  $('forgot-row').style.display = (mode==='signin' && x==='email') ? '' : 'none';
+  $('forgot-row').style.display = (mode==='signin' && x==='email' && Auth.isConfigured()) ? '' : 'none';
   resetPhone();
 }
 function resetPhone(){ codeSent=false; $('code-field').style.display='none'; $('phone-btn').textContent='Send code'; }
 
 function fail(e){ setMsg((e && (e.message || e.error_description)) || 'Something went wrong. Try again.', 'err'); }
-function done(){ setMsg('Signed in — loading your data…','ok'); Auth.pull().catch(()=>{}).finally(()=>{ setTimeout(()=>location.replace('index.html'), 400); }); }
+function done(){
+  if (!Auth.isConfigured()){ setMsg('Welcome to Arete!','ok'); setTimeout(()=>location.replace('index.html'), 350); return; }
+  setMsg('Signed in — loading your data…','ok');
+  Auth.pull().catch(()=>{}).finally(()=>{ setTimeout(()=>location.replace('index.html'), 400); });
+}
 
 async function submitEmail(){
   const email = $('email').value.trim(), pw = $('pw').value;
@@ -135,6 +139,12 @@ async function submitEmail(){
   if (mode==='signup' && pw.length < 8) return setMsg('Password must be at least 8 characters.','err');
   const btn = $('email-btn'); btn.disabled = true; setMsg(mode==='signup'?'Creating your account…':'Signing in…');
   try {
+    if (!Auth.isConfigured()){
+      // Device accounts until cloud sync is configured — same flow, stored on this device.
+      if (mode==='signup') await Auth.localSignUp(email, pw);
+      else await Auth.localSignIn(email, pw);
+      return done();
+    }
     if (mode==='signup'){
       const { data, error } = await Auth.signUpEmail(email, pw);
       if (error) throw error;
@@ -176,12 +186,13 @@ async function forgot(){
 // Boot
 (async function(){
   if (!Auth.isConfigured()){
-    $('config-notice').style.display='';
-    $('config-notice').innerHTML = '<b>Accounts aren’t switched on yet.</b> Add your Supabase URL + anon key in <code>js/auth.js</code> (see native/README.md). Until then the app works locally without an account.';
-    document.querySelectorAll('.btn').forEach(b=>b.disabled=true);
-    return;
+    // Device-account mode: email + password only (SMS and password-reset email
+    // need the cloud backend). The account wall still applies.
+    $('tog').style.display='none';
+    $('forgot-row').style.display='none';
+    document.querySelector('.legal').textContent='Your account and data are stored securely on this device.';
   }
-  const s = await Auth.getSession();
+  const s = await Auth.sessionAny();
   if (s) location.replace('index.html');     // already signed in
 })();
 </script>

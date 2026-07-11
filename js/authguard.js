@@ -1,13 +1,19 @@
 /* ============================================================================
  *  Auth guard — included on every app page (not on login.html).
- *  When accounts are configured (Auth.isConfigured()), this requires a signed-in
- *  session: no session → redirect to login.html. It hides the page until the
- *  check resolves so there's no flash of app content before the redirect, then
- *  pulls the user's cloud data and starts mirroring changes back up.
- *  When NOT configured, it does nothing — the app runs locally as before.
+ *  An account is REQUIRED to use the app.
+ *  - Without Supabase configured: device accounts. The session check is
+ *    synchronous, so there's no flash — no session, straight to login.html.
+ *  - With Supabase configured: requires a signed-in cloud session; hides the
+ *    page until the async check resolves, then pulls the user's cloud data
+ *    and mirrors changes back up.
  * ==========================================================================*/
 (function () {
-  if (!window.Auth || !window.Auth.isConfigured()) return;
+  if (!window.Auth) return;
+
+  if (!window.Auth.isConfigured()) {
+    if (!window.Auth.localSession()) location.replace('login.html');
+    return;
+  }
 
   var hide = document.createElement('style');
   hide.id = '__authhide';
