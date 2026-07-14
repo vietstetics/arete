@@ -31,9 +31,38 @@ window.Wearables = (() => {
       authUrl:  'https://api.prod.whoop.com/oauth/oauth2/auth',
       apiBase:  'https://api.prod.whoop.com/developer/v1',
     },
+    // Oura works for ANY user today: they paste their own Personal Access
+    // Token (cloud.ouraring.com/personal-access-tokens). Oura's API has no
+    // CORS, so requests route through the included proxy (api/oura.js);
+    // the token travels per-request and is never stored server-side.
+    oura: { proxy: '/api/oura' },
+    // Fitbit uses OAuth2 PKCE — a public client with NO secret, so the whole
+    // flow runs in the browser. Register a free app at dev.fitbit.com
+    // (type: Client, redirect = <site>/connections.html), paste the id here.
+    fitbit: {
+      clientId:    '',
+      redirectUri: location.origin + '/connections.html',
+      scope: 'sleep activity heartrate',
+      authUrl:  'https://www.fitbit.com/oauth2/authorize',
+      tokenUrl: 'https://api.fitbit.com/oauth2/token',
+      apiBase:  'https://api.fitbit.com',
+    },
+    // Strava needs a secret for the token exchange → same proxy pattern as
+    // WHOOP (api/strava/token.js + env vars). Free app at strava.com/settings/api.
+    strava: {
+      clientId:    '',
+      redirectUri: location.origin + '/connections.html',
+      tokenProxy:  '/api/strava/token',
+      scope: 'read,activity:read',
+      authUrl: 'https://www.strava.com/oauth/authorize',
+      apiBase: 'https://www.strava.com/api/v3',
+    },
   };
 
   const TOK_KEY = 'jarvis_whoop_token';
+  const OURA_KEY = 'jarvis_oura_token', FITBIT_KEY = 'jarvis_fitbit_token', STRAVA_KEY = 'jarvis_strava_token';
+  const loadJson = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+  const saveJson = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
   const cap = () => (typeof window !== 'undefined' ? window.Capacitor : null);
   const isNativeIOS = () => {
     const c = cap();
@@ -142,21 +171,212 @@ window.Wearables = (() => {
     return s == null ? null : Number(s);
   }
 
-  // Call on page load to finish a WHOOP OAuth redirect (no-op otherwise).
-  async function handleRedirect() {
-    const c = CFG.whoop;
-    if (!c.clientId || !c.tokenProxy) return null;
-    const p = new URLSearchParams(location.search);
-    const code = p.get('code'), state = p.get('state');
-    if (!code || !state || state !== sessionStorage.getItem('whoop_state')) return null;
-    sessionStorage.removeItem('whoop_state');
-    history.replaceState({}, '', location.pathname);           // clean the URL
-    try {
-      const r = await fetch(c.tokenProxy, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, redirect_uri: c.redirectUri }) });
-      const tok = await r.json();
-      if (tok && tok.access_token) { saveTok(tok); return { ok: true }; }
+  // ── Oura via personal access token (works for any user, no app registration)
+  async function ouraGet(path, params) {
+    const tok = (localStorage.getItem(OURA_KEY) || '').trim();
+    if (!tok) throw new Error('no oura token');
+    const qs = new URLSearchParams(Object.assign({ path }, params || {}));
+    const r = await fetch(CFG.oura.proxy + '?' + qs, { headers: { 'X-Oura-Token': tok } });
+    if (!r.ok) throw new Error('oura ' + r.status);
+    return r.json();
+  }
+  async function connectOura(token) {
+    if (token) {
+      localStorage.setItem(OURA_KEY, token.trim());
+      try { await ouraGet('/v2/usercollection/personal_info'); }
+      catch (e) {
+        localStorage.removeItem(OURA_KEY);
+        return { ok: false, reason: 'That token didn’t work — copy it again from cloud.ouraring.com and retry.' };
+      }
+      return { ok: true, source: 'oura', detail: 'Connected to Oura' };
+    }
+    if ((localStorage.getItem(OURA_KEY) || '').trim()) return { ok: true, source: 'oura' };
+    return { ok: false, needsToken: true, reason: 'Paste your Oura personal access token to connect.' };
+  }
+  async function statsOura() {
+    if (!(localStorage.getItem(OURA_KEY) || '').trim()) return null;
+    const today = localDateStr(), yest = localDateStr(new Date(Date.now() - 86400e3));
+    const out = {};
+    try { // readiness score → same slot as WHOOP recovery
+      const j = await ouraGet('/v2/usercollection/daily_readiness', { start_date: yest, end_date: today });
+      const rec = j.data && j.data[j.data.length - 1];
+      if (rec && rec.score != null) out.recovery = Math.round(rec.score);
     } catch {}
-    return { ok: false };
+    try { // sleep sessions carry duration + HRV + lowest HR
+      const j = await ouraGet('/v2/usercollection/sleep', { start_date: yest, end_date: today });
+      const s = (j.data || []).filter(x => (x.total_sleep_duration || 0) > 3 * 3600).pop() || (j.data || []).pop();
+      if (s) {
+        if (s.total_sleep_duration) out.sleepH = Math.round(s.total_sleep_duration / 360) / 10;
+        if (s.average_hrv != null) out.hrv = Math.round(s.average_hrv);
+        if (s.lowest_heart_rate != null) out.rhr = Math.round(s.lowest_heart_rate);
+      }
+    } catch {}
+    try {
+      const j = await ouraGet('/v2/usercollection/daily_activity', { start_date: today, end_date: today });
+      const a = j.data && j.data[j.data.length - 1];
+      if (a && a.steps != null) out.steps = Math.round(a.steps);
+    } catch {}
+    return Object.keys(out).length ? out : null;
+  }
+
+  // ── Fitbit via OAuth2 PKCE (public client — no secret, all in the browser) ─
+  const b64url = (bytes) => btoa(String.fromCharCode.apply(null, bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  async function connectFitbit() {
+    const c = CFG.fitbit;
+    if (!c.clientId) return { ok: false, reason: 'Fitbit sign-in isn’t switched on for this app yet.' };
+    if (loadJson(FITBIT_KEY)) return { ok: true, source: 'fitbit' };
+    const verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+    const challenge = b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
+    const state = 'fb_' + Math.random().toString(36).slice(2);
+    sessionStorage.setItem('fb_verifier', verifier);
+    sessionStorage.setItem('fb_state', state);
+    const u = new URL(c.authUrl);
+    u.searchParams.set('client_id', c.clientId);
+    u.searchParams.set('response_type', 'code');
+    u.searchParams.set('code_challenge', challenge);
+    u.searchParams.set('code_challenge_method', 'S256');
+    u.searchParams.set('scope', c.scope);
+    u.searchParams.set('state', state);
+    u.searchParams.set('redirect_uri', c.redirectUri);
+    location.href = u.toString();
+    return { ok: false, pending: true, reason: 'Redirecting to Fitbit…' };
+  }
+  async function fitbitToken() {
+    const c = CFG.fitbit;
+    let tok = loadJson(FITBIT_KEY);
+    if (!tok) return null;
+    if (Date.now() > (tok._at || 0) + ((tok.expires_in || 28800) - 90) * 1000 && tok.refresh_token) {
+      try {
+        const body = new URLSearchParams({ client_id: c.clientId, grant_type: 'refresh_token', refresh_token: tok.refresh_token });
+        const r = await fetch(c.tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        const j = await r.json();
+        if (j && j.access_token) { j._at = Date.now(); saveJson(FITBIT_KEY, j); tok = j; }
+      } catch {}
+    }
+    return tok;
+  }
+  async function fitbitGet(path) {
+    const tok = await fitbitToken();
+    if (!tok) throw new Error('no fitbit token');
+    const r = await fetch(CFG.fitbit.apiBase + path, { headers: { Authorization: 'Bearer ' + tok.access_token } });
+    if (!r.ok) throw new Error('fitbit ' + r.status);
+    return r.json();
+  }
+  async function statsFitbit() {
+    if (!loadJson(FITBIT_KEY)) return null;
+    const out = {};
+    try { const j = await fitbitGet('/1.2/user/-/sleep/date/today.json');
+      const m = j.summary && j.summary.totalMinutesAsleep; if (m) out.sleepH = Math.round(m / 6) / 10; } catch {}
+    try { const j = await fitbitGet('/1/user/-/activities/date/today.json');
+      const s = j.summary && j.summary.steps; if (s != null) out.steps = Math.round(s);
+      const r = j.summary && j.summary.restingHeartRate; if (r != null) out.rhr = Math.round(r); } catch {}
+    try { const j = await fitbitGet('/1/user/-/hrv/date/today.json');
+      const v = j.hrv && j.hrv[0] && j.hrv[0].value && j.hrv[0].value.dailyRmssd; if (v != null) out.hrv = Math.round(v); } catch {}
+    return Object.keys(out).length ? out : null;
+  }
+
+  // ── Strava via OAuth (token exchange through api/strava/token.js) ─────────
+  async function connectStrava() {
+    const c = CFG.strava;
+    if (!c.clientId) return { ok: false, reason: 'Strava sign-in isn’t switched on for this app yet.' };
+    if (loadJson(STRAVA_KEY)) return { ok: true, source: 'strava' };
+    const state = 'st_' + Math.random().toString(36).slice(2);
+    sessionStorage.setItem('st_state', state);
+    const u = new URL(c.authUrl);
+    u.searchParams.set('client_id', c.clientId);
+    u.searchParams.set('redirect_uri', c.redirectUri);
+    u.searchParams.set('response_type', 'code');
+    u.searchParams.set('approval_prompt', 'auto');
+    u.searchParams.set('scope', c.scope);
+    u.searchParams.set('state', state);
+    location.href = u.toString();
+    return { ok: false, pending: true, reason: 'Redirecting to Strava…' };
+  }
+  async function statsStrava() {
+    const tok = loadJson(STRAVA_KEY);
+    if (!tok) return null;
+    try {
+      const r = await fetch(CFG.strava.apiBase + '/athlete/activities?per_page=1', { headers: { Authorization: 'Bearer ' + tok.access_token } });
+      if (!r.ok) return null;
+      const a = (await r.json())[0];
+      return a ? { last: a.name + ' · ' + new Date(a.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) } : null;
+    } catch { return null; }
+  }
+
+  // ── Bluetooth heart-rate monitors (Polar / Garmin / Wahoo straps…) ────────
+  // Standard BLE heart_rate service — works right now in Chrome/Edge/Android,
+  // no account or API key. Streams live bpm into the hub.
+  let bleDevice = null;
+  async function connectBle() {
+    if (!navigator.bluetooth) return { ok: false, reason: 'Bluetooth isn’t available in this browser — use Chrome on desktop or Android.' };
+    try {
+      const dev = await navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
+      const server = await dev.gatt.connect();
+      const svc = await server.getPrimaryService('heart_rate');
+      const ch = await svc.getCharacteristic('heart_rate_measurement');
+      await ch.startNotifications();
+      ch.addEventListener('characteristicvaluechanged', (e) => {
+        const dv = e.target.value;
+        const bpm = (dv.getUint8(0) & 1) ? dv.getUint16(1, true) : dv.getUint8(1);
+        cacheStats('ble', { hr: bpm });
+        try { window.dispatchEvent(new CustomEvent('arete-hr', { detail: { bpm } })); } catch {}
+      });
+      dev.addEventListener('gattserverdisconnected', () => {
+        bleDevice = null;
+        try { window.dispatchEvent(new CustomEvent('arete-hr', { detail: { bpm: null } })); } catch {}
+      });
+      bleDevice = dev;
+      return { ok: true, source: 'ble', detail: 'Connected — live heart rate streaming' };
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') return { ok: false, reason: 'No device selected.' };
+      return { ok: false, reason: 'Couldn’t connect — make sure the strap is worn and broadcasting.' };
+    }
+  }
+
+  // Call on page load to finish an OAuth redirect (WHOOP / Fitbit / Strava).
+  // Returns { ok, provider } when a connection just completed.
+  async function handleRedirect() {
+    const p = new URLSearchParams(location.search);
+    const code = p.get('code'), state = p.get('state') || '';
+    if (!code || !state) return null;
+
+    if (state.indexOf('fb_') === 0 && state === sessionStorage.getItem('fb_state')) {
+      sessionStorage.removeItem('fb_state');
+      history.replaceState({}, '', location.pathname);
+      try {
+        const body = new URLSearchParams({
+          client_id: CFG.fitbit.clientId, grant_type: 'authorization_code',
+          code, code_verifier: sessionStorage.getItem('fb_verifier') || '', redirect_uri: CFG.fitbit.redirectUri,
+        });
+        const r = await fetch(CFG.fitbit.tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        const tok = await r.json();
+        if (tok && tok.access_token) { tok._at = Date.now(); saveJson(FITBIT_KEY, tok); return { ok: true, provider: 'fitbit' }; }
+      } catch {}
+      return { ok: false, provider: 'fitbit' };
+    }
+
+    if (state.indexOf('st_') === 0 && state === sessionStorage.getItem('st_state')) {
+      sessionStorage.removeItem('st_state');
+      history.replaceState({}, '', location.pathname);
+      try {
+        const r = await fetch(CFG.strava.tokenProxy, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+        const tok = await r.json();
+        if (tok && tok.access_token) { saveJson(STRAVA_KEY, tok); return { ok: true, provider: 'strava' }; }
+      } catch {}
+      return { ok: false, provider: 'strava' };
+    }
+
+    if (CFG.whoop.clientId && CFG.whoop.tokenProxy && state === sessionStorage.getItem('whoop_state')) {
+      sessionStorage.removeItem('whoop_state');
+      history.replaceState({}, '', location.pathname);
+      try {
+        const r = await fetch(CFG.whoop.tokenProxy, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, redirect_uri: CFG.whoop.redirectUri }) });
+        const tok = await r.json();
+        if (tok && tok.access_token) { saveTok(tok); return { ok: true, provider: 'whoop' }; }
+      } catch {}
+      return { ok: false, provider: 'whoop' };
+    }
+    return null;
   }
 
   const isNativeAndroid = () => {
@@ -177,14 +397,17 @@ window.Wearables = (() => {
     { id: 'whoop',  name: 'WHOOP',         group: 'Wearables',   method: 'WHOOP API (OAuth)', color: '#0B0B0B',
       blurb: 'Recovery, strain, sleep performance, HRV & resting heart rate.',
       provides: ['Recovery', 'Sleep', 'HRV', 'Resting HR'] },
-    { id: 'oura',   name: 'Oura Ring',     group: 'Wearables',   method: 'Oura API (OAuth)', color: '#46469B',
-      blurb: 'Readiness, sleep stages, HRV & body temperature.',
-      provides: ['Readiness', 'Sleep', 'HRV'] },
+    { id: 'oura',   name: 'Oura Ring',     group: 'Wearables',   method: 'Personal token — works now', color: '#46469B',
+      blurb: 'Readiness, sleep, HRV, resting heart rate & steps — connect in one minute with your own Oura token.',
+      provides: ['Readiness', 'Sleep', 'HRV', 'Resting HR', 'Steps'] },
+    { id: 'ble',    name: 'Heart Rate Monitor', group: 'Wearables', method: 'Bluetooth — works now', color: '#E11D48',
+      blurb: 'Any Bluetooth chest strap or armband — Polar, Garmin, Wahoo, CooSpo — streams live heart rate. No account needed.',
+      provides: ['Live heart rate'] },
     { id: 'fitbit', name: 'Fitbit',        group: 'Wearables',   method: 'Fitbit API (OAuth)', color: '#00B0B9',
-      blurb: 'Sleep, steps, heart rate & HRV.',
-      provides: ['Sleep', 'Steps', 'Heart rate'] },
-    { id: 'garmin', name: 'Garmin',        group: 'Wearables',   method: 'Garmin Health API', color: '#007CC3',
-      blurb: 'Sleep, HRV, Body Battery, steps & activities.',
+      blurb: 'Sleep, steps, resting heart rate & HRV.',
+      provides: ['Sleep', 'Steps', 'Resting HR', 'HRV'] },
+    { id: 'garmin', name: 'Garmin',        group: 'Wearables',   method: 'Via Apple Health / Health Connect', color: '#007CC3',
+      blurb: 'Garmin’s API is partner-only — sync your Garmin through Apple Health (iOS) or Health Connect (Android) and it flows in from there.',
       provides: ['Sleep', 'HRV', 'Steps'] },
     { id: 'healthconnect', name: 'Health Connect', group: 'Phone health', method: 'Android app', color: '#3DDC84',
       blurb: 'Android’s health hub — steps, sleep & heart rate from any synced app.',
@@ -197,9 +420,10 @@ window.Wearables = (() => {
   const HOW = {
     apple:        'Grant Apple Health access in the iOS app',
     whoop:        'Sign in with your WHOOP account',
-    oura:         'Sign in with your Oura account',
+    oura:         'Paste your Oura token — takes a minute',
+    ble:          'Pair over Bluetooth — no account needed',
     fitbit:       'Sign in with your Fitbit account',
-    garmin:       'Sign in with Garmin Connect',
+    garmin:       'Syncs via Apple Health / Health Connect',
     healthconnect:'Allow Health Connect in the Android app',
     strava:       'Sign in with your Strava account',
   };
@@ -212,6 +436,7 @@ window.Wearables = (() => {
     if (getConnections()[id]) return 'connected';
     if (availableProvider(id)) return 'ready';
     if (id === 'apple' || id === 'healthconnect') return 'app';
+    if (id === 'garmin') return 'via';   // partner-only API — flows in through the phone health hubs
     return 'soon';
   }
 
@@ -221,7 +446,7 @@ window.Wearables = (() => {
     sleepH:   ['oura', 'whoop', 'apple', 'fitbit', 'healthconnect'],
     hrv:      ['whoop', 'oura', 'apple', 'fitbit'],
     rhr:      ['whoop', 'oura', 'apple', 'fitbit'],
-    steps:    ['apple', 'healthconnect', 'fitbit', 'garmin'],
+    steps:    ['apple', 'healthconnect', 'oura', 'fitbit', 'garmin'],
   };
 
   // ── Per-source stat readers (real for apple/whoop) ───────────────────────
@@ -268,6 +493,10 @@ window.Wearables = (() => {
     let s = null;
     if (id === 'apple') s = await statsApple();
     else if (id === 'whoop') s = await statsWhoop();
+    else if (id === 'oura') s = await statsOura();
+    else if (id === 'fitbit') s = await statsFitbit();
+    else if (id === 'strava') s = await statsStrava();
+    else if (id === 'ble') s = (getStatsCache().ble || null);
     if (s) { cacheStats(id, s); applyBestToData(); }
     return s;
   }
@@ -363,14 +592,19 @@ window.Wearables = (() => {
     return { ok: false, reason: 'Health Connect isn’t wired into this build yet — see native/README.md.' };
   }
   function providerNeeds(kind) {
+    if (kind === 'garmin') return 'Garmin doesn’t offer individual API access — sync your Garmin to Apple Health (iOS) or Health Connect (Android) and connect that here instead.';
     const p = PROVIDERS.find(x => x.id === kind);
-    return p ? `${p.name} sign-in is coming soon — you'll connect it in one tap with your ${p.name} account.` : 'Unknown device.';
+    return p ? `${p.name} sign-in isn’t switched on for this app yet.` : 'Unknown device.';
   }
 
-  async function connect(kind) {
+  async function connect(kind, arg) {
     let res;
     if (kind === 'apple') res = await connectApple();
     else if (kind === 'whoop') res = await connectWhoop();
+    else if (kind === 'oura') res = await connectOura(arg);
+    else if (kind === 'fitbit') res = await connectFitbit();
+    else if (kind === 'strava') res = await connectStrava();
+    else if (kind === 'ble') res = await connectBle();
     else if (kind === 'healthconnect') res = await connectHealthConnect();
     else res = { ok: false, reason: providerNeeds(kind) };
     if (res && res.ok) { setConnected(kind, true); latestStats(kind); }
@@ -380,8 +614,12 @@ window.Wearables = (() => {
   function availableProvider(id) {
     if (id === 'apple') return isNativeIOS();
     if (id === 'whoop') return !!CFG.whoop.clientId;
+    if (id === 'oura') return true;                          // any user's own token
+    if (id === 'ble') return !!navigator.bluetooth;          // Chrome / Edge / Android
+    if (id === 'fitbit') return !!CFG.fitbit.clientId;
+    if (id === 'strava') return !!CFG.strava.clientId;
     if (id === 'healthconnect') return isNativeAndroid();
-    return false;   // OAuth providers need credentials wired in first
+    return false;
   }
 
   return {

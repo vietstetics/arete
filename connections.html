@@ -111,12 +111,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 <main class="main">
 <div class="pg">
   <div class="ph-title">Connections</div>
-  <div class="ph-sub">Connect your trackers so JARVIS reads from the source — sleep, recovery, HRV, heart rate and steps — and always shows the most accurate number when more than one device agrees.</div>
+  <div class="ph-sub">Connect your trackers so Arete reads from the source — sleep, recovery, HRV, heart rate and steps — and always shows the most accurate number when more than one device agrees.</div>
 
   <div class="card read">
     <div class="read-note">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      <span><b>Connect once, sync forever.</b> Tap <b>Connect</b> and sign in to your tracker — JARVIS then keeps your <b>Daily Readiness</b>, <b>Energy Intelligence</b> and <b>step totals</b> in sync, automatically trusting the most accurate device when several agree. Apple Watch and Health Connect link from inside the phone app.</span>
+      <span><b>Connect once, sync forever.</b> Tap <b>Connect</b> and sign in to your tracker — Arete then keeps your <b>Daily Readiness</b>, <b>Energy Intelligence</b> and <b>step totals</b> in sync, automatically trusting the most accurate device when several agree. Apple Watch and Health Connect link from inside the phone app.</span>
     </div>
   </div>
 
@@ -125,6 +125,26 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 </main>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- Oura personal-token entry -->
+<div id="oura-mb" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;align-items:center;justify-content:center;padding:18px" onclick="if(event.target===this)closeOura()">
+  <div style="background:#fff;border-radius:18px;box-shadow:var(--sh1);width:440px;max-width:100%;padding:22px">
+    <div style="font-size:16px;font-weight:800;margin-bottom:6px">Connect your Oura Ring</div>
+    <div style="font-size:12.5px;color:var(--t2);line-height:1.6;margin-bottom:14px">
+      1. Open <b>cloud.ouraring.com/personal-access-tokens</b> (sign in with your Oura account)<br>
+      2. Tap <b>Create New Personal Access Token</b><br>
+      3. Copy it and paste it below — takes about a minute, works immediately.
+    </div>
+    <input id="oura-in" type="password" placeholder="Paste your Oura token…" autocomplete="off" spellcheck="false"
+      style="width:100%;padding:12px 13px;border-radius:11px;border:1px solid var(--bd);font-size:13.5px;outline:none;margin-bottom:8px">
+    <div id="oura-err" style="font-size:12px;color:var(--re);min-height:16px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-d" style="flex:1" onclick="closeOura()">Cancel</button>
+      <button class="btn btn-c" style="flex:2;--pc:#46469B" id="oura-save" onclick="saveOura()">Connect</button>
+    </div>
+    <div style="font-size:11px;color:var(--t3);line-height:1.5;margin-top:10px">Your token stays in this browser and is only used to fetch your own Oura data.</div>
+  </div>
+</div>
 
 <script src="js/wearables.js"></script>
 <script>
@@ -142,11 +162,13 @@ function statLine(stats){
   if (stats.hrv!=null)      bits.push(`<div class="cs"><b>${stats.hrv}</b>HRV ms</div>`);
   if (stats.rhr!=null)      bits.push(`<div class="cs"><b>${stats.rhr}</b>Resting HR</div>`);
   if (stats.steps!=null)    bits.push(`<div class="cs"><b>${Math.round(stats.steps).toLocaleString()}</b>Steps</div>`);
+  if (stats.hr!=null)       bits.push(`<div class="cs"><b id="live-hr">${stats.hr}</b>Live HR</div>`);
+  if (stats.last)           bits.push(`<div class="cs"><b>${esc(stats.last)}</b>Last activity</div>`);
   return bits.length ? `<div class="conn-stats">${bits.join('')}</div>` : '';
 }
 
-const ORDER = { connected:0, ready:1, app:2, soon:3 };
-const BADGE = { connected:['on','Connected'], ready:['av','Ready'], app:['setup','In the app'], soon:['setup','Coming soon'] };
+const ORDER = { connected:0, ready:1, app:2, via:3, soon:4 };
+const BADGE = { connected:['on','Connected'], ready:['av','Ready'], app:['setup','In the app'], via:['setup','Via phone health'], soon:['setup','Coming soon'] };
 
 function render(){
   const cache = W.getStatsCache();
@@ -160,7 +182,7 @@ function render(){
         let action;
         if (st==='connected') action = `<button class="btn btn-d" onclick="disconnect('${p.id}')">Disconnect</button>`;
         else if (st==='ready') action = `<button class="btn btn-c" onclick="connectOne('${p.id}')">Connect</button>`;
-        else action = `<button class="btn btn-d" onclick="connectOne('${p.id}')">${st==='app'?'Open in app':'Coming soon'}</button>`;
+        else action = `<button class="btn btn-d" onclick="connectOne('${p.id}')">${st==='app'?'Open in app':(st==='via'?'How it syncs':'Coming soon')}</button>`;
         return `<div class="card conn" style="--pc:${p.color}">
           <div class="conn-top">
             <div class="conn-logo">${initials(p.name)}</div>
@@ -178,19 +200,49 @@ function render(){
   }).join('');
 }
 
-async function connectOne(id){
+async function connectOne(id, arg){
   const msg = document.getElementById('msg-'+id);
   if (msg) msg.textContent = 'Connecting…';
   let res;
-  try { res = await W.connect(id); } catch(e){ res = { ok:false, reason:'Connection failed.' }; }
+  try { res = await W.connect(id, arg); } catch(e){ res = { ok:false, reason:'Connection failed.' }; }
   if (res && res.pending) return;           // OAuth redirect in flight
+  if (res && res.needsToken){ if (msg) msg.textContent=''; openOura(); return; }
   if (res && res.ok){ toast(pname(id)+' connected'); try{ await W.latestStats(id); }catch{} render(); return; }
   if (msg) msg.textContent = res && res.reason || 'Not available.';
   toast(res && res.reason || 'Not available');
 }
 function disconnect(id){ W.setConnected(id, false); toast(pname(id)+' disconnected'); render(); }
 
-if (W && W.handleRedirect) W.handleRedirect();
+// ── Oura token entry ──
+function openOura(){ document.getElementById('oura-mb').style.display='flex'; setTimeout(()=>document.getElementById('oura-in').focus(),60); }
+function closeOura(){ document.getElementById('oura-mb').style.display='none'; }
+async function saveOura(){
+  const v = document.getElementById('oura-in').value.trim();
+  if (!v){ document.getElementById('oura-err').textContent='Paste the token first.'; return; }
+  const btn = document.getElementById('oura-save'); btn.disabled=true; btn.textContent='Checking…';
+  const res = await W.connect('oura', v);
+  btn.disabled=false; btn.textContent='Connect';
+  if (res && res.ok){ closeOura(); toast('Oura Ring connected'); try{ await W.latestStats('oura'); }catch{} render(); }
+  else document.getElementById('oura-err').textContent = (res && res.reason) || 'That token didn’t work.';
+}
+
+// Live heart rate from a Bluetooth strap → update the card as beats arrive.
+window.addEventListener('arete-hr', (e)=>{
+  const el = document.getElementById('live-hr');
+  if (el && e.detail && e.detail.bpm != null) el.textContent = e.detail.bpm;
+  else render();
+});
+
+// Finish an OAuth return (Fitbit / Strava / WHOOP land back here with ?code=…)
+if (W && W.handleRedirect) W.handleRedirect().then(r => {
+  if (r && r.ok && r.provider){
+    W.setConnected(r.provider, true);
+    toast(pname(r.provider)+' connected');
+    W.latestStats(r.provider).then(()=>render()).catch(()=>render());
+  } else if (r && !r.ok && r.provider){
+    toast('Couldn’t finish connecting '+pname(r.provider)+' — try again.');
+  }
+});
 render();
 
 // Re-sync already-connected sources on load so their latest readings flow
