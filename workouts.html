@@ -979,14 +979,19 @@ async function runVideoOcr(file){
   vidCancelled=false; renderVidProgress();
   await loadTesseract();
   // A pool of OCR workers so dense sampling stays fast. The first one warms
-  // the language-data cache; the rest then load instantly from it.
-  const N=Math.min(4,Math.max(2,(navigator.hardwareConcurrency||4)-1));
+  // the language-data cache; the rest then load instantly from it. Phones get
+  // 2 workers — more risks the mobile browser killing the tab on memory.
+  const isMobileUA=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const N=isMobileUA?2:Math.min(4,Math.max(2,(navigator.hardwareConcurrency||4)-1));
   const workers=[await Tesseract.createWorker('eng')];
   workers.push(...await Promise.all(Array.from({length:N-1},()=>Tesseract.createWorker('eng'))));
   const src=URL.createObjectURL(file);
   try{
     const video=document.createElement('video');
-    video.muted=true; video.playsInline=true; video.preload='auto'; video.src=src;
+    video.muted=true; video.playsInline=true; video.preload='auto';
+    video.setAttribute('muted','');            // iOS needs the attribute too
+    video.setAttribute('playsinline','');
+    video.src=src;
     await new Promise((res,rej)=>{ video.onloadedmetadata=res; video.onerror=()=>rej(new Error('your browser can’t decode this video format')); });
     if(!isFinite(video.duration)){ // MediaRecorder blobs report Infinity until seeked far
       await seekTo(video,1e9); video.currentTime=0;
@@ -1015,9 +1020,10 @@ async function runVideoOcr(file){
       });
     };
     const idle=[...workers], active=new Set();
+    let jobs=0;
     async function dispatch(blob,tag){
       while(!idle.length) await Promise.race(active);
-      const w=idle.pop();
+      const w=idle.pop(); jobs++;
       const p=w.recognize(blob)
         .then(({data})=>takeText(data.text,tag))
         .catch(()=>{})
@@ -1095,19 +1101,19 @@ async function runVideoOcr(file){
       return new Promise(r=>bCan.toBlob(r,'image/png'));
     }
     const toBlob=(c,type,q)=>new Promise(r=>c.toBlob(r,type,q));
-    for(let t=Math.min(0.15,dur/2); t<dur && grabbed<MAXF; t+=step){
-      if(vidCancelled) break;
-      await seekTo(video,t);
+
+    // One sampled frame → text-extraction jobs. `t` is the video timestamp.
+    let blankFrames=0;
+    async function processFrameAt(t){
       grabbed++;
       // cheap 24px signature — skip frames identical to the previous one
       tCtx.drawImage(video,0,0,24,24);
       const px=tCtx.getImageData(0,0,24,24).data;
       const sig=new Uint8Array(576);
-      for(let i=0;i<576;i++) sig[i]=(px[i*4]+px[i*4+1]+px[i*4+2])/3;
-      // Skip only true freeze-frames (near-zero diff). Anything higher risks
-      // dropping frames where brief overlay text just appeared — at thumbnail
-      // scale, new text on a moving background dilutes to a tiny mean diff.
-      if(prevSig){ let df=0; for(let i=0;i<576;i++) df+=Math.abs(sig[i]-prevSig[i]); if(df/576<0.8){ vidProgress(grabbed,total,found()); continue; } }
+      let sum=0;
+      for(let i=0;i<576;i++){ sig[i]=(px[i*4]+px[i*4+1]+px[i*4+2])/3; sum+=sig[i]; }
+      if(sum/576<2) blankFrames++;   // near-black frame: decoder gave us nothing
+      if(prevSig){ let df=0; for(let i=0;i<576;i++) df+=Math.abs(sig[i]-prevSig[i]); if(df/576<0.8){ vidProgress(grabbed,total,found()); return; } }
       prevSig=sig;
       // process at native resolution (cap 1080 wide) — downscaling makes
       // real overlay text too small for OCR
@@ -1119,17 +1125,63 @@ async function runVideoOcr(file){
       const d=ctx.getImageData(0,0,w,h).data, n=w*h;
       const lum=new Float32Array(n);
       for(let i=0;i<n;i++) lum[i]=0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2];
-      // bright text near dark (outlines/shadows) — every frame
-      const mB=textMask(lum,w,h,1);
+      const mB=textMask(lum,w,h,1);   // bright text near dark (outlines/shadows)
       if(trace) trace.push({t:+t.toFixed(2),fracB:mB?+mB.frac.toFixed(4):0});
       if(mB){ const bl=await maskToBlob(mB,w,h); if(bl) await dispatch(bl,'bright@'+t.toFixed(1)); }
-      // dark text near bright (caption pills) — every frame
-      const mD=textMask(lum,w,h,-1);
+      const mD=textMask(lum,w,h,-1);  // dark text near bright (caption pills)
       if(mD){ const bl=await maskToBlob(mD,w,h); if(bl) await dispatch(bl,'dark@'+t.toFixed(1)); }
-      // raw frame (colored/gradient text) — every 3rd frame
       if(grabbed%3===1){ const bl=await toBlob(canvas,'image/jpeg',0.8); if(bl) await dispatch(bl,'raw@'+t.toFixed(1)); }
       vidProgress(grabbed,total,found());
     }
+
+    // Frame capture. Primary path: PLAY the video (muted, inline, 2×) and
+    // sample via requestVideoFrameCallback — seeking a never-played video
+    // draws BLANK frames on iOS Safari, which is exactly the 'no text found'
+    // failure on iPhones. Playback-based capture renders real frames on
+    // every platform. Fallback for old browsers: the seek loop.
+    if(typeof video.requestVideoFrameCallback==='function'){
+      video.playbackRate=2;
+      await new Promise((resolve)=>{
+        let nextT=Math.min(0.15,dur/2), busy=false, done=false, stall=null;
+        const finish=()=>{ if(done) return; done=true; clearTimeout(stall); resolve(); };
+        const arm=()=>{ clearTimeout(stall); stall=setTimeout(finish,10000); }; // never hang
+        video.addEventListener('ended',()=>{ if(!busy) finish(); });
+        const loop=(_now,meta)=>{
+          if(done) return;
+          if(vidCancelled||grabbed>=MAXF){ finish(); return; }
+          arm();
+          const mt=(meta&&meta.mediaTime)||video.currentTime;
+          if(!busy && mt>=nextT){
+            busy=true; video.pause();
+            processFrameAt(mt).catch(()=>{}).then(()=>{
+              nextT=mt+step; busy=false;
+              if(vidCancelled||grabbed>=MAXF||video.ended||mt>=dur-0.2){ finish(); return; }
+              video.play().catch(finish);
+              video.requestVideoFrameCallback(loop);
+            });
+            return;
+          }
+          video.requestVideoFrameCallback(loop);
+        };
+        arm();
+        video.requestVideoFrameCallback(loop);
+        video.play().catch(()=>{ // playback refused → fall back to seeking
+          (async()=>{
+            for(let t=Math.min(0.15,dur/2); t<dur && grabbed<MAXF && !vidCancelled; t+=step){
+              await seekTo(video,t); await processFrameAt(t);
+            }
+            finish();
+          })().catch(finish);
+        });
+      });
+    } else {
+      for(let t=Math.min(0.15,dur/2); t<dur && grabbed<MAXF && !vidCancelled; t+=step){
+        await seekTo(video,t);
+        await processFrameAt(t);
+      }
+    }
+    try{ video.pause(); }catch(e){}
+
     const stEl=document.getElementById('vp-status'); if(stEl) stEl.textContent='Finishing the last frames…';
     await Promise.all([...active]);
     if(vidCancelled) throw new Error('cancelled');
@@ -1137,9 +1189,10 @@ async function runVideoOcr(file){
     const parsed=ocrParseWorkout(lines);
     if(!parsed.days.length){
       renderVidInput();
-      vidErrHtml(lines.length
+      const diag=` <span style="color:var(--t3)">(${grabbed} frames scanned, ${jobs} text passes${blankFrames>grabbed/2?', frames came back blank — try Chrome':''})</span>`;
+      vidErrHtml((lines.length
         ? 'I read text in the video but couldn’t recognise a workout in it. <a href="#" onclick="vidShowRead();return false" style="color:var(--vi);font-weight:600">Show what I read</a> — or paste the caption below and try again.'
-        : 'No readable text found in the video frames. If the workout is only spoken (no on-screen text), paste the caption instead.');
+        : 'No readable text found in the video frames. If the workout is only spoken (no on-screen text), paste the caption instead.')+diag);
       return;
     }
     parsed.programName=(file.name||'').replace(/\.[^.]+$/,'').slice(0,40)||'From video';
@@ -1186,9 +1239,13 @@ function ocrParseWorkout(lines){
   const srOnly=/^(\d{1,2})\s*[xX×]\s*(\d{1,3}(?:\s*[-–]\s*\d{1,3})?)(?:\s*(?:reps?|ea(?:ch)?|per\s*side))?$/;
   const push=(name,sets,reps)=>{
     name=snapName(name); if(!name) return;
+    reps=String(reps).replace(/\s/g,'')||'8-12'; sets=Math.min(10,+sets||3);
+    // the same overlay gets re-read on several frames/passes with OCR noise —
+    // treat a similar name with the same scheme anywhere as a duplicate
+    if(days.some(d=>d.exercises.some(e=>nameSim(e.name,name)>.8&&e.sets===sets&&e.reps===reps))) return;
     if(!cur){ cur={name:'Workout',exercises:[]}; days.push(cur); }
-    if(cur.exercises.some(e=>nameSim(e.name,name)>.9)) return; // seen on an earlier frame
-    cur.exercises.push({name,sets:Math.min(10,+sets||3),reps:String(reps).replace(/\s/g,'')||'8-12'});
+    if(cur.exercises.some(e=>nameSim(e.name,name)>.9)) return;
+    cur.exercises.push({name,sets,reps});
   };
   lines.forEach(line=>{
     line=line.replace(/[#@]\S+/g,'').replace(/\s+/g,' ').trim();
@@ -1210,6 +1267,13 @@ function ocrParseWorkout(lines){
     else if((m=exRe4.exec(line))) { push(m[1],3,m[2]); pendingName=null; }
     else if(/^[A-Za-z][A-Za-z '()\/&.-]{3,45}$/.test(line)&&line.split(' ').length<=5) pendingName=line;
     else pendingName=null;
+  });
+  // garbled re-reads that landed in the unnamed fallback day before a named
+  // day existed: drop them when a named day carries a similar exercise
+  const named=days.filter(d=>d.name!=='Workout');
+  if(named.length) days.forEach(d=>{
+    if(d.name!=='Workout') return;
+    d.exercises=d.exercises.filter(e=>!named.some(nd=>nd.exercises.some(x=>nameSim(x.name,e.name)>.75)));
   });
   return { found:days.some(d=>d.exercises.length), programName:'From video',
     days:days.filter(d=>d.exercises.length),
