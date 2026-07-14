@@ -147,7 +147,17 @@ textarea{font-family:inherit;resize:none}
 
 /* ─── GRID ─── */
 .g2{display:grid;grid-template-columns:55fr 45fr;gap:18px;margin-bottom:18px;align-items:start}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px;align-items:start}
+
+/* collapsible dashboard sections — headers stay, bodies fold away */
+.sec-hd{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;min-height:24px}
+.sec-hd .cl{margin:0}
+.sec-sum{margin-left:auto;font-size:11.5px;color:var(--t2);font-weight:600;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sec-hd.open .sec-sum{display:none}
+.chev{width:16px;height:16px;color:var(--t3);flex-shrink:0;transition:transform .18s}
+.sec-hd.open .chev{transform:rotate(180deg)}
+.sec-bd{display:none}
+.sec-bd.open{display:block;padding-top:14px}
 
 /* ─── WORKOUT CARD ─── */
 .wkt-title{font-size:17px;font-weight:600;letter-spacing:-.02em;margin-bottom:10px}
@@ -749,7 +759,12 @@ textarea{font-family:inherit;resize:none}
       <!-- WORKOUT -->
       <div class="card">
         <div class="cp">
-          <div class="cl">Today's Workout</div>
+          <div class="sec-hd" id="hd-workout" onclick="dashToggle('workout')">
+            <div class="cl">Today's Workout</div>
+            <span class="sec-sum" id="sum-workout"></span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="sec-bd" id="bd-workout">
           <div class="wkt-title">Lower Body Strength</div>
           <div class="wkt-metas">
             <div class="wm"><div class="wm-l">Duration</div><div class="wm-v">55 min</div></div>
@@ -784,22 +799,26 @@ textarea{font-family:inherit;resize:none}
               Ask Arete to adjust this workout
             </div>
           </div>
+          </div>
         </div>
       </div>
 
       <!-- TASKS -->
       <div class="card">
         <div class="cp">
-          <div class="tasks-hd">
-            <div class="cl" style="margin:0">Today</div>
-            <span class="tasks-meta" id="dtask-prog" style="margin:0"></span>
+          <div class="sec-hd" id="hd-tasks" onclick="dashToggle('tasks')">
+            <div class="cl">Today</div>
+            <span class="tasks-meta" id="dtask-prog" style="margin:0 0 0 auto"></span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
+          <div class="sec-bd" id="bd-tasks">
           <div class="pbar"><div class="pf" id="dtask-bar" style="background:var(--vi);width:0"></div></div>
           <div style="display:flex;gap:7px;margin-bottom:12px">
-            <input id="dtask-input" placeholder="Add a task…" maxlength="200" autocomplete="off" onkeydown="if(event.key==='Enter')addDashTask()" style="flex:1;padding:8px 11px;border-radius:9px;border:1px solid var(--bd);background:var(--s2);color:var(--t1);font-size:13px;outline:none">
+            <input id="dtask-input" placeholder="Add a task…" maxlength="200" autocomplete="off" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')addDashTask()" style="flex:1;padding:8px 11px;border-radius:9px;border:1px solid var(--bd);background:var(--s2);color:var(--t1);font-size:13px;outline:none">
             <button class="btn btn-p btn-sm" onclick="addDashTask()">Add</button>
           </div>
           <div id="task-list"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -807,22 +826,29 @@ textarea{font-family:inherit;resize:none}
     <!-- HABITS: TODAY'S FOCUS -->
     <div class="card" style="margin-bottom:14px">
       <div class="cp">
-        <div class="tasks-hd">
-          <div class="cl" style="margin:0">Today's Focus</div>
-          <a href="habits.html" class="btn-g">Habits &rarr;</a>
+        <div class="sec-hd" id="hd-habits" onclick="dashToggle('habits')">
+          <div class="cl">Today's Focus</div>
+          <span class="sec-sum" id="sum-habits"></span>
+          <a href="habits.html" class="btn-g" onclick="event.stopPropagation()" style="flex-shrink:0">Habits &rarr;</a>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
+        <div class="sec-bd" id="bd-habits">
         <div class="tasks-meta" id="dash-hab-meta" style="margin-bottom:8px"></div>
         <div id="dash-habits"></div>
+        </div>
       </div>
     </div>
 
     <!-- MUSCLE RECOVERY -->
     <div class="card mm-card" style="margin-bottom:14px">
       <div class="cp">
-        <div class="mm-hd">
-          <div class="cl" style="margin:0">Muscle Recovery</div>
-          <a href="recovery.html" class="btn-g">Full report →</a>
+        <div class="sec-hd" id="hd-recovery" onclick="dashToggle('recovery')">
+          <div class="cl">Muscle Recovery</div>
+          <span class="sec-sum" id="sum-recovery"></span>
+          <a href="recovery.html" class="btn-g" onclick="event.stopPropagation()" style="flex-shrink:0">Full report →</a>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
+        <div class="sec-bd" id="bd-recovery">
         <div style="position:relative;width:100%;max-width:560px;margin:0 auto 4px">
           <img src="body-diagram.png" style="width:100%;display:block;border-radius:8px" alt="Body muscle diagram">
           <svg viewBox="0 0 1000 1000" style="position:absolute;top:0;left:0;width:100%;height:100%" role="group" aria-label="Body muscle map">
@@ -873,6 +899,7 @@ textarea{font-family:inherit;resize:none}
           <div class="mm-stat"><span>9</span> ready · <span>4</span> recovering · <span>2</span> fatigued</div>
           <a href="recovery.html" class="btn-g">View detail</a>
         </div>
+        </div>
       </div>
     </div>
 
@@ -882,7 +909,12 @@ textarea{font-family:inherit;resize:none}
       <!-- NUTRITION -->
       <div class="card">
         <div class="cp">
-          <div class="cl">Nutrition</div>
+          <div class="sec-hd" id="hd-nutrition" onclick="dashToggle('nutrition')">
+            <div class="cl">Nutrition</div>
+            <span class="sec-sum" id="sum-nutrition"></span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="sec-bd" id="bd-nutrition">
           <div class="nut-top">
             <div class="nut-cal" id="dash-nut-cal">0 <span class="nut-target">/ 2,650</span></div>
             <div class="nut-pct" id="dash-nut-pct">0%</div>
@@ -909,13 +941,19 @@ textarea{font-family:inherit;resize:none}
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
             </div>
           </div>
+          </div>
         </div>
       </div>
 
       <!-- SLEEP -->
       <div class="card">
         <div class="cp">
-          <div class="cl">Sleep</div>
+          <div class="sec-hd" id="hd-sleep" onclick="dashToggle('sleep')">
+            <div class="cl">Sleep</div>
+            <span class="sec-sum" id="sum-sleep"></span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="sec-bd" id="bd-sleep">
           <div class="sleep-top">
             <div>
               <div class="sleep-lbl">Score</div>
@@ -937,6 +975,7 @@ textarea{font-family:inherit;resize:none}
             <circle cx="120" cy="10" r="2.5" fill="var(--vi)" opacity=".8"/>
           </svg>
           <div class="sleep-ins">38 minutes below your 7h 30m target.</div>
+          </div>
         </div>
       </div>
 
@@ -950,14 +989,17 @@ textarea{font-family:inherit;resize:none}
     <!-- ENERGY INTELLIGENCE -->
     <div class="card" style="margin-bottom:14px">
       <div class="cp">
-        <div class="ei-hd">
-          <div class="cl" style="margin:0">Energy Intelligence</div>
-          <div class="ei-ct-group">
+        <div class="sec-hd" id="hd-energy" onclick="dashToggle('energy')">
+          <div class="cl">Energy Intelligence</div>
+          <span class="sec-sum" id="sum-energy"></span>
+          <div class="ei-ct-group" onclick="event.stopPropagation()" style="flex-shrink:0">
             <div class="ei-ct" data-ct="early" onclick="EI.setChronotype('early',this)">Early</div>
             <div class="ei-ct on" data-ct="neutral" onclick="EI.setChronotype('neutral',this)">Neutral</div>
             <div class="ei-ct" data-ct="late" onclick="EI.setChronotype('late',this)">Late</div>
           </div>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
+        <div class="sec-bd" id="bd-energy">
         <div class="ei-top">
           <!-- Gauge -->
           <div class="ei-gauge-wrap">
@@ -1037,6 +1079,7 @@ textarea{font-family:inherit;resize:none}
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Log energy
           </button>
+        </div>
         </div>
       </div>
     </div>
@@ -2716,6 +2759,48 @@ function startCanvas() {
   if(meta) meta.textContent=done+" of "+qs.length+" quests cleared · Lv "+c.level+" · "+c.xp.toLocaleString()+" XP"+(Habits.perfectToday()?" · perfect day":"");
   var chk='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
   wrap.innerHTML=qs.map(function(q){return '<div class="task"><div class="chk '+(q.doneToday?"on":"")+'">'+(q.doneToday?chk:"")+'</div><div class="task-body"><div class="task-name '+(q.doneToday?"done":"")+'">'+String(q.skill.name).replace(/</g,"&lt;")+'</div><div class="task-meta"><span class="task-time">'+q.name+'</span><span class="tc tc-h">'+q.xp.toLocaleString()+' XP · '+(Math.round(q.mult*100)/100)+'&times;</span></div></div></div>';}).join("");
+})();
+</script>
+<script>
+/* ── Collapsible dashboard sections ─────────────────────────────────
+   Heavy cards start folded but keep their key numbers in the header,
+   so the page stays glanceable without the scroll. Open/closed choices
+   persist per device. */
+(function(){
+  var KEY='arete_dash_open';
+  var DEFAULTS={workout:1,tasks:1,habits:1,recovery:0,nutrition:0,sleep:0,energy:0};
+  function openMap(){ var m; try{ m=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ m={}; } return Object.assign({},DEFAULTS,m); }
+  function txt(id){ var e=document.getElementById(id); return e?e.textContent.replace(/\s+/g,' ').trim():''; }
+  function qtxt(sel){ var e=document.querySelector(sel); return e?e.textContent.replace(/\s+/g,' ').trim():''; }
+  function put(k,v){ var e=document.getElementById('sum-'+k); if(e) e.textContent=v||''; }
+  function syncSummaries(){
+    put('workout', qtxt('.wkt-title'));
+    put('habits', (txt('dash-hab-meta').split('·')[0]||'').trim());
+    put('recovery', qtxt('.mm-stat'));
+    var cal=txt('dash-nut-cal'); put('nutrition', cal?cal+' kcal':'');
+    var st=qtxt('.sleep-total'); put('sleep', st?st+' · score '+qtxt('.sleep-score'):'');
+    var en=txt('ei-gauge-num');
+    put('energy', isFinite(parseFloat(en))?('Now '+en+' · '+txt('ei-status-head')):txt('ei-status-head'));
+  }
+  function apply(){
+    var m=openMap();
+    for(var k in DEFAULTS){
+      var bd=document.getElementById('bd-'+k), hd=document.getElementById('hd-'+k);
+      if(!bd||!hd) continue;
+      bd.classList.toggle('open',!!m[k]);
+      hd.classList.toggle('open',!!m[k]);
+    }
+    syncSummaries();
+  }
+  window.dashToggle=function(k){
+    var m=openMap(); m[k]=m[k]?0:1;
+    try{ localStorage.setItem(KEY,JSON.stringify(m)); }catch(e){}
+    apply();
+  };
+  apply();
+  // some cards fill asynchronously (energy forecast, habits) — refresh the header numbers
+  setTimeout(syncSummaries,700);
+  setTimeout(syncSummaries,2000);
 })();
 </script>
 <script src="js/mobilenav.js" defer></script>
