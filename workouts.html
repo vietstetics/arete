@@ -110,7 +110,7 @@ input,select,textarea{font-family:inherit}
 .tg{font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--s2);color:var(--t2)}
 .tg.pri{background:var(--vid);color:var(--vi)}
 .sets{padding:0 12px 10px}
-.set-row{display:grid;grid-template-columns:30px 1fr 1fr 54px 38px 30px;gap:7px;align-items:center;padding:4px 6px}
+.set-row{display:grid;grid-template-columns:30px 1fr 1fr 46px 46px 38px 30px;gap:7px;align-items:center;padding:4px 6px}
 .set-row.head{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding-bottom:2px}
 .set-tag{width:24px;height:24px;border-radius:7px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;background:var(--vid);color:var(--vi)}
 .set-tag.warm{background:rgba(176,125,40,.12);color:var(--ye)}
@@ -190,7 +190,8 @@ input,select,textarea{font-family:inherit}
 @media(max-width:767px){
   .sb{display:none}.pg{padding:18px 16px 64px}.mob-back{display:flex}.pg{padding-top:60px!important}
   .ph{flex-direction:column}
-  .set-row{grid-template-columns:26px 1fr 1fr 46px 32px 24px;gap:5px}
+  .set-row{grid-template-columns:24px 1fr 1fr 38px 38px 30px 22px;gap:4px}
+  .set-in{padding:6px 4px}
   .rt-grid{grid-template-columns:1fr 1fr}
   .hero-actions .btn{flex:1;justify-content:center}
 }
@@ -340,6 +341,7 @@ input,select,textarea{font-family:inherit}
   <div class="wtabs">
     <button class="wtab on" data-tab="log"      onclick="setTab('log')">Workout</button>
     <button class="wtab"    data-tab="programs" onclick="setTab('programs')">Programs</button>
+    <button class="wtab"    data-tab="coaching" onclick="setTab('coaching')">Coaching</button>
     <button class="wtab"    data-tab="history"  onclick="setTab('history')">History</button>
   </div>
 
@@ -366,7 +368,9 @@ input,select,textarea{font-family:inherit}
     </div>
   </div>
 
+  <div id="view-coaching" style="display:none"></div>
   <div id="view-history" style="display:none"></div>
+  <input type="file" id="coach-file" accept=".json,application/json" style="display:none" onchange="coachFilePicked(this)">
 </div>
 </main>
 </div>
@@ -483,9 +487,11 @@ function setTab(t){
   document.querySelectorAll('.wtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
   document.getElementById('view-log').style.display      = t==='log'?'':'none';
   document.getElementById('view-programs').style.display = t==='programs'?'':'none';
+  document.getElementById('view-coaching').style.display = t==='coaching'?'':'none';
   document.getElementById('view-history').style.display  = t==='history'?'':'none';
   if(t==='log') renderLog();
   if(t==='programs') programsBoot();
+  if(t==='coaching') renderCoaching();
   if(t==='history') renderHistory();
 }
 
@@ -583,7 +589,8 @@ function renderExercise(ex){
       <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" onclick="toggleType('${ex.id}','${s.id}')">${s.type==='warmup'?'W':i+1-ex.sets.slice(0,i).filter(x=>x.type==='warmup').length}</button>
       <input class="set-in" type="number" inputmode="decimal" placeholder="kg" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
       <input class="set-in" type="number" inputmode="numeric" placeholder="reps" value="${s.reps||''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
-      <input class="set-in" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="RPE" title="Effort 1–10 (10 = nothing left). RIR ≈ 10 − RPE" value="${s.rpe||''}" oninput="setField('${ex.id}','${s.id}','rpe',this.value)">
+      <input class="set-in" id="rpe-${s.id}" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="RPE" title="Effort 1–10 (10 = nothing left). Filling either RPE or RIR fills the other." value="${s.rpe||''}" oninput="setEffort('${ex.id}','${s.id}','rpe',this.value)">
+      <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="RIR" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done ${s.completed?'on':''}" title="Mark set done" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
       <button class="icon-btn" title="Remove set" onclick="removeSet('${ex.id}','${s.id}')" style="width:26px;height:26px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
     </div>`).join('');
@@ -595,7 +602,7 @@ function renderExercise(ex){
     </div>
     ${tags||rirTag?`<div class="ex-tags">${rirTag}${tags}</div>`:''}
     <div class="sets">
-      <div class="set-row head"><span>Set</span><span>Weight</span><span>Reps</span><span title="Effort 1–10 (10 = nothing left). RIR ≈ 10 − RPE">RPE</span><span>Done</span><span></span></div>
+      <div class="set-row head"><span>Set</span><span>Weight</span><span>Reps</span><span title="Effort 1–10 (10 = nothing left)">RPE</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
       ${rows}
       <button class="add-set" onclick="addSet('${ex.id}')">＋ Add set</button>
     </div>
@@ -721,6 +728,20 @@ function findEx(eid){ return active.exercises.find(e=>e.id===eid); }
 function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
 function removeSet(eid,sid){ const ex=findEx(eid); ex.sets=ex.sets.filter(s=>s.id!==sid); if(!ex.sets.length) active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
 function setField(eid,sid,f,v){ const s=findEx(eid).sets.find(s=>s.id===sid); s[f]= v===''?'':parseFloat(v); saveActive(); }
+// RPE and RIR are two views of the same effort (RIR ≈ 10 − RPE): fill either
+// and the other follows.
+function setEffort(eid,sid,f,v){
+  const s=findEx(eid).sets.find(x=>x.id===sid);
+  if(v===''){ s[f]=''; saveActive(); return; }
+  const num=Math.max(0,Math.min(10,parseFloat(v)));
+  if(!isFinite(num)) return;
+  s[f]=num;
+  const other=f==='rpe'?'rir':'rpe';
+  s[other]=Math.max(0,Math.min(10,Math.round((10-num)*2)/2));
+  const el=document.getElementById(other+'-'+sid);
+  if(el) el.value=s[other];
+  saveActive();
+}
 function toggleType(eid,sid){ const s=findEx(eid).sets.find(s=>s.id===sid); s.type = s.type==='working'?'warmup':'working'; saveActive(); renderLog(); }
 function toggleDone(eid,sid){ const s=findEx(eid).sets.find(s=>s.id===sid); s.completed=!s.completed; saveActive(); renderLog(); }
 
@@ -744,7 +765,7 @@ function saveTemplate(){
   if(!active || !active.exercises.length){ toast('Nothing to save yet'); return; }
   const name = prompt('Routine name:', active.name) ; if(!name) return;
   const tpls=templates();
-  tpls.unshift({ id:'t-'+F.uid(), name, exercises: active.exercises.map(e=>({ name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, sets:e.sets.map(s=>({type:s.type, weight:s.weight, reps:s.reps, rpe:s.rpe})) })) });
+  tpls.unshift({ id:'t-'+F.uid(), name, exercises: active.exercises.map(e=>({ name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, sets:e.sets.map(s=>({type:s.type, weight:s.weight, reps:s.reps, rpe:s.rpe, rir:s.rir})) })) });
   wj(K_TPL, tpls.slice(0,40));
   toast('Routine saved — it’s on your Workout screen');
 }
@@ -752,16 +773,16 @@ function instantiate(tpl){
   return { id:'w-'+F.uid(), name:tpl.name, startedAt:Date.now(), notes:'',
     exercises: tpl.exercises.map(e=>{ const m=musclesFor(e.name); return { id:'e-'+F.uid(), name:e.name,
       primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary, targetRir:e.targetRir,
-      sets:(e.sets||[{type:'working'}]).map(s=>({ id:'s-'+F.uid(), type:s.type||'working', weight:s.weight??'', unit:'kg', reps:s.reps??'', rpe:s.rpe??'', completed:false })) }; }) };
+      sets:(e.sets||[{type:'working'}]).map(s=>({ id:'s-'+F.uid(), type:s.type||'working', weight:s.weight??'', unit:'kg', reps:s.reps??'', rpe:s.rpe??'', rir:s.rir??'', completed:false })) }; }) };
 }
 // ════════════════════════════════════════════════════════════════
 //  WEIGHT PROGRESSION — tap any exercise name to see it as a graph.
 //  One point per completed session = that day's top working-set weight.
 // ════════════════════════════════════════════════════════════════
 const normExName = (n) => String(n).toLowerCase().replace(/[^a-z0-9]/g, '');
-function exHistory(name){
+function exHistory(name, src){
   const key = normExName(name);
-  return completed()
+  return (src || completed())
     .map(w => {
       const e = w.exercises.find(x => normExName(x.name) === key);
       if (!e) return null;
@@ -772,7 +793,7 @@ function exHistory(name){
         t: w.completedAt, date: new Date(w.completedAt),
         top: +top.weight, reps: +top.reps || 0,
         e1rm: Math.round(+top.weight * (1 + (+top.reps || 0) / 30) * 10) / 10,   // Epley
-        setsTxt: sets.map(s => s.weight + '×' + (s.reps || '?') + (s.rpe ? ' @' + s.rpe : '')).join(', '),
+        setsTxt: sets.map(s => s.weight + '×' + (s.reps || '?') + (s.rpe ? ' @' + s.rpe : (s.rir !== '' && s.rir != null ? ' ' + s.rir + 'RIR' : ''))).join(', '),
       };
     })
     .filter(Boolean).sort((a, b) => a.t - b.t);
@@ -808,10 +829,10 @@ function progChart(h){
     <text x="${W-P.r}" y="${H-6}" text-anchor="end" font-size="9" font-weight="600" fill="#AEAEB2">${fmtD(h[h.length-1].date)}</text>
   </svg>`;
 }
-function showProg(name){
-  document.getElementById('pgm-title').textContent = name;
+function showProg(name, srcWorkouts, whose){
+  document.getElementById('pgm-title').textContent = name + (whose ? ' — ' + whose : '');
   const body = document.getElementById('pgm-body');
-  const h = exHistory(name);
+  const h = exHistory(name, srcWorkouts);
   if (h.length < 2){
     body.innerHTML = `<div class="empty" style="padding:34px 20px"><h3>No progression yet</h3><p style="font-size:12.5px;line-height:1.6">${h.length
       ? 'One session logged — after your next one the graph appears here.'
@@ -834,6 +855,170 @@ function showProg(name){
   document.getElementById('prog-modal').classList.add('open');
 }
 function closeProg(){ document.getElementById('prog-modal').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════════════
+//  COACHING — coach ↔ athlete via shareable training files.
+//  No server needed: the athlete exports a training file (programs +
+//  recent history) and sends it over any messenger; the coach imports
+//  it here, reviews progress with the same progression graphs, edits
+//  the split with the normal Programs editor, and sends back an
+//  updated plan the athlete imports in one tap.
+// ════════════════════════════════════════════════════════════════
+const COACH_KEY='jarvis_coach_clients';
+const coachClients=()=>rj(COACH_KEY,[]);
+const saveClients=(l)=>wj(COACH_KEY,l);
+let openClientId=null;
+
+function myName(){
+  try{ const s=window.Auth&&Auth.localSession&&Auth.localSession(); if(s&&s.email) return s.email; }catch(e){}
+  return 'Athlete';
+}
+function buildClientExport(){
+  const cutoff=Date.now()-90*864e5;
+  return { kind:'arete-client', v:1, name:myName(), exportedAt:Date.now(),
+    programs:getPrograms(),
+    workouts: completed().filter(w=>w.completedAt>cutoff).map(w=>({ name:w.name, completedAt:w.completedAt,
+      exercises:w.exercises.map(e=>({ name:e.name, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir})) })) })) };
+}
+function buildCoachUpdate(progId){
+  const p=getPrograms().find(x=>x.id===progId); if(!p) return null;
+  return { kind:'arete-coach-update', v:1, sentAt:Date.now(), coach:myName(), program:JSON.parse(JSON.stringify(p)) };
+}
+async function shareJson(obj, filename){
+  const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});
+  try{
+    const file=new File([blob],filename,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:filename}); return; }
+  }catch(e){ if(e&&e.name==='AbortError') return; }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  toast('File saved — send it over any messenger');
+}
+function exportMyTraining(){ shareJson(buildClientExport(), myName().replace(/[^a-z0-9]+/gi,'-')+'.arete.json'); }
+function coachFilePicked(input){
+  const f=input.files&&input.files[0]; input.value='';
+  if(!f) return;
+  f.text().then(txt=>{
+    let obj; try{ obj=JSON.parse(txt); }catch(e){ toast('That file isn’t a valid Arete file'); return; }
+    if(obj&&obj.kind==='arete-client') addClient(obj);
+    else if(obj&&obj.kind==='arete-coach-update') applyCoachUpdate(obj);
+    else toast('That file isn’t an Arete training file');
+  }).catch(()=>toast('Couldn’t read that file'));
+}
+function addClient(obj){
+  const list=coachClients().filter(c=>c.name!==obj.name);
+  list.unshift({ id:'c-'+F.uid(), name:String(obj.name||'Athlete').slice(0,60), exportedAt:obj.exportedAt||Date.now(), importedAt:Date.now(),
+    programs:Array.isArray(obj.programs)?obj.programs:[], workouts:Array.isArray(obj.workouts)?obj.workouts:[] });
+  saveClients(list.slice(0,30));
+  openClientId=list[0].id;
+  toast(list[0].name+' added to your clients');
+  renderCoaching();
+}
+function removeClient(id){
+  const c=coachClients().find(x=>x.id===id);
+  if(!confirm('Remove '+(c?c.name:'this client')+' and their imported data?')) return;
+  saveClients(coachClients().filter(x=>x.id!==id));
+  renderCoaching();
+}
+function applyCoachUpdate(obj){
+  const p=obj.program;
+  if(!p||!p.days){ toast('That plan file looks incomplete'); return; }
+  p.id=F.uid(); p.fromCoach=obj.coach||'coach'; p.receivedAt=Date.now();
+  const existing=getPrograms().find(x=>x.name===p.name);
+  if(existing){
+    if(confirm('Your coach sent an updated “'+p.name+'”. Replace your current version?')) deleteProgram(existing.id);
+    else p.name=p.name+' (coach)';
+  }
+  saveProgram(p); selectedId=p.id; editingDayIdx=null;
+  toast('Plan from your coach added to Programs');
+  setTab('programs');
+}
+function copyClientProgram(cid, pid){
+  const c=coachClients().find(x=>x.id===cid); if(!c) return;
+  const p=c.programs.find(x=>x.id===pid); if(!p) return;
+  const copy=JSON.parse(JSON.stringify(p));
+  copy.id=F.uid(); copy.name=c.name.split('@')[0]+' — '+copy.name; copy.forClient=c.name;
+  saveProgram(copy); selectedId=copy.id;
+  toast('Copied to your Programs — edit it there, then send it back');
+  setTab('programs');
+}
+function sendPlanToClient(sel, cid){
+  const pid=sel.value; if(!pid) return;
+  sel.value='';
+  const upd=buildCoachUpdate(pid); if(!upd) return;
+  const c=coachClients().find(x=>x.id===cid);
+  shareJson(upd, 'plan-for-'+String(c?c.name:'client').replace(/[^a-z0-9]+/gi,'-')+'.arete.json');
+}
+function clientTopExercises(c, n){
+  const freq={};
+  (c.workouts||[]).forEach(w=>w.exercises.forEach(e=>{
+    if(e.sets&&e.sets.some(s=>s.type==='working'&&(+s.weight||0)>0)) freq[e.name]=(freq[e.name]||0)+1;
+  }));
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+}
+function showClientProg(cid, name){
+  const c=coachClients().find(x=>x.id===cid); if(!c) return;
+  showProg(name, c.workouts, c.name.split('@')[0]);
+}
+function toggleClient(id){ openClientId = openClientId===id ? null : id; renderCoaching(); }
+
+function renderCoaching(){
+  const host=document.getElementById('view-coaching');
+  const clients=coachClients();
+  const myProgs=getPrograms();
+  const clientCards=clients.map(c=>{
+    const open=c.id===openClientId;
+    const wk30=(c.workouts||[]).filter(w=>w.completedAt>Date.now()-30*864e5).length;
+    const detail=!open?'':`
+      <div style="border-top:1px solid var(--bd);padding:12px 16px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Progress — tap an exercise</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">
+          ${clientTopExercises(c,8).map(n=>`<span class="pillx" onclick="showClientProg('${c.id}','${jsName(n)}')">${esc(n)}${TREND_ICO}</span>`).join('')||'<span style="font-size:12px;color:var(--t3)">No logged workouts in the file yet.</span>'}
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Recent sessions</div>
+        ${(c.workouts||[]).slice(-5).reverse().map(w=>`<div class="pg-sess"><span class="d">${new Date(w.completedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><span class="s">${esc(w.name)}</span><span class="e">${w.exercises.reduce((a,e)=>a+e.sets.filter(s=>s.type==='working').length,0)} sets</span></div>`).join('')||'<div style="font-size:12px;color:var(--t3)">None</div>'}
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px">Their programs — copy, edit, send back</div>
+        ${(c.programs||[]).map(p=>`<div class="up-row" style="padding:10px 0"><span class="up-nm">${esc(p.name)}</span><button class="btn btn-s btn-xs" onclick="copyClientProgram('${c.id}','${p.id}')">Copy to my Programs</button></div>`).join('')||'<div style="font-size:12px;color:var(--t3)">No programs in the file.</div>'}
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+          <select onchange="sendPlanToClient(this,'${c.id}')" style="flex:1;min-width:170px;padding:9px 10px;border-radius:9px;border:1px solid var(--bd);font-size:12.5px;background:#fff">
+            <option value="">Send one of my programs…</option>
+            ${myProgs.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+          </select>
+          <button class="btn-danger btn-xs" onclick="removeClient('${c.id}')">Remove client</button>
+        </div>
+      </div>`;
+    return `<div class="dayc" style="margin-bottom:10px">
+      <div class="dayc-h" style="cursor:pointer" onclick="toggleClient('${c.id}')">
+        <div class="dayc-body">
+          <div class="dayc-name">${esc(c.name.split('@')[0])}</div>
+          <div class="dayc-meta">${wk30} workout${wk30===1?'':'s'} last 30 days · ${(c.programs||[]).length} program${(c.programs||[]).length===1?'':'s'} · synced ${new Date(c.importedAt).toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>
+        </div>
+        <div class="dayc-acts"><button class="btn btn-s btn-xs">${open?'Close':'View'}</button></div>
+      </div>
+      ${detail}
+    </div>`;
+  }).join('');
+
+  host.innerHTML=`
+    <div class="ph" style="margin-bottom:14px">
+      <div><div style="font-size:15px;font-weight:600">Coaching</div>
+      <div class="ph-sub">Coach and athlete stay in sync with training files — no accounts needed. Files travel over any messenger.</div></div>
+    </div>
+
+    <div class="card hero" style="margin-bottom:16px">
+      <h3>Training with a coach?</h3>
+      <p>Send your coach your training file — programs plus your last 90 days of workouts. When they send a plan back, import it here.</p>
+      <div class="hero-actions">
+        <button class="btn btn-p" onclick="exportMyTraining()">Share my training file</button>
+        <button class="btn btn-s" onclick="document.getElementById('coach-file').click()">Import a file</button>
+      </div>
+    </div>
+
+    <div class="sec-h"><span>My clients</span><button class="btn btn-s btn-sm" onclick="document.getElementById('coach-file').click()">＋ Import client file</button></div>
+    ${clientCards || `<div class="card" style="padding:16px 18px;font-size:12.5px;color:var(--t3);line-height:1.6">Coaching someone? Ask them for their training file (Training → Coaching → <b>Share my training file</b>) and import it here — you’ll see their progress graphs, can copy and edit their split in Programs, and send back an updated plan.</div>`}`;
+}
 
 // ════════════════════════════════════════════════════════════════
 //  SCHEDULE MODAL (scheduled workouts live on the Workout screen)
@@ -1362,7 +1547,7 @@ function hrow(w){
 function delWorkout(id){ if(!confirm('Delete this logged workout?')) return; F.storageAdapter.deleteWorkout(id); renderHistory(); }
 function repeatWorkout(id){
   const w=completed().find(x=>x.id===id); if(!w) return;
-  active = instantiate({ name:w.name, exercises:w.exercises.map(e=>({name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe}))})) });
+  active = instantiate({ name:w.name, exercises:w.exercises.map(e=>({name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir}))})) });
   saveActive(); setTab('log'); toast('Loaded — edit and finish to log again');
 }
 
@@ -1572,7 +1757,7 @@ function startProgramWorkout(progId, di){
   active = { id:'w-'+F.uid(), name:day.name, startedAt:Date.now(), notes:'', exercises: day.exercises.map(ex => {
     const m = musclesFor(ex.name);
     const sets = [{ id:'s-'+F.uid(), type:'warmup', weight:'', unit:'kg', reps:'', completed:false }];
-    for (let i = 0; i < (ex.targetSets || 3); i++) sets.push({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:ex.targetReps || '', rpe:'', completed:false });
+    for (let i = 0; i < (ex.targetSets || 3); i++) sets.push({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:ex.targetReps || '', rpe:'', rir:(ex.targetRir??''), completed:false });
     return { id:'e-'+F.uid(), name:ex.name, primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetRir:ex.targetRir, sets };
   }) };
   saveActive(); setTab('log'); toast('Loaded “'+day.name+'” — finish to log it');
@@ -1631,7 +1816,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCatalog
   seedPrograms(); // so "Today in your program" can suggest a session on first visit
   let h = (location.hash || '').replace('#','');
   if(h==='plan') h='log'; // old Plan tab now lives on the Workout screen
-  setTab(['log','programs','history'].includes(h) ? h : 'log');
+  setTab(['log','programs','coaching','history'].includes(h) ? h : 'log');
 })();
 </script>
 <script src="js/mobilenav.js" defer></script>
