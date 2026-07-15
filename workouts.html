@@ -240,6 +240,13 @@ input,select,textarea{font-family:inherit}
 .pillx small{font-weight:600;color:var(--t3)}
 .pillx svg{width:11px;height:11px;color:var(--t3);flex-shrink:0}
 .pillx:hover svg,.pillx:hover small{color:var(--vi)}
+/* tap-to-schedule day chips on each workout card */
+.dstrip{display:flex;gap:5px;padding:0 14px 12px;align-items:center;flex-wrap:wrap}
+.dstrip-l{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-right:3px}
+.dchip{width:30px;height:30px;border-radius:9px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd);color:var(--t3);cursor:pointer;background:#fff;transition:all 120ms;user-select:none}
+.dchip:hover{border-color:var(--vi);color:var(--vi)}
+.dchip.on{background:var(--vi);border-color:var(--vi);color:#fff}
+.dchip.other{background:var(--s2);border-style:dashed}
 .dayc-edit{border-top:1px solid var(--bd);background:rgba(94,92,230,.03);padding:12px 14px}
 .edit-name-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .edit-name-input{flex:1;padding:8px 12px;border-radius:9px;border:1px solid var(--bd);background:#fff;color:var(--t1);font-size:13px;outline:none;transition:border-color 140ms;min-width:0}
@@ -1665,7 +1672,15 @@ function renderDetail(id){
       ${wo ? `<button class="btn-danger btn-xs" style="margin-top:10px" onclick="clearDay('${id}',${di})">Remove this workout</button>` : ''}
     </div>` : '';
 
-    return `<div class="dayc ${isToday?'today':''}">${head}${!editing && pills ? `<div class="pillrow">${pills}</div>` : ''}${edit}</div>`;
+    // tap-to-schedule strip: which weekdays carry this workout
+    const strip = (wo && !editing) ? `<div class="dstrip"><span class="dstrip-l">Days</span>${DAY_ORDER.map(d2=>{
+      const o=prog.days[d2];
+      const state=o ? (o.name===wo.name?'on':'other') : '';
+      const tip=o ? (o.name===wo.name ? (d2===di?'Remove from '+DAY_NAMES[d2]:'Also on '+DAY_NAMES[d2]+' — tap to remove') : DAY_NAMES[d2]+' has '+o.name+' — tap to replace') : 'Schedule on '+DAY_NAMES[d2];
+      return `<span class="dchip ${state}" title="${esc(tip)}" onclick="scheduleToggle('${id}',${di},${d2})">${DAY_NAMES[d2][0]}</span>`;
+    }).join('')}</div>` : '';
+
+    return `<div class="dayc ${isToday?'today':''}">${head}${!editing && pills ? `<div class="pillrow">${pills}</div>` : ''}${strip}${edit}</div>`;
   }).join('');
 
   document.getElementById('right-panel').innerHTML = `
@@ -1738,6 +1753,28 @@ function pickPreset(key){
   saveProgram(prog); selectedId = prog.id; editingDayIdx = null;
   closePicker(); renderPrograms();
   toast(key === 'blank' ? 'Program created' : `${preset.name} scheduled across your week`);
+}
+// Tap a day chip on a workout card: empty day → copy this workout there;
+// same workout there → remove it; different workout there → confirm replace.
+function scheduleToggle(progId, srcDi, di){
+  const prog = getPrograms().find(p => p.id === progId); if (!prog) return;
+  const src = prog.days[srcDi]; if (!src) return;
+  const t = prog.days[di];
+  if (t && t.name === src.name){
+    if (di === srcDi && !confirm('Remove “' + src.name + '” from ' + DAY_NAMES[di] + '?')) return;
+    prog.days[di] = null;
+    toast(src.name + ' removed from ' + DAY_NAMES[di]);
+  } else if (t){
+    if (!confirm('Replace “' + t.name + '” on ' + DAY_NAMES[di] + ' with “' + src.name + '”?')) return;
+    prog.days[di] = JSON.parse(JSON.stringify(src));
+    toast(src.name + ' now on ' + DAY_NAMES[di]);
+  } else {
+    prog.days[di] = JSON.parse(JSON.stringify(src));
+    toast(src.name + ' scheduled on ' + DAY_NAMES[di]);
+  }
+  saveProgram(prog);
+  if (editingDayIdx === di) editingDayIdx = null;
+  renderDetail(progId);
 }
 function selectProgram(id){ selectedId = id; editingDayIdx = null; renderPrograms(); }
 function renameProg(id, val){ const prog = getPrograms().find(p => p.id === id); if (!prog || prog.name === val.trim()) return; prog.name = val.trim() || 'Program'; saveProgram(prog); renderList(); }
