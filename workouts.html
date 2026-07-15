@@ -1814,6 +1814,17 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCatalog
 // init — open the tab named in the URL hash (e.g. workouts.html#programs)
 (function(){
   seedPrograms(); // so "Today in your program" can suggest a session on first visit
+  // Dashboard one-tap: workouts.html?start=today launches today's program day.
+  if(new URLSearchParams(location.search).get('start')==='today'){
+    history.replaceState({},'',location.pathname);
+    const s=todayFromPrograms();
+    if(s && !(active&&active.exercises&&active.exercises.length)){
+      startProgramWorkout(s.prog.id, s.di);
+      return;
+    }
+    setTab('log');
+    return;
+  }
   let h = (location.hash || '').replace('#','');
   if(h==='plan') h='log'; // old Plan tab now lives on the Workout screen
   setTab(['log','programs','coaching','history'].includes(h) ? h : 'log');

@@ -765,40 +765,7 @@ textarea{font-family:inherit;resize:none}
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
           <div class="sec-bd" id="bd-workout">
-          <div class="wkt-title">Lower Body Strength</div>
-          <div class="wkt-metas">
-            <div class="wm"><div class="wm-l">Duration</div><div class="wm-v">55 min</div></div>
-            <div class="wm"><div class="wm-l">Match</div><div class="wm-v" style="color:var(--gr)">91%</div></div>
-            <div class="wm"><div class="wm-l">Difficulty</div><div class="wm-v">Moderate</div></div>
-            <div class="wm"><div class="wm-l">~Calories</div><div class="wm-v">420</div></div>
-          </div>
-          <div class="wkt-tags">
-            <span class="tag">Quadriceps</span>
-            <span class="tag">Glutes</span>
-            <span class="tag">Hamstrings</span>
-            <span class="tag">Calves</span>
-          </div>
-          <div class="wkt-ai">Your lower body is fully recovered and sleep supports a moderate-intensity strength session. Good conditions for personal bests on squat.</div>
-          <div class="ex-list">
-            <div class="ex"><div class="ex-n">1</div><div class="ex-name">Barbell Squat</div><div class="ex-sets">4 × 6</div></div>
-            <div class="ex"><div class="ex-n">2</div><div class="ex-name">Romanian Deadlift</div><div class="ex-sets">4 × 8</div></div>
-            <div class="ex"><div class="ex-n">3</div><div class="ex-name">Leg Press</div><div class="ex-sets">3 × 10</div></div>
-            <div class="ex"><div class="ex-n">4</div><div class="ex-name">Leg Curl</div><div class="ex-sets">3 × 12</div></div>
-            <div class="ex"><div class="ex-n">5</div><div class="ex-name">Standing Calf Raise</div><div class="ex-sets">4 × 15</div></div>
-          </div>
-          <div class="wkt-acts">
-            <div class="wkt-row">
-              <button class="btn btn-p" style="flex:1" onclick="location.href='workouts.html'">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Start Workout
-              </button>
-              <button class="btn btn-s btn-sm" onclick="location.href='workouts.html'">Full plan</button>
-            </div>
-            <div class="wkt-hint" onclick="document.getElementById('jarvis-in').focus()">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:3px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              Ask Arete to adjust this workout
-            </div>
-          </div>
+          <div id="dash-workout"></div>
           </div>
         </div>
       </div>
@@ -2759,6 +2726,86 @@ function startCanvas() {
   if(meta) meta.textContent=done+" of "+qs.length+" quests cleared · Lv "+c.level+" · "+c.xp.toLocaleString()+" XP"+(Habits.perfectToday()?" · perfect day":"");
   var chk='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
   wrap.innerHTML=qs.map(function(q){return '<div class="task"><div class="chk '+(q.doneToday?"on":"")+'">'+(q.doneToday?chk:"")+'</div><div class="task-body"><div class="task-name '+(q.doneToday?"done":"")+'">'+String(q.skill.name).replace(/</g,"&lt;")+'</div><div class="task-meta"><span class="task-time">'+q.name+'</span><span class="tc tc-h">'+q.xp.toLocaleString()+' XP · '+(Math.round(q.mult*100)/100)+'&times;</span></div></div></div>';}).join("");
+})();
+</script>
+<script>
+/* ── Today's Workout — driven by the REAL program, not mock copy ────
+   Shows today's day from the first program that trains today, a resume
+   state if a workout is mid-flight, and an honest rest-day state. */
+(function(){
+  var host=document.getElementById('dash-workout');
+  if(!host) return;
+  var esc=function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  function rj(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+  var active=rj('jarvis_active_workout');
+  var programs=rj('jarvis_programs')||[];
+  var today=new Date().getDay();
+  var hit=null;
+  for(var i=0;i<programs.length;i++){
+    var d=programs[i].days&&programs[i].days[today];
+    if(d&&d.exercises&&d.exercises.length){ hit={prog:programs[i],day:d}; break; }
+  }
+  function muscleTags(exs){
+    try{
+      var F=window.Fitness, seen={}, out=[];
+      exs.forEach(function(e){
+        var m=F.EXERCISE_MUSCLES[e.name];
+        (m&&m.primary||[]).forEach(function(id){
+          var g=F.MUSCLE_GROUPS.find(function(x){return x.id===id;});
+          var nm=g?g.name.replace(/^(Left|Right)\s+/,'').replace('Quadriceps','Quads').replace('Abdominals','Abs'):null;
+          if(nm&&!seen[nm]){ seen[nm]=1; out.push(nm); }
+        });
+      });
+      return out.slice(0,5);
+    }catch(e){ return []; }
+  }
+  var acts=function(primaryLabel,primaryHref,showFull){
+    return '<div class="wkt-acts"><div class="wkt-row">'
+      +'<button class="btn btn-p" style="flex:1" onclick="location.href=\''+primaryHref+'\'">'
+      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> '
+      +primaryLabel+'</button>'
+      +(showFull?'<button class="btn btn-s btn-sm" onclick="location.href=\'workouts.html#programs\'">Full plan</button>':'')
+      +'</div></div>';
+  };
+  if(active&&active.exercises&&active.exercises.length){
+    var done=active.exercises.reduce(function(a,e){return a+e.sets.filter(function(s){return s.completed;}).length;},0);
+    var totalSets=active.exercises.reduce(function(a,e){return a+e.sets.length;},0);
+    host.innerHTML='<div class="wkt-title">'+esc(active.name)+'</div>'
+      +'<div class="wkt-metas">'
+      +'<div class="wm"><div class="wm-l">Status</div><div class="wm-v" style="color:var(--gr)">In progress</div></div>'
+      +'<div class="wm"><div class="wm-l">Exercises</div><div class="wm-v">'+active.exercises.length+'</div></div>'
+      +'<div class="wm"><div class="wm-l">Sets done</div><div class="wm-v">'+done+' / '+totalSets+'</div></div>'
+      +'</div>'
+      +acts('Continue Workout','workouts.html',false);
+  } else if(hit){
+    var exs=hit.day.exercises;
+    var sets=exs.reduce(function(a,e){return a+(+e.targetSets||0);},0);
+    var estMin=Math.round((sets*2.5+8)/5)*5;
+    var tags=muscleTags(exs);
+    host.innerHTML='<div class="wkt-title">'+esc(hit.day.name)+'</div>'
+      +'<div class="wkt-metas">'
+      +'<div class="wm"><div class="wm-l">Program</div><div class="wm-v">'+esc(hit.prog.name)+'</div></div>'
+      +'<div class="wm"><div class="wm-l">Exercises</div><div class="wm-v">'+exs.length+'</div></div>'
+      +'<div class="wm"><div class="wm-l">Sets</div><div class="wm-v">'+sets+'</div></div>'
+      +'<div class="wm"><div class="wm-l">~Time</div><div class="wm-v">'+estMin+' min</div></div>'
+      +'</div>'
+      +(tags.length?'<div class="wkt-tags">'+tags.map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join('')+'</div>':'')
+      +'<div class="ex-list">'
+      +exs.slice(0,6).map(function(e,i){
+        return '<div class="ex"><div class="ex-n">'+(i+1)+'</div><div class="ex-name">'+esc(e.name)+'</div><div class="ex-sets">'+esc(e.targetSets)+' × '+esc(e.targetReps)+((e.targetRir!=null&&e.targetRir!=='')?' · '+esc(e.targetRir)+' RIR':'')+'</div></div>';
+      }).join('')
+      +(exs.length>6?'<div class="ex"><div class="ex-n">…</div><div class="ex-name" style="color:var(--t3)">+'+(exs.length-6)+' more</div><div class="ex-sets"></div></div>':'')
+      +'</div>'
+      +acts('Start Workout','workouts.html?start=today',true);
+  } else if(programs.length){
+    host.innerHTML='<div class="wkt-title">Rest day</div>'
+      +'<div class="wkt-ai">Nothing scheduled in your program today — recovery is part of the plan. Your muscles grow between sessions, not during them.</div>'
+      +acts('Train Anyway','workouts.html',true);
+  } else {
+    host.innerHTML='<div class="wkt-title">No program yet</div>'
+      +'<div class="wkt-ai">Set up a weekly split in Training and today’s session will show up here automatically.</div>'
+      +acts('Build a Program','workouts.html#programs',false);
+  }
 })();
 </script>
 <script>
