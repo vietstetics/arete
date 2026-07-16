@@ -111,7 +111,7 @@ class HealthPlugin : Plugin() {
     }
 
     @PluginMethod
-    fun requestPermissions(call: PluginCall) {
+    fun requestHealthPermissions(call: PluginCall) {
         val launcher = permissionLauncher
         if (client() == null || launcher == null) {
             call.reject("Health Connect isn’t available."); return

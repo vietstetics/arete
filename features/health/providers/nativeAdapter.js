@@ -37,7 +37,7 @@ export function createNativeAdapter(providerId, requiredPlatform, info, deps) {
       if (!p || plat() !== requiredPlatform) throw new Error(info.name + ' is only available in the ' + (requiredPlatform === 'ios' ? 'iPhone' : 'Android') + ' app.');
       const avail = await p.isAvailable();
       if (!avail.available) throw new Error(avail.reason || info.name + ' isn’t available on this device.');
-      const res = await p.requestPermissions({ types: READ_TYPES });
+      const res = await p.requestHealthPermissions({ types: READ_TYPES });
       // HealthKit never discloses read denials — 'requested' is the honest state.
       const permissionState = providerId === 'apple_health'
         ? 'requested'

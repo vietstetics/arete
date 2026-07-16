@@ -77,7 +77,7 @@ test('incremental: second sync passes a since cursor with 1-day overlap', async 
 function mockPlugin(impl = {}) {
   return {
     isAvailable: impl.isAvailable || (async () => ({ available: true })),
-    requestPermissions: impl.requestPermissions || (async () => ({ granted: true })),
+    requestHealthPermissions: impl.requestHealthPermissions || (async () => ({ granted: true })),
     getPermissionStatus: async () => ({ state: 'granted' }),
     query: impl.query || (async ({ type }) => ({ records: type === 'steps' ? [{ sourceRecordId: 'daily-steps-2026-07-15', startTime: '2026-07-15T00:00:00Z', value: 6000, unit: 'count' }] : [] })),
     openSettings: async () => {},
@@ -103,7 +103,7 @@ test('web platform → native adapters report unavailable (no faking)', async ()
 test('Health Connect permission denied → disconnected + denied state', async () => {
   const repo = createLocalHealthRepository('n3_');
   const a = createNativeAdapter('health_connect', 'android', { name: 'Health Connect' }, {
-    repo, platform: 'android', plugin: mockPlugin({ requestPermissions: async () => ({ granted: false, perType: { steps: 'denied' } }) }),
+    repo, platform: 'android', plugin: mockPlugin({ requestHealthPermissions: async () => ({ granted: false, perType: { steps: 'denied' } }) }),
   });
   await assert.rejects(() => a.connect(), /declined/);
   assert.equal(repo.getConnection('health_connect').permissionState, 'denied');
@@ -114,7 +114,7 @@ test('partial permission → connected with partial state; sync still works per 
   const a = createNativeAdapter('health_connect', 'android', { name: 'Health Connect' }, {
     repo, platform: 'android',
     plugin: mockPlugin({
-      requestPermissions: async () => ({ granted: false, perType: { steps: 'granted', sleep: 'denied' } }),
+      requestHealthPermissions: async () => ({ granted: false, perType: { steps: 'granted', sleep: 'denied' } }),
       query: async ({ type }) => {
         if (type === 'steps') return { records: [{ sourceRecordId: 'd1', startTime: '2026-07-15T00:00:00Z', value: 100, unit: 'count' }] };
         throw new Error('SecurityException');

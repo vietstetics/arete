@@ -126,7 +126,7 @@ export interface HealthPlugin {
   isAvailable(): Promise<{ available: boolean; reason?: string }>;
   /** Ask the OS for READ permission for the given types. HealthKit does not
    *  reveal read-permission outcomes; `perType` may report 'unknown'. */
-  requestPermissions(options: { types: HealthRecordType[] }): Promise<{
+  requestHealthPermissions(options: { types: HealthRecordType[] }): Promise<{
     granted: boolean;
     perType?: Record<string, 'granted' | 'denied' | 'unknown'>;
   }>;
