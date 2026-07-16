@@ -91,6 +91,18 @@ input,select,textarea{font-family:inherit}
 .rt-nm{font-size:13.5px;font-weight:600}
 .rt-mt{font-size:11.5px;color:var(--t3);margin:2px 0 12px;line-height:1.45}
 .rt-foot{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
+/* physique check-in */
+.phy-hd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--bd)}
+.phy-streak{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;color:#C2410C;background:rgba(251,146,60,.14);padding:5px 11px;border-radius:999px}
+.phy-streak svg{width:12px;height:12px}
+.phy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px;padding:14px 16px}
+.phy-cell{cursor:pointer;border-radius:12px;overflow:hidden;border:1px solid var(--bd);background:var(--s1);transition:border-color 130ms}
+.phy-cell:hover{border-color:var(--bd2)}
+.phy-cell img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.phy-meta{padding:7px 9px}
+.phy-date{font-size:10.5px;font-weight:700}
+.phy-sub{font-size:9.5px;color:var(--t3);line-height:1.4;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.phy-today{border-color:rgba(94,92,230,.5);box-shadow:0 0 0 1px rgba(94,92,230,.2)}
 .up-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--bd)}
 .up-row:last-child{border-bottom:0}
 .up-date{font-size:11.5px;font-weight:600;color:var(--t2);width:82px;flex-shrink:0}
@@ -378,6 +390,7 @@ input,select,textarea{font-family:inherit}
   <div id="view-coaching" style="display:none"></div>
   <div id="view-history" style="display:none"></div>
   <input type="file" id="coach-file" accept=".json,application/json" style="display:none" onchange="coachFilePicked(this)">
+  <input type="file" id="phy-file" accept="image/*" style="display:none" onchange="phyPick(this)">
 </div>
 </main>
 </div>
@@ -413,6 +426,14 @@ input,select,textarea{font-family:inherit}
     <div class="modal-h"><div class="modal-t">Import workout from a video</div><button class="icon-btn" onclick="closeVid()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="modal-b" id="vid-body"></div>
     <div class="modal-f" id="vid-foot"></div>
+  </div>
+</div>
+
+<!-- Physique photo viewer -->
+<div class="modal-bk" id="phy-modal" onclick="if(event.target===this)phyCloseView()">
+  <div class="modal" style="width:440px">
+    <div class="modal-h"><div class="modal-t" id="phyv-title"></div><button class="icon-btn" onclick="phyCloseView()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-b" id="phyv-body"></div>
   </div>
 </div>
 
@@ -535,7 +556,18 @@ function renderLog(){
       : `<div class="card" style="padding:16px 18px;font-size:12.5px;color:var(--t3);line-height:1.55">No routines yet. Build a workout, tap <b>Save as routine</b>, and it’ll live here for one-tap starts.</div>`}
 
     ${upcoming.length ? `<div class="sec-h"><span>Scheduled</span></div>
-    <div class="card">${upcoming.map(upRow).join('')}</div>` : ''}`;
+    <div class="card">${upcoming.map(upRow).join('')}</div>` : ''}
+
+    <div class="sec-h"><span>Physique check-in</span></div>
+    <div class="card" id="phy-card">
+      <div class="phy-hd">
+        <span class="phy-streak" id="phy-streak" style="display:none"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg><span id="phy-streak-n"></span></span>
+        <span style="flex:1;font-size:11.5px;color:var(--t3)" id="phy-hint">A photo a day shows what the scale can’t.</span>
+        <button class="btn btn-p btn-sm" onclick="document.getElementById('phy-file').click()" id="phy-btn">Take today’s photo</button>
+      </div>
+      <div class="phy-grid" id="phy-grid"></div>
+    </div>`;
+    renderPhysique();
     return;
   }
   const t = targetMuscles(active);
@@ -862,6 +894,108 @@ function showProg(name, srcWorkouts, whose){
   document.getElementById('prog-modal').classList.add('open');
 }
 function closeProg(){ document.getElementById('prog-modal').classList.remove('open'); }
+
+// ════════════════════════════════════════════════════════════════
+//  PHYSIQUE CHECK-IN — a daily photo with that day's training + kcal.
+//  Photos live in IndexedDB (localStorage would overflow in weeks);
+//  they never leave the device. Streak = consecutive photo days.
+// ════════════════════════════════════════════════════════════════
+const PDB={
+  open(){ return this._p||(this._p=new Promise((res,rej)=>{
+    const r=indexedDB.open('arete-physique',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'date'});
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  })); },
+  async put(rec){ const db=await this.open(); return new Promise((res,rej)=>{ const tx=db.transaction('photos','readwrite'); tx.objectStore('photos').put(rec); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); },
+  async all(){ const db=await this.open(); return new Promise((res,rej)=>{ const q=db.transaction('photos').objectStore('photos').getAll(); q.onsuccess=()=>res(q.result||[]); q.onerror=()=>rej(q.error); }); },
+  async del(date){ const db=await this.open(); return new Promise((res,rej)=>{ const tx=db.transaction('photos','readwrite'); tx.objectStore('photos').delete(date); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); },
+};
+function phyDayLabel(date){
+  const ws=completed().filter(w=>todayKey(new Date(w.completedAt))===date);
+  return ws.length ? ws.map(w=>w.name).slice(0,2).join(' + ') : 'Rest day';
+}
+function phyKcal(date){
+  let all; try{ all=JSON.parse(localStorage.getItem('jarvis_nutrition_log'))||{}; }catch{ all={}; }
+  const k=(all[date]||[]).reduce((a,e)=>a+(+e.kcal||0),0);
+  return k?Math.round(k):null;
+}
+function phyStreak(dates){
+  const set=new Set(dates); const d=new Date();
+  if(!set.has(todayKey(d))){ d.setDate(d.getDate()-1); if(!set.has(todayKey(d))) return 0; }
+  let n=0; while(set.has(todayKey(d))){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+async function renderPhysique(){
+  const grid=document.getElementById('phy-grid'); if(!grid) return;
+  let photos=[]; try{ photos=await PDB.all(); }catch(e){ grid.innerHTML='<div class="empty" style="grid-column:1/-1;padding:18px">Photos aren’t available in this browser.</div>'; return; }
+  photos.sort((a,b)=>a.date<b.date?1:-1);
+  const tk=todayKey();
+  const streak=phyStreak(photos.map(p=>p.date));
+  const sEl=document.getElementById('phy-streak');
+  if(sEl){ sEl.style.display=streak?'' :'none'; const n=document.getElementById('phy-streak-n'); if(n) n.textContent=streak+'-day streak'; }
+  const btn=document.getElementById('phy-btn');
+  if(btn) btn.textContent=photos.some(p=>p.date===tk)?'Retake today’s':'Take today’s photo';
+  const hint=document.getElementById('phy-hint');
+  if(hint&&photos.length) hint.textContent='';
+  if(!photos.length){ grid.innerHTML='<div class="empty" style="grid-column:1/-1;padding:20px">No photos yet — take the first one today and start the streak.</div>'; return; }
+  grid.innerHTML=photos.slice(0,60).map(p=>{
+    const url=URL.createObjectURL(p.blob);
+    const kcal=phyKcal(p.date);
+    const d=new Date(p.date+'T00:00:00');
+    return `<div class="phy-cell ${p.date===tk?'phy-today':''}" onclick="phyView('${p.date}')">
+      <img src="${url}" alt="Physique ${p.date}">
+      <div class="phy-meta">
+        <div class="phy-date">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>
+        <div class="phy-sub">${esc(phyDayLabel(p.date))}${kcal!=null?' · '+kcal.toLocaleString()+' kcal':''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function phyPick(input){
+  const f=input.files&&input.files[0]; input.value='';
+  if(!f) return;
+  const img=new Image();
+  img.onload=async ()=>{
+    // downscale to keep storage light — 1000px long edge, jpeg
+    const long=Math.max(img.width,img.height), scale=Math.min(1,1000/long);
+    const c=document.createElement('canvas');
+    c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(img.src);
+    c.toBlob(async blob=>{
+      if(!blob){ toast('Couldn’t read that photo'); return; }
+      const tk=todayKey();
+      const before=phyStreak((await PDB.all()).map(p=>p.date));
+      await PDB.put({date:tk, blob, at:Date.now()});
+      const after=phyStreak((await PDB.all()).map(p=>p.date));
+      toast(after>before?`Photo saved — ${after}-day streak!`:'Today’s photo updated');
+      renderPhysique();
+    },'image/jpeg',0.72);
+  };
+  img.onerror=()=>toast('Couldn’t read that photo');
+  img.src=URL.createObjectURL(f);
+}
+async function phyView(date){
+  const photos=await PDB.all();
+  const p=photos.find(x=>x.date===date); if(!p) return;
+  const kcal=phyKcal(date);
+  const d=new Date(date+'T00:00:00');
+  document.getElementById('phyv-title').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+  document.getElementById('phyv-body').innerHTML=`
+    <img src="${URL.createObjectURL(p.blob)}" style="width:100%;border-radius:12px;display:block" alt="Physique ${date}">
+    <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">
+      <div><div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em">Trained</div><div style="font-size:13.5px;font-weight:700">${esc(phyDayLabel(date))}</div></div>
+      <div><div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em">Calories</div><div style="font-size:13.5px;font-weight:700">${kcal!=null?kcal.toLocaleString()+' kcal':'Not logged'}</div></div>
+    </div>
+    <button class="btn-danger btn-xs" style="margin-top:14px" onclick="phyDelete('${date}')">Delete this photo</button>`;
+  document.getElementById('phy-modal').classList.add('open');
+}
+function phyCloseView(){ document.getElementById('phy-modal').classList.remove('open'); }
+async function phyDelete(date){
+  if(!confirm('Delete this photo?')) return;
+  await PDB.del(date);
+  phyCloseView(); renderPhysique();
+}
 
 // ════════════════════════════════════════════════════════════════
 //  COACHING — coach ↔ athlete via shareable training files.
