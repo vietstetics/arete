@@ -2712,6 +2712,18 @@ function startCanvas() {
   import { mountDashboard } from './features/steps/stepsApp.js';
   mountDashboard({ card: '#step-card-mount', panel: '#step-panel-mount' });
 </script>
+<!-- Connected Health: silent incremental sync on app open + foreground (native only) -->
+<script type="module">
+  import { platform } from './features/health/native/healthPlugin.js';
+  if (platform() !== 'web') {
+    const [{ appleHealthAdapter }, { healthConnectAdapter }, { createSyncService, installAutoSync }] = await Promise.all([
+      import('./features/health/providers/appleHealthAdapter.js'),
+      import('./features/health/providers/healthConnectAdapter.js'),
+      import('./features/health/services/healthSyncService.js'),
+    ]);
+    installAutoSync(createSyncService([appleHealthAdapter, healthConnectAdapter]));
+  }
+</script>
 
 <script>
 (function(){

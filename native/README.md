@@ -259,3 +259,82 @@ diary. The result is constrained to a strict JSON schema.
 Until the key is set, the button shows "AI estimate isn't switched on yet".
 Estimates are approximate — they're labelled as a photo estimate in the diary
 and can be edited or removed like any entry.
+
+---
+
+# Connected Health (Capacitor `HealthPlugin`)
+
+Read-only import from Apple HealthKit (iOS) and Android Health Connect.
+Sources: `native/ios/HealthPlugin.swift`, `native/android/HealthPlugin.kt`.
+JS side: `features/health/` (contract in `features/health/types/health.ts`).
+
+## iOS — HealthKit
+
+1. Copy `native/ios/HealthPlugin.swift` into the generated `ios/App/App` group
+   (same step as StepCounterPlugin — Capacitor 6 auto-registers it).
+2. Xcode → App target → Signing & Capabilities → **+ HealthKit**
+   (leave "Clinical Health Records" off).
+3. `ios/App/App/Info.plist` — read-only usage description (no write key needed
+   because the app never requests write access):
+
+   ```xml
+   <key>NSHealthShareUsageDescription</key>
+   <string>Arete reads your steps, sleep, workouts, heart data and body
+   metrics from Apple Health to power your readiness, training history and
+   progress tracking. Data stays on your device.</string>
+   ```
+
+Notes: HealthKit never reveals whether READ permission was granted — the UI
+treats the state as "requested" and simply shows whatever data is readable.
+Testing needs a real iPhone (the simulator has no meaningful Health data).
+
+## Android — Health Connect
+
+1. Copy `native/android/HealthPlugin.kt` into
+   `android/app/src/main/java/com/jarvis/fitness/health/` and register it in
+   `MainActivity` (`registerPlugin(HealthPlugin::class.java)`).
+2. `android/app/build.gradle`:
+
+   ```gradle
+   implementation "androidx.health.connect:connect-client:1.1.0-alpha07"
+   ```
+
+3. `AndroidManifest.xml` — read-only permissions + the mandatory
+   permissions-rationale intent filter:
+
+   ```xml
+   <uses-permission android:name="android.permission.health.READ_STEPS"/>
+   <uses-permission android:name="android.permission.health.READ_SLEEP"/>
+   <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
+   <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED"/>
+   <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
+   <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
+   <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE"/>
+   <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY"/>
+   <uses-permission android:name="android.permission.health.READ_WEIGHT"/>
+   <uses-permission android:name="android.permission.health.READ_BODY_FAT"/>
+
+   <!-- shown when the user taps "privacy policy" on the HC permission sheet -->
+   <activity android:name=".PermissionsRationaleActivity" android:exported="true">
+     <intent-filter>
+       <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
+     </intent-filter>
+   </activity>
+   <activity-alias
+     android:name="ViewPermissionUsageActivity"
+     android:exported="true"
+     android:targetActivity=".PermissionsRationaleActivity"
+     android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+     <intent-filter>
+       <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
+       <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>
+     </intent-filter>
+   </activity-alias>
+   ```
+
+4. Add a minimal `PermissionsRationaleActivity` (a WebView/TextView showing the
+   same privacy copy as the in-app primer: read-only, on-device, no ads,
+   disconnect any time).
+
+Health Connect requires Android 9+ (app) and the Health Connect app installed
+(built into Android 14+). Google Fit APIs are NOT used.
