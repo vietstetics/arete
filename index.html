@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Arete">
-<meta name="theme-color" content="#F5F5F7">
+<meta name="theme-color" content="#DEEBD3">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/touch.css">
 <script src="js/auth.js"></script>
@@ -352,7 +352,7 @@ textarea{font-family:inherit;resize:none}
 ══════════════════════════════════════════ */
 .ci-overlay{
   position:fixed;inset:0;z-index:200;
-  background:radial-gradient(ellipse at 50% 28%, #FAFAFA 0%, #F5F5F7 60%, #EFEFEF 100%);
+  background:radial-gradient(ellipse at 50% 28%, #EAF3E0 0%, #DEEBD3 60%, #D3E3C5 100%);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:28px 22px;
   opacity:1;transition:opacity .4s ease;
@@ -599,6 +599,7 @@ textarea{font-family:inherit;resize:none}
 .ag-l{font-size:10.5px;font-weight:600;color:var(--t2);text-align:center;line-height:1.2}
 }
 </style>
+<link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
 <div class="app">
@@ -888,11 +889,11 @@ textarea{font-family:inherit;resize:none}
           </div>
           <div class="macro">
             <div class="macro-hd"><span class="macro-l">Protein</span><span class="macro-v" id="dash-p-txt" style="color:var(--gr)">0 / 180g</span></div>
-            <div class="mpb"><div class="mpf" id="dash-p-bar" data-v="0" style="background:var(--gr)"></div></div>
+            <div class="mpb"><div class="mpf" id="dash-p-bar" data-v="0" style="background:var(--lime,var(--gr))"></div></div>
           </div>
           <div class="macro">
             <div class="macro-hd"><span class="macro-l">Carbs</span><span class="macro-v" id="dash-c-txt">0 / 280g</span></div>
-            <div class="mpb"><div class="mpf" id="dash-c-bar" data-v="0" style="background:var(--vi)"></div></div>
+            <div class="mpb"><div class="mpf" id="dash-c-bar" data-v="0" style="background:var(--orf,var(--vi))"></div></div>
           </div>
           <div class="macro">
             <div class="macro-hd"><span class="macro-l">Fats</span><span class="macro-v" id="dash-f-txt">0 / 75g</span></div>

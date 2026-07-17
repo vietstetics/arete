@@ -1,0 +1,78 @@
+/* ============================================================================
+ *  Arete — soft-green theme (Cal-AI-inspired direction, approved 2026-07).
+ *  Loaded AFTER each page's inline <style>, so these :root tokens override
+ *  the per-page ones. Pages style everything through these variables, so
+ *  this file restyles the whole app without touching page markup.
+ *
+ *  Rules of the palette:
+ *   - lime (--lime) is for FILLS only — bars, rings, active chips. It fails
+ *     4.5:1 on white, so text/icons that mean "good" use --gr instead.
+ *   - orange appears once per screen (secondary metric); --orf is the fill,
+ *     --or stays darker for text.
+ *  Excluded pages (no <link> to this file): login.html (dark emerald
+ *  sign-in world), muscle-editor.html and sandbox.html (internal tools).
+ * ==========================================================================*/
+:root {
+  /* canvas + surfaces */
+  --bg:  #DEEBD3;
+  --s1:  rgba(23,27,18,0.03);
+  --s2:  rgba(23,27,18,0.05);
+  --s3:  rgba(23,27,18,0.07);
+  --s4:  rgba(23,27,18,0.10);
+  --bd:  rgba(23,27,18,0.10);
+  --bd2: rgba(23,27,18,0.17);
+  --gm:  rgba(23,27,18,0.05);
+
+  /* ink */
+  --t1:  #171B12;
+  --t2:  #5F6A55;
+  --t3:  #8B957F;
+
+  /* green: --gr reads (text/icons), --lime fills */
+  --gr:   #237A12;
+  --grd:  #DCF5D2;
+  --lime: #58DB3D;
+  --lime2:#4CCB33;
+
+  /* semantic accents, warmed to the palette */
+  --ye:  #A87B1F;
+  --yed: rgba(168,123,31,0.12);
+  --or:  #C05A16;
+  --ord: rgba(228,118,31,0.12);
+  --orf: #F5822A;
+  --re:  #C0403A;
+  --red: rgba(192,64,58,0.10);
+
+  /* the old violet accent folds into the green language */
+  --vi:  #237A12;
+  --vid: #DCF5D2;
+
+  /* shape + elevation */
+  --r:    22px;
+  --r-sm: 14px;
+  --r-lg: 28px;
+  --sh0: 0 1px 3px rgba(46,66,32,.06), 0 4px 16px rgba(46,66,32,.07);
+  --sh1: 0 4px 20px rgba(46,66,32,.10), 0 1px 4px rgba(46,66,32,.05);
+  --sh2: 0 16px 48px rgba(46,66,32,.14), 0 2px 8px rgba(46,66,32,.06);
+}
+
+/* Primary buttons go ink, like the reference. */
+.btn-p, .btn-gr {
+  background: #171B12;
+  color: #F1F7E9;
+  box-shadow: 0 8px 18px -6px rgba(23,27,18,.4);
+}
+.btn-p:hover, .btn-gr:hover { background: #2A3220; }
+
+/* Habits XP bars: lime gradient fill (label text stays --gr). */
+.bar > i { background: linear-gradient(90deg, #6BE44F, #4CCB33); }
+
+/* Shared lime fill for progress bars. */
+.lime-fill { background: linear-gradient(90deg, #6BE44F, #4CCB33) !important; }
+
+/* Mobile back bar: the legacy dark pages hardcode a near-black frosted bar;
+ * unify every page on a frosted sage one. */
+.mob-back {
+  background: rgba(222,235,211,.86);
+  border-bottom: 1px solid rgba(23,27,18,.08);
+}

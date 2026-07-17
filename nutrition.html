@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Arete">
-<meta name="theme-color" content="#F5F5F7">
+<meta name="theme-color" content="#DEEBD3">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/touch.css">
 <script src="js/auth.js"></script>
@@ -283,6 +283,7 @@ input,select,textarea{font-family:inherit}
 .mob-back svg{width:18px;height:18px}
 @media(max-width:767px){.mob-back{display:flex}.pg{padding-top:60px!important}}
 </style>
+<link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
 <div class="app">
@@ -362,11 +363,11 @@ input,select,textarea{font-family:inherit}
       </div>
       <div class="macro-row">
         <div class="macro-hd"><span class="macro-l">Protein</span><span class="macro-v" id="p-txt" style="color:var(--gr)">0 / 180g</span></div>
-        <div class="macro-bar"><div class="macro-fill" id="p-bar" style="background:var(--gr);width:0%"></div></div>
+        <div class="macro-bar"><div class="macro-fill" id="p-bar" style="background:var(--lime,var(--gr));width:0%"></div></div>
       </div>
       <div class="macro-row">
         <div class="macro-hd"><span class="macro-l">Carbs</span><span class="macro-v" id="c-txt">0 / 280g</span></div>
-        <div class="macro-bar"><div class="macro-fill" id="c-bar" style="background:var(--vi);width:0%"></div></div>
+        <div class="macro-bar"><div class="macro-fill" id="c-bar" style="background:var(--orf,var(--vi));width:0%"></div></div>
       </div>
       <div class="macro-row">
         <div class="macro-hd"><span class="macro-l">Fat</span><span class="macro-v" id="f-txt">0 / 75g</span></div>
