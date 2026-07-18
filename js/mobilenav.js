@@ -8,6 +8,12 @@
 (function () {
   if (window.__mnav) return; window.__mnav = true;
 
+  // Offline support: register the service worker (https only — no-op in
+  // file:// previews and the Capacitor webview handles its own caching).
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+
   // Block the browser's left-edge swipe-back so the app doesn't navigate away
   // like a website. Only fires for a drag that starts at the very screen edge,
   // so normal scrolling and taps are untouched.

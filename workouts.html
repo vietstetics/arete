@@ -130,6 +130,27 @@ input,select,textarea{font-family:inherit}
 .set-in:focus{border-color:var(--vi)}
 .set-done{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;color:transparent;transition:all 130ms}
 .set-done.on{background:var(--gr);border-color:var(--gr);color:#fff}
+.set-done.pr{box-shadow:0 0 0 2px var(--ye)}
+
+/* ── rest timer pill ── */
+.rest-pill{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:118;display:none;align-items:center;gap:10px;
+  background:#171B12;color:#F1F7E9;border-radius:999px;padding:10px 16px;box-shadow:0 10px 30px rgba(23,32,14,.35)}
+.rest-pill.show{display:flex}
+.rest-pill .rl{font-size:10.5px;font-weight:700;letter-spacing:.08em;opacity:.7;cursor:pointer}
+.rest-pill .t{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
+.rest-pill button{color:#B9F5AA;font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.09)}
+@media(max-width:767px){.rest-pill{bottom:calc(86px + env(safe-area-inset-bottom,0px))}}
+
+/* ── plate calculator ── */
+.plate-mb{position:fixed;inset:0;background:rgba(16,24,20,.4);z-index:300;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+.plate-mb.open{display:flex}
+@media(min-width:640px){.plate-mb.open{align-items:center}}
+.plate-card{background:#fff;width:400px;max-width:100%;border-radius:24px 24px 0 0;padding:20px 22px calc(22px + env(safe-area-inset-bottom,0px));box-shadow:var(--sh1)}
+@media(min-width:640px){.plate-card{border-radius:24px}}
+.plate-row{display:flex;align-items:center;justify-content:center;gap:3px;min-height:74px;margin:14px 0 6px}
+.plate{border-radius:5px;display:flex;align-items:flex-end;justify-content:center;color:#fff;font-size:9px;font-weight:800;padding-bottom:4px}
+.plate-bar{height:10px;background:#B7C1AA;border-radius:3px;width:34px}
+.plate-none{color:var(--t3);font-size:12.5px}
 .add-set{font-size:12px;font-weight:600;color:var(--vi);padding:6px 8px;margin-left:6px}
 .ex-foot{padding:12px 18px}
 .notes-in{width:100%;border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:13px;resize:vertical;outline:none;min-height:54px;background:#fff;color:var(--t1)}
@@ -631,13 +652,14 @@ function renderExercise(ex){
       <input class="set-in" type="number" inputmode="numeric" placeholder="reps" value="${s.reps||''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
       <input class="set-in" id="rpe-${s.id}" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="RPE" title="Effort 1–10 (10 = nothing left). Filling either RPE or RIR fills the other." value="${s.rpe||''}" oninput="setEffort('${ex.id}','${s.id}','rpe',this.value)">
       <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="RIR" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
-      <button class="set-done ${s.completed?'on':''}" title="Mark set done" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+      <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
       <button class="icon-btn" title="Remove set" onclick="removeSet('${ex.id}','${s.id}')" style="width:26px;height:26px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
     </div>`).join('');
   const rirTag = (ex.targetRir!=null && ex.targetRir!=='') ? `<span class="tg" style="background:var(--vid);color:var(--vi)">Target ${ex.targetRir} RIR</span>` : '';
   return `<div class="ex">
     <div class="ex-hd">
       <div class="ex-name" style="cursor:pointer" title="See weight progression" onclick="showProg('${jsName(ex.name)}')">${esc(ex.name)}</div>
+      <button class="icon-btn" title="Plate calculator" onclick="openPlates('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 7v10M18 7v10M9 5v14M15 5v14M9 12h6"/></svg></button>
       <button class="icon-btn" title="Remove exercise" onclick="removeExercise('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     ${tags||rirTag?`<div class="ex-tags">${rirTag}${tags}</div>`:''}
@@ -783,7 +805,140 @@ function setEffort(eid,sid,f,v){
   saveActive();
 }
 function toggleType(eid,sid){ const s=findEx(eid).sets.find(s=>s.id===sid); s.type = s.type==='working'?'warmup':'working'; saveActive(); renderLog(); }
-function toggleDone(eid,sid){ const s=findEx(eid).sets.find(s=>s.id===sid); s.completed=!s.completed; saveActive(); renderLog(); }
+function toggleDone(eid,sid){
+  const ex=findEx(eid); const s=ex.sets.find(s=>s.id===sid);
+  s.completed=!s.completed;
+  if(s.completed && s.type!=='warmup'){ checkPR(ex,s); startRest(); }
+  saveActive(); renderLog();
+}
+
+// ── Personal records ─────────────────────────────────────────────
+// e1RM by Epley; only meaningful in the 1–15 rep range.
+const K_PRS='jarvis_prs';
+function e1rm(w,r){ w=parseFloat(w); r=parseFloat(r); if(!isFinite(w)||!isFinite(r)||w<=0||r<1||r>15) return 0; return w*(1+r/30); }
+// Best historical weight / e1RM for an exercise (completed sessions + earlier
+// sets of the current one), so a PR means "better than everything before it".
+function bestFor(name, skipSetId){
+  const key=String(name||'').trim().toLowerCase(); let w=0,e=0,seen=false;
+  const scan=(ex)=>{
+    if(String(ex.name||'').trim().toLowerCase()!==key) return;
+    (ex.sets||[]).forEach(s=>{
+      if(s.type==='warmup'||s.id===skipSetId||!s.completed) return;
+      seen=true;
+      const sw=parseFloat(s.weight); if(isFinite(sw)&&sw>w) w=sw;
+      const se=e1rm(s.weight,s.reps); if(se>e) e=se;
+    });
+  };
+  completed().forEach(wk=>(wk.exercises||[]).forEach(scan));
+  if(active) (active.exercises||[]).forEach(scan);
+  return {w,e,seen};
+}
+function checkPR(ex,s){
+  const w=parseFloat(s.weight), r=parseFloat(s.reps);
+  if(!isFinite(w)||w<=0||!isFinite(r)||r<1) return;
+  const best=bestFor(ex.name, s.id);
+  if(!best.seen) return;                     // first ever data — nothing to beat yet
+  const e=e1rm(w,r);
+  const isW=w>best.w, isE=e>best.e;
+  if(!isW&&!isE) return;
+  s.pr=true;
+  const prs=rj(K_PRS,[]);
+  prs.unshift({ name:ex.name, weight:w, reps:r, e1rm:Math.round(e*10)/10, date:Date.now(), kind:isW?'weight':'e1rm' });
+  wj(K_PRS, prs.slice(0,300));
+  toast(isW?`PR — heaviest ${ex.name} yet: ${w} kg`:`PR — best ${ex.name} set yet: ${w} kg × ${r}`);
+}
+
+// ── Rest timer ───────────────────────────────────────────────────
+const K_REST='jarvis_rest_secs';
+let restEnd=0, restTick=null;
+function restSecs(){ const v=parseInt(localStorage.getItem(K_REST)||'90',10); return [60,90,120,180].includes(v)?v:90; }
+function startRest(){
+  restEnd=Date.now()+restSecs()*1000;
+  ensureRestPill();
+  clearInterval(restTick); restTick=setInterval(updateRest,250);
+  updateRest();
+}
+function addRest(s){ restEnd+=s*1000; updateRest(); }
+function stopRest(){ clearInterval(restTick); restTick=null; const p=document.getElementById('rest-pill'); if(p)p.classList.remove('show'); }
+function cycleRest(){
+  const opts=[60,90,120,180]; const next=opts[(opts.indexOf(restSecs())+1)%opts.length];
+  localStorage.setItem(K_REST,String(next));
+  document.querySelector('#rest-pill .rl').textContent='REST '+(next<120?next+'s':(next/60)+'m');
+  restEnd=Date.now()+next*1000; updateRest();
+}
+function updateRest(){
+  const p=document.getElementById('rest-pill'); if(!p) return;
+  const left=Math.ceil((restEnd-Date.now())/1000);
+  if(left<=0){ restDone(); return; }
+  p.classList.add('show');
+  p.querySelector('.t').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+}
+function restDone(){
+  stopRest();
+  try{ if(navigator.vibrate) navigator.vibrate([120,60,120]); }catch(_){}
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    [0,.28].forEach(t=>{ const o=ctx.createOscillator(),g=ctx.createGain(); o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=880; g.gain.setValueAtTime(.22,ctx.currentTime+t); g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+t+.24);
+      o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+.26); });
+  }catch(_){}
+  toast('Rest done — next set');
+}
+function ensureRestPill(){
+  if(document.getElementById('rest-pill')) return;
+  const d=document.createElement('div'); d.id='rest-pill'; d.className='rest-pill';
+  const s=restSecs();
+  d.innerHTML='<span class="rl" title="Tap to change rest length" onclick="cycleRest()">REST '+(s<120?s+'s':(s/60)+'m')+'</span>'
+    +'<span class="t">1:30</span><button onclick="addRest(30)">+30s</button><button onclick="stopRest()">Skip</button>';
+  document.body.appendChild(d);
+}
+
+// ── Plate calculator ─────────────────────────────────────────────
+const PLATES=[[25,'#C0403A',64],[20,'#2B5FD9',60],[15,'#B07D28',54],[10,'#1DA462',48],[5,'#454C40',40],[2.5,'#7A8471',32],[1.25,'#9AA48E',26],[0.5,'#B7C1AA',22]];
+function openPlates(eid){
+  const ex=findEx(eid);
+  let w=0; (ex.sets||[]).forEach(s=>{ const x=parseFloat(s.weight); if(isFinite(x)&&x>w) w=x; });
+  ensurePlateModal();
+  document.getElementById('plate-total').value=w||60;
+  document.getElementById('plate-mb').classList.add('open');
+  renderPlates();
+}
+function ensurePlateModal(){
+  if(document.getElementById('plate-mb')) return;
+  const d=document.createElement('div'); d.id='plate-mb'; d.className='plate-mb';
+  d.onclick=(e)=>{ if(e.target===d) d.classList.remove('open'); };
+  d.innerHTML='<div class="plate-card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    +'<div style="font-size:16px;font-weight:800">Plate calculator</div>'
+    +'<button onclick="document.getElementById(\'plate-mb\').classList.remove(\'open\')" style="color:var(--t3);padding:4px">✕</button></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<div style="flex:1"><label style="font-size:11px;font-weight:700;color:var(--t2)">Total weight (kg)</label>'
+    +'<input id="plate-total" type="number" inputmode="decimal" step="0.5" oninput="renderPlates()" style="width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--bd);border-radius:12px;font-size:16px;font-weight:700;font-family:inherit"></div>'
+    +'<div><label style="font-size:11px;font-weight:700;color:var(--t2)">Bar</label>'
+    +'<select id="plate-bar" onchange="renderPlates()" style="display:block;margin-top:4px;padding:10px 12px;border:1px solid var(--bd);border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;background:#fff">'
+    +'<option value="20">20 kg</option><option value="15">15 kg</option><option value="10">10 kg</option></select></div></div>'
+    +'<div class="plate-row" id="plate-row"></div>'
+    +'<div id="plate-note" style="text-align:center;font-size:12px;color:var(--t2)"></div></div>';
+  document.body.appendChild(d);
+}
+function renderPlates(){
+  const total=parseFloat(document.getElementById('plate-total').value)||0;
+  const bar=parseFloat(document.getElementById('plate-bar').value)||20;
+  const row=document.getElementById('plate-row'), note=document.getElementById('plate-note');
+  let side=(total-bar)/2;
+  if(total<=0){ row.innerHTML='<span class="plate-none">Enter a weight</span>'; note.textContent=''; return; }
+  if(side<0){ row.innerHTML='<span class="plate-none">Lighter than the bar</span>'; note.textContent='The empty bar is '+bar+' kg.'; return; }
+  const out=[]; let rem=side;
+  PLATES.forEach(([kg])=>{ while(rem>=kg-1e-9){ out.push(kg); rem-=kg; } });
+  const loadable=total-rem*2;
+  row.innerHTML='<div class="plate-bar"></div>'+out.map(kg=>{
+    const p=PLATES.find(x=>x[0]===kg);
+    return '<div class="plate" style="background:'+p[1]+';height:'+p[2]+'px;width:'+(kg>=10?15:kg>=2.5?11:8)+'px">'+(kg>=10?kg:'')+'</div>';
+  }).join('')+'<div class="plate-bar" style="width:18px"></div>';
+  note.textContent=out.length
+    ? 'Per side: '+out.join(' + ')+' kg'+(rem>0.01?' · closest loadable: '+(Math.round(loadable*100)/100)+' kg':'')
+    : 'Empty bar ('+bar+' kg)';
+}
 
 function finishWorkout(){
   if(!active || !active.exercises.length){ toast('Add at least one exercise'); return; }
