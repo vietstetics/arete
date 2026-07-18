@@ -1582,7 +1582,7 @@ function renderAiReview(d){
   document.getElementById('ai-c').textContent = nf(d.carbs || 0);
   document.getElementById('ai-f').textContent = nf(d.fat || 0);
   document.getElementById('ai-items').innerHTML = (d.items || []).map(it =>
-    `<div class="food-row" style="cursor:default"><div class="food-info"><div class="food-name">${esc(it.name)}</div><div class="food-meta">${nf(it.protein)}P · ${nf(it.carbs)}C · ${nf(it.fat)}F</div></div><div class="food-kcal">${nf(it.kcal)}</div></div>`
+    `<div class="food-row" style="cursor:default"><div class="food-info"><div class="food-name">${esc(it.name)}</div><div class="food-meta">${it.grams ? '≈' + nf(it.grams) + ' g · ' : ''}${nf(it.protein)}P · ${nf(it.carbs)}C · ${nf(it.fat)}F</div></div><div class="food-kcal">${nf(it.kcal)}</div></div>`
   ).join('') || '<div class="meal-empty">No separate items detected</div>';
   document.getElementById('ai-note').textContent = d.note ? '⚠︎ ' + d.note : '';
   renderAiMealPicker();
@@ -1596,12 +1596,17 @@ function addAiToLog(){
   if (!aiData) return;
   const entries = getLog(curDate);
   const items = (aiData.items && aiData.items.length) ? aiData.items
-    : [{ name: aiData.name, kcal: aiData.kcal, protein: aiData.protein, carbs: aiData.carbs, fat: aiData.fat }];
-  items.forEach(it => entries.push({
-    id: 'e-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    foodId: 'ai', name: it.name || aiData.name || 'Photo estimate', meal: pendingMeal, qty: 1,
-    serving: 'photo estimate', kcal: Math.round(it.kcal || 0), protein: r1(it.protein || 0), carbs: r1(it.carbs || 0), fat: r1(it.fat || 0), source: 'ai',
-  }));
+    : [{ name: aiData.name, kcal: aiData.kcal, protein: aiData.protein, carbs: aiData.carbs, fat: aiData.fat, ext: aiData.ext }];
+  items.forEach(it => {
+    const entry = {
+      id: 'e-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      foodId: 'ai', name: it.name || aiData.name || 'Photo estimate', meal: pendingMeal, qty: 1,
+      serving: it.grams ? '≈' + Math.round(it.grams) + ' g (photo)' : 'photo estimate',
+      kcal: Math.round(it.kcal || 0), protein: r1(it.protein || 0), carbs: r1(it.carbs || 0), fat: r1(it.fat || 0), source: 'ai',
+    };
+    if (it.ext && typeof it.ext === 'object') entry.ext = it.ext;   // micronutrient estimates
+    entries.push(entry);
+  });
   setLog(curDate, entries);
   closeFood();
   render();
@@ -2250,44 +2255,113 @@ function convUnit(val, fromU, toU){
   if (fr == null || to == null) return val;     // unknown unit → assume already in target
   return val * fr / to;
 }
-// Build an ext{} from OFF nutriments on a fixed basis ('_serving' or '_100g').
-function offExt(n, basis){
+// Build an ext{} from OFF nutriments. Values on the primary basis are scaled
+// by `factor`; keys missing there fall back to the alternate basis × altFactor.
+// (Micros are usually entered per-100g only — without the fallback they'd be
+// silently dropped whenever we serve per-serving numbers.)
+function offExt(n, basis, factor, altBasis, altFactor){
+  const pick = (off) => {
+    let raw = n[off + basis];
+    if (raw != null){ const v = parseFloat(raw); if (isFinite(v) && v >= 0) return { v, f: factor }; }
+    if (altBasis){
+      raw = n[off + altBasis];
+      if (raw != null){ const v = parseFloat(raw); if (isFinite(v) && v >= 0) return { v, f: altFactor }; }
+    }
+    return null;
+  };
   const ext = {};
   OFF_MAP.forEach(([off, key, target]) => {
-    const raw = n[off + basis];
-    if (raw == null) return;
-    const val = parseFloat(raw);
-    if (!isFinite(val) || val < 0) return;
-    const conv = convUnit(val, n[off + '_unit'] || 'g', target);
+    const p = pick(off);
+    if (!p) return;
+    const conv = convUnit(p.v, n[off + '_unit'] || 'g', target) * p.f;
     if (isFinite(conv)) ext[key] = Math.round(conv * 1000) / 1000;
   });
-  if (ext.b9 == null && n['folates' + basis] != null) { const c = convUnit(parseFloat(n['folates' + basis]), n['folates_unit'] || 'µg', 'mcg'); if (isFinite(c)) ext.b9 = Math.round(c); }
-  if (ext.b3 == null && n['niacin' + basis] != null)  { const c = convUnit(parseFloat(n['niacin' + basis]),  n['niacin_unit']  || 'mg', 'mg'); if (isFinite(c)) ext.b3 = Math.round(c * 100) / 100; }
+  if (ext.b9 == null){ const p = pick('folates'); if (p){ const c = convUnit(p.v, n['folates_unit'] || 'µg', 'mcg') * p.f; if (isFinite(c)) ext.b9 = Math.round(c); } }
+  if (ext.b3 == null){ const p = pick('niacin');  if (p){ const c = convUnit(p.v, n['niacin_unit']  || 'mg', 'mg')  * p.f; if (isFinite(c)) ext.b3 = Math.round(c * 100) / 100; } }
   // Many products list salt, not sodium: sodium(mg) = salt(g) × 1000 / 2.5
-  if (ext.sodium == null && n['salt' + basis] != null) {
-    const saltG = convUnit(parseFloat(n['salt' + basis]), n['salt_unit'] || 'g', 'g');
-    if (isFinite(saltG)) ext.sodium = Math.round(saltG * 400);
+  if (ext.sodium == null){
+    const p = pick('salt');
+    if (p){ const saltG = convUnit(p.v, n['salt_unit'] || 'g', 'g') * p.f; if (isFinite(saltG)) ext.sodium = Math.round(saltG * 400); }
   }
   return Object.keys(ext).length ? ext : null;
 }
 
+// Plausibility pass — catches the classic OFF data-entry errors instead of
+// serving them to the user.
+function sanitizeOFFFood(food, grams){
+  let kcal = food.kcal, P = food.protein, C = food.carbs, F = food.fat;
+  // Macro mass can't exceed the serving weight → per-100g values were pasted
+  // into the per-serving fields; rescale everything to the serving.
+  if (grams && grams > 0 && grams < 100 && (P + C + F) > grams * 1.05){
+    const f = grams / 100;
+    if ((P + C + F) * f <= grams * 1.05){
+      kcal *= f; P *= f; C *= f; F *= f;
+      if (food.ext) for (const k in food.ext) food.ext[k] = Math.round(food.ext[k] * f * 1000) / 1000;
+    }
+  }
+  // Energy must agree with the macros (Atwater). Compute both the US-label
+  // form (fiber inside carbs at 4) and the EU form (fiber at 2) and compare
+  // against whichever is closer — high-fiber products are legitimate.
+  const fib = food.ext && isFinite(food.ext.fiber) ? Math.min(food.ext.fiber, C) : 0;
+  const atwUS = 4 * P + 4 * C + 9 * F;
+  const atwEU = 4 * P + 4 * (C - fib) + 9 * F + 2 * fib;
+  const atw = Math.abs(kcal - atwUS) <= Math.abs(kcal - atwEU) ? atwUS : atwEU;
+  if (atw >= 40){
+    const ratio = kcal / atw;
+    if (ratio > 3.7 && ratio < 4.7) kcal = kcal / 4.184;              // kJ in the kcal field
+    else if (Math.abs(kcal - atw) / atw > 0.35) kcal = atwEU;          // macros win
+  }
+  // Sub-nutrients can't exceed their parent macro.
+  if (food.ext){
+    if (food.ext.satFat  != null) food.ext.satFat  = Math.min(food.ext.satFat,  F);
+    if (food.ext.transFat!= null) food.ext.transFat= Math.min(food.ext.transFat,F);
+    if (food.ext.sugar   != null) food.ext.sugar   = Math.min(food.ext.sugar,   C);
+    if (food.ext.fiber   != null) food.ext.fiber   = Math.min(food.ext.fiber,   C);
+  }
+  food.kcal = Math.round(kcal); food.protein = r1(P); food.carbs = r1(C); food.fat = r1(F);
+  return food;
+}
+
 function buildFoodFromOFF(code, p){
   const n = p.nutriments || {};
-  let serving, kcal, prot, carb, fat, basis;
-  // Prefer per-serving values when present
+  let serving, kcal, prot, carb, fat, ext;
   let kcalServ = n['energy-kcal_serving'];
   if (kcalServ == null && n['energy-kj_serving'] != null) kcalServ = num(n['energy-kj_serving']) / 4.184;
   let kcal100 = n['energy-kcal_100g'];
   if (kcal100 == null && n['energy-kj_100g'] != null) kcal100 = num(n['energy-kj_100g']) / 4.184;
 
-  if (kcalServ != null && num(kcalServ) > 0){
-    serving = (p.serving_size || '1 serving').trim(); basis = '_serving';
+  // Grams (or ml) in one serving — the key to using label-verified data.
+  const sq = parseFloat(p.serving_quantity);
+  const hasSq = isFinite(sq) && sq > 0 && sq < 5000;
+  const v100  = (k) => n[k + '_100g']    != null ? num(n[k + '_100g'])    : null;
+  const vServ = (k) => n[k + '_serving'] != null ? num(n[k + '_serving']) : null;
+  let grams = hasSq ? sq : null;
+
+  if (kcal100 != null && num(kcal100) > 0 && hasSq){
+    // Most accurate: per-100g is the label-verified ground truth on OFF
+    // (per-serving fields are often derived or mis-entered) — scale it to
+    // one serving using the product's own serving weight.
+    const f = sq / 100;
+    serving = (p.serving_size || '').trim() || (Math.round(sq) + ' g');
+    kcal = num(kcal100) * f;
+    prot = v100('proteins')      != null ? v100('proteins')      * f : (vServ('proteins')      || 0);
+    carb = v100('carbohydrates') != null ? v100('carbohydrates') * f : (vServ('carbohydrates') || 0);
+    fat  = v100('fat')           != null ? v100('fat')           * f : (vServ('fat')           || 0);
+    ext  = offExt(n, '_100g', f, '_serving', 1);
+    grams = null;   // values already on a consistent basis; skip the mass check
+  } else if (kcalServ != null && num(kcalServ) > 0){
+    serving = (p.serving_size || '1 serving').trim();
     kcal = num(kcalServ);
-    prot = num(n['proteins_serving']); carb = num(n['carbohydrates_serving']); fat = num(n['fat_serving']);
+    prot = vServ('proteins')      != null ? vServ('proteins')      : (hasSq && v100('proteins')      != null ? v100('proteins')      * sq / 100 : 0);
+    carb = vServ('carbohydrates') != null ? vServ('carbohydrates') : (hasSq && v100('carbohydrates') != null ? v100('carbohydrates') * sq / 100 : 0);
+    fat  = vServ('fat')           != null ? vServ('fat')           : (hasSq && v100('fat')           != null ? v100('fat')           * sq / 100 : 0);
+    ext  = offExt(n, '_serving', 1, hasSq ? '_100g' : null, hasSq ? sq / 100 : null);
   } else if (kcal100 != null && num(kcal100) > 0){
-    serving = '100 g'; basis = '_100g';
+    serving = '100 g';
     kcal = num(kcal100);
     prot = num(n['proteins_100g']); carb = num(n['carbohydrates_100g']); fat = num(n['fat_100g']);
+    ext  = offExt(n, '_100g', 1, null, null);
+    grams = 100;
   } else {
     return null; // no usable energy data
   }
@@ -2296,9 +2370,8 @@ function buildFoodFromOFF(code, p){
   if (brand && name && !name.toLowerCase().includes(brand.toLowerCase())) name = `${name} (${brand})`;
   if (!name) name = brand || ('Product ' + code);
   const food = { id:'off-'+code, name, cat:'Scanned', serving, kcal:Math.round(kcal), protein:r1(prot), carbs:r1(carb), fat:r1(fat), isScanned:true };
-  const ext = offExt(n, basis);
   if (ext) food.ext = ext;
-  return food;
+  return sanitizeOFFFood(food, grams);
 }
 
 async function lookupBarcode(raw){
@@ -2316,7 +2389,7 @@ async function lookupBarcode(raw){
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 9000);
-    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,serving_size,nutriments`, { signal: ctrl.signal });
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,serving_size,serving_quantity,nutriments`, { signal: ctrl.signal });
     clearTimeout(timer);
     data = await res.json();
   } catch(e){
