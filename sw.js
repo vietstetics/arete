@@ -16,6 +16,7 @@ const CORE = [
   'js/auth.js', 'js/authguard.js', 'js/fitness.js', 'js/habits.js',
   'js/mobilenav.js', 'js/wearables.js', 'js/energy.js',
   'manifest.webmanifest',
+  'icon-180.png', 'icon-192.png', 'icon-512.png',
 ];
 
 self.addEventListener('install', (e) => {
