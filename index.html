@@ -131,6 +131,27 @@ textarea{font-family:inherit;resize:none}
 .ready-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
 .ready-spark{width:160px;height:44px}
 
+/* Consistency — commit heat map of the last few months (data: js/consistency.js) */
+.cons{--h0:rgba(23,27,18,.06);--h1:#C9EDBC;--h2:#92DC7C;--h3:#58DB3D;--h4:#2E9A1C;background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);margin-bottom:18px;padding:20px 22px 18px}
+.cons-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.cons-eyebrow{font-size:11px;font-weight:500;color:var(--t3);margin-bottom:4px}
+.cons-head{font-size:15px;font-weight:700;color:var(--t1);line-height:1.35}
+.cons-more{display:inline-flex;align-items:center;gap:2px;font-size:12.5px;font-weight:700;color:var(--gr);white-space:nowrap;padding:4px 0}
+.cons-more svg{width:14px;height:14px}
+.cons-months{display:grid;gap:3px;font-size:10px;font-weight:600;color:var(--t3);height:15px;margin-bottom:3px}
+.cons-months span{white-space:nowrap;overflow:visible}
+.cons-grid{display:grid;grid-template-rows:repeat(7,auto);grid-auto-flow:column;gap:3px}
+.cons-grid a,.cons-grid span{aspect-ratio:1;border-radius:3px;background:var(--h0);display:block}
+.cons-grid .l1{background:var(--h1)}.cons-grid .l2{background:var(--h2)}.cons-grid .l3{background:var(--h3)}.cons-grid .l4{background:var(--h4)}
+.cons-grid .future{visibility:hidden}
+.cons-grid .today{box-shadow:0 0 0 1.5px var(--t1)}
+.cons-stats{display:grid;grid-template-columns:repeat(4,minmax(0,max-content));gap:12px 28px;margin-top:14px}
+@media(max-width:767px){.cons{padding:16px 16px 14px}.cons-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.cons-stats .k{line-height:1.25}}
+.cons-stats .v{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.cons-stats .k{font-size:10px;color:var(--t3);font-weight:500}
+.cons-stats .warn{color:var(--ye)}.cons-stats .good{color:var(--gr)}
+.cons-msg{font-size:12.5px;color:var(--t3);padding:6px 0}
+
 /* ─── BUTTONS ─── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-radius:10px;font-size:13.5px;font-weight:500;cursor:pointer;transition:all 160ms;white-space:nowrap;line-height:1;letter-spacing:-.01em}
 .btn:active{transform:scale(.97)}
@@ -650,6 +671,10 @@ textarea{font-family:inherit;resize:none}
       <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
       <span class="ni-label">Progress</span>
     </a>
+    <a href="consistency.html" class="ni" title="Consistency">
+      <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+      <span class="ni-label">Consistency</span>
+    </a>
     <a href="finance.html" class="ni" title="Finance">
       <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       <span class="ni-label">Finance</span>
@@ -695,6 +720,20 @@ textarea{font-family:inherit;resize:none}
         <div class="hdr-av">J</div>
       </div>
     </div>
+
+    <!-- CONSISTENCY -->
+    <section class="cons" id="cons-card" aria-label="Consistency">
+      <div class="cons-top">
+        <div>
+          <div class="cons-eyebrow">Consistency</div>
+          <div class="cons-head" id="cons-head">Loading your commit history…</div>
+        </div>
+        <a class="cons-more" href="consistency.html">See all<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
+      </div>
+      <div class="cons-months" id="cons-months" aria-hidden="true"></div>
+      <div class="cons-grid" id="cons-grid"></div>
+      <div class="cons-stats" id="cons-stats"></div>
+    </section>
 
     <!-- READINESS HERO -->
     <div class="ready" id="ready-card" style="border-left-color:var(--gr)">
@@ -2862,6 +2901,67 @@ function startCanvas() {
   // some cards fill asynchronously (energy forecast, habits) — refresh the header numbers
   setTimeout(syncSummaries,700);
   setTimeout(syncSummaries,2000);
+})();
+</script>
+<script src="js/consistency.js"></script>
+<script>
+/* ── Consistency card ───────────────────────────────────────────────
+   As many recent weeks as fit the card's width (Mon–Sun columns, ending
+   this week). Each square links to that day on the full page. */
+(function(){
+  var C=window.Consistency; if(!C) return;
+  var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var days=null;
+
+  function render(){
+    if(!days) return;
+    var grid=document.getElementById('cons-grid'), months=document.getElementById('cons-months');
+    var W=grid.clientWidth||300, GAP=3, TARGET=14;
+    var weeks=Math.max(8,Math.min(53,Math.floor((W+GAP)/(TARGET+GAP))));
+    var t=C.thresholds(days), today=new Date(), todayKey=C.keyOf(today);
+    var start=new Date(today.getFullYear(),today.getMonth(),today.getDate()-((today.getDay()+6)%7)-(weeks-1)*7);
+    var cols='repeat('+weeks+',minmax(0,1fr))', cells='', labels='', lastLabel=-9, prevMonth=-1;
+    for(var w=0;w<weeks;w++){
+      var mon=new Date(start.getFullYear(),start.getMonth(),start.getDate()+w*7);
+      // Label a column when its week starts a new month, unless the last label is too close.
+      // A partial first month gives way to the next month's label if they would collide.
+      if(mon.getMonth()!==prevMonth){
+        if(w-lastLabel<3 && lastLabel===0) labels='';
+        if(w-lastLabel>=3 || !labels){ labels+='<span style="grid-column:'+(w+1)+'">'+MONTHS[mon.getMonth()]+'</span>'; lastLabel=w; }
+      }
+      prevMonth=mon.getMonth();
+      for(var d=0;d<7;d++){
+        var dt=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+d), k=C.keyOf(dt);
+        if(k>todayKey){ cells+='<span class="future"></span>'; continue; }
+        var n=days[k]?days[k].c:0;
+        var label=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+': '+(n?n+' commit'+(n===1?'':'s'):'no commits');
+        cells+='<a href="consistency.html?day='+k+'" class="l'+C.level(n,t)+(k===todayKey?' today':'')+'" title="'+label+'" aria-label="'+label+'"></a>';
+      }
+    }
+    grid.style.gridTemplateColumns=cols; months.style.gridTemplateColumns=cols;
+    grid.innerHTML=cells; months.innerHTML=labels;
+
+    var s=C.stats(days);
+    document.getElementById('cons-head').textContent =
+      s.current>0 ? s.current+'-day streak. Keep it going.' :
+      s.sinceLast===null ? 'No commits yet.' :
+      'Last commit '+(s.sinceLast===1?'yesterday':s.sinceLast+' days ago')+'. Ship something today to start a streak.';
+    document.getElementById('cons-stats').innerHTML=[
+      [s.current+(s.current===1?' day':' days'),'Current streak',s.current?'good':'warn'],
+      [s.longest+(s.longest===1?' day':' days'),'Longest streak',''],
+      [s.perWeek.toFixed(1),'Active days / week',''],
+      [C.sinceLabel(s.sinceLast),'Last commit',s.sinceLast>7?'warn':'']
+    ].map(function(r){ return '<div><div class="v '+r[2]+'">'+r[0]+'</div><div class="k">'+r[1]+'</div></div>'; }).join('');
+  }
+
+  C.load(function(d){ days=d; render(); }).then(function(res){
+    if(res.error && !res.hadCache){
+      document.getElementById('cons-head').textContent='Couldn’t load your commits right now.';
+      document.getElementById('cons-grid').innerHTML='<div class="cons-msg">'+res.error+'</div>';
+      document.getElementById('cons-grid').style.gridTemplateColumns='1fr';
+    }
+  });
+  var rt; window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(render,150); });
 })();
 </script>
 <script src="js/mobilenav.js" defer></script>
