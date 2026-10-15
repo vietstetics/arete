@@ -11,3 +11,6 @@ www
 # Local agent worktrees / sandbox
 .claude/
 sandbox.html
+
+# Local data backups (never deployed)
+backups/

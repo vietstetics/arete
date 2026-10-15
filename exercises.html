@@ -155,6 +155,42 @@ input,select,textarea{font-family:inherit}
 .table-empty{padding:48px 24px;text-align:center;color:var(--t3)}
 .table-empty h3{font-size:14px;font-weight:600;color:var(--t2);margin-bottom:6px}
 
+[hidden]{display:none!important}
+
+/* ── VIEW TABS ────────────────────────────────────────────────── */
+.vtabs{display:inline-flex;background:var(--s2);border-radius:11px;padding:3px;margin-bottom:18px}
+.vtab{min-height:36px;padding:0 18px;border-radius:9px;font-size:13px;font-weight:600;color:var(--t2)}
+.vtab[aria-selected="true"]{background:#fff;color:var(--t1);box-shadow:var(--sh0)}
+
+/* ── MUSCLES VIEW (features/muscles) ──────────────────────────── */
+.mu-intro{font-size:13px;color:var(--t2);margin:-4px 2px 14px;max-width:640px;line-height:1.55}
+.mu-group{margin-bottom:22px}
+.mu-gh{display:flex;align-items:baseline;gap:8px;margin:0 2px 10px}
+.mu-gh h2{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.mu-gh span{font-size:11.5px;color:var(--t3);font-weight:600}
+.mu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.mu{background:#fff;border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh0);padding:14px 16px;min-width:0}
+.mu-n{font-size:14px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.mu-d{margin-top:10px;display:grid;gap:8px}
+.mu-d dt{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.mu-d dd{font-size:13px;color:var(--t1);overflow-wrap:anywhere;margin-top:1px}
+.mu-empty{color:var(--t3)!important}
+.pf{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.02em;margin-right:4px;vertical-align:1px}
+.pf-ascending{background:rgba(29,164,98,.12);color:#13804B}
+.pf-descending{background:rgba(94,92,230,.12);color:#4644C4}
+.pf-mid-range{background:rgba(176,125,40,.14);color:#8A6120}
+.pf-irrelevant{background:var(--s2);color:var(--t2)}
+.pf-n-a{background:transparent;color:var(--t2);box-shadow:inset 0 0 0 1px var(--bd2)}
+.pf-not-specified{background:transparent;color:var(--t2);border:1px dashed var(--bd2);padding:0 6px}
+.mu-none{padding:40px 24px;text-align:center;color:var(--t3);font-size:13px}
+.mu-notes{padding:16px 18px;margin-top:6px}
+.mu-notes h2{font-size:14px;font-weight:700;margin-bottom:10px}
+.mu-notes dl{display:grid;gap:12px}
+.mu-notes dt{font-size:13px;font-weight:700}
+.mu-notes dt span{font-size:11px;font-weight:600;color:var(--t2);background:var(--s2);padding:1px 7px;border-radius:6px;margin-left:6px}
+.mu-notes dd{font-size:12.5px;color:var(--t2);line-height:1.55;margin-top:2px;max-width:72ch}
+@media(max-width:767px){.mu-grid{grid-template-columns:1fr}}
+
 @media(max-width:767px){.sb{display:none}.pg{padding:20px 16px 48px}.ph{flex-direction:column;gap:12px}}
 .mob-back{display:none;position:fixed;top:0;left:0;right:0;z-index:50;align-items:center;gap:5px;padding:12px 16px;background:rgba(245,245,247,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);font-size:14px;font-weight:600;color:var(--vi);text-decoration:none;cursor:pointer}
 .mob-back svg{width:18px;height:18px}
@@ -204,12 +240,34 @@ input,select,textarea{font-family:inherit}
       <div class="ph-title">Exercise Database</div>
       <div class="ph-sub">Your catalogue of exercises — used across programs, workouts, and recovery.</div>
     </div>
-    <button class="btn btn-p btn-sm" onclick="openAddModal()">
+    <button class="btn btn-p btn-sm" id="add-ex-btn" onclick="openAddModal()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Exercise
     </button>
   </div>
 
+  <div class="vtabs" role="tablist" aria-label="Database view">
+    <button class="vtab" role="tab" id="tab-ex" aria-controls="view-ex" aria-selected="true" onclick="setView('exercises')">Exercises</button>
+    <button class="vtab" role="tab" id="tab-mu" aria-controls="view-mu" aria-selected="false" onclick="setView('muscles')">Muscles</button>
+  </div>
+
+  <!-- MUSCLES: muscle regions, actions and resistance profiles (features/muscles) -->
+  <section id="view-mu" role="tabpanel" aria-labelledby="tab-mu" hidden>
+    <p class="mu-intro">Muscle regions and actions with their resistance profiles — the foundation for building workouts. Exercises haven't been added to these yet.</p>
+    <div class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input class="search-input" id="mu-search" placeholder="Search muscles or actions…" aria-label="Search muscles or actions" oninput="renderMuscles()">
+      </div>
+      <select class="filter-select" id="mu-group" aria-label="Muscle group" onchange="renderMuscles()"><option value="">All muscles</option></select>
+      <select class="filter-select" id="mu-type" aria-label="Resistance profile" onchange="renderMuscles()"><option value="">All profiles</option></select>
+      <span id="mu-count" style="font-size:12px;color:var(--t3);margin-left:4px"></span>
+    </div>
+    <div id="mu-list"><div class="mu-none">Loading muscle database…</div></div>
+    <section class="card mu-notes" id="mu-notes" aria-label="Update notes"></section>
+  </section>
+
+  <div id="view-ex" role="tabpanel" aria-labelledby="tab-ex">
   <!-- Placeholder notice -->
   <div class="placeholder-banner">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -258,6 +316,7 @@ input,select,textarea{font-family:inherit}
       </table>
     </div>
   </div>
+  </div><!-- /view-ex -->
 </div>
 </main>
 </div>
@@ -562,8 +621,67 @@ function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── Exercises / Muscles views ─────────────────────────────────
+function setView(v) {
+  const mu = v === 'muscles';
+  document.getElementById('view-ex').hidden = mu;
+  document.getElementById('view-mu').hidden = !mu;
+  document.getElementById('tab-ex').setAttribute('aria-selected', String(!mu));
+  document.getElementById('tab-mu').setAttribute('aria-selected', String(mu));
+  document.getElementById('add-ex-btn').hidden = mu;
+  history.replaceState(null, '', mu ? '#muscles' : location.pathname);
+  if (mu) renderMuscles();
+}
+
+// ── Muscles (window.MuscleDB from features/muscles) ───────────
+// Every value is shown exactly as written in the source file. The profile
+// type gets a badge; the rest of the wording follows it unchanged.
+const pfClass = t => 'pf pf-' + t.toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '');
+let muFiltersReady = false;
+function renderMuscles() {
+  const DB = window.MuscleDB;
+  const list = document.getElementById('mu-list');
+  if (!DB) { list.innerHTML = '<div class="mu-none">Loading muscle database…</div>'; return; }
+  if (!muFiltersReady) {
+    document.getElementById('mu-group').insertAdjacentHTML('beforeend', DB.groups().map(g => `<option>${esc(g)}</option>`).join(''));
+    document.getElementById('mu-type').insertAdjacentHTML('beforeend', DB.PROFILE_TYPES.filter(t => DB.entries.some(e => e.profile.type === t)).map(t => `<option>${esc(t)}</option>`).join(''));
+    const n = DB.notes;
+    document.getElementById('mu-notes').innerHTML = n.title ? `<h2>${esc(n.title)}</h2><dl>${n.items.map(i =>
+      `<div><dt>${esc(i.topic)}<span>${esc(i.status)}</span></dt><dd>${esc(i.detail)}</dd></div>`).join('')}</dl>` : '';
+    muFiltersReady = true;
+  }
+  const rows = DB.query({
+    text:  document.getElementById('mu-search').value,
+    group: document.getElementById('mu-group').value,
+    type:  document.getElementById('mu-type').value,
+  });
+  document.getElementById('mu-count').textContent = rows.length === DB.entries.length ? `${rows.length} entries` : `${rows.length} of ${DB.entries.length}`;
+  if (!rows.length) { list.innerHTML = '<div class="card mu-none">No muscle entries match.</div>'; return; }
+  const byGroup = new Map();
+  rows.forEach(e => { if (!byGroup.has(e.group)) byGroup.set(e.group, []); byGroup.get(e.group).push(e); });
+  list.innerHTML = [...byGroup].map(([g, es]) => `
+    <section class="mu-group" aria-label="${esc(g)}">
+      <div class="mu-gh"><h2>${esc(g)}</h2><span>${es.length}</span></div>
+      <div class="mu-grid">${es.map(e => {
+        const rest = e.resistanceProfile.slice(e.profile.type.length);
+        const linked = DB.exercisesFor(e.id);
+        return `<article class="mu" id="mu-${esc(e.id)}">
+          <h3 class="mu-n">${esc(e.muscle)}</h3>
+          <dl class="mu-d">
+            <div><dt>Muscle action</dt><dd>${esc(e.muscleAction)}</dd></div>
+            <div><dt>Resistance profile</dt><dd><span class="${pfClass(e.profile.type)}">${esc(e.profile.type)}</span>${esc(rest)}</dd></div>
+            <div><dt>Exercises</dt><dd class="${linked.length ? '' : 'mu-empty'}">${linked.length ? `${linked.length} linked` : 'None added yet'}</dd></div>
+          </dl>
+        </article>`;
+      }).join('')}</div>
+    </section>`).join('');
+}
+
 render();
+if (location.hash === '#muscles') setView('muscles');
+if (!window.MuscleDB) window.addEventListener('muscledb-ready', () => { if (!document.getElementById('view-mu').hidden) renderMuscles(); }, { once: true });
 </script>
+<script type="module" src="features/muscles/index.js"></script>
 <script src="js/mobilenav.js" defer></script>
 </body>
 </html>

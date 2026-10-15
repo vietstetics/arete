@@ -12,7 +12,9 @@
     "test:steps": "node --test \"features/steps/__tests__/*.test.js\"",
     "test:health": "node --test \"features/health/__tests__/*.test.js\"",
     "typecheck": "tsc -p tsconfig.health.json",
-    "test:training": "node --test \"features/training/__tests__/*.test.js\""
+    "test:training": "node --test \"features/training/__tests__/*.test.js\"",
+    "test:muscles": "node --test \"features/muscles/__tests__/*.test.js\"",
+    "build:muscles": "node scripts/build-muscle-db.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",

@@ -1,0 +1,210 @@
+{
+ "source": "Muscle_Actions_Updated_Profiles.xlsx (table MuscleActions A1:C35), read with a stdlib XML parser",
+ "entries": [
+  [
+   "Latissimus dorsi — Upper",
+   "ASCENDING",
+   "Sagittal plane shoulder extension"
+  ],
+  [
+   "Latissimus dorsi — Lower",
+   "DESCENDING",
+   "Frontal plane shoulder adduction"
+  ],
+  [
+   "Pectoralis major — Upper chest",
+   "DESCENDING",
+   "Sagittal plane shoulder flexion"
+  ],
+  [
+   "Pectoralis major — Middle chest",
+   "DESCENDING",
+   "Transverse plane shoulder horizontal flexion"
+  ],
+  [
+   "Pectoralis major — Lower chest",
+   "DESCENDING",
+   "Sagittal plane shoulder extension"
+  ],
+  [
+   "Deltoid — Anterior",
+   "ASCENDING",
+   "Shoulder flexion or abduction"
+  ],
+  [
+   "Deltoid — Middle",
+   "DESCENDING",
+   "Frontal plane shoulder abduction"
+  ],
+  [
+   "Deltoid — Posterior",
+   "ASCENDING",
+   "Transverse plane shoulder horizontal extension"
+  ],
+  [
+   "Trapezius — Upper",
+   "DESCENDING",
+   "Pulls clavicle backwards"
+  ],
+  [
+   "Trapezius — Middle and lower",
+   "DESCENDING",
+   "Scapular retraction"
+  ],
+  [
+   "Triceps brachii — Long head",
+   "DESCENDING",
+   "Elbow extension with shoulder extended and elbow flexed"
+  ],
+  [
+   "Triceps brachii — Lateral and medial heads",
+   "ASCENDING",
+   "Elbow extension with shoulder flexion"
+  ],
+  [
+   "Elbow flexors — Brachioradialis",
+   "ASCENDING",
+   "Elbow flexion with pronated grip"
+  ],
+  [
+   "Elbow flexors — Brachialis",
+   "DESCENDING",
+   "Elbow flexion with flexed shoulder"
+  ],
+  [
+   "Elbow flexors — Biceps brachii",
+   "DESCENDING",
+   "Elbow flexion with extended shoulder"
+  ],
+  [
+   "Gluteus maximus — Upper",
+   "N/A (hip abduction)",
+   "Hip abduction with flexed hip"
+  ],
+  [
+   "Gluteus maximus — Lower",
+   "ASCENDING; heaviest at 25–0° hip flexion",
+   "Hip extension"
+  ],
+  [
+   "Hamstrings — Biceps femoris short head",
+   "IRRELEVANT (knee flexion)",
+   "Knee flexion when hip is extended"
+  ],
+  [
+   "Hamstrings — Biceps femoris long head and semimembranosus",
+   "IRRELEVANT (knee flexion)",
+   "Knee flexion when hip is flexed"
+  ],
+  [
+   "Hamstrings — Upper",
+   "MID-RANGE; heaviest at 75–25° hip flexion",
+   "Hip extension"
+  ],
+  [
+   "Hamstrings — Lower",
+   "IRRELEVANT (knee flexion)",
+   "Knee flexion"
+  ],
+  [
+   "Hamstrings — Medial (semitendinosus and semimembranosus)",
+   "MID-RANGE; heaviest at 75–25° hip flexion",
+   "Hip extension with hip rotated inwards"
+  ],
+  [
+   "Hamstrings — Lateral (biceps femoris long and short heads)",
+   "IRRELEVANT (knee flexion)",
+   "Knee flexion with feet rotated outwards"
+  ],
+  [
+   "Quadriceps — Single-joint quadriceps",
+   "IRRELEVANT; ASCENDING preferred",
+   "Knee extension with hip extension"
+  ],
+  [
+   "Quadriceps — Two-joint rectus femoris (upper region)",
+   "Not specified",
+   "Hip flexion"
+  ],
+  [
+   "Quadriceps — Two-joint rectus femoris (lower region)",
+   "IRRELEVANT; ASCENDING preferred",
+   "Knee extension"
+  ],
+  [
+   "Calves — Gastrocnemius",
+   "DESCENDING",
+   "Ankle plantar-flexion with extended knee"
+  ],
+  [
+   "Calves — Soleus",
+   "DESCENDING",
+   "Ankle plantar-flexion with flexed knee"
+  ],
+  [
+   "Calves — Medial gastrocnemius",
+   "DESCENDING",
+   "Ankle plantar-flexion with outward foot rotation"
+  ],
+  [
+   "Calves — Lateral gastrocnemius",
+   "DESCENDING",
+   "Ankle plantar-flexion with inward foot rotation"
+  ],
+  [
+   "Adductors — Hip extension",
+   "DESCENDING; heaviest at 90–75° hip flexion",
+   "Hip extension"
+  ],
+  [
+   "Adductors — Hip adduction",
+   "N/A",
+   "Hip adduction"
+  ],
+  [
+   "Abductors — Hip abduction",
+   "N/A",
+   "Hip abduction"
+  ],
+  [
+   "Quadriceps — Squat pattern",
+   "ASCENDING; 30–70° range",
+   "Knee extension plus hip extension"
+  ]
+ ],
+ "notes": {
+  "title": "Update notes",
+  "items": [
+   [
+    "Source",
+    "User-supplied specifications",
+    "Latest instructions replace the earlier wording-based conversion wherever a new profile was supplied. These are recorded specifications, not independently verified exercise torque curves."
+   ],
+   [
+    "Hip-angle convention",
+    "Confirmed by user",
+    "0° = straight hip. Adductor hip extension: 90–75°. Hamstring hip extension: 75–25°. Glute hip extension: 25–0°."
+   ],
+   [
+    "Squat range",
+    "30–70° as supplied",
+    "The reference joint / angle convention for this separate squat range was not specified. It is preserved without assuming a hip- or knee-angle definition."
+   ],
+   [
+    "Irrelevant / preferred / N/A",
+    "Kept distinct",
+    "Quadriceps knee extension: profile irrelevant, ascending preferred. Hamstring knee flexion: irrelevant. Hip adduction and hip abduction: N/A."
+   ],
+   [
+    "Unchanged entries",
+    "No new profile supplied",
+    "Brachioradialis retains ASCENDING. Upper-region rectus femoris hip flexion retains Not specified. Original muscle-action wording is preserved."
+   ],
+   [
+    "Action-specific entries",
+    "34 total rows",
+    "All original 30 entries remain. Four rows were added for adductor hip extension, hip adduction, hip abduction and the quadriceps squat pattern."
+   ]
+  ]
+ }
+}
