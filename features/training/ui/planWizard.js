@@ -8,6 +8,8 @@ import {
 } from '../services/schedule.js';
 import { starterFor } from '../data/starters.js';
 import { commitPlan, endPlan } from '../repositories/planStore.js';
+import { catalogue } from '../../exercises/index.js';
+import { recordSelectHtml, recordDetailHtml, targetsPickerHtml, sessionPanelHtml, planPanelHtml } from '../../exercises/ui/overlapPanel.js';
 
 const DRAFT_KEY = 'arete_plan_wizard';
 const STEPS = ['Split', 'Days', 'Workouts', 'Review'];
@@ -129,10 +131,11 @@ function buildPlan() {
     routines: keep.map((r) => ({
       id: r.id,
       name: r.name.trim() || 'Workout',
+      ...(r.targets && r.targets.length ? { targets: r.targets.slice() } : {}),
       exercises: r.exercises.map((x) => {
         const lo = int(x.repMin, 1, 100, 8), hi = int(x.repMax, 1, 100, lo);
         const rir = x.rir === '' || x.rir == null ? null : Math.min(10, Math.max(0, Number(x.rir)));
-        return { id: x.id, name: x.name, sets: int(x.sets, 1, 20, 2), repMin: Math.min(lo, hi), repMax: Math.max(lo, hi), rir: Number.isFinite(rir) ? rir : null };
+        return { id: x.id, name: x.name, ...(x.catalogId ? { catalogId: x.catalogId } : {}), sets: int(x.sets, 1, 20, 2), repMin: Math.min(lo, hi), repMax: Math.max(lo, hi), rir: Number.isFinite(rir) ? rir : null };
       }),
     })),
   };
@@ -292,6 +295,8 @@ function step2() {
             <button class="tw-btn2" data-act="xadd" data-id="${r.id}">＋ Add exercise</button>
             ${starter && !r.exercises.length ? `<button class="tw-btn2" data-act="starter" data-id="${r.id}">Use starter template</button>` : ''}
           </div>
+          ${targetsPickerHtml(r, catalogue.entries)}
+          ${sessionPanelHtml(r, catalogue)}
           ${s.variants && st.routines.length > 1 ? `<button class="tw-link danger" data-act="vdel" data-id="${r.id}">Remove ${esc(r.name || 'this workout')}</button>` : ''}
         </div>` : ''}
       </section>`;
@@ -318,6 +323,8 @@ function exRow(r, x, i) {
       <label><span>Reps</span><span class="tw-range"><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="xmin" ${k} value="${esc(x.repMin)}" aria-label="Minimum reps"><i>–</i><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="xmax" ${k} value="${esc(x.repMax)}" aria-label="Maximum reps"></span></label>
       <label><span>RIR</span><input class="tw-num" type="number" inputmode="decimal" min="0" max="10" step="0.5" data-field="xrir" ${k} value="${esc(x.rir ?? '')}" placeholder="–"></label>
     </div>
+    ${recordSelectHtml(x, catalogue, k)}
+    ${recordDetailHtml(x, catalogue)}
   </div>`;
 }
 
@@ -342,8 +349,18 @@ function step3() {
       <div class="tw-rv-h">${esc(r.name)}</div>
       ${r.exercises.length ? `<ul>${r.exercises.map((x) => `<li><span>${esc(x.name)}</span><span>${x.sets} × ${esc(repText(x))}${x.rir != null ? ` · ${x.rir} RIR` : ''}</span></li>`).join('')}</ul>` : '<p class="tw-p small">No exercises yet</p>'}
     </div>`).join('')}
+    <div class="tw-lbl">Overlap &amp; coverage</div>
+    ${planPanelHtml(plan, catalogue, sessionsPerWeek(plan))}
     ${issue ? `<p class="tw-warn">${esc(issue.msg)} <button class="tw-link" data-act="goto" data-step="${issue.step}">Fix</button></p>` : ''}
     ${st.editing ? `<button class="tw-link danger end" data-act="end">${st.confirmEnd ? 'Tap again to end this plan' : 'End this plan'}</button>` : ''}`;
+}
+
+/** Sessions per routine in a typical week (the first full week after the start). */
+function sessionsPerWeek(plan) {
+  const out = {};
+  if (!isDate(plan.startDate)) return out;
+  for (const d of previewWeek(plan, addDays(weekStart(plan.startDate), 7))) if (d.routine) out[d.routine.id] = (out[d.routine.id] || 0) + 1;
+  return out;
 }
 
 function eodList(plan) {
@@ -419,6 +436,19 @@ function onInput(e) {
     const label = root.querySelector(`[data-name-of="${r.id}"]`); if (label) label.textContent = v || 'Workout';
   } else if (f === 'startDate') { if (e.type !== 'change' || !isDate(v)) return; st.startDate = v; saveDraft(); render(); return; }
   else if (f === 'assign') { if (e.type !== 'change') return; st.assignments[el.dataset.d] = v; saveDraft(); render(); return; }
+  else if (f === 'rtarget') {
+    if (e.type !== 'change') return;
+    const r = routine(el.dataset.id); if (!r) return;
+    const set = new Set(r.targets || []);
+    if (el.checked) set.add(v); else set.delete(v);
+    r.targets = catalogue.entries.map((x) => x.id).filter((id) => set.has(id));
+    saveDraft(); render(); return;
+  } else if (f === 'xcat') {
+    if (e.type !== 'change') return;
+    const r = routine(el.dataset.rid); const x = r && r.exercises.find((q) => q.id === el.dataset.xid); if (!x) return;
+    if (v) x.catalogId = v; else delete x.catalogId;
+    saveDraft(); render(); return;
+  }
   else {
     const r = routine(el.dataset.rid); const x = r && r.exercises.find((q) => q.id === el.dataset.xid); if (!x) return;
     const key = { xsets: 'sets', xmin: 'repMin', xmax: 'repMax', xrir: 'rir' }[f];

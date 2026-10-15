@@ -14,6 +14,7 @@
     "typecheck": "tsc -p tsconfig.health.json",
     "test:training": "node --test \"features/training/__tests__/*.test.js\"",
     "test:muscles": "node --test \"features/muscles/__tests__/*.test.js\"",
+    "test:exercises": "node --test \"features/exercises/__tests__/*.test.js\"",
     "build:muscles": "node scripts/build-muscle-db.mjs"
   },
   "dependencies": {
