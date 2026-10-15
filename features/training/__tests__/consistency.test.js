@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dayMap, weekSummary, recentWeeks, adherence, sessionStreak, daysSinceLast, slotDone } from '../services/consistency.js';
+import { dayMap, weekSummary, recentWeeks, adherence, sessionStreak, daysSinceLast, slotDone, dayShades, shadeLevel } from '../services/consistency.js';
 
 const R = (id, name = id) => ({ id, name, exercises: [] });
 const at = (key, hour = 18) => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d, hour, 0).getTime(); };
@@ -115,4 +115,51 @@ test('a plan edit mid-week keeps sessions already completed under the old versio
 test('daysSinceLast ignores sample data', () => {
   assert.equal(daysSinceLast([wk('2026-06-15'), { id: 'mock-x', completedAt: at('2026-06-20') }], '2026-06-21'), 6);
   assert.equal(daysSinceLast([], '2026-06-21'), null);
+});
+
+// ── Heatmap shading by weekly completion ───────────────────────────────
+// Full Body Mon Wed Fri from Monday 2026-06-15.
+const FB = { versions: [{ id: 'v1', planId: 'p', mode: 'weekly', rotation: 'continue', days: [1, 3, 5], startDate: '2026-06-15', effectiveFrom: '2026-06-15', createdAt: 1, routines: [R('fb', 'Full Body')] }] };
+const doneOn = (keys) => keys.map((k) => wk(k, { scheduledFor: k }));
+
+test('shade thresholds: full week strongest, then 75%, 50%, below', () => {
+  assert.deepEqual([1, 0.75, 2 / 3, 0.5, 0.25, 0].map(shadeLevel), [4, 3, 2, 2, 1, 1]);
+  assert.equal(shadeLevel(null), 3);
+});
+
+test('Full Body 3/3 is the strongest shade on every session', () => {
+  const s = dayShades(FB, doneOn(['2026-06-15', '2026-06-17', '2026-06-19']), '2026-06-21');
+  assert.deepEqual(Object.values(s).map((d) => d.level), [4, 4, 4]);
+  assert.deepEqual([s['2026-06-15'].done, s['2026-06-15'].expected], [3, 3]);
+});
+
+test('Upper / Lower 3/4 is lighter than a full week', () => {
+  const s = dayShades(UL, doneOn(['2026-06-15', '2026-06-16', '2026-06-18']), '2026-06-21');
+  assert.equal(s['2026-06-15'].level, 3);
+  assert.equal(dayShades(UL, doneOn(['2026-06-15', '2026-06-16']), '2026-06-21')['2026-06-15'].level, 2);
+  assert.equal(dayShades(UL, doneOn(['2026-06-15']), '2026-06-21')['2026-06-15'].level, 1);
+});
+
+test('the current week is measured against its whole schedule', () => {
+  const s = dayShades(UL, doneOn(['2026-06-15']), '2026-06-15');
+  assert.deepEqual([s['2026-06-15'].level, s['2026-06-15'].done, s['2026-06-15'].expected], [1, 1, 4]);
+});
+
+test('extra sessions never push a week past full', () => {
+  const s = dayShades(FB, [...doneOn(['2026-06-15', '2026-06-17', '2026-06-19']), wk('2026-06-20'), wk('2026-06-15')], '2026-06-21');
+  assert.equal(s['2026-06-20'].level, 4);
+  assert.equal(s['2026-06-20'].done, 3);
+});
+
+test('old weeks keep the target of the plan they were on', () => {
+  // Full Body (3 a week) until 2026-06-21, then Upper / Lower (4 a week).
+  const store = { versions: [FB.versions[0], { ...UL.versions[0], id: 'v2', startDate: '2026-06-22', effectiveFrom: '2026-06-22', createdAt: 2 }] };
+  const s = dayShades(store, doneOn(['2026-06-15', '2026-06-17', '2026-06-19', '2026-06-22', '2026-06-23', '2026-06-25']), '2026-06-28');
+  assert.deepEqual([s['2026-06-15'].level, s['2026-06-15'].expected], [4, 3]);
+  assert.deepEqual([s['2026-06-22'].level, s['2026-06-22'].expected], [3, 4]);
+});
+
+test('without a plan every workout day is a steady medium', () => {
+  const s = dayShades({ versions: [] }, [wk('2026-06-15'), wk('2026-06-16')], '2026-06-21');
+  assert.deepEqual(Object.values(s).map((d) => [d.level, d.expected]), [[3, 0], [3, 0]]);
 });

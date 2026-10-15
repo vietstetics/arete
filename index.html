@@ -2966,8 +2966,9 @@ function startCanvas() {
     var T=window.Training; if(!T) return null;
     var today=T.localKey(), store=T.loadStore(), workouts=T.loadWorkouts();
     var dm=T.dayMap(workouts), days={}, k;
-    // Shade by completed working sets; a session without sets (e.g. imported) still shows.
-    for(k in dm) days[k]={ c:Math.max(1,dm[k].sets), count:dm[k].count };
+    // Shade by how much of that week's plan was done, not by volume.
+    var shades=T.dayShades(store,workouts,today);
+    for(k in dm) days[k]={ c:dm[k].count, count:dm[k].count, shade:shades[k] };
     var plan=T.currentPlan(store,today), since=T.daysSinceLast(workouts,today), head, stats;
     var sinceWarn=since!=null&&since>7?'warn':'';
     if(plan){
@@ -2990,8 +2991,9 @@ function startCanvas() {
       head = since===null ? 'Finish a workout and it lands here.' : 'Last workout '+(since===0?'today':since===1?'yesterday':since+' days ago')+'.';
       stats=[[String(thisWeek),'This week',''],[String(active30),'Active days (30d)',''],[String(year),'Workouts '+y,''],[C.sinceLabel(since),'Last workout',sinceWarn]];
     }
-    // A finished session is never the faintest shade.
-    return { days:days, head:head, stats:stats, unit:function(d){ return plural(d.count,'workout'); }, none:'no workout', src:'training', minLevel:2 };
+    return { days:days, head:head, stats:stats, none:'no workout', src:'training',
+      unit:function(d){ return plural(d.count,'workout')+(d.shade.expected?' · week '+d.shade.done+'/'+d.shade.expected:''); },
+      levelOf:function(d){ return d.shade.level; } };
   }
 
   function codeSet(){
@@ -3038,7 +3040,7 @@ function startCanvas() {
         if(k>todayKey){ cells+='<span class="future"></span>'; continue; }
         var day=set.days[k], n=day?day.c:0;
         var label=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+': '+(day?set.unit(day):set.none);
-        cells+='<a href="consistency.html?src='+set.src+'&day='+k+'" class="l'+(n?Math.max(set.minLevel||1,C.level(n,t)):0)+(k===todayKey?' today':'')+'" title="'+label+'" aria-label="'+label+'"></a>';
+        cells+='<a href="consistency.html?src='+set.src+'&day='+k+'" class="l'+(!day?0:set.levelOf?set.levelOf(day):C.level(n,t))+(k===todayKey?' today':'')+'" title="'+label+'" aria-label="'+label+'"></a>';
       }
     }
     grid.style.gridTemplateColumns=cols; months.style.gridTemplateColumns=cols;

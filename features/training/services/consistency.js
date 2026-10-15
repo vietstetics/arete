@@ -141,6 +141,34 @@ export function sessionStreak(store, workouts, today, lookback = 400) {
   return streak;
 }
 
+/**
+ * Heatmap shade (1–4) for a workout day from its week's completion rate.
+ * null (nothing scheduled that week, e.g. no plan) gets a steady medium.
+ */
+export function shadeLevel(pct) {
+  if (pct == null) return 3;
+  return pct >= 1 ? 4 : pct >= 0.75 ? 3 : pct >= 0.5 ? 2 : 1;
+}
+
+/**
+ * Every finished-workout date shaded by how much of that week's plan was
+ * done: { 'YYYY-MM-DD': { level, done, expected } }. Each week is judged
+ * against the plan version in force then, and the current week against its
+ * whole schedule, so it darkens as sessions are finished.
+ */
+export function dayShades(store, workouts, today) {
+  const idx = slotIndex(workouts);
+  const weeks = new Map();
+  const out = {};
+  for (const k of Object.keys(dayMap(workouts))) {
+    const ws = weekStart(k);
+    let w = weeks.get(ws);
+    if (!w) { w = weekSummary(store, workouts, ws, today, idx); weeks.set(ws, w); }
+    out[k] = { level: shadeLevel(w.pct), done: w.done, expected: w.expected };
+  }
+  return out;
+}
+
 /** Days since the most recent finished session, or null if none. */
 export function daysSinceLast(workouts, today) {
   let last = null;
