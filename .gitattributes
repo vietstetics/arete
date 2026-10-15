@@ -1,0 +1,4 @@
+# Muscle database source: store byte-for-byte (its SHA-256 is recorded in the
+# generated module), and keep the generated module LF so `--check` is stable.
+features/muscles/data/*.csv -text
+features/muscles/data/muscleActions.js text eol=lf
