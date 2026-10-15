@@ -11,7 +11,8 @@
     "open:android": "cap open android",
     "test:steps": "node --test \"features/steps/__tests__/*.test.js\"",
     "test:health": "node --test \"features/health/__tests__/*.test.js\"",
-    "typecheck": "tsc -p tsconfig.health.json"
+    "typecheck": "tsc -p tsconfig.health.json",
+    "test:training": "node --test \"features/training/__tests__/*.test.js\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",

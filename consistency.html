@@ -66,8 +66,10 @@ a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer;b
 .scroller{position:relative;overflow-x:auto;padding-bottom:8px}
 .grid{display:flex;width:max-content}
 .dow{display:grid;grid-template-rows:20px repeat(7,var(--cell));row-gap:var(--gap);padding-right:10px;font-size:11px;font-weight:600;color:var(--t3);align-items:center;position:sticky;left:0;background:#fff;z-index:1}
-.mo{display:grid;grid-template-rows:20px repeat(7,var(--cell));row-gap:var(--gap);column-gap:var(--gap);grid-auto-flow:column;grid-auto-columns:var(--cell);padding-right:14px}
-.mo h3{grid-row:1;grid-column:1/-1;font-size:11.5px;font-weight:600;color:var(--t3);white-space:nowrap}
+/* month = label above a 7-row day grid (the label must not share the grid, or days slide into its row) */
+.mo{display:flex;flex-direction:column;gap:var(--gap);padding-right:14px}
+.mo-g{display:grid;grid-template-rows:repeat(7,var(--cell));grid-auto-flow:column;grid-auto-columns:var(--cell);gap:var(--gap)}
+.mo h3{height:20px;line-height:20px;font-size:11.5px;font-weight:600;color:var(--t3);white-space:nowrap}
 .mo h3.has{color:var(--t1);font-weight:800}
 .c{width:var(--cell);height:var(--cell);border-radius:5px;background:var(--h0);padding:0}
 .c.blank{visibility:hidden}
@@ -98,6 +100,27 @@ a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer;b
 .mob-back{display:none;position:fixed;top:0;left:0;right:0;z-index:50;align-items:center;gap:5px;padding:12px 16px;background:rgba(244,246,245,.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);font-size:14px;font-weight:600;color:var(--gr)}
 .mob-back svg{width:18px;height:18px}
 @media(max-width:767px){.sb{display:none}.pg{padding:16px 16px 80px;padding-top:60px!important}.mob-back{display:flex}.ph-title{font-size:22px}.heat{padding:16px 14px 12px}}
+
+.ph-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.src{display:inline-flex;background:rgba(23,27,18,.06);border-radius:12px;padding:3px}
+.src button{min-height:34px;padding:0 14px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--t2)}
+.src button[aria-pressed="true"]{background:#fff;color:var(--t1);box-shadow:var(--sh0)}
+.c.plan{box-shadow:inset 0 0 0 1.5px var(--t2)}
+.c.miss{box-shadow:inset 0 0 0 1.5px rgba(192,64,58,.45)}
+.c.today.plan,.c.today.miss{box-shadow:0 0 0 2px var(--t1),inset 0 0 0 1.5px var(--t2)}
+.plan-key{display:inline-flex;align-items:center;gap:4px;margin-right:10px}
+.legend .k-plan{background:transparent;box-shadow:inset 0 0 0 1.5px var(--t2)}
+.weeks{padding:6px 18px}
+.wkr{display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:12px;min-height:42px;border-bottom:1px solid var(--bd);font-size:13px}
+.wkr:last-child{border-bottom:0}
+.wkr-l{color:var(--t2);font-variant-numeric:tabular-nums}
+.wkr-bar{height:8px;border-radius:8px;background:rgba(23,27,18,.07);overflow:hidden}
+.wkr-bar i{display:block;height:100%;border-radius:8px;background:var(--h3)}
+.wkr-v{text-align:right;color:var(--t3);font-variant-numeric:tabular-nums}
+.wkr-v b{color:var(--t1)}
+.plan-line{margin:-2px 0 8px}
+.plan-line b{color:var(--t1)}
+@media(max-width:767px){.ph-r{width:100%;justify-content:space-between}.wkr{grid-template-columns:92px 1fr 56px}}
 </style>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -128,47 +151,103 @@ a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer;b
   <div class="ph">
     <div>
       <h1 class="ph-title">Consistency</h1>
-      <p class="ph-sub">Every day you shipped work on Arete. Pulled live from the project's GitHub history.</p>
+      <p class="ph-sub" id="sub">Every day you trained. A session counts once you finish it.</p>
     </div>
-    <div class="yr">
-      <button class="ib" id="prev" aria-label="Previous year"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-      <b id="year">2026</b>
-      <button class="ib" id="next" aria-label="Next year"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <div class="ph-r">
+      <div class="src" role="group" aria-label="Show consistency for">
+        <button type="button" data-src="training" aria-pressed="true">Training</button>
+        <button type="button" data-src="code" aria-pressed="false">Code</button>
+      </div>
+      <div class="yr">
+        <button class="ib" id="prev" aria-label="Previous year"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <b id="year">2026</b>
+        <button class="ib" id="next" aria-label="Next year"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
     </div>
   </div>
 
   <section class="card heat">
     <div class="scroller" id="scroller"><div class="grid" id="grid"></div></div>
     <div class="heat-f">
-      <span id="updated">Loading commits…</span>
-      <span class="legend" aria-hidden="true">Less <i style="background:var(--h0)"></i><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i> More</span>
+      <span id="updated">Loading…</span>
+      <span class="legend" aria-hidden="true"><span id="plan-key" class="plan-key" hidden><i class="k-plan"></i> Planned</span> Less <i style="background:var(--h0)"></i><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i> More</span>
     </div>
   </section>
 
   <section class="stats" id="stats"></section>
 
+  <div id="weeks-wrap" hidden>
+    <div class="sec-h">Weekly completion</div>
+    <section class="card weeks" id="weeks"></section>
+  </div>
+
   <div class="sec-h">Day detail</div>
-  <section class="card day" id="day" aria-live="polite"><p>Tap a square to see what you shipped that day.</p></section>
+  <section class="card day" id="day" aria-live="polite"><p>Tap a square to see that day.</p></section>
 </div>
 </main>
 </div>
 
 <script src="js/consistency.js"></script>
 <script>
+// One heat map, two sources:
+//  • Training — finished workouts (jarvis_workouts), measured against the
+//    training plan's schedule (features/training). Planned days are ringed.
+//  • Code — Arete's GitHub commits (js/consistency.js).
 const C = window.Consistency;
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const TODAY = C.keyOf(new Date());
+const SRC_KEY = 'arete_cons_src';
 
-let DATA = {};           // 'YYYY-MM-DD' (local) -> { c: count, m: [messages] }
+const params = new URLSearchParams(location.search);
+let src = params.get('src');
+if (src !== 'code' && src !== 'training') { try { src = localStorage.getItem(SRC_KEY); } catch (e) {} }
+if (src !== 'code') src = 'training';
 let year = new Date().getFullYear();
 let selected = null;
+let CODE = null, codeAt = null, codeErr = null, codeStarted = false;
 
 const nice = k => new Date(k + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const short = k => new Date(k + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-function render(fetchedAt) {
-  const t = C.thresholds(DATA), grid = document.getElementById('grid');
+// The current source's data: { days: {date: {c, …}}, unit(day), none, plan? }
+function dataset() {
+  if (src === 'code') return CODE ? { days: CODE, unit: d => plural(d.c, 'commit'), none: 'no commits' } : null;
+  const T = window.Training; if (!T) return null;
+  const workouts = T.loadWorkouts(), store = T.loadStore();
+  const dm = T.dayMap(workouts), days = {};
+  // Shade by completed working sets; a session without sets (e.g. imported) still shows.
+  for (const k in dm) days[k] = { ...dm[k], c: Math.max(1, dm[k].sets) };
+  const plan = T.currentPlan(store, TODAY) || (store.versions.length ? store.versions[store.versions.length - 1] : null);
+  return { days, workouts, store, plan, T, unit: d => plural(d.count, 'workout'), none: 'no workout' };
+}
+
+function render() {
+  document.querySelectorAll('[data-src]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.src === src)));
+  document.getElementById('sub').textContent = src === 'code'
+    ? 'Every day you shipped work on Arete, from its GitHub history.'
+    : 'Every day you trained. A session counts once you finish it.';
+  const ds = dataset();
+  const grid = document.getElementById('grid');
+  const upd = document.getElementById('updated');
+  if (!ds) {
+    grid.innerHTML = codeErr && src === 'code' ? `<div class="state">Couldn't load commits. ${esc(codeErr)}<br><button id="retry">Try again</button></div>` : '<div class="state">Loading…</div>';
+    const r = document.getElementById('retry'); if (r) r.onclick = () => location.reload();
+    upd.textContent = codeErr && src === 'code' ? 'Offline or unavailable' : 'Loading…';
+    document.getElementById('stats').innerHTML = '';
+    document.getElementById('weeks-wrap').hidden = true;
+    return;
+  }
+  const DATA = ds.days;
+  const t = C.thresholds(DATA);
+  // Training: which days the plan scheduled this year, and which were done.
+  let planned = new Map();
+  if (ds.T && ds.store.versions.length) {
+    for (const s of ds.T.sessionsBetween(ds.store, `${year}-01-01`, `${year}-12-31`)) planned.set(s.date, { name: s.routine.name, done: ds.T.slotDone(ds.workouts, s.date) });
+  }
+  document.getElementById('plan-key').hidden = !planned.size;
   const years = [...new Set(Object.keys(DATA).map(k => +k.slice(0, 4)).concat(new Date().getFullYear()))].sort();
   grid.innerHTML = '<div class="dow"><span></span>' + DOW.map(d => `<span>${d}</span>`).join('') + '</div>';
   for (let m = 0; m < 12; m++) {
@@ -177,82 +256,159 @@ function render(fetchedAt) {
     let html = '', active = false;
     for (let i = 0; i < first; i++) html += '<span class="c blank"></span>';
     for (let d = 1; d <= len; d++) {
-      const k = `${year}-${C.pad(m + 1)}-${C.pad(d)}`, n = DATA[k]?.c || 0;
+      const k = `${year}-${C.pad(m + 1)}-${C.pad(d)}`, day = DATA[k], n = day ? day.c : 0, p = planned.get(k);
       if (n) active = true;
-      const cls = ['c', 'l' + C.level(n, t)];
-      if (k > TODAY) cls.push('future');
+      // A finished training session is never the faintest shade.
+      const cls = ['c', 'l' + (n && src === 'training' ? Math.max(2, C.level(n, t)) : C.level(n, t))];
+      if (p && !p.done) cls.push(k < TODAY ? 'miss' : 'plan');
+      if (k > TODAY && !p) cls.push('future');
       if (k === TODAY) cls.push('today');
       if (k === selected) cls.push('sel');
-      const label = `${nice(k)}: ${n ? n + ' commit' + (n === 1 ? '' : 's') : 'no commits'}`;
-      html += `<button class="${cls.join(' ')}" data-k="${k}" title="${label}" aria-label="${label}"${k > TODAY ? ' disabled' : ''}></button>`;
+      const label = `${nice(k)}: ${day ? ds.unit(day) : ds.none}${p ? ` · planned ${p.name}${p.done ? ', done' : k < TODAY ? ', missed' : ''}` : ''}`;
+      html += `<button class="${cls.join(' ')}" data-k="${k}" title="${esc(label)}" aria-label="${esc(label)}"></button>`;
     }
-    grid.insertAdjacentHTML('beforeend', `<div class="mo"><h3${active ? ' class="has"' : ''}>${MONTHS[m]}</h3>${html}</div>`);
+    grid.insertAdjacentHTML('beforeend', `<div class="mo"><h3${active ? ' class="has"' : ''}>${MONTHS[m]}</h3><div class="mo-g">${html}</div></div>`);
   }
   document.getElementById('year').textContent = year;
   document.getElementById('prev').disabled = year <= years[0];
-  document.getElementById('next').disabled = year >= years[years.length - 1];
-  if (fetchedAt) {
-    const mins = Math.round((Date.now() - fetchedAt) / 60000);
-    document.getElementById('updated').textContent = `Updated ${mins < 1 ? 'just now' : mins + ' min ago'} · ${C.REPO}`;
+  document.getElementById('next').disabled = year >= Math.max(years[years.length - 1], planned.size ? year : 0);
+  if (src === 'code') {
+    const mins = codeAt ? Math.round((Date.now() - codeAt) / 60000) : 0;
+    upd.textContent = codeErr ? `Showing saved data. ${codeErr}` : `Updated ${mins < 1 ? 'just now' : mins + ' min ago'} · ${C.REPO}`;
+  } else {
+    upd.textContent = ds.plan && ds.T.currentPlan(ds.store, TODAY) ? `Plan: ${ds.plan.name}` : 'From your finished workouts';
   }
-  renderStats();
+  renderStats(ds);
+  renderWeeks(ds);
 }
 
-function renderStats() {
-  const s = C.stats(DATA);
-  const inYear = Object.keys(DATA).filter(k => k.startsWith(String(year)));
-  const commits = inYear.reduce((sum, k) => sum + DATA[k].c, 0);
-  const cards = [
-    [`${s.current} day${s.current === 1 ? '' : 's'}`, 'Current streak', s.current ? 'good' : 'warn'],
-    [`${s.longest} day${s.longest === 1 ? '' : 's'}`, 'Longest streak', ''],
-    [C.sinceLabel(s.sinceLast), 'Last commit', s.sinceLast > 7 ? 'warn' : ''],
-    [inYear.length, `Active days ${year}`, ''],
-    [commits, `Commits ${year}`, ''],
-    [s.perWeek.toFixed(1), 'Active days / week', ''],
-  ];
+function renderStats(ds) {
+  const DATA = ds.days, keys = Object.keys(DATA).filter(k => k <= TODAY).sort();
+  const inYear = keys.filter(k => k.startsWith(String(year)));
+  let cards;
+  if (src === 'code') {
+    const s = C.stats(DATA);
+    cards = [
+      [plural(s.current, 'day'), 'Current streak', s.current ? 'good' : 'warn'],
+      [plural(s.longest, 'day'), 'Longest streak', ''],
+      [C.sinceLabel(s.sinceLast), 'Last commit', s.sinceLast > 7 ? 'warn' : ''],
+      [inYear.length, `Active days ${year}`, ''],
+      [inYear.reduce((sum, k) => sum + DATA[k].c, 0), `Commits ${year}`, ''],
+      [s.perWeek.toFixed(1), 'Active days / week', ''],
+    ];
+  } else {
+    const T = ds.T, since = T.daysSinceLast(ds.workouts, TODAY);
+    const workoutsYear = inYear.reduce((sum, k) => sum + DATA[k].count, 0);
+    const last = [C.sinceLabel(since), 'Last workout', since != null && since > 7 ? 'warn' : ''];
+    if (T.currentPlan(ds.store, TODAY)) {
+      const wk = T.weekSummary(ds.store, ds.workouts, TODAY, TODAY);
+      const streak = T.sessionStreak(ds.store, ds.workouts, TODAY);
+      const adh = T.adherence(ds.store, ds.workouts, TODAY, 4);
+      cards = [
+        [`${wk.done}/${wk.expected}`, 'This week', wk.expected && wk.done >= wk.expected ? 'good' : ''],
+        [plural(streak, 'session'), 'Session streak', streak ? 'good' : ''],
+        [adh.pct == null ? '–' : Math.round(adh.pct * 100) + '%', adh.weeks ? `Last ${plural(adh.weeks, 'week')}` : 'Plan so far', ''],
+        [workoutsYear, `Workouts ${year}`, ''],
+        [inYear.length, `Training days ${year}`, ''],
+        last,
+      ];
+    } else {
+      const wkStart = T.weekStart(TODAY);
+      const thisWeek = keys.filter(k => k >= wkStart).reduce((sum, k) => sum + DATA[k].count, 0);
+      const perWeek = keys.length ? (keys.length / ((T.diffDays(keys[0], TODAY) + 1) / 7)).toFixed(1) : '0';
+      cards = [
+        [thisWeek, 'This week', ''],
+        [keys.filter(k => T.diffDays(k, TODAY) < 30).length, 'Active days (30d)', ''],
+        [workoutsYear, `Workouts ${year}`, ''],
+        [inYear.length, `Training days ${year}`, ''],
+        [perWeek, 'Training days / week', ''],
+        last,
+      ];
+    }
+  }
   document.getElementById('stats').innerHTML = cards.map(([v, k, cls]) =>
     `<div class="card st ${cls}"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
 }
 
+// Planned vs completed, week by week (Sunday–Saturday), newest first.
+function renderWeeks(ds) {
+  const wrap = document.getElementById('weeks-wrap');
+  if (src !== 'training' || !ds.store.versions.length) { wrap.hidden = true; return; }
+  const weeks = ds.T.recentWeeks(ds.store, ds.workouts, TODAY, 8).filter(w => w.expected).reverse();
+  if (!weeks.length) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  document.getElementById('weeks').innerHTML = weeks.map(w => {
+    const pct = Math.round(w.pct * 100);
+    const current = w.start <= TODAY && TODAY <= w.end;
+    return `<div class="wkr">
+      <span class="wkr-l">${current ? 'This week' : `${short(w.start)} – ${short(w.end)}`}</span>
+      <span class="wkr-bar" role="img" aria-label="${w.done} of ${w.expected} sessions"><i style="width:${pct}%"></i></span>
+      <span class="wkr-v"><b>${w.done}/${w.expected}</b> ${current ? '' : pct + '%'}</span>
+    </div>`;
+  }).join('');
+}
+
 function showDay(k) {
-  const el = document.getElementById('day'), d = DATA[k];
-  if (!d) { el.innerHTML = `<h4>${nice(k)}</h4><p>No commits this day.</p>`; return; }
-  el.innerHTML = `<h4>${nice(k)} · ${d.c} commit${d.c === 1 ? '' : 's'}</h4><ul>` + d.m.map(s => {
-    const m = s.match(/^(\w+(?:\([^)]*\))?!?):\s*(.*)$/);
-    return m ? `<li><code>${esc(m[1])}</code><span>${esc(m[2])}</span></li>` : `<li><span>${esc(s)}</span></li>`;
-  }).join('') + '</ul>';
+  const el = document.getElementById('day'), ds = dataset();
+  if (!ds) return;
+  const d = ds.days[k];
+  if (src === 'code') {
+    if (!d) { el.innerHTML = `<h4>${nice(k)}</h4><p>No commits this day.</p>`; return; }
+    el.innerHTML = `<h4>${nice(k)} · ${plural(d.c, 'commit')}</h4><ul>` + d.m.map(s => {
+      const m = s.match(/^(\w+(?:\([^)]*\))?!?):\s*(.*)$/);
+      return m ? `<li><code>${esc(m[1])}</code><span>${esc(m[2])}</span></li>` : `<li><span>${esc(s)}</span></li>`;
+    }).join('') + '</ul>';
+    return;
+  }
+  const p = ds.store.versions.length ? ds.T.scheduledOn(ds.store, k) : null;
+  const pDone = p && ds.T.slotDone(ds.workouts, k);
+  const planLine = p ? `<p class="plan-line">Planned: <b>${esc(p.routine.name)}</b> · ${pDone ? 'done' : k < TODAY ? 'missed' : k === TODAY ? 'today' : 'upcoming'}</p>` : '';
+  if (!d) { el.innerHTML = `<h4>${nice(k)}</h4>${planLine}${p ? '' : '<p>Rest day — no workout logged.</p>'}`; return; }
+  el.innerHTML = `<h4>${nice(k)} · ${plural(d.count, 'workout')}</h4>${planLine}<ul>` + d.workouts.map(w =>
+    `<li><span><b>${esc(w.name)}</b> · ${w.imported ? 'imported' : plural(w.sets, 'working set')}${w.scheduledFor && w.scheduledFor !== k ? ` · planned for ${esc(short(w.scheduledFor))}` : ''}</span></li>`).join('') + '</ul>';
+}
+
+function loadCode() {
+  if (codeStarted) return; codeStarted = true;
+  C.load((days, t) => { CODE = days; codeAt = t; if (src === 'code') { render(); if (selected) showDay(selected); } })
+    .then(res => { if (res.error) { codeErr = res.error; if (src === 'code') render(); } });
 }
 
 document.getElementById('grid').addEventListener('click', e => {
   const b = e.target.closest('.c[data-k]');
-  if (!b || b.disabled) return;
+  if (!b) return;
   selected = b.dataset.k; render(); showDay(selected);
 });
 document.getElementById('prev').onclick = () => { year--; render(); };
 document.getElementById('next').onclick = () => { year++; render(); };
+document.querySelectorAll('[data-src]').forEach(b => b.addEventListener('click', () => {
+  src = b.dataset.src;
+  try { localStorage.setItem(SRC_KEY, src); } catch (e) {}
+  if (src === 'code') loadCode();
+  render();
+  if (selected) showDay(selected); else document.getElementById('day').innerHTML = '<p>Tap a square to see that day.</p>';
+}));
 
 // A dashboard tap on a day opens this page with ?day=YYYY-MM-DD.
-const wanted = new URLSearchParams(location.search).get('day');
+const wanted = params.get('day');
 if (/^\d{4}-\d\d-\d\d$/.test(wanted || '')) { selected = wanted; year = +wanted.slice(0, 4); }
 
 let scrolled = false;
-C.load((days, t) => {
-  DATA = days; render(t);
+function boot() {
+  render();
   if (selected) showDay(selected);
   if (!scrolled) {
-    // Scroll the grid so the selected day, or the most recent activity, is in view.
+    // Scroll the grid so the selected day, or today, is in view.
     const sc = document.getElementById('scroller');
-    const target = sc.querySelector('.c.sel') || [...sc.querySelectorAll('.c.l1,.c.l2,.c.l3,.c.l4')].pop();
+    const target = sc.querySelector('.c.sel') || sc.querySelector('.c.today') || [...sc.querySelectorAll('.c.l1,.c.l2,.c.l3,.c.l4')].pop();
     if (target) { sc.scrollLeft = Math.max(0, target.offsetLeft - sc.clientWidth + 120); scrolled = true; }
   }
-}).then(res => {
-  if (!res.error) return;
-  if (res.hadCache) { document.getElementById('updated').textContent = `Showing saved data. ${res.error}`; return; }
-  document.getElementById('scroller').innerHTML = `<div class="state">Couldn't load commits. ${esc(res.error)}<br><button id="retry">Try again</button></div>`;
-  document.getElementById('retry').onclick = () => location.reload();
-  document.getElementById('updated').textContent = 'Offline or unavailable';
-});
+}
+if (src === 'code') loadCode();
+boot();
+if (!window.Training) window.addEventListener('training-ready', () => { if (src === 'training') boot(); }, { once: true });
 </script>
+<script type="module" src="features/training/index.js"></script>
 <script src="js/mobilenav.js" defer></script>
 </body>
 </html>

@@ -348,6 +348,7 @@ input,select,textarea{font-family:inherit}
 @media(max-width:900px){.cols{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/training.css">
 <link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
@@ -469,6 +470,15 @@ input,select,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- A logged session, set by set -->
+<div class="modal-bk" id="sess-modal" onclick="if(event.target===this)closeSession()">
+  <div class="modal" style="width:520px">
+    <div class="modal-h"><div><div class="modal-t" id="sess-title"></div><div id="sess-sub" style="font-size:12px;color:var(--t3);margin-top:2px"></div></div><button class="icon-btn" onclick="closeSession()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-b" id="sess-body"></div>
+    <div class="modal-f" id="sess-foot"></div>
+  </div>
+</div>
+
 <!-- Programs: exercise catalogue slide-in -->
 <div class="cat-backdrop" id="cat-backdrop" onclick="closeCatalogue()"></div>
 <div class="cat-panel" id="cat-panel">
@@ -550,22 +560,81 @@ function setTab(t){
 // ════════════════════════════════════════════════════════════════
 //  LOG TAB
 // ════════════════════════════════════════════════════════════════
+// ── Training plan (features/training, loaded as a module) ─────────────
+function onTraining(cb){
+  if(window.Training) cb(window.Training);
+  else window.addEventListener('training-ready', ()=>cb(window.Training), { once:true });
+}
+// Before the module loads, any stored plan counts — it re-renders once ready.
+function hasPlan(){
+  const T=window.Training;
+  if(T) return !!T.currentPlan(T.loadStore(), T.localKey());
+  return ((rj('jarvis_training_plan',{versions:[]}).versions)||[]).length>0;
+}
+function mountPlanHome(){
+  const host=document.getElementById('plan-home'); if(!host) return;
+  onTraining(T=>T.ui().then(ui=>{
+    if(!document.body.contains(host)) return;
+    ui.renderPlanHome(host,{ hasDraft:ui.hasPlanDraft(), onCreate:()=>openPlanSetup(), onEdit:p=>openPlanSetup(p), onStart:startPlanSession });
+  }));
+}
+function openPlanSetup(plan){
+  onTraining(T=>T.ui().then(ui=>ui.openPlanWizard(plan||null,{
+    pickExercise: cb=>openEx(cb),
+    onDone: r=>{ setTab('log'); scrollMainTop(); toast(r.ended?'Plan ended — your history is kept':r.edited?'Plan updated from today on':'Training plan started'); },
+  })));
+}
+function scrollMainTop(){ const m=document.querySelector('.main'); if(m) m.scrollTo({top:0}); window.scrollTo({top:0}); }
+function repTxt(x){ return x.repMin&&x.repMax&&x.repMin!==x.repMax ? `${x.repMin}–${x.repMax}` : String(x.repMin||x.repMax||''); }
+// Load a scheduled session into the logger. The session remembers which
+// plan slot it belongs to (scheduledFor), so finishing it completes that slot
+// and nothing else moves.
+function startPlanSession(s){
+  // Same session already saved as a draft: pick it up instead of starting over.
+  if(active && active.paused && active.scheduledFor===s.date && active.routineId===s.routine.id){ resumeWorkout(); return; }
+  if(active && !active.paused && active.exercises && active.exercises.length && !confirm('Replace the workout you have open?')) return;
+  if(active && active.paused && !confirm('Replace your saved draft “'+active.name+'”?')) return;
+  const r=s.routine;
+  active={ id:'w-'+F.uid(), name:r.name, startedAt:Date.now(), notes:'',
+    planId:s.plan.planId, planVersionId:s.plan.id, routineId:r.id, scheduledFor:s.date,
+    exercises:r.exercises.map(x=>{ const m=musclesFor(x.name); return { id:'e-'+F.uid(), name:x.name,
+      primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetSets:x.sets, targetReps:repTxt(x), targetRir:(x.rir??''),
+      sets:Array.from({length:Math.max(1,x.sets||1)},()=>({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:'', rpe:'', rir:'', completed:false })) }; }) };
+  saveActive(); setTab('log'); scrollMainTop();
+}
+// Starting something else must not silently drop a saved draft.
+function keepDraftOk(){ return !(active && active.paused) || confirm('Replace your saved draft “'+active.name+'”?'); }
+function pauseWorkout(){ if(!active) return; active.paused=true; saveActive(); renderLog(); scrollMainTop(); toast('Draft saved — resume it any time'); }
+function resumeWorkout(){ if(!active) return; delete active.paused; saveActive(); renderLog(); scrollMainTop(); }
+function fmtDay(k){ return new Date(k+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}); }
+
 function renderLog(){
   const host = document.getElementById('view-log');
-  if(!active){
+  if(!active || active.paused){
     const tpls = templates();
     const tk = todayKey();
-    const sugg = todayFromPrograms();
+    const planOn = hasPlan();
+    // An active training plan replaces the weekday-program suggestion.
+    const sugg = planOn ? null : todayFromPrograms();
     const plansToday = planned().filter(p=>p.plannedFor===tk);
     const upcoming = planned().filter(p=>p.plannedFor>tk).sort((a,b)=>a.plannedFor<b.plannedFor?-1:1);
 
     const suggCards =
       plansToday.map(p=>suggCard('Scheduled today', p.name, `${p.exercises.length} exercise${p.exercises.length===1?'':'s'}`, `startPlanned('${p.id}')`)).join('') +
       (sugg ? suggCard('Today in your program', sugg.day.name, `${esc(sugg.prog.name)} · ${sugg.day.exercises.length} exercises`, `startProgramWorkout('${sugg.prog.id}',${sugg.di})`) : '');
+    const draft = active && active.paused ? active : null;
+    const dSets = draft ? draft.exercises.reduce((n,e)=>n+e.sets.length,0) : 0;
+    const dDone = draft ? draft.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.completed).length,0) : 0;
 
     host.innerHTML = `
+    ${draft ? `<div class="card tp-resume">
+      <div class="tp-rb"><div class="tp-rm">Workout in progress${draft.scheduledFor?' · '+esc(fmtDay(draft.scheduledFor)):''}</div><div class="tp-rn">${esc(draft.name)}</div><div class="tp-rm">${dDone} of ${dSets} sets done</div></div>
+      <button class="btn btn-p btn-sm" onclick="resumeWorkout()">Resume</button>
+      <button class="btn btn-s btn-sm" onclick="discardWorkout()">Discard</button>
+    </div>` : ''}
+    <div id="plan-home"></div>
     <div class="card hero">
-      <h3>Ready to train?</h3>
+      <h3>${planOn ? 'Off-plan session' : 'Ready to train?'}</h3>
       <p>${suggCards ? 'Today’s session is ready — or start from scratch.' : 'Start from scratch, or tap a routine below.'}</p>
       ${suggCards}
       <div class="hero-actions">
@@ -592,8 +661,10 @@ function renderLog(){
       <div class="phy-grid" id="phy-grid"></div>
     </div>`;
     renderPhysique();
+    mountPlanHome();
     return;
   }
+  _hist = completed();
   const t = targetMuscles(active);
   const workingSets = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.type==='working').length,0);
   const doneSets    = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.completed).length,0);
@@ -603,7 +674,7 @@ function renderLog(){
     <div class="card">
       <div class="wk-head">
         <input class="wk-name" id="wk-name" value="${esc(active.name)}" oninput="active.name=this.value;saveActive()" placeholder="Workout name">
-        <span class="wk-meta">${active.exercises.length} exercise${active.exercises.length===1?'':'s'} · ${workingSets} working sets</span>
+        <span class="wk-meta">${active.scheduledFor?`<span class="wk-sched">Scheduled · ${esc(fmtDay(active.scheduledFor))}</span>`:''}${active.exercises.length} exercise${active.exercises.length===1?'':'s'} · ${workingSets} working sets</span>
         <button class="icon-btn" title="Discard" onclick="discardWorkout()" style="color:var(--re)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
       </div>
       <div id="ex-wrap">${active.exercises.map(renderExercise).join('')||'<div class="empty" style="padding:32px"><p style="font-size:12.5px">No exercises yet — add your first one.</p></div>'}</div>
@@ -615,7 +686,8 @@ function renderLog(){
       </div>
       <div class="ex-foot" style="border-top:1px solid var(--bd);display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-s btn-sm" onclick="saveTemplate()">Save as routine</button>
-        <button class="btn btn-gr btn-sm" style="margin-left:auto" onclick="finishWorkout()">✓ Finish &amp; log workout</button>
+        <button class="btn btn-s btn-sm" onclick="pauseWorkout()">Save draft</button>
+        <button class="btn btn-gr btn-sm" style="margin-left:auto" onclick="finishWorkout()">✓ Finish Workout</button>
       </div>
     </div>
 
@@ -644,20 +716,42 @@ function renderLog(){
   ensureBody();
 }
 
+// Most recent finished session's working sets for an exercise ("last time").
+let _hist = [];
+function lastPerf(name){
+  const key=normExName(name);
+  for(const w of _hist){
+    if(active && w.id===active.id) continue;
+    if(String(w.id).startsWith('mock-')) continue; // sample data seeded for first-time users
+    const e=(w.exercises||[]).find(x=>normExName(x.name)===key); if(!e) continue;
+    const sets=(e.sets||[]).filter(s=>s.type!=='warmup' && s.completed && (s.weight!==''||s.reps!==''));
+    if(sets.length) return { date:w.completedAt, sets };
+  }
+  return null;
+}
 function renderExercise(ex){
   const tags = (ex.primaryMuscles||[]).slice(0,4).map(id=>`<span class="tg pri">${esc(shortMuscle(id))}</span>`).join('')
              + (ex.secondaryMuscles||[]).slice(0,3).map(id=>`<span class="tg">${esc(shortMuscle(id))}</span>`).join('');
-  const rows = ex.sets.map((s,i)=>`
+  const last = lastPerf(ex.name);
+  const hasRir = ex.targetRir!=null && ex.targetRir!=='';
+  const rows = ex.sets.map((s,i)=>{
+    const wi = i - ex.sets.slice(0,i).filter(x=>x.type==='warmup').length; // working-set number (0-based)
+    const prev = s.type!=='warmup' && last ? last.sets[Math.min(wi, last.sets.length-1)] : null;
+    return `
     <div class="set-row">
-      <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" onclick="toggleType('${ex.id}','${s.id}')">${s.type==='warmup'?'W':i+1-ex.sets.slice(0,i).filter(x=>x.type==='warmup').length}</button>
-      <input class="set-in" type="number" inputmode="decimal" placeholder="kg" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
-      <input class="set-in" type="number" inputmode="numeric" placeholder="reps" value="${s.reps||''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
+      <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" onclick="toggleType('${ex.id}','${s.id}')">${s.type==='warmup'?'W':wi+1}</button>
+      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
+      <input class="set-in" type="number" inputmode="numeric" placeholder="${s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps||''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
       <input class="set-in" id="rpe-${s.id}" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="RPE" title="Effort 1–10 (10 = nothing left). Filling either RPE or RIR fills the other." value="${s.rpe||''}" oninput="setEffort('${ex.id}','${s.id}','rpe',this.value)">
-      <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="RIR" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
+      <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'RIR'}" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
       <button class="icon-btn" title="Remove set" onclick="removeSet('${ex.id}','${s.id}')" style="width:26px;height:26px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-    </div>`).join('');
-  const rirTag = (ex.targetRir!=null && ex.targetRir!=='') ? `<span class="tg" style="background:var(--vid);color:var(--vi)">Target ${ex.targetRir} RIR</span>` : '';
+    </div>`; }).join('');
+  const tgt = ex.targetReps
+    ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
+    : (hasRir ? `${ex.targetRir} RIR` : '');
+  const rirTag = tgt ? `<span class="tg" style="background:var(--vid);color:var(--vi)">Target ${esc(tgt)}</span>` : '';
+  const lastLine = last ? `<div class="ex-last">Last time · ${esc(F.fmtDate(last.date))}: <b>${last.sets.map(s=>`${s.weight!==''?esc(s.weight):'–'} × ${s.reps!==''?esc(s.reps):'–'}`).join(', ')}</b></div>` : '';
   return `<div class="ex">
     <div class="ex-hd">
       <div class="ex-name" style="cursor:pointer" title="See weight progression" onclick="showProg('${jsName(ex.name)}')">${esc(ex.name)}</div>
@@ -665,6 +759,7 @@ function renderExercise(ex){
       <button class="icon-btn" title="Remove exercise" onclick="removeExercise('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     ${tags||rirTag?`<div class="ex-tags">${rirTag}${tags}</div>`:''}
+    ${lastLine}
     <div class="sets">
       <div class="set-row head"><span>Set</span><span>Weight</span><span>Reps</span><span title="Effort 1–10 (10 = nothing left)">RPE</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
       ${rows}
@@ -757,20 +852,24 @@ function todayFromPrograms(){
   for(const p of getPrograms()){ const d=p.days && p.days[di]; if(d && d.exercises && d.exercises.length) return {prog:p, day:d, di}; }
   return null;
 }
-function startRoutine(id){ const t=templates().find(x=>x.id===id); if(!t) return; active=instantiate(t); saveActive(); renderLog(); window.scrollTo({top:0}); }
+function startRoutine(id){ if(!keepDraftOk()) return; const t=templates().find(x=>x.id===id); if(!t) return; active=instantiate(t); saveActive(); renderLog(); window.scrollTo({top:0}); }
 function delRoutine(id){ if(!confirm('Delete this routine?')) return; wj(K_TPL, templates().filter(t=>t.id!==id)); renderLog(); }
-function startPlanned(id){ const p=allWorkouts().find(w=>w.id===id); if(!p) return; active=p; active.startedAt=Date.now(); delete active.plannedFor; saveActive(); F.storageAdapter.deleteWorkout(id); renderLog(); window.scrollTo({top:0}); }
+function startPlanned(id){ if(!keepDraftOk()) return; const p=allWorkouts().find(w=>w.id===id); if(!p) return; active=p; active.startedAt=Date.now(); delete active.plannedFor; saveActive(); F.storageAdapter.deleteWorkout(id); renderLog(); window.scrollTo({top:0}); }
 function delPlanned(id){ F.storageAdapter.deleteWorkout(id); renderLog(); }
 
 // ── workout actions ──
-function startWorkout(name){ active = newActive(name); saveActive(); renderLog(); }
-function discardWorkout(){ if(!confirm('Discard this workout?')) return; active=null; localStorage.removeItem(K_ACTIVE); renderLog(); }
+function startWorkout(name){ if(!keepDraftOk()) return; active = newActive(name); saveActive(); renderLog(); }
+function discardWorkout(){ if(!confirm('Discard this workout? Nothing from it will be logged.')) return; active=null; localStorage.removeItem(K_ACTIVE); renderLog(); }
 
-function openEx(){ document.getElementById('ex-srch').value=''; renderExList(); document.getElementById('ex-modal').classList.add('open'); setTimeout(()=>document.getElementById('ex-srch').focus(),60); }
-function closeEx(){ document.getElementById('ex-modal').classList.remove('open'); }
+// The picker also serves the plan setup: pass a callback to receive the name.
+let _exPick = null;
+function openEx(cb){ _exPick = typeof cb==='function' ? cb : null; document.getElementById('ex-srch').value=''; renderExList(); document.getElementById('ex-modal').classList.add('open'); setTimeout(()=>document.getElementById('ex-srch').focus(),60); }
+function closeEx(){ _exPick=null; document.getElementById('ex-modal').classList.remove('open'); }
 function renderExList(){
   const q=document.getElementById('ex-srch').value.trim().toLowerCase();
-  let names=F.EXERCISE_NAMES.filter(n=>!q||n.toLowerCase().includes(q));
+  // Built-in library plus the user's own catalogue from the Exercises page.
+  const own=(rj('jarvis_exercises',[])||[]).map(e=>e&&e.name).filter(Boolean);
+  let names=[...new Set(F.EXERCISE_NAMES.concat(own))].sort((a,b)=>a.localeCompare(b)).filter(n=>!q||n.toLowerCase().includes(q));
   const wrap=document.getElementById('ex-list');
   let html=names.map(n=>{
     const m=musclesFor(n);
@@ -781,6 +880,7 @@ function renderExList(){
   wrap.innerHTML = html || '<div class="empty"><p style="font-size:12px">No matches</p></div>';
 }
 function addExercise(name, custom){
+  if(_exPick){ const cb=_exPick; closeEx(); cb(name); return; }
   if(!active) active=newActive();
   const m=musclesFor(name);
   active.exercises.push({ id:'e-'+F.uid(), name, primaryMuscles:m.primary, secondaryMuscles:m.secondary,
@@ -946,14 +1046,27 @@ function finishWorkout(){
   if(!active || !active.exercises.length){ toast('Add at least one exercise'); return; }
   const working = active.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type==='working').length,0);
   if(!working){ toast('Add a working set first'); return; }
+  // A session only counts once something was actually logged — a plan
+  // session opened with empty sets must not complete its slot.
+  const logged = active.exercises.some(e=>e.sets.some(s=>s.type==='working' && (s.completed || s.reps || s.weight!=='')));
+  if(!logged){ toast('Log at least one set first'); return; }
   // auto-complete any working sets the user filled but didn't tick
   active.exercises.forEach(e=>e.sets.forEach(s=>{ if(s.type==='working' && (s.reps||s.weight!=='')) s.completed=true; }));
   active.completedAt = Date.now();
+  active.date = todayKey(new Date(active.completedAt)); // local calendar day, for the heatmap
   active.status = 'completed';
+  delete active.paused;
   F.storageAdapter.saveWorkout(active);
   const t=targetMuscles(active);
+  const wasPlanned=!!active.scheduledFor;
   active=null; localStorage.removeItem(K_ACTIVE);
-  toast(`Logged! ${t.pri.size} muscle groups now recovering`);
+  let msg=`Logged! ${t.pri.size} muscle groups now recovering`;
+  const T=window.Training;
+  if(wasPlanned && T){
+    const wk=T.weekSummary(T.loadStore(), T.loadWorkouts(), T.localKey(), T.localKey());
+    if(wk.expected) msg=`Logged · ${wk.done} of ${wk.expected} sessions this week`;
+  }
+  toast(msg);
   setTab('log');
 }
 
@@ -1837,14 +1950,37 @@ function hrow(w){
   const sets=w.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type==='working').length,0);
   const t=targetMuscles(w);
   const muscles=[...t.pri].slice(0,5).map(shortMuscle).join(' · ');
-  return `<div class="hrow" onclick="repeatWorkout('${w.id}')" title="Repeat this workout">
+  return `<div class="hrow" onclick="openSession('${w.id}')" title="See this session">
     <div class="hdate"><div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString(undefined,{month:'short'})}</div></div>
     <div class="hname"><div class="n">${esc(w.name)}</div><div class="s">${w.exercises.length} exercises · ${sets} sets${muscles?' · '+esc(muscles):''}</div></div>
     <button class="icon-btn" title="Delete" onclick="event.stopPropagation();delWorkout('${w.id}')" style="color:var(--re)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
   </div>`;
 }
 function delWorkout(id){ if(!confirm('Delete this logged workout?')) return; F.storageAdapter.deleteWorkout(id); renderHistory(); }
+// Read-only view of one finished session, with Repeat as the follow-up.
+function openSession(id){
+  const w=completed().find(x=>x.id===id); if(!w) return;
+  const mins=w.startedAt&&w.completedAt ? Math.round((w.completedAt-w.startedAt)/60000) : 0;
+  const working=w.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type!=='warmup'&&s.completed).length,0);
+  document.getElementById('sess-title').textContent=w.name;
+  document.getElementById('sess-sub').textContent=[
+    new Date(w.completedAt).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'}),
+    mins>0&&mins<600?mins+' min':'', working+' working sets',
+    w.scheduledFor?'Planned for '+fmtDay(w.scheduledFor):'' ].filter(Boolean).join(' · ');
+  document.getElementById('sess-body').innerHTML = w.exercises.length ? w.exercises.map(e=>`
+    <div style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;cursor:pointer" onclick="closeSession();showProg('${jsName(e.name)}')" title="See weight progression">${esc(e.name)}${e.targetReps?` <span style="font-weight:500;color:var(--t3);font-size:12px">· target ${esc((e.targetSets?e.targetSets+' × ':'')+e.targetReps)}</span>`:''}</div>
+      <div style="display:grid;grid-template-columns:40px 1fr 1fr 1fr 28px;gap:4px;font-size:12.5px;margin-top:6px;font-variant-numeric:tabular-nums">
+        <span style="color:var(--t3);font-size:10.5px;font-weight:700">SET</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">WEIGHT</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">REPS</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">RIR</span><span></span>
+        ${e.sets.map((s,i)=>`<span style="color:var(--t2)">${s.type==='warmup'?'W':i+1-e.sets.slice(0,i).filter(x=>x.type==='warmup').length}</span><span>${s.weight!==''&&s.weight!=null?esc(s.weight)+' kg':'–'}</span><span>${s.reps!==''&&s.reps!=null?esc(s.reps):'–'}</span><span>${s.rir!==''&&s.rir!=null?esc(s.rir):'–'}</span><span style="color:${s.completed?'var(--gr)':'var(--t3)'}">${s.completed?'✓':'–'}</span>`).join('')}
+      </div>
+    </div>`).join('') : `<p style="font-size:13px;color:var(--t2)">${esc(w.notes||'No exercises recorded for this session.')}</p>`;
+  document.getElementById('sess-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="closeSession()">Close</button>${w.exercises.length?`<button class="btn btn-p btn-sm" onclick="closeSession();repeatWorkout('${w.id}')">Repeat workout</button>`:''}`;
+  document.getElementById('sess-modal').classList.add('open');
+}
+function closeSession(){ document.getElementById('sess-modal').classList.remove('open'); }
 function repeatWorkout(id){
+  if(!keepDraftOk()) return; 
   const w=completed().find(x=>x.id===id); if(!w) return;
   active = instantiate({ name:w.name, exercises:w.exercises.map(e=>({name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir}))})) });
   saveActive(); setTab('log'); toast('Loaded — edit and finish to log again');
@@ -2143,22 +2279,33 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCatalog
 // init — open the tab named in the URL hash (e.g. workouts.html#programs)
 (function(){
   seedPrograms(); // so "Today in your program" can suggest a session on first visit
-  // Dashboard one-tap: workouts.html?start=today launches today's program day.
+  // Dashboard one-tap: workouts.html?start=today launches today's session —
+  // from the training plan when there is one, else from a weekday program.
   if(new URLSearchParams(location.search).get('start')==='today'){
     history.replaceState({},'',location.pathname);
-    const s=todayFromPrograms();
-    if(s && !(active&&active.exercises&&active.exercises.length)){
-      startProgramWorkout(s.prog.id, s.di);
-      return;
-    }
+    const busy = active && !active.paused && active.exercises && active.exercises.length;
     setTab('log');
+    if(busy) return;
+    onTraining(T=>{
+      const today=T.localKey(), store=T.loadStore();
+      if(T.currentPlan(store, today)){
+        const s=T.scheduledOn(store, today);
+        if(s && !T.slotDone(T.loadWorkouts(), today) && !(active && active.paused)) startPlanSession({ date:today, plan:s.plan, routine:s.routine });
+        return; // rest day or already done: the plan card shows what's next
+      }
+      const p=todayFromPrograms();
+      if(p && !active) startProgramWorkout(p.prog.id, p.di);
+    });
     return;
   }
   let h = (location.hash || '').replace('#','');
   if(h==='plan') h='log'; // old Plan tab now lives on the Workout screen
   setTab(['log','programs','coaching','history'].includes(h) ? h : 'log');
 })();
+// The plan module loads after this script; refresh the Workout home once it's in.
+onTraining(()=>{ if(tab==='log' && (!active || active.paused)) renderLog(); });
 </script>
+<script type="module" src="features/training/index.js"></script>
 <script src="js/mobilenav.js" defer></script>
 </body>
 </html>

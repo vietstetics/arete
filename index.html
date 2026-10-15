@@ -131,11 +131,14 @@ textarea{font-family:inherit;resize:none}
 .ready-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
 .ready-spark{width:160px;height:44px}
 
-/* Consistency — commit heat map of the last few months (data: js/consistency.js) */
+/* Consistency — training or commit heat map of recent weeks (data: features/training, js/consistency.js) */
 .cons{--h0:rgba(23,27,18,.06);--h1:#C9EDBC;--h2:#92DC7C;--h3:#58DB3D;--h4:#2E9A1C;background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);margin-bottom:18px;padding:20px 22px 18px}
-.cons-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.cons-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .cons-eyebrow{font-size:11px;font-weight:500;color:var(--t3);margin-bottom:4px}
-.cons-head{font-size:15px;font-weight:700;color:var(--t1);line-height:1.35}
+.cons-head{font-size:15px;font-weight:700;color:var(--t1);line-height:1.35;margin-bottom:12px}
+.cons-src{display:inline-flex;background:rgba(23,27,18,.06);border-radius:10px;padding:3px}
+.cons-src button{min-height:32px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:700;color:var(--t2)}
+.cons-src button[aria-pressed="true"]{background:#fff;color:var(--t1);box-shadow:var(--sh0)}
 .cons-more{display:inline-flex;align-items:center;gap:2px;font-size:12.5px;font-weight:700;color:var(--gr);white-space:nowrap;padding:4px 0}
 .cons-more svg{width:14px;height:14px}
 .cons-months{display:grid;gap:3px;font-size:10px;font-weight:600;color:var(--t3);height:15px;margin-bottom:3px}
@@ -724,12 +727,13 @@ textarea{font-family:inherit;resize:none}
     <!-- CONSISTENCY -->
     <section class="cons" id="cons-card" aria-label="Consistency">
       <div class="cons-top">
-        <div>
-          <div class="cons-eyebrow">Consistency</div>
-          <div class="cons-head" id="cons-head">Loading your commit history…</div>
+        <div class="cons-src" role="group" aria-label="Show consistency for">
+          <button type="button" data-src="training" aria-pressed="true">Training</button>
+          <button type="button" data-src="code" aria-pressed="false">Code</button>
         </div>
-        <a class="cons-more" href="consistency.html">See all<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
+        <a class="cons-more" id="cons-more" href="consistency.html">See all<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
       </div>
+      <div class="cons-head" id="cons-head">Loading…</div>
       <div class="cons-months" id="cons-months" aria-hidden="true"></div>
       <div class="cons-grid" id="cons-grid"></div>
       <div class="cons-stats" id="cons-stats"></div>
@@ -2812,14 +2816,32 @@ function startCanvas() {
       return out.slice(0,5);
     }catch(e){ return []; }
   }
-  var acts=function(primaryLabel,primaryHref,showFull){
+  var acts=function(primaryLabel,primaryHref,showFull,fullHref){
     return '<div class="wkt-acts"><div class="wkt-row">'
       +'<button class="btn btn-p" style="flex:1" onclick="location.href=\''+primaryHref+'\'">'
       +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> '
       +primaryLabel+'</button>'
-      +(showFull?'<button class="btn btn-s btn-sm" onclick="location.href=\'workouts.html#programs\'">Full plan</button>':'')
+      +(showFull?'<button class="btn btn-s btn-sm" onclick="location.href=\''+(fullHref||'workouts.html#programs')+'\'">Full plan</button>':'')
       +'</div></div>';
   };
+  var exRows=function(exs,line){
+    return '<div class="ex-list">'
+      +exs.slice(0,6).map(function(e,i){ return '<div class="ex"><div class="ex-n">'+(i+1)+'</div><div class="ex-name">'+esc(e.name)+'</div><div class="ex-sets">'+line(e)+'</div></div>'; }).join('')
+      +(exs.length>6?'<div class="ex"><div class="ex-n">…</div><div class="ex-name" style="color:var(--t3)">+'+(exs.length-6)+' more</div><div class="ex-sets"></div></div>':'')
+      +'</div>';
+  };
+  // A training plan (features/training) takes over from weekday programs.
+  function renderToday(){
+  var T=window.Training, plan=null, todays=null, todayDone=false, next=null;
+  if(T){
+    var store=T.loadStore(), tk=T.localKey();
+    plan=T.currentPlan(store,tk);
+    if(plan){
+      todays=T.scheduledOn(store,tk);
+      todayDone=!!todays&&T.slotDone(T.loadWorkouts(),tk);
+      next=T.nextSessions(store,T.addDays(tk,1),1)[0]||null;
+    }
+  }
   if(active&&active.exercises&&active.exercises.length){
     var done=active.exercises.reduce(function(a,e){return a+e.sets.filter(function(s){return s.completed;}).length;},0);
     var totalSets=active.exercises.reduce(function(a,e){return a+e.sets.length;},0);
@@ -2830,6 +2852,25 @@ function startCanvas() {
       +'<div class="wm"><div class="wm-l">Sets done</div><div class="wm-v">'+done+' / '+totalSets+'</div></div>'
       +'</div>'
       +acts('Continue Workout','workouts.html',false);
+  } else if(plan && todays && !todayDone){
+    var pex=todays.routine.exercises;
+    var psets=pex.reduce(function(a,e){return a+(+e.sets||0);},0);
+    var ptags=muscleTags(pex);
+    host.innerHTML='<div class="wkt-title">'+esc(todays.routine.name)+'</div>'
+      +'<div class="wkt-metas">'
+      +'<div class="wm"><div class="wm-l">Plan</div><div class="wm-v">'+esc(plan.name)+'</div></div>'
+      +'<div class="wm"><div class="wm-l">Exercises</div><div class="wm-v">'+pex.length+'</div></div>'
+      +'<div class="wm"><div class="wm-l">Sets</div><div class="wm-v">'+psets+'</div></div>'
+      +'<div class="wm"><div class="wm-l">~Time</div><div class="wm-v">'+(Math.round((psets*2.5+8)/5)*5)+' min</div></div>'
+      +'</div>'
+      +(ptags.length?'<div class="wkt-tags">'+ptags.map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join('')+'</div>':'')
+      +exRows(pex,function(e){ return esc(e.sets)+' × '+esc(T.repText(e))+(e.rir!=null?' · '+esc(e.rir)+' RIR':''); })
+      +acts('Start Workout','workouts.html?start=today',true,'workouts.html');
+  } else if(plan){
+    var nextTxt=next?'Next up: <strong>'+esc(next.routine.name)+'</strong> on '+esc(new Date(next.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'}))+'.':'';
+    host.innerHTML='<div class="wkt-title">'+(todayDone?esc(todays.routine.name)+' done':'Rest day')+'</div>'
+      +'<div class="wkt-ai">'+(todayDone?'Today’s session is logged. ':'Nothing scheduled today — recovery is part of the plan. ')+nextTxt+'</div>'
+      +acts('Open Training','workouts.html',false);
   } else if(hit){
     var exs=hit.day.exercises;
     var sets=exs.reduce(function(a,e){return a+(+e.targetSets||0);},0);
@@ -2855,10 +2896,13 @@ function startCanvas() {
       +'<div class="wkt-ai">Nothing scheduled in your program today — recovery is part of the plan. Your muscles grow between sessions, not during them.</div>'
       +acts('Train Anyway','workouts.html',true);
   } else {
-    host.innerHTML='<div class="wkt-title">No program yet</div>'
-      +'<div class="wkt-ai">Set up a weekly split in Training and today’s session will show up here automatically.</div>'
-      +acts('Build a Program','workouts.html#programs',false);
+    host.innerHTML='<div class="wkt-title">No plan yet</div>'
+      +'<div class="wkt-ai">Choose a split and your training days in Training, and today’s session will show up here automatically.</div>'
+      +acts('Create a Plan','workouts.html',false);
   }
+  }
+  renderToday();
+  if(!window.Training) window.addEventListener('training-ready',renderToday,{once:true});
 })();
 </script>
 <script>
@@ -2906,24 +2950,83 @@ function startCanvas() {
 <script src="js/consistency.js"></script>
 <script>
 /* ── Consistency card ───────────────────────────────────────────────
-   As many recent weeks as fit the card's width (Mon–Sun columns, ending
-   this week). Each square links to that day on the full page. */
+   One heat map, two sources: Training (finished workouts, measured
+   against the training plan) and Code (Arete's GitHub commits). As many
+   recent weeks as fit the card's width, ending this week. Each square
+   opens that day on the full page. */
 (function(){
   var C=window.Consistency; if(!C) return;
   var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var days=null;
+  var KEY='arete_cons_src';
+  var src='training'; try{ var saved=localStorage.getItem(KEY); if(saved==='code'||saved==='training') src=saved; }catch(e){}
+  var code=null, codeErr=null, codeStarted=false;
+  var plural=function(n,w){ return n+' '+w+(n===1?'':'s'); };
+
+  function trainingSet(){
+    var T=window.Training; if(!T) return null;
+    var today=T.localKey(), store=T.loadStore(), workouts=T.loadWorkouts();
+    var dm=T.dayMap(workouts), days={}, k;
+    // Shade by completed working sets; a session without sets (e.g. imported) still shows.
+    for(k in dm) days[k]={ c:Math.max(1,dm[k].sets), count:dm[k].count };
+    var plan=T.currentPlan(store,today), since=T.daysSinceLast(workouts,today), head, stats;
+    var sinceWarn=since!=null&&since>7?'warn':'';
+    if(plan){
+      var wk=T.weekSummary(store,workouts,today,today), streak=T.sessionStreak(store,workouts,today), adh=T.adherence(store,workouts,today,4);
+      var todays=T.scheduledOn(store,today), todayDone=todays&&T.slotDone(workouts,today);
+      head = wk.expected ? wk.done+' of '+plural(wk.expected,'session')+' done this week.'+(todays&&!todayDone?' Today: '+todays.routine.name+'.':'') : 'Nothing scheduled this week.';
+      stats=[
+        [wk.done+'/'+wk.expected,'This week',wk.expected&&wk.done>=wk.expected?'good':''],
+        [String(streak),'Session streak',streak?'good':''],
+        [adh.pct==null?'–':Math.round(adh.pct*100)+'%',adh.weeks?'Last '+plural(adh.weeks,'week'):'Plan so far',''],
+        [C.sinceLabel(since),'Last workout',sinceWarn]];
+    } else {
+      var wkStart=T.weekStart(today), y=today.slice(0,4), thisWeek=0, active30=0, year=0;
+      for(k in dm){
+        if(k>today) continue;
+        if(k>=wkStart) thisWeek+=dm[k].count;
+        if(T.diffDays(k,today)<30) active30++;
+        if(k.slice(0,4)===y) year+=dm[k].count;
+      }
+      head = since===null ? 'Finish a workout and it lands here.' : 'Last workout '+(since===0?'today':since===1?'yesterday':since+' days ago')+'.';
+      stats=[[String(thisWeek),'This week',''],[String(active30),'Active days (30d)',''],[String(year),'Workouts '+y,''],[C.sinceLabel(since),'Last workout',sinceWarn]];
+    }
+    // A finished session is never the faintest shade.
+    return { days:days, head:head, stats:stats, unit:function(d){ return plural(d.count,'workout'); }, none:'no workout', src:'training', minLevel:2 };
+  }
+
+  function codeSet(){
+    if(!code) return null;
+    var s=C.stats(code);
+    return {
+      days:code, src:'code', none:'no commits',
+      unit:function(d){ return plural(d.c,'commit'); },
+      head: s.current>0 ? s.current+'-day commit streak. Keep it going.' : s.sinceLast===null ? 'No commits yet.' : 'Last commit '+(s.sinceLast===1?'yesterday':s.sinceLast+' days ago')+'.',
+      stats:[
+        [plural(s.current,'day'),'Current streak',s.current?'good':'warn'],
+        [plural(s.longest,'day'),'Longest streak',''],
+        [s.perWeek.toFixed(1),'Active days / week',''],
+        [C.sinceLabel(s.sinceLast),'Last commit',s.sinceLast>7?'warn':'']]
+    };
+  }
 
   function render(){
-    if(!days) return;
-    var grid=document.getElementById('cons-grid'), months=document.getElementById('cons-months');
+    document.querySelectorAll('#cons-card [data-src]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.src===src)); });
+    document.getElementById('cons-more').href='consistency.html?src='+src;
+    var set = src==='code' ? codeSet() : trainingSet();
+    var grid=document.getElementById('cons-grid'), months=document.getElementById('cons-months'), head=document.getElementById('cons-head'), statsEl=document.getElementById('cons-stats');
+    if(!set){
+      head.textContent = src==='code' && codeErr ? 'Couldn’t load your commits right now.' : 'Loading…';
+      grid.style.gridTemplateColumns='1fr'; months.innerHTML=''; statsEl.innerHTML='';
+      grid.innerHTML = codeErr && src==='code' ? '<div class="cons-msg">'+codeErr+'</div>' : '';
+      return;
+    }
     var W=grid.clientWidth||300, GAP=3, TARGET=14;
     var weeks=Math.max(8,Math.min(53,Math.floor((W+GAP)/(TARGET+GAP))));
-    var t=C.thresholds(days), today=new Date(), todayKey=C.keyOf(today);
+    var t=C.thresholds(set.days), today=new Date(), todayKey=C.keyOf(today);
     var start=new Date(today.getFullYear(),today.getMonth(),today.getDate()-((today.getDay()+6)%7)-(weeks-1)*7);
     var cols='repeat('+weeks+',minmax(0,1fr))', cells='', labels='', lastLabel=-9, prevMonth=-1;
     for(var w=0;w<weeks;w++){
       var mon=new Date(start.getFullYear(),start.getMonth(),start.getDate()+w*7);
-      // Label a column when its week starts a new month, unless the last label is too close.
       // A partial first month gives way to the next month's label if they would collide.
       if(mon.getMonth()!==prevMonth){
         if(w-lastLabel<3 && lastLabel===0) labels='';
@@ -2933,37 +3036,39 @@ function startCanvas() {
       for(var d=0;d<7;d++){
         var dt=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+d), k=C.keyOf(dt);
         if(k>todayKey){ cells+='<span class="future"></span>'; continue; }
-        var n=days[k]?days[k].c:0;
-        var label=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+': '+(n?n+' commit'+(n===1?'':'s'):'no commits');
-        cells+='<a href="consistency.html?day='+k+'" class="l'+C.level(n,t)+(k===todayKey?' today':'')+'" title="'+label+'" aria-label="'+label+'"></a>';
+        var day=set.days[k], n=day?day.c:0;
+        var label=dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})+': '+(day?set.unit(day):set.none);
+        cells+='<a href="consistency.html?src='+set.src+'&day='+k+'" class="l'+(n?Math.max(set.minLevel||1,C.level(n,t)):0)+(k===todayKey?' today':'')+'" title="'+label+'" aria-label="'+label+'"></a>';
       }
     }
     grid.style.gridTemplateColumns=cols; months.style.gridTemplateColumns=cols;
     grid.innerHTML=cells; months.innerHTML=labels;
-
-    var s=C.stats(days);
-    document.getElementById('cons-head').textContent =
-      s.current>0 ? s.current+'-day streak. Keep it going.' :
-      s.sinceLast===null ? 'No commits yet.' :
-      'Last commit '+(s.sinceLast===1?'yesterday':s.sinceLast+' days ago')+'. Ship something today to start a streak.';
-    document.getElementById('cons-stats').innerHTML=[
-      [s.current+(s.current===1?' day':' days'),'Current streak',s.current?'good':'warn'],
-      [s.longest+(s.longest===1?' day':' days'),'Longest streak',''],
-      [s.perWeek.toFixed(1),'Active days / week',''],
-      [C.sinceLabel(s.sinceLast),'Last commit',s.sinceLast>7?'warn':'']
-    ].map(function(r){ return '<div><div class="v '+r[2]+'">'+r[0]+'</div><div class="k">'+r[1]+'</div></div>'; }).join('');
+    head.textContent=set.head;
+    statsEl.innerHTML=set.stats.map(function(r){ return '<div><div class="v '+r[2]+'">'+r[0]+'</div><div class="k">'+r[1]+'</div></div>'; }).join('');
   }
 
-  C.load(function(d){ days=d; render(); }).then(function(res){
-    if(res.error && !res.hadCache){
-      document.getElementById('cons-head').textContent='Couldn’t load your commits right now.';
-      document.getElementById('cons-grid').innerHTML='<div class="cons-msg">'+res.error+'</div>';
-      document.getElementById('cons-grid').style.gridTemplateColumns='1fr';
-    }
+  function loadCode(){
+    if(codeStarted) return; codeStarted=true;
+    C.load(function(d){ code=d; codeErr=null; if(src==='code') render(); }).then(function(res){
+      if(res.error && !res.hadCache){ codeErr=res.error; if(src==='code') render(); }
+    });
+  }
+
+  document.querySelectorAll('#cons-card [data-src]').forEach(function(b){
+    b.addEventListener('click',function(){
+      src=b.dataset.src; try{ localStorage.setItem(KEY,src); }catch(e){}
+      if(src==='code') loadCode();
+      render();
+    });
   });
+  if(src==='code') loadCode();
+  render();
+  // Training data needs the plan module, which loads after this script.
+  if(!window.Training) window.addEventListener('training-ready',render,{once:true});
   var rt; window.addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(render,150); });
 })();
 </script>
+<script type="module" src="features/training/index.js"></script>
 <script src="js/mobilenav.js" defer></script>
 </body>
 </html>
