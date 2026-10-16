@@ -152,7 +152,7 @@ const EXERCISES = {
     rep1: 'Rep 1 sets the standard — full stretch, then curl to the top',
     show: 'Show the whole arm — shoulder, elbow and wrist',
     demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[170, 45], [169, 46], [170, 47], [170, 78], [168, 46], [140, 45], [170, 48]] } },
-  squat: { title: 'Squat standard', name: 'Squat · depth standard', part: 'leg', joint: 'knee', start: 'lockout', finish: 'depth',
+  squat: { vertical: 'a', title: 'Squat standard', name: 'Squat · depth standard', part: 'leg', joint: 'hip height', start: 'lockout', finish: 'depth',
     joints: { left: [23, 25, 27], right: [24, 26, 28] },
     setup: 'Side-on, phone at knee height, 3–4 m away, whole body in frame',
     intro: 'Your <b>first rep sets the standard</b>: standing tall at the start and how deep you go. Every rep after must hit the same depth and stand all the way up to count. Slowing down is fine.',
@@ -160,7 +160,7 @@ const EXERCISES = {
     rep1: 'Rep 1 sets the standard — stand tall, squat to your depth, stand up',
     show: 'Show the whole leg — hip, knee and ankle',
     demo: { a: { x: 0.5, y: 0.46 }, b: { x: 0.53, y: 0.66 }, plan: [[175, 80], [174, 82], [175, 81], [175, 110], [173, 82], [150, 80], [175, 83]] } },
-  bench: { title: 'Bench standard', name: 'Bench press · range standard', part: 'arm', joint: 'elbow', start: 'lockout', finish: 'bottom',
+  bench: { vertical: 'c', title: 'Bench standard', name: 'Bench press · range standard', part: 'arm', joint: 'bar height', start: 'lockout', finish: 'bottom',
     joints: { left: [11, 13, 15], right: [12, 14, 16] },
     setup: 'Side-on, phone at bench height, 2–3 m away',
     intro: 'Your <b>first rep sets the standard</b>: arms locked out at the start and how low the bar comes. Every rep after must touch the same depth and lock out again to count. Slowing down is fine.',
@@ -173,6 +173,13 @@ const EXQ = new URLSearchParams(location.search).get('ex');
 const EXK = EXERCISES[EXQ] ? EXQ : 'curl';
 const EX = EXERCISES[EXK];
 const ARMS = EX.joints;
+// Vertical mode: height of the tracked point in body-segment units (hip→knee for
+// squat, shoulder→elbow for bench), so camera distance doesn't matter. Falls as
+// you go down, like a joint angle, so the same engine judges it.
+let segLen = 0;
+const UNIT = EX.vertical ? '' : '°';
+const toHeight = (pt, a, b) => { const L = Math.hypot(a.x - b.x, a.y - b.y); segLen = segLen ? Math.max(segLen * 0.995, L) : L; return 1000 - (pt.y / segLen) * 100; };
+const fromHeight = (v) => (1000 - v) * segLen / 100;
 const armVisibility = (p, side) => ARMS[side].reduce((t, i) => t + (p[i].visibility ?? 0), 0) / 3;
 
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
@@ -220,7 +227,7 @@ function updateCounts() {
 function showLastStandard() {
   try {
     const l = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
-    if (l) { const el = $('last-std'); el.hidden = false; el.innerHTML = `Last standard: <b>${Math.round(l.start)}° → ${Math.round(l.finish)}°</b> ${EX.joint} angle.`; }
+    if (l) { const el = $('last-std'); el.hidden = false; el.innerHTML = `Last standard: <b>${Math.round(l.start)}${UNIT} → ${Math.round(l.finish)}${UNIT}</b> ${EX.joint} angle.`; }
   } catch {}
 }
 
@@ -305,7 +312,7 @@ function frame(poses, t, vw, vh) {
   const px = (i) => ({ x: p[i].x * vw, y: p[i].y * vh, v: p[i].visibility ?? 0 });
   const S = px(si), E = px(ei), W = px(wi);
   const ok = Math.min(S.v, E.v, W.v) >= MIN_VIS;
-  const raw = ok ? jointAngle(S, E, W) : NaN;
+  const raw = ok ? (EX.vertical ? toHeight(EX.vertical === 'a' ? S : W, S, E) : jointAngle(S, E, W)) : NaN;
   const a = ok ? euro.filter(raw, t) : NaN;
   current = a;
 
@@ -334,7 +341,7 @@ function onEvent(ev) {
   if (ev.type === 'standard') {
     phase = 'live'; $('legend').hidden = false;
     beep(988, 0.12); buzz([40, 40, 40]);
-    setStatus(`Standard locked: ${Math.round(ev.standard.start)}° → ${Math.round(ev.standard.finish)}°`, 'good');
+    setStatus(`Standard locked: ${Math.round(ev.standard.start)}${UNIT} → ${Math.round(ev.standard.finish)}${UNIT}`, 'good');
     try { localStorage.setItem(LAST_KEY, JSON.stringify({ start: ev.standard.start, finish: ev.standard.finish, at: Date.now() })); } catch {}
   }
   const r = ev.rep;
@@ -405,7 +412,11 @@ function draw(d, vw, vh) {
   const cross = (S.x - E.x) * (W.y - E.y) - (S.y - E.y) * (W.x - E.x);
   const sgn = cross >= 0 ? 1 : -1;
   const ray = (deg) => up + sgn * (deg * Math.PI) / 180;
-  if (st) {
+  if (st && EX.vertical) {
+    // Start / Finish as horizontal lines at the locked heights.
+    const line = (v, color) => { const y = fromHeight(v) * sc + oy; ctx.strokeStyle = color; ctx.lineWidth = 3 * dpr; ctx.setLineDash([10 * dpr, 8 * dpr]); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); ctx.setLineDash([]); };
+    line(st.start, '#FFFFFF'); line(st.finish, '#58DB3D');
+  } else if (st) {
     ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 10 * dpr;
     ctx.beginPath(); ctx.arc(E.x, E.y, r, Math.min(ray(st.start), ray(st.finish)), Math.max(ray(st.start), ray(st.finish))); ctx.stroke();
     const tick = (deg, color) => { const ang = ray(deg); ctx.strokeStyle = color; ctx.lineWidth = 4 * dpr; ctx.beginPath(); ctx.moveTo(E.x + Math.cos(ang) * r * 0.75, E.y + Math.sin(ang) * r * 0.75); ctx.lineTo(E.x + Math.cos(ang) * r * 1.25, E.y + Math.sin(ang) * r * 1.25); ctx.stroke(); };
@@ -418,7 +429,7 @@ function draw(d, vw, vh) {
   // live angle
   if (Number.isFinite(d.a)) {
     ctx.font = `700 ${14 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = '#fff';
-    ctx.fillText(Math.round(d.a) + '°', E.x + 12 * dpr, E.y - 12 * dpr);
+    ctx.fillText(Math.round(d.a) + UNIT, E.x + 12 * dpr, E.y - 12 * dpr);
   }
 }
 
@@ -445,7 +456,7 @@ function renderSummary() {
     svg.innerHTML = html;
   }
   $('replist').innerHTML = counter.reps.map((r) => `<button class="rep" data-n="${r.n}">
-      <b>${r.n}</b><small>${Math.round(r.bottom)}° → ${Math.round(r.top)}°${r.isStandard ? ' · standard' : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
+      <b>${r.n}</b><small>${Math.round(r.bottom)}${UNIT} → ${Math.round(r.top)}${UNIT}${r.isStandard ? ' · standard' : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
       <span class="tag ${r.result}">${r.result === 'counted' ? 'Counted' : r.result === 'short' ? 'Short' : 'Unclear'}</span></button>`).join('') || '<p class="hint">No reps detected.</p>';
 }
 $('replist').addEventListener('click', (e) => {
