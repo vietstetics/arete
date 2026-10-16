@@ -16,7 +16,7 @@
    skeleton overlay; a white sheet below holds the count and actions. */
 :root{
   --ink:#171B12;--ink2:#5F6A55;--ink3:#8B957F;--paper:#FFFFFF;--wash:#F3F5F1;
-  --line:rgba(23,27,18,.10);--lime:#58DB3D;--lime-ink:#237A12;--amber:#E8A33A;--amber-ink:#8A5A12;
+  --line:rgba(23,27,18,.10);--lime:#58DB3D;--lime-ink:#237A12;--amber:#E8A33A;--amber-ink:#8A5A12;--red:#C0403A;
   --stage:#0E110C;--r:24px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -76,6 +76,48 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .rep small{color:var(--ink2);font-variant-numeric:tabular-nums}
 .rep .tag{font-size:12px;font-weight:700}
 .rep .tag.counted{color:var(--lime-ink)}.rep .tag.short{color:var(--amber-ink)}.rep .tag.unclear{color:var(--ink3)}
+/* Where to put the phone */
+.guide{margin-top:14px;padding:14px;border-radius:16px;background:var(--wash)}
+.guide-h{font-size:15px;font-weight:700}
+.guide svg{display:block;width:100%;max-width:300px;height:auto;margin:8px auto 4px}
+.guide ol{list-style:none;display:grid;gap:10px;margin-top:8px}
+.guide li{display:grid;grid-template-columns:22px 1fr;gap:10px;font-size:12.5px;line-height:1.45;color:var(--ink2)}
+.guide li b{display:block;color:var(--ink);font-size:13.5px}
+.mk{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800}
+.mk.best{background:var(--lime-ink)}.mk.ok{background:var(--amber)}.mk.avoid{background:var(--red)}
+.guide-n{font-size:12.5px;color:var(--ink2);margin-top:12px;line-height:1.5}
+.guide-n b{color:var(--ink)}
+#pre .acts{position:sticky;bottom:0;background:var(--paper);padding-top:10px}
+/* Live bar-speed panel: top right of the camera view, readable from the bar */
+.vp{position:absolute;top:calc(60px + env(safe-area-inset-top,0px));right:12px;z-index:3;width:min(46vw,240px);padding:12px 12px 10px;border-radius:18px;background:rgba(14,17,12,.92);color:#fff}
+.vp-k{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+.vp-n{display:flex;align-items:baseline;gap:6px;margin-top:2px}
+.vp-n b{font-size:52px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.vp-n span{font-size:14px;font-weight:700;color:rgba(255,255,255,.7)}
+.vp-loss{font-size:17px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.75)}
+.vp-loss.fresh{color:#58DB3D}.vp-loss.work{color:#F2B544}.vp-loss.grind{color:#FF6B5E}
+.vp-bars{position:relative;display:flex;align-items:flex-end;gap:4px;height:78px;margin-top:10px}
+.vp-bars i{flex:1;min-width:6px;max-width:28px;border-radius:5px 5px 2px 2px;background:#58DB3D}
+.vp-bars i.work{background:#F2B544}.vp-bars i.grind{background:#FF6B5E}
+.vp-bars i.short{opacity:.45}.vp-bars i.none{background:rgba(255,255,255,.22);height:6px!important}
+.vp-line{position:absolute;left:0;right:0;border-top:2px dashed rgba(255,255,255,.5);pointer-events:none}
+.vp-line span{position:absolute;right:0;top:-15px;font-size:10px;font-weight:700;color:rgba(255,255,255,.7)}
+.vp-verdict{margin-top:10px;padding:8px 10px;border-radius:12px;font-size:16px;font-weight:800;line-height:1.2;color:#0E110C}
+.vp-verdict small{display:block;font-size:12px;font-weight:700;margin-top:2px;opacity:.8}
+.vp-verdict.add{background:#58DB3D}.vp-verdict.keep{background:#F2B544}.vp-verdict.hold{background:#FF6B5E}.vp-verdict.none{background:rgba(255,255,255,.14);color:#fff}
+.stage.has-vp .status{left:12px;transform:none;max-width:calc(100% - min(46vw,240px) - 36px);text-align:left}
+/* Height / weight, and the verdict after the set */
+.fields{display:flex;gap:8px;margin-top:12px}
+.field{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--ink2)}
+.field input{width:100%;height:44px;border-radius:12px;border:0;background:var(--wash);padding:0 12px;font:inherit;font-size:16px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.verdict{margin-top:12px;padding:14px;border-radius:16px;background:var(--wash)}
+.verdict b{display:block;font-size:18px;font-weight:800;letter-spacing:-.01em}
+.verdict p{font-size:13px;line-height:1.5;margin-top:4px;color:var(--ink)}
+.verdict p.m{color:var(--ink2)}
+.verdict.add{background:rgba(88,219,61,.18)}.verdict.keep{background:rgba(232,163,58,.2)}.verdict.hold{background:rgba(192,64,58,.13)}
+#done .acts{align-items:flex-end}
+.sheet.is-done{max-height:46vh}  /* leave the stage room for the speed panel and its verdict */
+@media(max-height:700px){.vp-n b{font-size:44px}.vp-bars{height:56px}}
 @media(min-width:760px){.sheet{max-width:560px;margin:0 auto;width:100%}}
 </style>
 </head>
@@ -91,20 +133,33 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <button class="ibtn" id="flip-btn" aria-label="Switch camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3l-2-3H9L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><path d="M9 13a3 3 0 0 1 5-2.2M15 13a3 3 0 0 1-5 2.2"/><polyline points="14 9 14.5 11 12.5 11.5"/><polyline points="10 17 9.5 15 11.5 14.5"/></svg></button>
     </div>
     <div class="status" id="status" role="status" aria-live="polite">Side-on, phone at hip height, 2–3 m away</div>
+    <aside class="vp" id="vp" hidden aria-label="Bar speed per rep">
+      <div class="vp-k" id="vp-k">Bar speed</div>
+      <div class="vp-n"><b id="vp-v">–</b><span id="vp-u"></span></div>
+      <div class="vp-loss" id="vp-loss">Shows after each rep</div>
+      <div class="vp-bars" id="vp-bars" aria-hidden="true"></div>
+      <div class="vp-verdict" id="vp-verdict" hidden></div>
+    </aside>
     <div class="legend" id="legend" hidden><span><i style="background:#fff"></i>Start</span><span><i style="background:var(--lime)"></i>Finish</span></div>
   </div>
 
   <section class="sheet" id="sheet">
     <!-- before the set -->
     <div id="pre">
-      <div class="h">Bicep curl · one arm</div>
-      <p class="hint">Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.</p>
+      <div class="h" id="pre-h">Bicep curl · one arm</div>
+      <p class="hint" id="intro">Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.</p>
       <p class="hint" id="last-std" hidden></p>
+      <div class="fields">
+        <label class="field">Your height (cm)<input id="height-in" type="number" inputmode="numeric" min="120" max="230" placeholder="e.g. 180"></label>
+        <label class="field"><span id="kg-label">Weight on the bar (kg)</span><input id="kg-in" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
+      </div>
+      <p class="hint">Your height turns camera movement into bar speed in m/s. The weight lets each set be compared with your last one at that weight.</p>
+      <section class="guide" id="guide" aria-labelledby="guide-h"></section>
+      <p class="hint">Gym clutter in the background is fine. Video is processed on your phone and never uploaded.</p>
       <div class="acts">
         <button class="btn p" id="start-btn">Start camera</button>
         <button class="btn s" id="file-btn">Analyse a video</button>
       </div>
-      <p class="hint">Stand side-on with the working arm closest to the phone. Benches and gym clutter in the background are fine. Video is processed on your phone and never uploaded.</p>
       <input type="file" id="file" accept="video/*" hidden>
     </div>
 
@@ -129,76 +184,221 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
         <div class="count"><b id="d-count">0</b><span>reps counted</span></div>
         <div class="sub"><span class="s" id="d-short">0 short</span><span id="d-unclear">0 unclear</span></div>
       </div>
-      <div class="chart"><svg id="chart" viewBox="0 0 320 150" preserveAspectRatio="none" role="img" aria-label="Elbow angle through the set"></svg></div>
+      <div class="verdict" id="verdict"></div>
       <p class="hint">Tap a rep to change its result if the camera got it wrong.</p>
       <div class="list" id="replist"></div>
-      <div class="acts"><button class="btn p" id="again-btn">New set</button></div>
+      <div class="acts">
+        <label class="field">Next set (kg)<input id="kg-next" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
+        <button class="btn p" id="again-btn">New set</button>
+      </div>
     </div>
   </section>
 </div>
 
 <script type="module">
-import { createRepCounter, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
+import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
+import { concentricVelocity, metresPerUnit, setVerdict, compareToLast, lossBand } from './features/standard/services/velocity.js';
 
-// Exercise setups. Both are flexion movements for the engine: the measured
-// angle falls during the rep. Curl = elbow (stretch → top); squat = knee
-// (standing lockout → depth). ?ex=squat picks the squat.
+// Exercise setups. Curl: elbow angle, judged at the top of each rep.
+// Squat and bench: height (hips above the feet, bar above the shoulders),
+// judged when you are back up, so the rep counts as you stand or lock out.
+// ?ex=squat / ?ex=bench pick the lift.
 const EXERCISES = {
-  curl: { title: 'Curl standard', name: 'Bicep curl · one arm', part: 'arm', joint: 'elbow', start: 'stretch', finish: 'top',
+  curl: { title: 'Curl standard', name: 'Bicep curl · one arm', part: 'arm', measure: 'elbow angle', start: 'stretch', finish: 'top',
     joints: { left: [11, 13, 15], right: [12, 14, 16] },
     setup: 'Side-on, phone at hip height, 2–3 m away',
     intro: 'Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.',
-    place: 'Stand side-on with the working arm closest to the phone.',
     rep1: 'Rep 1 sets the standard — full stretch, then curl to the top',
+    finding: 'Step side-on — finding you',
     show: 'Show the whole arm — shoulder, elbow and wrist',
+    fmt: (v) => `${Math.round(v)}°`,
     demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[170, 45], [169, 46], [170, 47], [170, 78], [168, 46], [140, 45], [170, 48]] } },
-  squat: { vertical: 'a', title: 'Squat standard', name: 'Squat · depth standard', part: 'leg', joint: 'hip height', start: 'lockout', finish: 'depth',
-    joints: { left: [23, 25, 27], right: [24, 26, 28] },
-    setup: 'Side-on, phone at knee height, 3–4 m away, whole body in frame',
+  squat: { height: 'squat', title: 'Squat standard', name: 'Squat · depth standard', part: 'body', measure: 'hip height', start: 'lockout', finish: 'depth',
+    limbs: [[23, 25, 27], [24, 26, 28]],
+    setup: 'Phone at hip height, 3–4 m away, head to feet in frame',
     intro: 'Your <b>first rep sets the standard</b>: standing tall at the start and how deep you go. Every rep after must hit the same depth and stand all the way up to count. Slowing down is fine.',
-    place: 'Stand side-on to the phone with your whole body in frame, head to feet.',
     rep1: 'Rep 1 sets the standard — stand tall, squat to your depth, stand up',
-    show: 'Show the whole leg — hip, knee and ankle',
-    demo: { a: { x: 0.5, y: 0.46 }, b: { x: 0.53, y: 0.66 }, plan: [[175, 80], [174, 82], [175, 81], [175, 110], [173, 82], [150, 80], [175, 83]] } },
-  bench: { vertical: 'c', title: 'Bench standard', name: 'Bench press · range standard', part: 'arm', joint: 'bar height', start: 'lockout', finish: 'bottom',
-    joints: { left: [11, 13, 15], right: [12, 14, 16] },
-    setup: 'Side-on, phone at bench height, 2–3 m away',
+    finding: 'Stand where the phone sees you head to toe',
+    lost: 'Can’t see your hips clearly',
+    fmt: (v) => `${Math.round(v)}%`,
+    note: 'Hip height as a % of your standing hip height.',
+    demo: { plan: [[100, 52], [100, 53], [100, 51], [100, 72], [100, 52], [82, 52], [100, 53]] } },
+  bench: { height: 'bench', title: 'Bench standard', name: 'Bench press · range standard', part: 'arms', measure: 'bar height', start: 'lockout', finish: 'bottom',
+    limbs: [[11, 13, 15], [12, 14, 16]],
+    setup: 'Phone past your feet, lens about 1 m high',
     intro: 'Your <b>first rep sets the standard</b>: arms locked out at the start and how low the bar comes. Every rep after must touch the same depth and lock out again to count. Slowing down is fine.',
-    place: 'Set the phone side-on to the bench so your shoulder, elbow and wrist are in view.',
     rep1: 'Rep 1 sets the standard — lock out, lower to your chest, press up',
-    show: 'Show the whole arm — shoulder, elbow and wrist',
-    demo: { a: { x: 0.45, y: 0.55 }, b: { x: 0.5, y: 0.66 }, plan: [[172, 75], [171, 77], [172, 76], [172, 100], [170, 77], [145, 75], [172, 78]] } },
+    finding: 'Lie on the bench — finding you',
+    lost: 'Can’t see your hands clearly',
+    fmt: (v) => `${Math.round(v - 100)}`,
+    note: 'Bar height above your shoulders, relative to your build.',
+    demo: { plan: [[205, 118], [205, 120], [205, 117], [205, 150], [205, 118], [175, 118], [205, 119]] } },
 };
 const EXQ = new URLSearchParams(location.search).get('ex');
 const EXK = EXERCISES[EXQ] ? EXQ : 'curl';
 const EX = EXERCISES[EXK];
 const ARMS = EX.joints;
-// Vertical mode: height of the tracked point in body-segment units (hip→knee for
-// squat, shoulder→elbow for bench), so camera distance doesn't matter. Falls as
-// you go down, like a joint angle, so the same engine judges it.
-let segLen = 0;
-const UNIT = EX.vertical ? '' : '°';
-const toHeight = (pt, a, b) => { const L = Math.hypot(a.x - b.x, a.y - b.y); segLen = segLen ? Math.max(segLen * 0.995, L) : L; return 1000 - (pt.y / segLen) * 100; };
-const fromHeight = (v) => (1000 - v) * segLen / 100;
-const armVisibility = (p, side) => ARMS[side].reduce((t, i) => t + (p[i].visibility ?? 0), 0) / 3;
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+
+// What to fix when the tracker can't lock on (squat and bench).
+const WHY = {
+  feet: 'Can’t see your feet — move the phone back so you’re head to toe',
+  hips: 'Can’t see your hips — make sure nothing is in front of you',
+  stand: 'Stand tall to start',
+  shoulders: 'Can’t see your shoulders — raise the phone a little',
+  hands: 'Can’t see your hands — move the phone towards your feet',
+};
+
+// ── Where to put the phone ───────────────────────────────
+// Top-down sketches. Numbered markers match the list under each sketch.
+const MK = { best: '#237A12', ok: '#E8A33A', avoid: '#C0403A' };
+const marker = (x, y, kind, n, to) => `${to ? `<line x1="${x}" y1="${y}" x2="${to[0]}" y2="${to[1]}" stroke="${MK[kind]}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>` : ''}
+  <circle cx="${x}" cy="${y}" r="11" fill="${MK[kind]}"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">${n}</text>`;
+const plate = (x, y) => `<rect x="${x - 4}" y="${y - 14}" width="8" height="28" rx="2" fill="#171B12"/>`;
+const GUIDES = {
+  curl: {
+    svg: `<svg viewBox="0 0 300 200" role="img" aria-label="Top-down view: phone to the side of your working arm">
+      <ellipse cx="150" cy="100" rx="26" ry="12" fill="#D9DED3"/><circle cx="150" cy="100" r="9" fill="#8B957F"/>
+      <line x1="174" y1="100" x2="196" y2="100" stroke="#171B12" stroke-width="5" stroke-linecap="round"/><rect x="194" y="92" width="6" height="16" rx="2" fill="#171B12"/>
+      <text x="150" y="132" text-anchor="middle" font-size="10" fill="#8B957F">you (from above)</text>
+      ${marker(268, 100, 'best', 1, [200, 100])}${marker(150, 180, 'avoid', 2, [150, 116])}${marker(150, 20, 'avoid', 2, [150, 88])}</svg>`,
+    items: [
+      ['best', 1, 'Side-on to your working arm', '2–3 m away, lens at hip height. The arm closest to the phone is the one tracked.'],
+      ['avoid', 2, 'In front or behind', 'Your elbow bends towards or away from the lens, so the angle can’t be read.'],
+    ],
+    note: 'Portrait is fine. Keep shoulder, elbow and wrist in frame the whole set.',
+  },
+  squat: {
+    svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone 3 to 4 metres away, at 45 degrees, side-on, behind or in front">
+      <circle cx="150" cy="110" r="46" fill="none" stroke="#C0403A" stroke-width="1.5" stroke-dasharray="3 4" opacity=".7"/>
+      <line x1="104" y1="110" x2="196" y2="110" stroke="#171B12" stroke-width="3"/>${plate(104, 110)}${plate(196, 110)}
+      <ellipse cx="150" cy="110" rx="24" ry="11" fill="#D9DED3"/><circle cx="150" cy="110" r="8" fill="#8B957F"/>
+      <ellipse cx="141" cy="130" rx="4" ry="7" fill="#8B957F"/><ellipse cx="159" cy="130" rx="4" ry="7" fill="#8B957F"/>
+      <text x="150" y="151" text-anchor="middle" font-size="10" fill="#8B957F">front</text>
+      ${marker(70, 190, 'best', 1, [138, 122])}${marker(230, 30, 'best', 1, [162, 98])}
+      ${marker(272, 110, 'ok', 2, [200, 110])}${marker(150, 18, 'ok', 2, [150, 99])}${marker(150, 204, 'ok', 2, [150, 158])}
+      ${marker(183, 143, 'avoid', 3)}</svg>`,
+    items: [
+      ['best', 1, 'At 45°, in front or behind', 'Sees your hips and feet without the plates in the way.'],
+      ['ok', 2, 'Side-on, straight behind or in front', 'These work too: the count uses how high your hips are above your feet, so the camera angle doesn’t matter.'],
+      ['avoid', 3, 'Closer than about 2.5 m', 'Your feet have to stay in frame at the top of every rep.'],
+    ],
+    note: '<b>Height:</b> lens at hip height (about 1 m), portrait. <b>Distance:</b> 3–4 m. Head to feet in frame for the whole set, and keep the phone still: prop it up rather than holding it.',
+  },
+  bench: {
+    svg: `<svg viewBox="0 0 300 230" role="img" aria-label="Top-down view: phone past your feet, in line with the bench or up to 45 degrees to one side">
+      <rect x="132" y="36" width="36" height="112" rx="6" fill="#D9DED3"/>
+      <line x1="72" y1="78" x2="228" y2="78" stroke="#171B12" stroke-width="3"/>${plate(72, 78)}${plate(228, 78)}
+      <circle cx="150" cy="48" r="9" fill="#8B957F"/><rect x="138" y="60" width="24" height="58" rx="8" fill="#8B957F"/>
+      <line x1="140" y1="64" x2="118" y2="78" stroke="#8B957F" stroke-width="5" stroke-linecap="round"/><line x1="160" y1="64" x2="182" y2="78" stroke="#8B957F" stroke-width="5" stroke-linecap="round"/>
+      <line x1="143" y1="118" x2="134" y2="166" stroke="#8B957F" stroke-width="6" stroke-linecap="round"/><line x1="157" y1="118" x2="166" y2="166" stroke="#8B957F" stroke-width="6" stroke-linecap="round"/>
+      <text x="166" y="52" font-size="10" fill="#8B957F">head</text>
+      ${marker(150, 214, 'best', 1, [150, 82])}${marker(236, 196, 'ok', 2, [158, 84])}
+      ${marker(282, 78, 'avoid', 3, [236, 78])}${marker(150, 12, 'avoid', 4)}</svg>`,
+    items: [
+      ['best', 1, 'Past your feet, in line with the bench', '2–3 m from the end of the bench. Both hands, both shoulders and the bar stay in view.'],
+      ['ok', 2, 'Past your feet, up to 45° to one side', 'Use this if a rack or a spotter is in the way.'],
+      ['avoid', 3, 'Side-on to the bench', 'From the side you look straight down the bar, so the plate sits in front of your hand.'],
+      ['avoid', 4, 'At your head', 'You appear upside down, which the tracker handles badly.'],
+    ],
+    note: '<b>Height:</b> lens about 1–1.2 m high (around your waist when you stand), tilted down towards your chest. Any lower and your knees hide it. <b>Frame:</b> landscape, with the bar at lockout near the top of the picture. Prop the phone up rather than holding it.',
+  },
+};
+function renderGuide() {
+  const g = GUIDES[EXK];
+  $('guide').innerHTML = `<div class="guide-h" id="guide-h">Where to put your phone</div>${g.svg}
+    <ol>${g.items.map(([kind, n, title, why]) => `<li><span class="mk ${kind}" aria-hidden="true">${n}</span><span><b>${title}</b>${why}</span></li>`).join('')}</ol>
+    <p class="guide-n">${g.note}</p>`;
+}
 
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
 const LAST_KEY = EXK === 'curl' ? 'arete_curl_lab_last' : `arete_${EXK}_lab_last`;
 const BODY = [[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[24,26],[26,28]];
 const MIN_VIS = 0.55;      // joints below this are treated as unseen
-const CALIB_SECS = 0.8;    // steady, visible arm needed before rep 1
+const CALIB_SECS = 0.8;    // steady, visible body needed before rep 1
 
 const $ = (id) => document.getElementById(id);
 const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
 const demo = new URLSearchParams(location.search).has('demo');
+const armVisibility = (p, s) => ARMS[s].reduce((t, i) => t + (p[i].visibility ?? 0), 0) / 3;
 
 let landmarker = null, stream = null, facing = 'user', source = 'camera';
 let armMode = 'auto', side = null, visSum = { left: 0, right: 0 };
 let counter = null, euro = oneEuro(), center = null;
+const tracker = EX.height ? createHeightTracker(EX.height, { minVis: MIN_VIS }) : null;
 let phase = 'idle'; // idle → finding → ready → live → done
 let steadySince = null, lostSince = null, trace = [], lastVideoT = -1, raf = 0;
 let audio = null, wakeLock = null, current = NaN;
+
+// ── Bar speed ────────────────────────────────────────────
+// Bar position per frame in native units (radians of curl for the curl, body
+// units for squat and bench), up = lifting. Each rep's mean lifting speed is
+// measured from it; metresPerUnit() turns that into m/s from your height.
+const HEIGHT_KEY = 'arete_lab_height_cm', KG_KEY = `arete_${EXK}_lab_kg`, HIST_KEY = `arete_${EXK}_lab_history`;
+const STEP_KG = { squat: 2.5, bench: 2.5, curl: 2 };
+let barTrace = [], pendingVel = null;
+const readNum = (k) => { try { const v = parseFloat(localStorage.getItem(k)); return v > 0 ? v : null; } catch { return null; } };
+const writeNum = (k, v) => { try { v > 0 ? localStorage.setItem(k, String(v)) : localStorage.removeItem(k); } catch {} };
+let heightCm = readNum(HEIGHT_KEY), kg = readNum(KG_KEY);
+const loadHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
+function mpu() {
+  return metresPerUnit(EXK, { heightM: heightCm ? heightCm / 100 : 0, scale: tracker?.scale, standShoulderPx: tracker?.standShoulderPx, armPx: tracker?.armPx });
+}
+function pushBar(t, y) {
+  barTrace.push({ t, y });
+  if (barTrace.length > 20000) barTrace.splice(0, 2000);
+  if (pendingVel && t >= pendingVel.until) settleVel(t);
+}
+// Curl reps are measured as soon as they're judged (the lift is over).
+// Squat and bench reps are judged as you pass the lockout line, so the
+// reading is refined half a second later, once the bar has reached the top.
+function measureRep(rep, t) {
+  if (pendingVel) settleVel(t);
+  if (!EX.height) { rep.vel = concentricVelocity(barTrace, rep.startT - 0.15, rep.topT + 0.15); return; }
+  rep.vel = concentricVelocity(barTrace, rep.topT - 0.2, t);
+  pendingVel = { rep, until: t + 0.5 };
+}
+function settleVel(t) {
+  const { rep, until } = pendingVel; pendingVel = null;
+  rep.vel = concentricVelocity(barTrace, rep.topT - 0.2, Math.min(t, until)) || rep.vel;
+  renderPanel();
+}
+// Speeds of every rep in display units: m/s when your height is known,
+// otherwise the native unit (only shown relative to your best rep).
+function repSpeeds() {
+  const k = mpu(), metres = Number.isFinite(k);
+  return { metres, list: (counter ? counter.reps : []).map((r) => ({ r, mv: r.vel ? r.vel.mv * (metres ? k : 1) : NaN })) };
+}
+const fmtV = (v, metres) => (metres ? `${v.toFixed(2)} m/s` : '');
+function renderPanel(verdict) {
+  const { metres, list } = repSpeeds();
+  const timed = list.filter((x) => Number.isFinite(x.mv) && x.r.result !== 'unclear');
+  const best = timed.length ? Math.max(...timed.slice(0, 3).map((x) => x.mv)) : NaN;
+  const last = timed[timed.length - 1];
+  $('vp-k').textContent = last ? `Bar speed · rep ${last.r.n}` : 'Bar speed';
+  if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
+  else {
+    const loss = (best - last.mv) / best;
+    $('vp-v').textContent = metres ? last.mv.toFixed(2) : `${Math.round((last.mv / best) * 100)}%`;
+    $('vp-u').textContent = metres ? 'm/s' : 'of best';
+    $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'Fastest yet' : `−${Math.round(loss * 100)}% vs best`;
+    $('vp-loss').className = 'vp-loss ' + (timed.length < 2 ? '' : lossBand(loss));
+  }
+  const top = Number.isFinite(best) ? Math.max(best, ...timed.map((x) => x.mv)) * 1.1 : 1;
+  $('vp-bars').innerHTML = list.map((x) => {
+    if (!Number.isFinite(x.mv) || x.r.result === 'unclear') return `<i class="none"></i>`;
+    const h = Math.max(4, (x.mv / top) * 100);
+    return `<i class="${lossBand((best - x.mv) / best)}${x.r.result === 'short' ? ' short' : ''}" style="height:${h.toFixed(1)}%"></i>`;
+  }).join('') + (Number.isFinite(best) ? `<div class="vp-line" style="bottom:${((best * 0.8) / top * 100).toFixed(1)}%"><span>−20%</span></div>` : '');
+  const vEl = $('vp-verdict');
+  vEl.hidden = !verdict;
+  if (verdict) { vEl.className = 'vp-verdict ' + verdict.kind; vEl.innerHTML = `${VERDICT[verdict.kind]}${verdict.brokeDown ? '<small>Range broke down</small>' : Number.isFinite(verdict.rir) ? `<small>${repsLeft(verdict.rir)}</small>` : ''}`; }
+}
+const VERDICT = { add: 'Add weight', keep: 'Keep weight, +1 rep', hold: 'Stay at this weight', none: 'Not enough reps' };
+const repsDown = (rir) => Math.max(1, Math.floor(rir));
+const repsLeft = (rir) => (rir >= 5 ? '5+ reps left' : rir < 0.5 ? 'At failure' : `~${repsDown(rir)} rep${repsDown(rir) === 1 ? '' : 's'} left`);
+function showPanel(on) { $('vp').hidden = !on; $('stage').classList.toggle('has-vp', on); }
 
 // ── Feedback ─────────────────────────────────────────────
 function beep(freq, dur = 0.09) {
@@ -214,9 +414,12 @@ const buzz = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {
 function setStatus(text, tone = '') { const s = $('status'); s.textContent = text; s.className = 'status' + (tone ? ' ' + tone : ''); }
 
 // ── Phases ───────────────────────────────────────────────
-function show(view) { ['pre', 'live', 'done'].forEach((v) => { $(v).hidden = v !== view; }); }
+function show(view) { ['pre', 'live', 'done'].forEach((v) => { $(v).hidden = v !== view; }); $('sheet').classList.toggle('is-done', view === 'done'); }
 function resetSet() {
-  counter = createRepCounter(); euro.reset(); trace = []; side = armMode === 'auto' ? null : armMode;
+  counter = EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : createRepCounter();
+  if (tracker) tracker.reset();
+  barTrace = []; pendingVel = null;
+  euro.reset(); trace = []; side = armMode === 'auto' ? null : armMode;
   visSum = { left: 0, right: 0 }; steadySince = null; lostSince = null; center = null; current = NaN;
   $('chips').innerHTML = ''; updateCounts(); $('legend').hidden = true;
 }
@@ -227,7 +430,11 @@ function updateCounts() {
 function showLastStandard() {
   try {
     const l = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
-    if (l) { const el = $('last-std'); el.hidden = false; el.innerHTML = `Last standard: <b>${Math.round(l.start)}${UNIT} → ${Math.round(l.finish)}${UNIT}</b> ${EX.joint} angle.`; }
+    // Squat and bench standards saved before the height rework used other units.
+    if (l && (!EX.height || l.v === 2)) {
+      const el = $('last-std'); el.hidden = false;
+      el.innerHTML = `Last standard: <b>${EX.fmt(l.start)} → ${EX.fmt(l.finish)}</b> ${EX.measure}.${EX.note ? ' ' + EX.note : ''}`;
+    }
   } catch {}
 }
 
@@ -269,8 +476,8 @@ async function startFile(file) {
 }
 
 function begin() {
-  beep(660, 0.04); resetSet(); phase = 'finding'; show('live');
-  setStatus('Step side-on — finding you');
+  beep(660, 0.04); resetSet(); phase = 'finding'; show('live'); showPanel(true); renderPanel();
+  setStatus(EX.finding);
   cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
 }
 
@@ -293,8 +500,8 @@ function frame(poses, t, vw, vh) {
   const idx = pickPerson(poses, center);
   if (idx < 0) {
     lostSince = lostSince ?? t;
-    if (phase === 'live' || phase === 'ready') { counter.push(t, NaN, false); trace.push({ t, a: NaN }); }
-    if (t - lostSince > 0.5) setStatus(center ? 'Lost you — step back into view' : 'Step side-on — finding you', 'warn');
+    if (phase === 'live' || phase === 'ready') { counter.push(t, NaN, false); trace.push({ t, a: NaN }); pushBar(t, NaN); }
+    if (t - lostSince > 0.5) setStatus(center ? 'Lost you — step back into view' : EX.finding, 'warn');
     if (t - lostSince > 2) center = null; // re-acquire whoever is largest
     draw(null, vw, vh);
     return;
@@ -302,6 +509,7 @@ function frame(poses, t, vw, vh) {
   lostSince = null;
   const p = poses[idx];
   center = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
+  if (EX.height) { heightFrame(p, t, vw, vh); return; }
 
   // Work out which arm faces the camera (the one it sees best).
   if (!side) {
@@ -312,8 +520,8 @@ function frame(poses, t, vw, vh) {
   const px = (i) => ({ x: p[i].x * vw, y: p[i].y * vh, v: p[i].visibility ?? 0 });
   const S = px(si), E = px(ei), W = px(wi);
   const ok = Math.min(S.v, E.v, W.v) >= MIN_VIS;
-  const raw = ok ? (EX.vertical ? toHeight(EX.vertical === 'a' ? S : W, S, E) : jointAngle(S, E, W)) : NaN;
-  const a = ok ? euro.filter(raw, t) : NaN;
+  const rawA = ok ? jointAngle(S, E, W) : NaN;
+  const a = ok ? euro.filter(rawA, t) : NaN;
   current = a;
 
   if (phase === 'finding') {
@@ -329,6 +537,7 @@ function frame(poses, t, vw, vh) {
     } else { steadySince = null; setStatus(EX.show); }
   } else {
     trace.push({ t, a });
+    pushBar(t, Number.isFinite(rawA) ? ((180 - rawA) * Math.PI) / 180 : NaN);
     const ev = counter.push(t, a, ok);
     if (ev) onEvent(ev);
     if (!ok && phase === 'live') setStatus(`Can’t see your ${EX.part} clearly`, 'warn');
@@ -337,15 +546,49 @@ function frame(poses, t, vw, vh) {
   draw({ p, S, E, W, ok, a }, vw, vh);
 }
 
+// Squat and bench: hold still to lock your body size and the floor or bench
+// line, then follow hip or bar height against it.
+function heightFrame(p, t, vw, vh) {
+  if (phase === 'finding') {
+    const c = tracker.calibrate(p, vw, vh);
+    if (c.ok) {
+      steadySince = steadySince ?? t;
+      const held = t - steadySince;
+      setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
+      if (held >= CALIB_SECS && tracker.lock()) {
+        phase = 'ready'; beep(880, 0.05); buzz(30);
+        setStatus(EX.rep1, 'good');
+      }
+    } else {
+      steadySince = null; tracker.reset();
+      setStatus(WHY[c.why] || EX.finding, 'warn');
+    }
+    draw({ p, ok: c.ok }, vw, vh);
+    return;
+  }
+  const m = tracker.measure(p, vw, vh);
+  const a = m.ok ? euro.filter(m.value, t) : NaN;
+  current = a;
+  trace.push({ t, a });
+  pushBar(t, Number.isFinite(m.bar) ? m.bar : NaN);
+  const ev = counter.push(t, a, m.ok);
+  if (ev) onEvent(ev);
+  if (!m.ok && phase === 'live') setStatus(EX.lost, 'warn');
+  updateMeter();
+  draw({ p, ok: m.ok, a, point: m.point }, vw, vh);
+}
+
 function onEvent(ev) {
   if (ev.type === 'standard') {
     phase = 'live'; $('legend').hidden = false;
     beep(988, 0.12); buzz([40, 40, 40]);
-    setStatus(`Standard locked: ${Math.round(ev.standard.start)}${UNIT} → ${Math.round(ev.standard.finish)}${UNIT}`, 'good');
-    try { localStorage.setItem(LAST_KEY, JSON.stringify({ start: ev.standard.start, finish: ev.standard.finish, at: Date.now() })); } catch {}
+    setStatus(`Standard locked: ${EX.fmt(ev.standard.start)} → ${EX.fmt(ev.standard.finish)}`, 'good');
+    try { localStorage.setItem(LAST_KEY, JSON.stringify({ start: ev.standard.start, finish: ev.standard.finish, at: Date.now(), ...(EX.height ? { v: 2 } : {}) })); } catch {}
   }
   const r = ev.rep;
   if (!r) return;
+  measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0);
+  renderPanel();
   addChip(r);
   if (ev.type === 'rep') {
     if (r.result === 'counted') { beep(988); buzz(25); setStatus(`Rep ${counter.summary().counted}`, 'good'); }
@@ -366,15 +609,21 @@ function addChip(r) {
 function updateMeter() {
   const st = counter && counter.standard;
   let pct = 0;
-  if (st && Number.isFinite(current)) pct = Math.max(0, Math.min(1, (st.start - current) / (st.start - st.finish)));
-  else if (Number.isFinite(current)) pct = Math.max(0, Math.min(1, (175 - current) / 135));
-  $('meter').style.width = (pct * 100).toFixed(1) + '%';
+  if (st && Number.isFinite(current)) pct = (st.start - current) / (st.start - st.finish);
+  else if (Number.isFinite(current)) {
+    if (!EX.height) pct = (175 - current) / 135;
+    else { const top = tracker.calValue, low = EX.height === 'squat' ? 50 : 100; pct = Number.isFinite(top) && top > low ? (top - current) / (top - low) : 0; }
+  }
+  $('meter').style.width = (Math.max(0, Math.min(1, pct)) * 100).toFixed(1) + '%';
 }
 
 function endSet() {
   if (phase === 'done') return;
   phase = 'done'; cancelAnimationFrame(raf);
   if (source === 'file') video.pause();
+  if (pendingVel) settleVel(Infinity);
+  saveSet();
+  $('legend').hidden = true; // the verdict takes that corner
   renderSummary(); show('done'); setStatus('Set complete', 'good');
 }
 
@@ -403,20 +652,17 @@ function draw(d, vw, vh) {
     if ((d.p[a].visibility ?? 0) < 0.5 || (d.p[b].visibility ?? 0) < 0.5) continue;
     const A = lm(a), B = lm(b); ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
   }
+  if (EX.height) { drawHeight(d, m, lm, sc, oy, cw, dpr); return; }
+
   const S = m(d.S), E = m(d.E), W = m(d.W);
   // standard gauge at the elbow
   const st = counter && counter.standard;
   const r = Math.hypot(W.x - E.x, W.y - E.y) * 0.6;
   const up = Math.atan2(S.y - E.y, S.x - E.x);
-  const fore = Math.atan2(W.y - E.y, W.x - E.x);
   const cross = (S.x - E.x) * (W.y - E.y) - (S.y - E.y) * (W.x - E.x);
   const sgn = cross >= 0 ? 1 : -1;
   const ray = (deg) => up + sgn * (deg * Math.PI) / 180;
-  if (st && EX.vertical) {
-    // Start / Finish as horizontal lines at the locked heights.
-    const line = (v, color) => { const y = fromHeight(v) * sc + oy; ctx.strokeStyle = color; ctx.lineWidth = 3 * dpr; ctx.setLineDash([10 * dpr, 8 * dpr]); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); ctx.setLineDash([]); };
-    line(st.start, '#FFFFFF'); line(st.finish, '#58DB3D');
-  } else if (st) {
+  if (st) {
     ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 10 * dpr;
     ctx.beginPath(); ctx.arc(E.x, E.y, r, Math.min(ray(st.start), ray(st.finish)), Math.max(ray(st.start), ray(st.finish))); ctx.stroke();
     const tick = (deg, color) => { const ang = ray(deg); ctx.strokeStyle = color; ctx.lineWidth = 4 * dpr; ctx.beginPath(); ctx.moveTo(E.x + Math.cos(ang) * r * 0.75, E.y + Math.sin(ang) * r * 0.75); ctx.lineTo(E.x + Math.cos(ang) * r * 1.25, E.y + Math.sin(ang) * r * 1.25); ctx.stroke(); };
@@ -429,35 +675,95 @@ function draw(d, vw, vh) {
   // live angle
   if (Number.isFinite(d.a)) {
     ctx.font = `700 ${14 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = '#fff';
-    ctx.fillText(Math.round(d.a) + UNIT, E.x + 12 * dpr, E.y - 12 * dpr);
+    ctx.fillText(EX.fmt(d.a), E.x + 12 * dpr, E.y - 12 * dpr);
+  }
+}
+
+// Squat / bench: Start and Finish are fixed horizontal lines (tied to the
+// floor or the bench, not the moving body); the tracked point is the hips
+// or the hands.
+function drawHeight(d, m, lm, sc, oy, cw, dpr) {
+  const st = counter && counter.standard;
+  if (st && tracker.locked) {
+    const line = (v, color, label) => {
+      const y = tracker.lineY(v) * sc + oy;
+      ctx.strokeStyle = color; ctx.lineWidth = 3 * dpr; ctx.setLineDash([10 * dpr, 8 * dpr]);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = `700 ${12 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = color;
+      ctx.fillText(cap(label), 12 * dpr, y - 8 * dpr);
+    };
+    line(st.start, '#FFFFFF', EX.start); line(st.finish, '#58DB3D', EX.finish);
+  }
+  ctx.strokeStyle = d.ok ? '#58DB3D' : 'rgba(232,163,58,.9)'; ctx.lineWidth = 6 * dpr;
+  for (const limb of EX.limbs) {
+    if (limb.some((i) => (d.p[i].visibility ?? 0) < 0.5)) continue;
+    const pts = limb.map(lm);
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); pts.slice(1).forEach((P) => ctx.lineTo(P.x, P.y)); ctx.stroke();
+  }
+  if (d.point) {
+    const P = m(d.point);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(P.x, P.y, 9 * dpr, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = d.ok ? '#58DB3D' : '#E8A33A'; ctx.lineWidth = 4 * dpr; ctx.stroke();
+    if (Number.isFinite(d.a)) {
+      ctx.font = `700 ${14 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = '#fff';
+      ctx.fillText(EX.fmt(d.a), P.x + 14 * dpr, P.y - 12 * dpr);
+    }
   }
 }
 
 // ── Summary ──────────────────────────────────────────────
+// The set's result is saved once, when it ends: compared first with your last
+// set at the same weight, so it's never compared with itself.
+let setCompare = null;
+function saveSet() {
+  const { metres, list } = repSpeeds();
+  const v = setVerdict(list.map((x) => ({ mv: x.mv, result: x.r.result })), { lift: EXK, metres });
+  setCompare = v.kind === 'none' ? null : compareToLast(loadHistory(), { kg, best: v.best, metres });
+  if (v.kind === 'none') return;
+  try {
+    const h = loadHistory();
+    h.push({ at: Date.now(), kg: kg || null, metres, best: v.best, last: v.last, loss: v.loss, rir: v.rir, reps: counter.summary().counted });
+    localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-100)));
+  } catch {}
+}
 function renderSummary() {
-  const s = counter.summary(), st = counter.standard;
+  const s = counter.summary();
   $('d-count').textContent = s.counted; $('d-short').textContent = `${s.short} short`; $('d-unclear').textContent = `${s.unclear} unclear`;
-  const pts = trace.filter((p) => Number.isFinite(p.a));
-  const svg = $('chart');
-  if (pts.length < 2) { svg.innerHTML = '<text x="160" y="80" text-anchor="middle" font-size="12" fill="#8B957F">No tracked movement</text>'; }
+  const { metres, list } = repSpeeds();
+  const v = setVerdict(list.map((x) => ({ mv: x.mv, result: x.r.result })), { lift: EXK, metres });
+  renderPanel(v);
+  const lines = [];
+  if (v.kind === 'none') lines.push('Do at least two reps the camera can see clearly to get a call on the weight.');
   else {
-    const t0 = pts[0].t, t1 = pts[pts.length - 1].t, W = 320, H = 150, pad = 10;
-    const lo = Math.min(...pts.map((p) => p.a), st ? st.finish - st.tol : 180) - 5;
-    const hi = Math.max(...pts.map((p) => p.a), st ? st.start + st.tol : 0) + 5;
-    const X = (t) => pad + ((t - t0) / Math.max(0.001, t1 - t0)) * (W - pad * 2);
-    const Y = (a) => pad + ((a - lo) / Math.max(1, hi - lo)) * (H - pad * 2); // curled (small angle) is up
-    const band = (a, color) => `<rect x="0" y="${Y(a - st.tol).toFixed(1)}" width="${W}" height="${Math.max(1, Y(a + st.tol) - Y(a - st.tol)).toFixed(1)}" fill="${color}"/>`;
-    let html = st ? band(st.finish, 'rgba(88,219,61,.22)') + band(st.start, 'rgba(23,27,18,.08)') : '';
-    html += `<polyline fill="none" stroke="#171B12" stroke-width="1.6" stroke-linejoin="round" points="${pts.map((p) => `${X(p.t).toFixed(1)},${Y(p.a).toFixed(1)}`).join(' ')}"/>`;
-    for (const r of counter.reps) {
-      const color = r.result === 'counted' ? '#237A12' : r.result === 'short' ? '#E8A33A' : '#8B957F';
-      if (r.topT != null) html += `<circle cx="${X(r.topT).toFixed(1)}" cy="${Y(r.top).toFixed(1)}" r="4" fill="${color}"/>`;
-    }
-    svg.innerHTML = html;
+    const speed = metres ? `Last rep ${fmtV(v.last, true)}, ${Math.round(v.loss * 100)}% slower than your best (${fmtV(v.best, true)}).` : `Last rep was ${Math.round(v.loss * 100)}% slower than your best.`;
+    const n = repsDown(v.rir);
+    const why = v.brokeDown ? 'Your range broke down on the last reps.' : v.rir < 0.5 ? 'You were at failure.' : v.rir >= 5 ? 'You had 5 or more reps left.' : `You had about ${n} rep${n === 1 ? '' : 's'} left.`;
+    lines.push(`${why} ${speed}`);
+    if (v.kind === 'add' && kg) lines.push(`Try ${+(kg + (EX.height === 'squat' && v.rir >= 5 ? 5 : STEP_KG[EXK])).toFixed(1)} kg next.`);
+    const c = setCompare;
+    if (c) {
+      const when = new Date(c.prev.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+      const same = metres ? Math.abs(c.delta) < 0.02 : Math.abs(c.rel) < 0.03;
+      const diff = metres ? `${Math.abs(c.delta).toFixed(2)} m/s` : `${Math.round(Math.abs(c.rel) * 100)}%`;
+      lines.push(same ? `Same best speed as last time at ${kg} kg (${when}).` : c.delta > 0 ? `Best rep ${diff} faster than last time at ${kg} kg (${when}): you're stronger at this weight.` : `Best rep ${diff} slower than last time at ${kg} kg (${when}): you may not be fully recovered.`);
+    } else if (!kg) lines.push('Add the weight before your next set to compare it with your last set at that weight.');
   }
+  if (!heightCm) lines.push('Add your height on the first screen to see bar speed in m/s.');
+  const titles = { add: 'Add weight next set', keep: 'Keep the weight, go for one more rep', hold: v.brokeDown ? 'Stay at this weight: your range broke down' : 'Stay at this weight: that was close to failure', none: 'Not enough reps for a call' };
+  $('verdict').className = 'verdict ' + v.kind;
+  $('verdict').innerHTML = `<b>${titles[v.kind]}</b>${lines.map((l, i) => `<p class="${i ? 'm' : ''}">${l}</p>`).join('')}`;
+  $('kg-next').value = kg || '';
+  const range = (r) => (EX.height ? `${cap(EX.finish)} ${EX.fmt(r.top)} · ${EX.start} ${EX.fmt(r.bottom)}` : `${EX.fmt(r.bottom)} → ${EX.fmt(r.top)}`);
   $('replist').innerHTML = counter.reps.map((r) => `<button class="rep" data-n="${r.n}">
-      <b>${r.n}</b><small>${Math.round(r.bottom)}${UNIT} → ${Math.round(r.top)}${UNIT}${r.isStandard ? ' · standard' : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
+      <b>${r.n}</b><small>${Number.isFinite(speedOf(r)) ? `${speedText(r)} · ` : ''}${range(r)}${r.isStandard ? ' · standard' : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
       <span class="tag ${r.result}">${r.result === 'counted' ? 'Counted' : r.result === 'short' ? 'Short' : 'Unclear'}</span></button>`).join('') || '<p class="hint">No reps detected.</p>';
+}
+function speedOf(r) { const k = mpu(); return r.vel ? r.vel.mv * (Number.isFinite(k) ? k : 1) : NaN; }
+function speedText(r) {
+  const k = mpu();
+  if (Number.isFinite(k)) return `${(r.vel.mv * k).toFixed(2)} m/s`;
+  const all = (counter.reps || []).filter((x) => x.vel && x.result !== 'unclear').slice(0, 3).map((x) => x.vel.mv);
+  return all.length ? `${Math.round((r.vel.mv / Math.max(...all)) * 100)}% speed` : '';
 }
 $('replist').addEventListener('click', (e) => {
   const b = e.target.closest('.rep'); if (!b) return;
@@ -477,12 +783,20 @@ $('relock-btn').onclick = () => {
   setStatus('Re-locking — next full rep becomes the standard', 'good');
 };
 $('again-btn').onclick = () => {
-  if (source === 'camera' && (stream || demo)) begin();
-  else { stopStream(); phase = 'idle'; show('pre'); showLastStandard(); setStatus(EX.setup); }
+  if (demo) startDemo();
+  else if (source === 'camera' && stream) begin();
+  else { stopStream(); phase = 'idle'; show('pre'); showPanel(false); showLastStandard(); setStatus(EX.setup); }
 };
+$('height-in').value = heightCm || '';
+$('kg-in').value = kg || '';
+$('height-in').oninput = (e) => { const v = parseFloat(e.target.value); heightCm = v >= 120 && v <= 230 ? v : null; writeNum(HEIGHT_KEY, heightCm); };
+const setKg = (v) => { kg = v > 0 ? v : null; writeNum(KG_KEY, kg); $('kg-in').value = kg || ''; };
+$('kg-in').oninput = (e) => { kg = parseFloat(e.target.value) > 0 ? parseFloat(e.target.value) : null; writeNum(KG_KEY, kg); };
+$('kg-next').oninput = (e) => setKg(parseFloat(e.target.value));
+if (EXK === 'curl') $('kg-label').textContent = 'Dumbbell (kg)';
 $('arm-btn').onclick = () => {
   armMode = armMode === 'auto' ? 'left' : armMode === 'left' ? 'right' : 'auto';
-  $('arm-btn').textContent = EX.part[0].toUpperCase() + EX.part.slice(1) + ': ' + armMode[0].toUpperCase() + armMode.slice(1);
+  $('arm-btn').textContent = cap(EX.part) + ': ' + cap(armMode);
   if (phase === 'finding' || phase === 'ready') { side = armMode === 'auto' ? null : armMode; visSum = { left: 0, right: 0 }; }
 };
 $('flip-btn').onclick = async () => {
@@ -494,41 +808,67 @@ document.addEventListener('visibilitychange', async () => {
 });
 document.title = 'Arete — ' + EX.title;
 document.querySelector('.ttl').firstChild.textContent = EX.title + ' ';
-document.querySelector('#pre .h').textContent = EX.name;
-document.querySelectorAll('#pre .hint')[0].innerHTML = EX.intro;
-document.querySelectorAll('#pre .hint')[2].innerHTML = EX.place + ' Benches and gym clutter in the background are fine. Video is processed on your phone and never uploaded.';
-$('arm-btn').textContent = EX.part[0].toUpperCase() + EX.part.slice(1) + ': Auto';
-$('chart').setAttribute('aria-label', EX.joint[0].toUpperCase() + EX.joint.slice(1) + ' angle through the set');
+$('pre-h').textContent = EX.name;
+$('intro').innerHTML = EX.intro;
+// Squat and bench use both sides of the body, so there's no arm or leg to pick.
+$('arm-btn').hidden = !!EX.height;
+if (EX.height) {
+  const [a, b] = document.querySelectorAll('#legend span');
+  a.lastChild.textContent = cap(EX.start); b.lastChild.textContent = cap(EX.finish);
+  const [m1, m2] = document.querySelectorAll('.meter-l span');
+  m1.textContent = cap(EX.start); m2.textContent = cap(EX.finish);
+}
+$('arm-btn').textContent = cap(EX.part) + ': Auto';
+renderGuide();
 setStatus(EX.setup);
 showLastStandard();
 
-// ── Demo (?demo=1): a simulated arm through the same pipeline ───────────
+// ── Demo (?demo=1): a simulated lifter through the same pipeline ────────
 function startDemo() {
   source = 'camera'; begin();
   const fps = 30, vw = 1280, vh = 720;
-  // rep tops / bottoms (elbow angle): rep 1 sets the standard, rep 4 misses the top,
-  // rep 6 doesn't return to the stretch.
+  // Per rep [start, finish]: rep 1 sets the standard, rep 4 misses the
+  // finish, rep 6 doesn't return to the start.
   const plan = EX.demo.plan;
   const frames = [];
   const hold = (a, s) => { for (let i = 0; i < s * fps; i++) frames.push(a); };
   const move = (a0, a1, s) => { const n = Math.round(s * fps); for (let i = 1; i <= n; i++) frames.push(a0 + (a1 - a0) * (1 - Math.cos(Math.PI * i / n)) / 2); };
   hold(plan[0][0], 1.4);
-  plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], 1.1); });
+  // The lifting part slows down rep by rep, like a real set.
+  plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, EX.height ? 1.1 : 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], EX.height ? 0.8 + i * 0.14 : 1.1); });
   hold(plan[0][0], 1.5);
-  const sh = EX.demo.a, el = EX.demo.b, [ia, ib, ic] = ARMS.left;
-  const base = Math.atan2((sh.y - el.y) * vh, (sh.x - el.x) * vw);
   let i = 0;
   const tick = () => {
     if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
-    const ang = base - (frames[i] * Math.PI) / 180;
-    const wr = { x: el.x + (Math.cos(ang) * 0.2 * vh) / vw, y: el.y + Math.sin(ang) * 0.2 };
-    const p = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.6, visibility: 0.1 }));
-    Object.assign(p, { 11: { x: 0.47, y: 0.3, visibility: 0.9 }, 12: { x: 0.49, y: 0.3, visibility: 0.5 }, 23: { x: 0.47, y: 0.48, visibility: 0.9 }, 24: { x: 0.49, y: 0.48, visibility: 0.5 } });
-    p[ia] = { ...sh, visibility: 0.97 }; p[ib] = { ...el, visibility: 0.97 }; p[ic] = { ...wr, visibility: 0.96 };
-    frame([p], i / fps, vw, vh); i++;
+    frame([EX.height ? demoBody(frames[i], vw, vh) : demoArm(frames[i], vw, vh)], i / fps, vw, vh); i++;
     setTimeout(tick, 1000 / fps);
   };
   tick();
+}
+const blank = () => Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.6, visibility: 0.1 }));
+function demoArm(deg, vw, vh) {
+  const sh = EX.demo.a, el = EX.demo.b, [ia, ib, ic] = ARMS.left;
+  const ang = Math.atan2((sh.y - el.y) * vh, (sh.x - el.x) * vw) - (deg * Math.PI) / 180;
+  const wr = { x: el.x + (Math.cos(ang) * 0.2 * vh) / vw, y: el.y + Math.sin(ang) * 0.2 };
+  const p = blank();
+  Object.assign(p, { 11: { x: 0.47, y: 0.3, visibility: 0.9 }, 12: { x: 0.49, y: 0.3, visibility: 0.5 }, 23: { x: 0.47, y: 0.48, visibility: 0.9 }, 24: { x: 0.49, y: 0.48, visibility: 0.5 } });
+  p[ia] = { ...sh, visibility: 0.97 }; p[ib] = { ...el, visibility: 0.97 }; p[ic] = { ...wr, visibility: 0.96 };
+  return p;
+}
+// Squat seen from behind (feet planted, hips drop); bench seen from the feet
+// (shoulders fixed, hands travel). `v` is the height the tracker should read.
+function demoBody(v, vw, vh) {
+  const p = blank(), at = (x, y) => ({ x, y, visibility: 0.95 });
+  if (EX.height === 'squat') {
+    const ankle = 0.9, hip = ankle - (0.34 * v) / 100, knee = (hip + ankle) / 2, bend = (100 - v) / 100;
+    Object.assign(p, { 11: at(0.46, hip - 0.24), 12: at(0.54, hip - 0.24), 23: at(0.47, hip), 24: at(0.53, hip),
+      25: at(0.45 - bend * 0.06, knee), 26: at(0.55 + bend * 0.06, knee), 27: at(0.46, ankle), 28: at(0.54, ankle) });
+  } else {
+    const sh = 0.62, width = 0.16 * vw, wrist = sh - ((v - 100) / 100) * width / vh;
+    Object.assign(p, { 11: at(0.42, sh), 12: at(0.58, sh), 23: at(0.45, 0.78), 24: at(0.55, 0.78),
+      13: at(0.37, (sh + wrist) / 2 + 0.04), 14: at(0.63, (sh + wrist) / 2 + 0.04), 15: at(0.38, wrist), 16: at(0.62, wrist) });
+  }
+  return p;
 }
 </script>
 </body>
