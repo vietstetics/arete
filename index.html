@@ -154,6 +154,16 @@ textarea{font-family:inherit;resize:none}
 .cons-stats .k{font-size:10px;color:var(--t3);font-weight:500}
 .cons-stats .warn{color:var(--ye)}.cons-stats .good{color:var(--gr)}
 .cons-msg{font-size:12.5px;color:var(--t3);padding:6px 0}
+/* Rep counter — entry to the camera rep-standard prototype (curl-lab.html) */
+.repc{display:flex;align-items:center;gap:14px;background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);margin-bottom:18px;padding:16px 18px;color:inherit;text-decoration:none;transition:border-color 160ms}
+.repc:hover{border-color:var(--bd2)}
+.repc-ic{width:46px;height:46px;border-radius:14px;background:#171B12;color:#6BE44F;display:grid;place-items:center;flex-shrink:0}
+.repc-ic svg{width:22px;height:22px}
+.repc-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.repc-eye{font-size:11px;font-weight:600;color:var(--t3)}
+.repc-t{font-size:15px;font-weight:700;color:var(--t1)}
+.repc-s{font-size:12.5px;color:var(--t2)}
+.repc-go{font-size:13px;font-weight:700;color:var(--gr);white-space:nowrap}
 
 /* ─── BUTTONS ─── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border-radius:10px;font-size:13.5px;font-weight:500;cursor:pointer;transition:all 160ms;white-space:nowrap;line-height:1;letter-spacing:-.01em}
@@ -723,6 +733,13 @@ textarea{font-family:inherit;resize:none}
         <div class="hdr-av">J</div>
       </div>
     </div>
+
+    <!-- REP COUNTER (prototype) -->
+    <a class="repc" id="rep-counter-card" href="curl-lab.html">
+      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Bicep curl standard</span><span class="repc-s">Your camera counts reps and flags short ones.</span></span>
+      <span class="repc-go">Open ›</span>
+    </a>
 
     <!-- CONSISTENCY -->
     <section class="cons" id="cons-card" aria-label="Consistency">
