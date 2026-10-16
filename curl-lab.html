@@ -118,6 +118,27 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 #done .acts{align-items:flex-end}
 .sheet.is-done{max-height:46vh}  /* leave the stage room for the speed panel and its verdict */
 @media(max-height:700px){.vp-n b{font-size:44px}.vp-bars{height:56px}}
+/* Pull-ups: full-screen camera, big rep counter, flashes you can see from the bar */
+.bigc{position:absolute;left:12px;top:calc(60px + env(safe-area-inset-top,0px));z-index:3;min-width:112px;padding:6px 18px 10px;border-radius:22px;background:rgba(14,17,12,.72);color:#fff}
+.bigc b{display:block;font-size:96px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.bigc span{font-size:15px;font-weight:700;color:rgba(255,255,255,.75);font-variant-numeric:tabular-nums}
+.bigc span.s{color:#F2B544}
+.flash{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0}
+.flash.good{background:rgba(88,219,61,.38)}.flash.bad{background:rgba(232,163,58,.45)}
+.flash.go{animation:flash .5s ease-out}
+@keyframes flash{from{opacity:1}to{opacity:0}}
+.reason{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:4;max-width:calc(100% - 32px);padding:12px 20px;border-radius:16px;background:#E8A33A;color:#0E110C;font-size:26px;font-weight:800;line-height:1.2;text-align:center;pointer-events:none;opacity:0;transition:opacity .15s}
+.reason.on{opacity:1}
+.stage.pu .status{left:auto;right:12px;transform:none;max-width:calc(100% - 160px);text-align:right}
+.stage.pu .ttl{white-space:nowrap}
+@media(max-width:420px){.stage.pu .ttl em{display:none}}
+.pill[aria-pressed="true"]{background:#fff;color:#0E110C}
+.app.fs .sheet{position:absolute;left:0;right:0;bottom:0;max-height:none;background:rgba(14,17,12,.55);box-shadow:none;color:#fff}
+.app.fs #live .row,.app.fs #live .meter,.app.fs #live .meter-l{display:none}
+.app.fs #live .chips{margin-top:0}
+.app.fs .btn.p{background:#fff;color:#171B12}
+.app.fs .btn.s{background:rgba(255,255,255,.16);color:#fff}
+@media(prefers-reduced-motion:reduce){.flash.go{animation-duration:.01s}}
 @media(min-width:760px){.sheet{max-width:560px;margin:0 auto;width:100%}}
 </style>
 </head>
@@ -130,6 +151,8 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <a class="ibtn" href="workouts.html" aria-label="Back to Training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></a>
       <div class="ttl">Curl standard <em>Prototype</em></div>
       <button class="pill" id="arm-btn" aria-label="Choose arm">Arm: Auto</button>
+      <button class="pill" id="min-btn" hidden aria-pressed="false" title="Hide the skeleton during the set">Minimal</button>
+      <button class="ibtn" id="snd-btn" hidden aria-pressed="true" aria-label="Sound on"></button>
       <button class="ibtn" id="flip-btn" aria-label="Switch camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3l-2-3H9L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><path d="M9 13a3 3 0 0 1 5-2.2M15 13a3 3 0 0 1-5 2.2"/><polyline points="14 9 14.5 11 12.5 11.5"/><polyline points="10 17 9.5 15 11.5 14.5"/></svg></button>
     </div>
     <div class="status" id="status" role="status" aria-live="polite">Side-on, phone at hip height, 2–3 m away</div>
@@ -140,6 +163,9 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="vp-bars" id="vp-bars" aria-hidden="true"></div>
       <div class="vp-verdict" id="vp-verdict" hidden></div>
     </aside>
+    <div class="flash" id="flash"></div>
+    <div class="bigc" id="bigc" hidden aria-hidden="true"><b id="bigc-n">0</b><span id="bigc-s"></span></div>
+    <div class="reason" id="reason" aria-hidden="true"></div>
     <div class="legend" id="legend" hidden><span><i style="background:#fff"></i>Start</span><span><i style="background:var(--lime)"></i>Finish</span></div>
   </div>
 
@@ -149,11 +175,11 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="h" id="pre-h">Bicep curl · one arm</div>
       <p class="hint" id="intro">Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.</p>
       <p class="hint" id="last-std" hidden></p>
-      <div class="fields">
+      <div class="fields" id="fields">
         <label class="field">Your height (cm)<input id="height-in" type="number" inputmode="numeric" min="120" max="230" placeholder="e.g. 180"></label>
         <label class="field"><span id="kg-label">Weight on the bar (kg)</span><input id="kg-in" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
       </div>
-      <p class="hint">Your height turns camera movement into bar speed in m/s. The weight lets each set be compared with your last one at that weight.</p>
+      <p class="hint" id="fields-hint">Your height turns camera movement into bar speed in m/s. The weight lets each set be compared with your last one at that weight.</p>
       <section class="guide" id="guide" aria-labelledby="guide-h"></section>
       <p class="hint">Gym clutter in the background is fine. Video is processed on your phone and never uploaded.</p>
       <div class="acts">
@@ -185,10 +211,11 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
         <div class="sub"><span class="s" id="d-short">0 short</span><span id="d-unclear">0 unclear</span></div>
       </div>
       <div class="verdict" id="verdict"></div>
+      <div class="chart" id="chart-wrap" hidden><svg id="chart" viewBox="0 0 320 150" preserveAspectRatio="none" role="img" aria-label="Nose height through the set"></svg></div>
       <p class="hint">Tap a rep to change its result if the camera got it wrong.</p>
       <div class="list" id="replist"></div>
       <div class="acts">
-        <label class="field">Next set (kg)<input id="kg-next" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
+        <label class="field" id="kg-next-f">Next set (kg)<input id="kg-next" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
         <button class="btn p" id="again-btn">New set</button>
       </div>
     </div>
@@ -196,13 +223,15 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 </div>
 
 <script type="module">
-import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
+import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
 import { concentricVelocity, metresPerUnit, setVerdict, compareToLast, lossBand } from './features/standard/services/velocity.js';
 
 // Exercise setups. Curl: elbow angle, judged at the top of each rep.
 // Squat and bench: height (hips above the feet, bar above the shoulders),
 // judged when you are back up, so the rep counts as you stand or lock out.
-// ?ex=squat / ?ex=bench pick the lift.
+// Pull-ups: nose height below a bar line locked at the hands; judged when
+// you are back in your hang, against rep 1's hang, top and swing.
+// ?ex=squat / ?ex=bench / ?ex=pullup pick the lift.
 const EXERCISES = {
   curl: { title: 'Curl standard', name: 'Bicep curl · one arm', part: 'arm', measure: 'elbow angle', start: 'stretch', finish: 'top',
     joints: { left: [11, 13, 15], right: [12, 14, 16] },
@@ -210,6 +239,7 @@ const EXERCISES = {
     intro: 'Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.',
     rep1: 'Rep 1 sets the standard — full stretch, then curl to the top',
     finding: 'Step side-on — finding you',
+    still: 'Hold still — then start your first rep',
     show: 'Show the whole arm — shoulder, elbow and wrist',
     fmt: (v) => `${Math.round(v)}°`,
     demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[170, 45], [169, 46], [170, 47], [170, 78], [168, 46], [140, 45], [170, 48]] } },
@@ -219,6 +249,7 @@ const EXERCISES = {
     intro: 'Your <b>first rep sets the standard</b>: standing tall at the start and how deep you go. Every rep after must hit the same depth and stand all the way up to count. Slowing down is fine.',
     rep1: 'Rep 1 sets the standard — stand tall, squat to your depth, stand up',
     finding: 'Stand where the phone sees you head to toe',
+    still: 'Stand still — then start your first rep',
     lost: 'Can’t see your hips clearly',
     fmt: (v) => `${Math.round(v)}%`,
     note: 'Hip height as a % of your standing hip height.',
@@ -229,15 +260,28 @@ const EXERCISES = {
     intro: 'Your <b>first rep sets the standard</b>: arms locked out at the start and how low the bar comes. Every rep after must touch the same depth and lock out again to count. Slowing down is fine.',
     rep1: 'Rep 1 sets the standard — lock out, lower to your chest, press up',
     finding: 'Lie on the bench — finding you',
+    still: 'Hold still at lockout — then start your first rep',
     lost: 'Can’t see your hands clearly',
     fmt: (v) => `${Math.round(v - 100)}`,
     note: 'Bar height above your shoulders, relative to your build.',
     demo: { plan: [[205, 118], [205, 120], [205, 117], [205, 150], [205, 118], [175, 118], [205, 119]] } },
+  pullup: { pullup: true, speed: false, facing: 'environment', title: 'Pull-up standard', short: 'Pull-ups', name: 'Pull-up · strict standard', part: 'arms', measure: 'nose height', start: 'hang', finish: 'top',
+    setup: 'Rear camera, portrait, 2–3 m in front of the bar',
+    intro: 'Your <b>first rep sets the standard</b>, whatever it is: how low you hang, how high your nose gets and how much you swing. Every rep after must match all three to count. Slowing down is fine.',
+    rep1: 'Rep 1 sets the standard — pull from your hang, lower back down',
+    finding: 'Hang from the bar — finding you',
+    still: 'Hang still — then pull',
+    lost: 'Can’t see your face clearly',
+    fmt: (v) => `${Math.round(v)}`,
+    note: 'Nose height below the bar, in % of your upper arm (below 0 = above the bar).' },
 };
 const EXQ = new URLSearchParams(location.search).get('ex');
 const EXK = EXERCISES[EXQ] ? EXQ : 'curl';
 const EX = EXERCISES[EXK];
 const ARMS = EX.joints;
+const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
+// How still you must hold before rep 1 (setting up must never count as a rep).
+const STILL_BANDS = { curl: [8], squat: [4], bench: [6], pullup: [5, 0.06, 0.06] };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // What to fix when the tracker can't lock on (squat and bench).
@@ -247,6 +291,13 @@ const WHY = {
   stand: 'Stand tall to start',
   shoulders: 'Can’t see your shoulders — raise the phone a little',
   hands: 'Can’t see your hands — move the phone towards your feet',
+};
+// Pull-ups: what's stopping the bar line from locking.
+const WHY_PU = {
+  hands: 'Show both hands — both arms in frame',
+  reach: 'Grab the bar with both hands',
+  steady: 'Hold the bar — keep your hands still',
+  moved: 'Your hands moved — hold the bar still to re-lock',
 };
 
 // ── Where to put the phone ───────────────────────────────
@@ -304,6 +355,23 @@ const GUIDES = {
     note: '<b>Height:</b> lens about 1–1.2 m high (around your waist when you stand), tilted down towards your chest. Any lower and your knees hide it. <b>Frame:</b> landscape, with the bar at lockout near the top of the picture. Prop the phone up rather than holding it.',
   },
 };
+GUIDES.pullup = {
+  svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone straight in front of the bar, or up to 30 degrees to one side">
+    <circle cx="150" cy="84" r="50" fill="none" stroke="#C0403A" stroke-width="1.5" stroke-dasharray="3 4" opacity=".7"/>
+    <line x1="80" y1="70" x2="220" y2="70" stroke="#171B12" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="118" cy="70" r="5" fill="#8B957F"/><circle cx="182" cy="70" r="5" fill="#8B957F"/>
+    <ellipse cx="150" cy="84" rx="26" ry="11" fill="#D9DED3"/><circle cx="150" cy="84" r="9" fill="#8B957F"/>
+    <text x="226" y="66" font-size="10" fill="#8B957F">bar</text>
+    ${marker(150, 206, 'best', 1, [150, 96])}${marker(236, 192, 'ok', 2, [160, 94])}
+    ${marker(282, 120, 'avoid', 3, [200, 92])}${marker(186, 124, 'avoid', 4)}</svg>`,
+  items: [
+    ['best', 1, 'In front of the bar, facing you', '2–3 m away. Both arms, your face and your hips stay in view.'],
+    ['ok', 2, 'In front, up to 30° to one side', 'If something blocks the straight-on view.'],
+    ['avoid', 3, 'Side-on', 'One arm hides the other, and the bar and your swing can’t be read.'],
+    ['avoid', 4, 'Closer than about 2 m', 'Your hands must stay in frame at the top and your hips at the bottom.'],
+  ],
+  note: '<b>Rear camera, portrait.</b> Lens at about head height when you stand, tilted up a little so the bar sits near the top of the picture with your hips still in frame. Prop the phone up rather than holding it. The view fills the screen, so a screen recording shows everything.',
+};
 function renderGuide() {
   const g = GUIDES[EXK];
   $('guide').innerHTML = `<div class="guide-h" id="guide-h">Where to put your phone</div>${g.svg}
@@ -323,11 +391,14 @@ const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
 const demo = new URLSearchParams(location.search).has('demo');
 const armVisibility = (p, s) => ARMS[s].reduce((t, i) => t + (p[i].visibility ?? 0), 0) / 3;
 
-let landmarker = null, stream = null, facing = 'user', source = 'camera';
+let landmarker = null, stream = null, facing = EX.facing || 'user', source = 'camera';
 let armMode = 'auto', side = null, visSum = { left: 0, right: 0 };
 let counter = null, euro = oneEuro(), center = null;
 const tracker = EX.height ? createHeightTracker(EX.height, { minVis: MIN_VIS }) : null;
-let phase = 'idle'; // idle → finding → ready → live → done
+const pu = EX.pullup ? createPullupTracker({ minVis: MIN_VIS }) : null;
+const gate = createStillGate({ secs: 1, bands: STILL_BANDS[EXK] });
+let armed = false; // pull-ups: hanging still on a locked bar, counting
+let phase = 'idle'; // idle → finding → settle → ready → live → done
 let steadySince = null, lostSince = null, trace = [], lastVideoT = -1, raf = 0;
 let audio = null, wakeLock = null, current = NaN;
 
@@ -413,11 +484,75 @@ function beep(freq, dur = 0.09) {
 const buzz = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
 function setStatus(text, tone = '') { const s = $('status'); s.textContent = text; s.className = 'status' + (tone ? ' ' + tone : ''); }
 
+// ── Pull-up sounds ───────────────────────────────────────
+// Every cue differs in pitch and rhythm, so you can tell them apart without
+// looking. Web Audio only, through a limiter so they can be loud over gym
+// music without clipping. The audio starts on the Start tap.
+const readFlag = (k, dflt) => { try { const v = localStorage.getItem(k); return v === null ? dflt : v === '1'; } catch { return dflt; } };
+const writeFlag = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch {} };
+const SND_KEY = `arete_${EXK}_lab_sound`, MIN_KEY = `arete_${EXK}_lab_minimal`;
+let soundOn = readFlag(SND_KEY, true), minimal = readFlag(MIN_KEY, false);
+let actx = null, aout = null;
+function audioInit() {
+  if (!EX.pullup) return;
+  if (actx) { try { actx.resume(); } catch {} return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const lim = actx.createDynamicsCompressor();
+    lim.threshold.value = -6; lim.knee.value = 0; lim.ratio.value = 12; lim.attack.value = 0.001; lim.release.value = 0.05;
+    lim.connect(actx.destination); aout = lim;
+  } catch { actx = null; }
+}
+function tone(freq, at, dur, { type = 'sine', vol = 0.9, flat = false } = {}) {
+  const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + at;
+  o.type = type; o.frequency.value = freq; o.connect(g); g.connect(aout);
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006);
+  if (flat) g.gain.setValueAtTime(vol, t0 + dur - 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.start(t0); o.stop(t0 + dur + 0.03);
+}
+const SFX = {
+  locked: () => [523.25, 659.25, 783.99].forEach((f, i) => tone(f, i * 0.13, 0.26, { type: 'triangle' })),           // C–E–G, rising chime
+  tick: () => tone(2093, 0, 0.035, { type: 'square', vol: 0.5 }),                                                   // one short high tick
+  counted: () => { tone(1318.5, 0, 0.12); tone(1760, 0.12, 0.18); },                                                // ding-ding, high, rising
+  short: () => { tone(150, 0, 0.26, { type: 'sawtooth', vol: 0.7, flat: true }); tone(150, 0.36, 0.26, { type: 'sawtooth', vol: 0.7, flat: true }); }, // low double buzz
+  unclear: () => tone(520, 0, 0.09, { vol: 0.35 }),                                                                 // one soft blip
+  end: () => tone(196, 0, 1.2, { type: 'triangle', flat: true }),                                                   // one long low tone
+};
+function sfx(name) { if (!soundOn || !actx) return; try { SFX[name](); } catch {} }
+let reasonTimer = 0;
+function flash(kind, text) {
+  const f = $('flash');
+  f.className = 'flash ' + kind; void f.offsetWidth; f.classList.add('go');
+  if (!text) return;
+  const r = $('reason'); r.textContent = text; r.classList.add('on');
+  clearTimeout(reasonTimer); reasonTimer = setTimeout(() => r.classList.remove('on'), 1600);
+}
+const SPEAKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/>';
+function renderToggles() {
+  $('min-btn').setAttribute('aria-pressed', String(minimal));
+  $('snd-btn').setAttribute('aria-pressed', String(soundOn));
+  $('snd-btn').setAttribute('aria-label', soundOn ? 'Sound on' : 'Sound off');
+  $('snd-btn').innerHTML = SPEAKER + (soundOn ? '<path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>' : '<path d="m16 9 5 6M21 9l-5 6"/></svg>');
+}
+const shortReasons = (r) => [r.shortFinish && 'Didn’t reach your top', r.shortStart && 'Didn’t reach your hang', r.shortSwing && 'Kipping'].filter(Boolean).join(' · ');
+
+// Before rep 1: hold still in your start position, then counting starts.
+function settle() { phase = 'settle'; gate.reset(); setStatus(EX.still, 'good'); }
+function arm(msg) { phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good'); }
+
 // ── Phases ───────────────────────────────────────────────
-function show(view) { ['pre', 'live', 'done'].forEach((v) => { $(v).hidden = v !== view; }); $('sheet').classList.toggle('is-done', view === 'done'); }
+function show(view) {
+  ['pre', 'live', 'done'].forEach((v) => { $(v).hidden = v !== view; });
+  $('sheet').classList.toggle('is-done', view === 'done' && SPEED);
+  document.querySelector('.app').classList.toggle('fs', !!EX.pullup && view === 'live');
+  $('bigc').hidden = !EX.pullup || view === 'pre';
+}
 function resetSet() {
-  counter = EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : createRepCounter();
+  counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : createRepCounter();
   if (tracker) tracker.reset();
+  if (pu) pu.reset();
+  gate.reset(); armed = false;
   barTrace = []; pendingVel = null;
   euro.reset(); trace = []; side = armMode === 'auto' ? null : armMode;
   visSum = { left: 0, right: 0 }; steadySince = null; lostSince = null; center = null; current = NaN;
@@ -426,6 +561,8 @@ function resetSet() {
 function updateCounts() {
   const s = counter ? counter.summary() : { counted: 0, short: 0, unclear: 0 };
   $('n-count').textContent = s.counted; $('n-short').textContent = `${s.short} short`; $('n-unclear').textContent = `${s.unclear} unclear`;
+  $('bigc-n').textContent = s.counted;
+  $('bigc-s').textContent = s.short ? `${s.short} short` : 'reps'; $('bigc-s').className = s.short ? 's' : '';
 }
 function showLastStandard() {
   try {
@@ -476,7 +613,8 @@ async function startFile(file) {
 }
 
 function begin() {
-  beep(660, 0.04); resetSet(); phase = 'finding'; show('live'); showPanel(true); renderPanel();
+  if (!EX.pullup) beep(660, 0.04);
+  resetSet(); phase = 'finding'; show('live'); showPanel(SPEED); if (SPEED) renderPanel();
   setStatus(EX.finding);
   cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
 }
@@ -501,6 +639,7 @@ function frame(poses, t, vw, vh) {
   if (idx < 0) {
     lostSince = lostSince ?? t;
     if (phase === 'live' || phase === 'ready') { counter.push(t, NaN, false); trace.push({ t, a: NaN }); pushBar(t, NaN); }
+    gate.reset();
     if (t - lostSince > 0.5) setStatus(center ? 'Lost you — step back into view' : EX.finding, 'warn');
     if (t - lostSince > 2) center = null; // re-acquire whoever is largest
     draw(null, vw, vh);
@@ -509,6 +648,7 @@ function frame(poses, t, vw, vh) {
   lostSince = null;
   const p = poses[idx];
   center = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
+  if (EX.pullup) { pullupFrame(p, t, vw, vh); return; }
   if (EX.height) { heightFrame(p, t, vw, vh); return; }
 
   // Work out which arm faces the camera (the one it sees best).
@@ -529,12 +669,11 @@ function frame(poses, t, vw, vh) {
       steadySince = steadySince ?? t;
       const held = t - steadySince;
       setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
-      if (held >= CALIB_SECS) {
-        side = side || useSide;
-        phase = 'ready'; beep(880, 0.05); buzz(30);
-        setStatus(`${EX.rep1} (${side} ${EX.part})`, 'good');
-      }
+      if (held >= CALIB_SECS) { side = side || useSide; settle(); }
     } else { steadySince = null; setStatus(EX.show); }
+  } else if (phase === 'settle') {
+    if (gate.push(t, [a])) arm(`${EX.rep1} (${side} ${EX.part})`);
+    else setStatus(ok ? EX.still : EX.show, ok ? 'good' : '');
   } else {
     trace.push({ t, a });
     pushBar(t, Number.isFinite(rawA) ? ((180 - rawA) * Math.PI) / 180 : NaN);
@@ -555,10 +694,7 @@ function heightFrame(p, t, vw, vh) {
       steadySince = steadySince ?? t;
       const held = t - steadySince;
       setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
-      if (held >= CALIB_SECS && tracker.lock()) {
-        phase = 'ready'; beep(880, 0.05); buzz(30);
-        setStatus(EX.rep1, 'good');
-      }
+      if (held >= CALIB_SECS && tracker.lock()) settle();
     } else {
       steadySince = null; tracker.reset();
       setStatus(WHY[c.why] || EX.finding, 'warn');
@@ -569,6 +705,12 @@ function heightFrame(p, t, vw, vh) {
   const m = tracker.measure(p, vw, vh);
   const a = m.ok ? euro.filter(m.value, t) : NaN;
   current = a;
+  if (phase === 'settle') {
+    if (gate.push(t, [a])) arm(EX.rep1);
+    else setStatus(m.ok ? EX.still : EX.lost, m.ok ? 'good' : 'warn');
+    updateMeter(); draw({ p, ok: m.ok, a, point: m.point }, vw, vh);
+    return;
+  }
   trace.push({ t, a });
   pushBar(t, Number.isFinite(m.bar) ? m.bar : NaN);
   const ev = counter.push(t, a, m.ok);
@@ -578,19 +720,54 @@ function heightFrame(p, t, vw, vh) {
   draw({ p, ok: m.ok, a, point: m.point }, vw, vh);
 }
 
+// Pull-ups: lock the bar line at the hands, wait for a still hang, then count.
+// If the hands leave the bar, counting pauses until they hold it still again.
+function pullupFrame(p, t, vw, vh) {
+  const m = pu.track(p, vw, vh, t);
+  if (!m.barLocked) {
+    if (armed) { counter.push(t, NaN, false); trace.push({ t, a: NaN }); }
+    armed = false; gate.reset(); current = NaN;
+    setStatus(WHY_PU[m.why] || EX.finding, m.why === 'steady' ? 'good' : 'warn');
+    updateMeter(); draw({ p }, vw, vh);
+    return;
+  }
+  const a = m.value;
+  current = a;
+  if (!armed) {
+    if (gate.push(t, m.sway ? [a, ...m.sway] : [a])) {
+      armed = true; buzz(30);
+      if (phase === 'finding') phase = 'ready';
+      setStatus(counter.standard ? 'Ready — keep going' : EX.rep1, 'good');
+    } else setStatus(EX.still, 'good');
+    updateMeter(); draw({ p, ok: m.ok, a }, vw, vh);
+    return;
+  }
+  trace.push({ t, a });
+  const ev = counter.push(t, a, m.ok, m.sway);
+  if (ev) onEvent(ev);
+  if (!m.ok && phase === 'live') setStatus(EX.lost, 'warn');
+  updateMeter();
+  draw({ p, ok: m.ok, a }, vw, vh);
+}
+
 function onEvent(ev) {
+  if (ev.type === 'finish') { sfx('tick'); return; }
   if (ev.type === 'standard') {
-    phase = 'live'; $('legend').hidden = false;
-    beep(988, 0.12); buzz([40, 40, 40]);
+    phase = 'live'; $('legend').hidden = !!EX.pullup;
+    if (EX.pullup) { sfx('locked'); buzz(35); flash('good'); }
+    else { beep(988, 0.12); buzz([40, 40, 40]); }
     setStatus(`Standard locked: ${EX.fmt(ev.standard.start)} → ${EX.fmt(ev.standard.finish)}`, 'good');
     try { localStorage.setItem(LAST_KEY, JSON.stringify({ start: ev.standard.start, finish: ev.standard.finish, at: Date.now(), ...(EX.height ? { v: 2 } : {}) })); } catch {}
   }
   const r = ev.rep;
   if (!r) return;
-  measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0);
-  renderPanel();
+  if (SPEED) { measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0); renderPanel(); }
   addChip(r);
-  if (ev.type === 'rep') {
+  if (ev.type === 'rep' && EX.pullup) {
+    if (r.result === 'counted') { sfx('counted'); buzz(35); flash('good'); setStatus(`Rep ${counter.summary().counted}`, 'good'); }
+    else if (r.result === 'short') { const why = shortReasons(r); sfx('short'); buzz([200, 100, 200]); flash('bad', why); setStatus(`Short — ${why}`, 'warn'); }
+    else { sfx('unclear'); setStatus(`Unclear rep — the camera lost your ${EX.part}`, 'warn'); }
+  } else if (ev.type === 'rep') {
     if (r.result === 'counted') { beep(988); buzz(25); setStatus(`Rep ${counter.summary().counted}`, 'good'); }
     else if (r.result === 'short') { beep(330, 0.14); buzz([60, 40, 60]); setStatus(r.shortFinish && r.shortStart ? `Short — missed the ${EX.start} and the ${EX.finish}` : r.shortFinish ? `Short — missed the ${EX.finish}` : `Short — missed the ${EX.start}`, 'warn'); }
     else setStatus(`Unclear rep — the camera lost your ${EX.part}`, 'warn');
@@ -611,7 +788,8 @@ function updateMeter() {
   let pct = 0;
   if (st && Number.isFinite(current)) pct = (st.start - current) / (st.start - st.finish);
   else if (Number.isFinite(current)) {
-    if (!EX.height) pct = (175 - current) / 135;
+    if (EX.pullup) pct = (110 - current) / 130;
+    else if (!EX.height) pct = (175 - current) / 135;
     else { const top = tracker.calValue, low = EX.height === 'squat' ? 50 : 100; pct = Number.isFinite(top) && top > low ? (top - current) / (top - low) : 0; }
   }
   $('meter').style.width = (Math.max(0, Math.min(1, pct)) * 100).toFixed(1) + '%';
@@ -622,7 +800,8 @@ function endSet() {
   phase = 'done'; cancelAnimationFrame(raf);
   if (source === 'file') video.pause();
   if (pendingVel) settleVel(Infinity);
-  saveSet();
+  if (SPEED) saveSet();
+  if (EX.pullup) sfx('end');
   $('legend').hidden = true; // the verdict takes that corner
   renderSummary(); show('done'); setStatus('Set complete', 'good');
 }
@@ -646,6 +825,7 @@ function draw(d, vw, vh) {
   const lm = (i) => m({ x: d.p[i].x * vw, y: d.p[i].y * vh });
 
   ctx.lineCap = 'round';
+  if (EX.pullup) { drawPullup(d, lm, sc, oy, cw, dpr); return; }
   // faint body
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2 * dpr;
   for (const [a, b] of BODY) {
@@ -711,6 +891,40 @@ function drawHeight(d, m, lm, sc, oy, cw, dpr) {
   }
 }
 
+// Pull-ups: only what builds trust. Start (white) and Finish (green) are
+// horizontal lines anchored to the bar line, not the body, so they don't
+// move while you do; then both arms and the nose, with any joint the
+// camera isn't sure of in amber. Minimal hides the arms during the set.
+function drawPullup(d, lm, sc, oy, cw, dpr) {
+  const st = counter && counter.standard;
+  if (st && pu.locked) {
+    const line = (v, color, label) => {
+      const y = pu.lineY(v) * sc + oy;
+      ctx.strokeStyle = color; ctx.lineWidth = 3 * dpr;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+      // Labels on the right: the rep counter covers the left.
+      ctx.font = `700 ${13 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = color; ctx.textAlign = 'right';
+      ctx.fillText(label, cw - 12 * dpr, y - 8 * dpr); ctx.textAlign = 'left';
+    };
+    line(st.start, '#FFFFFF', 'Start'); line(st.finish, '#58DB3D', 'Finish');
+  }
+  if (minimal && (phase === 'ready' || phase === 'live')) return;
+  const seen = (i) => (d.p[i].visibility ?? 0) >= MIN_VIS;
+  const col = (ok) => (ok ? '#58DB3D' : '#E8A33A');
+  for (const arm of [[11, 13, 15], [12, 14, 16]]) {
+    const P = arm.map(lm);
+    ctx.lineWidth = 5 * dpr;
+    for (let k = 0; k < 2; k++) {
+      ctx.strokeStyle = col(seen(arm[k]) && seen(arm[k + 1]));
+      ctx.beginPath(); ctx.moveTo(P[k].x, P[k].y); ctx.lineTo(P[k + 1].x, P[k + 1].y); ctx.stroke();
+    }
+    arm.forEach((i, k) => { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(P[k].x, P[k].y, 6 * dpr, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = col(seen(i)); ctx.lineWidth = 3 * dpr; ctx.stroke(); });
+  }
+  const N = lm(0);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(N.x, N.y, 7 * dpr, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = col(seen(0)); ctx.lineWidth = 3 * dpr; ctx.stroke();
+}
+
 // ── Summary ──────────────────────────────────────────────
 // The set's result is saved once, when it ends: compared first with your last
 // set at the same weight, so it's never compared with itself.
@@ -729,6 +943,30 @@ function saveSet() {
 function renderSummary() {
   const s = counter.summary();
   $('d-count').textContent = s.counted; $('d-short').textContent = `${s.short} short`; $('d-unclear').textContent = `${s.unclear} unclear`;
+  $('verdict').hidden = !SPEED; $('kg-next-f').hidden = !SPEED; $('chart-wrap').hidden = SPEED;
+  if (SPEED) renderCall(); else renderChart();
+  renderRepList();
+}
+// Nose height (pull-ups) through the set, with rep 1's bands: top is up.
+function renderChart() {
+  const st = counter.standard, svg = $('chart');
+  const pts = trace.filter((p) => Number.isFinite(p.a));
+  if (pts.length < 2) { svg.innerHTML = '<text x="160" y="80" text-anchor="middle" font-size="12" fill="#8B957F">No tracked movement</text>'; return; }
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t, W = 320, H = 150, pad = 10;
+  const lo = Math.min(...pts.map((p) => p.a), st ? st.finish - st.tol : Infinity) - 5;
+  const hi = Math.max(...pts.map((p) => p.a), st ? st.start + st.tol : -Infinity) + 5;
+  const X = (t) => pad + ((t - t0) / Math.max(0.001, t1 - t0)) * (W - pad * 2);
+  const Y = (a) => pad + ((a - lo) / Math.max(1, hi - lo)) * (H - pad * 2);
+  const band = (a, color) => `<rect x="0" y="${Y(a - st.tol).toFixed(1)}" width="${W}" height="${Math.max(1, Y(a + st.tol) - Y(a - st.tol)).toFixed(1)}" fill="${color}"/>`;
+  let html = st ? band(st.finish, 'rgba(88,219,61,.22)') + band(st.start, 'rgba(23,27,18,.08)') : '';
+  html += `<polyline fill="none" stroke="#171B12" stroke-width="1.6" stroke-linejoin="round" points="${pts.map((p) => `${X(p.t).toFixed(1)},${Y(p.a).toFixed(1)}`).join(' ')}"/>`;
+  for (const r of counter.reps) {
+    const color = r.result === 'counted' ? '#237A12' : r.result === 'short' ? '#E8A33A' : '#8B957F';
+    if (r.topT != null) html += `<circle cx="${X(r.topT).toFixed(1)}" cy="${Y(r.top).toFixed(1)}" r="4" fill="${color}"/>`;
+  }
+  svg.innerHTML = html;
+}
+function renderCall() {
   const { metres, list } = repSpeeds();
   const v = setVerdict(list.map((x) => ({ mv: x.mv, result: x.r.result })), { lift: EXK, metres });
   renderPanel(v);
@@ -753,9 +991,11 @@ function renderSummary() {
   $('verdict').className = 'verdict ' + v.kind;
   $('verdict').innerHTML = `<b>${titles[v.kind]}</b>${lines.map((l, i) => `<p class="${i ? 'm' : ''}">${l}</p>`).join('')}`;
   $('kg-next').value = kg || '';
-  const range = (r) => (EX.height ? `${cap(EX.finish)} ${EX.fmt(r.top)} · ${EX.start} ${EX.fmt(r.bottom)}` : `${EX.fmt(r.bottom)} → ${EX.fmt(r.top)}`);
+}
+function renderRepList() {
+  const range = (r) => (EX.height || EX.pullup ? `${cap(EX.finish)} ${EX.fmt(r.top)} · ${EX.start} ${EX.fmt(r.bottom)}` : `${EX.fmt(r.bottom)} → ${EX.fmt(r.top)}`);
   $('replist').innerHTML = counter.reps.map((r) => `<button class="rep" data-n="${r.n}">
-      <b>${r.n}</b><small>${Number.isFinite(speedOf(r)) ? `${speedText(r)} · ` : ''}${range(r)}${r.isStandard ? ' · standard' : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
+      <b>${r.n}</b><small>${SPEED && Number.isFinite(speedOf(r)) ? `${speedText(r)} · ` : ''}${range(r)}${r.isStandard ? ' · standard' : EX.pullup ? (r.result === 'short' ? ` · ${shortReasons(r).toLowerCase()}` : '') : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
       <span class="tag ${r.result}">${r.result === 'counted' ? 'Counted' : r.result === 'short' ? 'Short' : 'Unclear'}</span></button>`).join('') || '<p class="hint">No reps detected.</p>';
 }
 function speedOf(r) { const k = mpu(); return r.vel ? r.vel.mv * (Number.isFinite(k) ? k : 1) : NaN; }
@@ -773,16 +1013,17 @@ $('replist').addEventListener('click', (e) => {
 });
 
 // ── Controls ─────────────────────────────────────────────
-$('start-btn').onclick = () => (demo ? startDemo() : startCamera());
-$('file-btn').onclick = () => $('file').click();
+$('start-btn').onclick = () => { audioInit(); demo ? startDemo() : startCamera(); };
+$('file-btn').onclick = () => { audioInit(); $('file').click(); };
 $('file').onchange = (e) => { const f = e.target.files && e.target.files[0]; if (f) startFile(f); };
 $('end-btn').onclick = endSet;
 $('relock-btn').onclick = () => {
-  if (!counter) return;
+  if (!counter || (phase !== 'live' && phase !== 'ready')) return; // never skip the hold-still wait
   counter.relock(); $('legend').hidden = true; phase = 'ready';
   setStatus('Re-locking — next full rep becomes the standard', 'good');
 };
 $('again-btn').onclick = () => {
+  audioInit();
   if (demo) startDemo();
   else if (source === 'camera' && stream) begin();
   else { stopStream(); phase = 'idle'; show('pre'); showPanel(false); showLastStandard(); setStatus(EX.setup); }
@@ -807,11 +1048,19 @@ document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && stream) { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} }
 });
 document.title = 'Arete — ' + EX.title;
-document.querySelector('.ttl').firstChild.textContent = EX.title + ' ';
+document.querySelector('.ttl').firstChild.textContent = (EX.short || EX.title) + ' ';
 $('pre-h').textContent = EX.name;
 $('intro').innerHTML = EX.intro;
 // Squat and bench use both sides of the body, so there's no arm or leg to pick.
-$('arm-btn').hidden = !!EX.height;
+$('arm-btn').hidden = !!EX.height || !!EX.pullup;
+if (EX.pullup) {
+  // Front-on, both arms averaged; rear camera, full screen, sound cues.
+  $('stage').classList.add('pu');
+  $('fields').hidden = true; $('fields-hint').hidden = true;
+  $('min-btn').hidden = false; $('snd-btn').hidden = false; renderToggles();
+  $('min-btn').onclick = () => { minimal = !minimal; writeFlag(MIN_KEY, minimal); renderToggles(); };
+  $('snd-btn').onclick = () => { soundOn = !soundOn; writeFlag(SND_KEY, soundOn); renderToggles(); if (soundOn) { audioInit(); sfx('tick'); } };
+}
 if (EX.height) {
   const [a, b] = document.querySelectorAll('#legend span');
   a.lastChild.textContent = cap(EX.start); b.lastChild.textContent = cap(EX.finish);
@@ -825,6 +1074,7 @@ showLastStandard();
 
 // ── Demo (?demo=1): a simulated lifter through the same pipeline ────────
 function startDemo() {
+  if (EX.pullup) return startPullupDemo();
   source = 'camera'; begin();
   const fps = 30, vw = 1280, vh = 720;
   // Per rep [start, finish]: rep 1 sets the standard, rep 4 misses the
@@ -833,7 +1083,7 @@ function startDemo() {
   const frames = [];
   const hold = (a, s) => { for (let i = 0; i < s * fps; i++) frames.push(a); };
   const move = (a0, a1, s) => { const n = Math.round(s * fps); for (let i = 1; i <= n; i++) frames.push(a0 + (a1 - a0) * (1 - Math.cos(Math.PI * i / n)) / 2); };
-  hold(plan[0][0], 1.4);
+  hold(plan[0][0], 2.4); // calibrate, then hold still before rep 1
   // The lifting part slows down rep by rep, like a real set.
   plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, EX.height ? 1.1 : 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], EX.height ? 0.8 + i * 0.14 : 1.1); });
   hold(plan[0][0], 1.5);
@@ -844,6 +1094,54 @@ function startDemo() {
     setTimeout(tick, 1000 / fps);
   };
   tick();
+}
+// Pull-up demo: the whole body moves under a fixed bar. First the setup
+// (standing, jumping to the bar, a settling pull, then a still hang — none
+// of which may count), then 7 reps: 1 sets the standard, 3 stops short of the
+// top, 4 doesn't lower to the hang, 6 kips. Then a drop off the bar.
+function startPullupDemo() {
+  source = 'camera'; begin();
+  const fps = 30, vw = 720, vh = 1280, frames = [];
+  let s = { v: 150, hand: 0, hipX: 0, torso: 1 };
+  const add = (n, f) => { for (let i = 1; i <= n; i++) { const k = (1 - Math.cos((Math.PI * i) / n)) / 2; frames.push({ ...s, ...f(k, i / n) }); } s = { ...frames[frames.length - 1] }; };
+  const hold = (secs) => add(Math.round(secs * fps), () => ({}));
+  const to = (secs, target, swing = 0) => { const a = { ...s }; add(Math.round(secs * fps), (k, u) => ({ ...Object.fromEntries(Object.entries(target).map(([key, v]) => [key, a[key] + (v - a[key]) * k])), hipX: swing * Math.sin(2 * Math.PI * u), torso: 1 - (swing ? 0.6 * swing * Math.abs(Math.sin(2 * Math.PI * u)) : 0) })); };
+  hold(0.6);                       // standing under the bar, arms down
+  to(0.4, { v: 110, hand: 1 });   // jump up and grab
+  hold(0.6);                       // the bar locks once the hands are still
+  to(0.4, { v: 72 }); to(0.4, { v: 110 }); // a settling pull: setup, not rep 1
+  hold(1.4);                       // still hang: counting starts
+  for (const [top, hang, swing] of [[-20, 110, 0], [-19, 110, 0], [8, 110, 0], [-20, 82, 0], [-20, 110, 0], [-20, 110, 0.12], [-21, 110, 0]]) {
+    to(0.9, { v: top }); hold(0.2); to(1.1, { v: hang }, swing); hold(0.35);
+  }
+  hold(0.8);
+  to(0.5, { hand: 0, v: 150 });    // drop off the bar
+  hold(0.5);
+  let i = 0;
+  const tick = () => {
+    if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
+    frame([demoPull(frames[i], vw, vh)], i / fps, vw, vh); i++;
+    setTimeout(tick, 1000 / fps);
+  };
+  tick();
+}
+// One pull-up pose in a 720×1280 frame. Bar at y = 230. `hand` 0 = arms down
+// by the sides, 1 = on the bar. `v` = nose height below the bar (the signal).
+function demoPull({ v, hand, hipX, torso }, vw, vh) {
+  const UA = 128, FA = 115, barY = 230, at = (x, y) => ({ x: x / vw, y: y / vh, visibility: 0.95 });
+  const nose = barY + (v * UA) / 100, shY = nose + 90, hipY = shY + 300 * torso;
+  const S = [{ x: 317, y: shY }, { x: 403, y: shY }];
+  const W = [0, 1].map((k) => ({ x: [260, 460][k] * hand + [300, 420][k] * (1 - hand), y: barY * hand + (hipY - 20) * (1 - hand) }));
+  const elbow = (sp, w, out) => {
+    const D = Math.hypot(w.x - sp.x, w.y - sp.y) || 1, ux = (w.x - sp.x) / D, uy = (w.y - sp.y) / D, d = Math.min(D, UA + FA - 1e-6);
+    const a = (UA * UA - FA * FA + d * d) / (2 * d), h = Math.sqrt(Math.max(0, UA * UA - a * a));
+    return { x: sp.x + a * ux - out * h * uy, y: sp.y + a * uy + out * h * ux };
+  };
+  const E = [elbow(S[0], W[0], 1), elbow(S[1], W[1], -1)];
+  const p = blank();
+  Object.assign(p, { 0: at(360, nose), 11: at(S[0].x, S[0].y), 12: at(S[1].x, S[1].y), 13: at(E[0].x, E[0].y), 14: at(E[1].x, E[1].y),
+    15: at(W[0].x, W[0].y), 16: at(W[1].x, W[1].y), 23: at(330 + hipX * 300, hipY), 24: at(390 + hipX * 300, hipY) });
+  return p;
 }
 const blank = () => Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.6, visibility: 0.1 }));
 function demoArm(deg, vw, vh) {

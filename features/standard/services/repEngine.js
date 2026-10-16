@@ -137,7 +137,9 @@ export function createRepCounter(opts = {}) {
 
 /**
  * Rep counter for lifts that start at the top, go down and come back up
- * (squat, bench). The value is a height: high at lockout, low at depth.
+ * (squat, bench), or hang and come back down (pull-ups: the value is the
+ * nose's height below the bar, so it also falls during the lift).
+ * The value is a height: high at lockout, low at depth.
  * A rep is judged when you are back up, not at the bottom: it counts the
  * moment you return to the locked-out height, or it is judged short if you
  * turn back down before getting there.
@@ -146,6 +148,14 @@ export function createRepCounter(opts = {}) {
  * and Finish = depth: rep.bottom is the lockout reached at the end of the
  * rep, rep.top the depth; shortStart = missed lockout, shortFinish = missed
  * depth.
+ * Options for pull-ups (off unless set):
+ *   swayTol    — push(t, value, confident, sway) with sway a number or an
+ *                array (e.g. hip position in torso lengths). Rep 1 records how
+ *                far it swayed (largest min–max range of any component); a
+ *                later rep swaying more than that + swayTol is short
+ *                (rep.shortSwing).
+ *   emitFinish — return { type: 'finish' } the moment a rep reaches the
+ *                standard's Finish, before the rep is over.
  */
 export function createReturnCounter(opts = {}) {
   const o = { ...DEFAULTS, ...opts };
@@ -158,34 +168,46 @@ export function createReturnCounter(opts = {}) {
   // A rep counts the moment it passes the lockout line; its recorded lockout
   // keeps rising to the real top until the next descent starts.
   let finishing = null;
+  let swayLo = null, swayHi = null, ticked = false;
 
   const H = () => (standard ? Math.max(o.hysteresis * 0.75, o.hysteresisPct * (standard.start - standard.finish)) : o.hysteresis);
   const tol = () => (standard ? Math.max(o.tolFloor, o.tolPct * (standard.start - standard.finish)) : o.tolFloor);
 
   function beginDescent(from, v, t) {
     phase = 'down'; startTop = from; trough = v; troughT = t; repFrames = 1; repLow = 0; gap = 0; finishing = null;
+    swayLo = null; swayHi = null; ticked = false;
   }
+  function trackSway(sway) {
+    if (sway == null) return;
+    const xs = [].concat(sway);
+    if (xs.some((x) => !Number.isFinite(x))) return;
+    if (!swayLo) { swayLo = xs.slice(); swayHi = xs.slice(); return; }
+    xs.forEach((x, i) => { if (x < swayLo[i]) swayLo[i] = x; if (x > swayHi[i]) swayHi[i] = x; });
+  }
+  const swayRange = () => (swayLo ? Math.max(...swayHi.map((h, i) => h - swayLo[i])) : null);
 
   // The rep is over: `lockout` is how high it came back. `turnedDown` means
   // it never reached the lockout and the next rep's descent has begun.
   function complete(lockout, t, v, turnedDown) {
     const unclear = repFrames > 0 && (repLow / repFrames > o.unclearShare || gap > o.maxGap);
-    const base = { n: reps.length + 1, bottom: lockout, top: trough, topT: troughT };
+    const sway = swayRange();
+    const base = { n: reps.length + 1, bottom: lockout, top: trough, topT: troughT, sway, shortSwing: false };
     let event;
     if (!standard) {
       if (unclear) {
         const rep = { ...base, result: 'unclear', shortStart: false, shortFinish: false, isStandard: false };
         reps.push(rep); event = { type: 'rep', rep };
       } else {
-        standard = { start: startTop, finish: trough };
+        standard = { start: startTop, finish: trough, sway };
         const rep = { ...base, result: 'counted', shortStart: false, shortFinish: false, isStandard: true };
         reps.push(rep); event = { type: 'standard', standard: { ...standard, tol: tol() }, rep };
       }
     } else {
       const shortStart = lockout < standard.start - tol();
       const shortFinish = trough > standard.finish + tol();
-      const result = unclear ? 'unclear' : shortStart || shortFinish ? 'short' : 'counted';
-      const rep = { ...base, result, shortStart: unclear ? false : shortStart, shortFinish: unclear ? false : shortFinish, isStandard: false };
+      const shortSwing = o.swayTol != null && standard.sway != null && sway != null && sway > standard.sway + o.swayTol;
+      const result = unclear ? 'unclear' : shortStart || shortFinish || shortSwing ? 'short' : 'counted';
+      const rep = { ...base, result, shortStart: unclear ? false : shortStart, shortFinish: unclear ? false : shortFinish, shortSwing: unclear ? false : shortSwing, isStandard: false };
       reps.push(rep); event = { type: 'rep', rep };
     }
     if (turnedDown) beginDescent(lockout, v, t);
@@ -193,13 +215,13 @@ export function createReturnCounter(opts = {}) {
     return event;
   }
 
-  function push(t, value, confident = true) {
+  function push(t, value, confident = true, sway = null) {
     const good = confident && Number.isFinite(value);
     if (!started) { lastConfT = t; started = true; }
     const inRep = phase !== 'top';
     if (inRep) { repFrames++; if (!good) repLow++; }
     if (!good) { if (inRep) gap = Math.max(gap, t - (lastConfT ?? t)); return null; }
-    if (inRep) gap = Math.max(gap, t - lastConfT);
+    if (inRep) { gap = Math.max(gap, t - lastConfT); trackSway(sway); }
     lastConfT = t;
 
     if (peak === null) { peak = value; return null; }
@@ -211,7 +233,11 @@ export function createReturnCounter(opts = {}) {
     }
 
     if (phase === 'down') {
-      if (value < trough) { trough = value; troughT = t; return null; }
+      if (value < trough) {
+        trough = value; troughT = t;
+        if (o.emitFinish && standard && !ticked && value <= standard.finish + tol()) { ticked = true; return { type: 'finish', t }; }
+        return null;
+      }
       if (value <= trough + H()) return null;
       if (startTop - trough < o.minRange) { phase = 'top'; peak = value; return null; } // a dip, not a rep
       phase = 'up'; rise = value;
@@ -403,5 +429,118 @@ export function createHeightTracker(kind, { minVis = 0.55, refFollow = 0.05, min
     },
     /** The height held during calibration (standing / lockout). */
     get calValue() { return calValue; },
+  };
+}
+
+// ── Getting set up is never rep 1 ───────────────────────────────────────
+/**
+ * Waits until the lifter holds still: every value stays within its band for
+ * `secs` in a row. Until then nothing reaches the rep counter, so jumping to
+ * the bar, picking up the dumbbell, unracking or walking out can't become
+ * rep 1. A missing (non-finite) value starts the wait again.
+ *   const g = createStillGate({ secs: 1, bands: [5] }); g.push(t, [value, ...]) → true once still
+ */
+export function createStillGate({ secs = 1, bands = [5] } = {}) {
+  let win = [];
+  return {
+    push(t, values) {
+      const vs = [].concat(values);
+      if (!vs.length || vs.some((v) => !Number.isFinite(v))) { win = []; return false; }
+      win.push({ t, vs });
+      // Keep the longest recent run in which every value stayed in its band.
+      const inBand = () => vs.every((_, i) => {
+        const xs = win.map((w) => w.vs[i]).filter((x) => x !== undefined);
+        return Math.max(...xs) - Math.min(...xs) <= (bands[i] ?? bands[0]);
+      });
+      while (win.length > 1 && !inBand()) win.shift();
+      return t - win[0].t >= secs;
+    },
+    reset() { win = []; },
+  };
+}
+
+// ── Pull-ups: the bar is fixed, the body moves ──────────────────────────
+// Camera front-on, both arms visible. The bar is where the hands are: once
+// both wrists hold still near the top of the picture for `lockSecs`, a bar
+// line is locked at their average height, and the upper-arm and torso
+// lengths are measured over that same moment (medians, so heavily smoothed).
+// None of it changes until the hands move more than 10% of an arm's length,
+// so lines drawn from it stay perfectly still while the body moves.
+//   height = (nose y − bar y) / upper-arm length × 100
+// About +110 in a dead hang, below 0 once the nose is over the bar: it falls
+// as you pull, like the other lifts. Left and right arms are averaged.
+// Swing is measured on the hips in torso lengths: sideways drift from under
+// the bar, and how much the torso shortens on camera (front-on, a kip swings
+// the hips towards and away from the lens, which shows up as exactly that).
+
+export const PULLUP_DEFAULTS = { minRange: 20, hysteresis: 10, tolFloor: 3, tolPct: 0.03, swayTol: 0.1, emitFinish: true };
+
+export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct = 0.06, topShare = 0.55, relockPct = 0.1, wristFollow = 0.15, noseFollow = 0.6 } = {}) {
+  let win = [], bar = null, wristY = null, noseY = null;
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+  function read(pose, vw, vh) {
+    const seen = (i) => (pose[i]?.visibility ?? 0) >= minVis;
+    const P = (i) => ({ x: pose[i].x * vw, y: pose[i].y * vh });
+    const mid = (a, b) => (seen(a) && seen(b) ? { x: (P(a).x + P(b).x) / 2, y: (P(a).y + P(b).y) / 2 } : seen(a) ? P(a) : seen(b) ? P(b) : null);
+    const ua = [[11, 13], [12, 14]].filter(([s, e]) => seen(s) && seen(e)).map(([s, e]) => dist(P(s), P(e)));
+    const arm = [[11, 13, 15], [12, 14, 16]].filter((j) => j.every(seen)).map(([s, e, w]) => dist(P(s), P(e)) + dist(P(e), P(w)));
+    const sh = mid(11, 12), hip = mid(23, 24);
+    return {
+      wrists: seen(15) && seen(16) ? mid(15, 16) : null,
+      nose: seen(0) ? P(0) : null,
+      sh, hip,
+      ua: ua.length ? mean(ua) : NaN,
+      arm: arm.length ? mean(arm) : NaN,
+      torso: [11, 12, 23, 24].every(seen) ? dist(sh, hip) : NaN,
+    };
+  }
+
+  function measure(f) {
+    if (f.nose) noseY = noseY == null ? f.nose.y : noseY + noseFollow * (f.nose.y - noseY);
+    const ok = !!f.nose;
+    const value = ok ? ((noseY - bar.y) / bar.upperArm) * 100 : NaN;
+    const sway = Number.isFinite(bar.torso) && Number.isFinite(f.torso) ? [(f.hip.x - bar.x) / bar.torso, f.torso / bar.torso] : null;
+    return { barLocked: true, justLocked: false, ok, value, sway, nose: f.nose ? { x: f.nose.x, y: noseY } : null };
+  }
+
+  /**
+   * One frame. Returns { barLocked, justLocked, justUnlocked, ok, value, sway, nose, why }.
+   * `why` (bar not locked) is 'hands' (can't see both), 'reach' (hands not
+   * up at the bar), 'steady' (hands still moving) or 'moved' (they left the bar).
+   */
+  function track(pose, vw, vh, t) {
+    const f = read(pose, vw, vh);
+    if (!bar) {
+      if (!f.wrists) { win = []; return { barLocked: false, why: 'hands' }; }
+      if (f.wrists.y > topShare * vh || (f.sh && f.wrists.y > f.sh.y)) { win = []; return { barLocked: false, why: 'reach' }; }
+      win.push({ t, ...f });
+      while (win.length && t - win[0].t > lockSecs + 0.2) win.shift();
+      const arms = win.map((w) => w.arm).filter(Number.isFinite);
+      const limit = steadyPct * (arms.length ? median(arms) : 0.3 * vh);
+      const ys = win.map((w) => w.wrists.y), xs = win.map((w) => w.wrists.x);
+      if (Math.max(...ys) - Math.min(...ys) > limit || Math.max(...xs) - Math.min(...xs) > limit) { win = [win[win.length - 1]]; return { barLocked: false, why: 'steady' }; }
+      const uas = win.map((w) => w.ua).filter(Number.isFinite);
+      if (t - win[0].t < lockSecs || !uas.length || !arms.length) return { barLocked: false, why: 'steady' };
+      const torsos = win.map((w) => w.torso).filter(Number.isFinite);
+      bar = { y: mean(ys), x: mean(xs), upperArm: median(uas), arm: median(arms), torso: torsos.length ? median(torsos) : NaN };
+      wristY = bar.y; noseY = null; win = [];
+      return { ...measure(f), justLocked: true };
+    }
+    if (f.wrists) {
+      wristY += wristFollow * (f.wrists.y - wristY);
+      if (Math.abs(wristY - bar.y) > relockPct * bar.arm) { bar = null; win = []; return { barLocked: false, justUnlocked: true, why: 'moved' }; }
+    }
+    return measure(f);
+  }
+
+  return {
+    track,
+    /** Image y (pixels) of a height value: fixed while the bar stays locked. */
+    lineY(value) { return bar ? bar.y + (value * bar.upperArm) / 100 : NaN; },
+    get bar() { return bar ? { ...bar } : null; },
+    get locked() { return !!bar; },
+    reset() { win = []; bar = null; wristY = null; noseY = null; },
   };
 }
