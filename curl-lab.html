@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0E110C">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="js/auth.js"></script>
+<script src="js/authguard.js"></script>
+<title>Arete — Curl Standard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Prototype: one-arm bicep curl rep standardisation. Camera stage with a live
+   skeleton overlay; a white sheet below holds the count and actions. */
+:root{
+  --ink:#171B12;--ink2:#5F6A55;--ink3:#8B957F;--paper:#FFFFFF;--wash:#F3F5F1;
+  --line:rgba(23,27,18,.10);--lime:#58DB3D;--lime-ink:#237A12;--amber:#E8A33A;--amber-ink:#8A5A12;
+  --stage:#0E110C;--r:24px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--stage);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
+.app{position:fixed;inset:0;display:flex;flex-direction:column}
+.stage{position:relative;flex:1;min-height:0;overflow:hidden;background:var(--stage)}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.stage video{object-fit:cover}
+.stage video.mirror{transform:scaleX(-1)}
+
+.top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;z-index:3;background:linear-gradient(rgba(14,17,12,.75),rgba(14,17,12,0))}
+.ibtn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.12)}
+.ibtn svg{width:18px;height:18px}
+.ttl{flex:1;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0}
+.ttl em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(88,219,61,.2);color:#B9F5AA;padding:3px 7px;border-radius:999px}
+.pill{min-height:34px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:12.5px;font-weight:600}
+
+.status{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));z-index:3;max-width:calc(100% - 32px);padding:9px 14px;border-radius:999px;background:rgba(14,17,12,.72);color:#fff;font-size:13.5px;font-weight:600;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.status.good{background:rgba(35,122,18,.85)}
+.status.warn{background:rgba(138,90,18,.88)}
+.legend{position:absolute;right:12px;bottom:12px;z-index:3;display:flex;gap:10px;font-size:11.5px;font-weight:600;color:#fff;background:rgba(14,17,12,.6);padding:6px 10px;border-radius:999px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+
+.sheet{background:var(--paper);border-radius:var(--r) var(--r) 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 30px rgba(0,0,0,.25);z-index:4;max-height:62vh;overflow-y:auto}
+.row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.count{display:flex;align-items:baseline;gap:8px}
+.count b{font-size:56px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.count span{font-size:14px;font-weight:600;color:var(--ink2)}
+.sub{display:flex;gap:14px;font-size:13px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums;padding-bottom:6px}
+.sub .s{color:var(--amber-ink)}
+.meter{margin:14px 0 4px;position:relative;height:10px;border-radius:10px;background:var(--wash)}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:10px;background:var(--lime);width:0;transition:width 60ms linear}
+.meter-l{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;min-height:30px}
+.chip{min-width:30px;height:30px;padding:0 8px;border-radius:9px;display:inline-grid;place-items:center;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+.chip.counted{background:rgba(88,219,61,.18);color:var(--lime-ink)}
+.chip.short{background:rgba(232,163,58,.2);color:var(--amber-ink)}
+.chip.unclear{background:var(--wash);color:var(--ink3)}
+.chip.std{box-shadow:inset 0 0 0 2px var(--lime-ink)}
+.acts{display:flex;gap:8px;margin-top:14px}
+.btn{flex:1;min-height:50px;border-radius:15px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.p{background:var(--ink);color:#F1F7E9}
+.btn.s{background:var(--wash);color:var(--ink)}
+.btn:active{transform:scale(.98)}
+.hint{font-size:12.5px;color:var(--ink2);line-height:1.5;margin-top:10px}
+.hint b{color:var(--ink)}
+.h{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.chart{margin-top:12px;background:var(--wash);border-radius:16px;padding:10px}
+.chart svg{display:block;width:100%;height:150px}
+.list{margin-top:10px;display:grid;gap:6px}
+.rep{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:12px;background:var(--wash);font-size:13px;text-align:left;width:100%}
+.rep b{font-variant-numeric:tabular-nums}
+.rep small{color:var(--ink2);font-variant-numeric:tabular-nums}
+.rep .tag{font-size:12px;font-weight:700}
+.rep .tag.counted{color:var(--lime-ink)}.rep .tag.short{color:var(--amber-ink)}.rep .tag.unclear{color:var(--ink3)}
+@media(min-width:760px){.sheet{max-width:560px;margin:0 auto;width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="top">
+      <a class="ibtn" href="workouts.html" aria-label="Back to Training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></a>
+      <div class="ttl">Curl standard <em>Prototype</em></div>
+      <button class="pill" id="arm-btn" aria-label="Choose arm">Arm: Auto</button>
+      <button class="ibtn" id="flip-btn" aria-label="Switch camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3l-2-3H9L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><path d="M9 13a3 3 0 0 1 5-2.2M15 13a3 3 0 0 1-5 2.2"/><polyline points="14 9 14.5 11 12.5 11.5"/><polyline points="10 17 9.5 15 11.5 14.5"/></svg></button>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite">Side-on, phone at hip height, 2–3 m away</div>
+    <div class="legend" id="legend" hidden><span><i style="background:#fff"></i>Start</span><span><i style="background:var(--lime)"></i>Finish</span></div>
+  </div>
+
+  <section class="sheet" id="sheet">
+    <!-- before the set -->
+    <div id="pre">
+      <div class="h">Bicep curl · one arm</div>
+      <p class="hint">Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.</p>
+      <p class="hint" id="last-std" hidden></p>
+      <div class="acts">
+        <button class="btn p" id="start-btn">Start camera</button>
+        <button class="btn s" id="file-btn">Analyse a video</button>
+      </div>
+      <p class="hint">Stand side-on with the working arm closest to the phone. Benches and gym clutter in the background are fine. Video is processed on your phone and never uploaded.</p>
+      <input type="file" id="file" accept="video/*" hidden>
+    </div>
+
+    <!-- during the set -->
+    <div id="live" hidden>
+      <div class="row">
+        <div class="count"><b id="n-count">0</b><span>reps</span></div>
+        <div class="sub"><span class="s" id="n-short">0 short</span><span id="n-unclear">0 unclear</span></div>
+      </div>
+      <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+      <div class="meter-l"><span>Start</span><span>Finish</span></div>
+      <div class="chips" id="chips" aria-label="Reps"></div>
+      <div class="acts">
+        <button class="btn s" id="relock-btn">Re-lock standard</button>
+        <button class="btn p" id="end-btn">End set</button>
+      </div>
+    </div>
+
+    <!-- after the set -->
+    <div id="done" hidden>
+      <div class="row">
+        <div class="count"><b id="d-count">0</b><span>reps counted</span></div>
+        <div class="sub"><span class="s" id="d-short">0 short</span><span id="d-unclear">0 unclear</span></div>
+      </div>
+      <div class="chart"><svg id="chart" viewBox="0 0 320 150" preserveAspectRatio="none" role="img" aria-label="Elbow angle through the set"></svg></div>
+      <p class="hint">Tap a rep to change its result if the camera got it wrong.</p>
+      <div class="list" id="replist"></div>
+      <div class="acts"><button class="btn p" id="again-btn">New set</button></div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { createRepCounter, jointAngle, oneEuro, pickPerson, armVisibility, ARMS } from './features/standard/services/repEngine.js';
+
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
+const LAST_KEY = 'arete_curl_lab_last';
+const BODY = [[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[24,26],[26,28]];
+const MIN_VIS = 0.55;      // joints below this are treated as unseen
+const CALIB_SECS = 0.8;    // steady, visible arm needed before rep 1
+
+const $ = (id) => document.getElementById(id);
+const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+const demo = new URLSearchParams(location.search).has('demo');
+
+let landmarker = null, stream = null, facing = 'user', source = 'camera';
+let armMode = 'auto', side = null, visSum = { left: 0, right: 0 };
+let counter = null, euro = oneEuro(), center = null;
+let phase = 'idle'; // idle → finding → ready → live → done
+let steadySince = null, lostSince = null, trace = [], lastVideoT = -1, raf = 0;
+let audio = null, wakeLock = null, current = NaN;
+
+// ── Feedback ─────────────────────────────────────────────
+function beep(freq, dur = 0.09) {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = freq; o.connect(g); g.connect(audio.destination);
+    g.gain.setValueAtTime(0.18, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + dur);
+    o.start(); o.stop(audio.currentTime + dur + 0.02);
+  } catch {}
+}
+const buzz = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+function setStatus(text, tone = '') { const s = $('status'); s.textContent = text; s.className = 'status' + (tone ? ' ' + tone : ''); }
+
+// ── Phases ───────────────────────────────────────────────
+function show(view) { ['pre', 'live', 'done'].forEach((v) => { $(v).hidden = v !== view; }); }
+function resetSet() {
+  counter = createRepCounter(); euro.reset(); trace = []; side = armMode === 'auto' ? null : armMode;
+  visSum = { left: 0, right: 0 }; steadySince = null; lostSince = null; center = null; current = NaN;
+  $('chips').innerHTML = ''; updateCounts(); $('legend').hidden = true;
+}
+function updateCounts() {
+  const s = counter ? counter.summary() : { counted: 0, short: 0, unclear: 0 };
+  $('n-count').textContent = s.counted; $('n-short').textContent = `${s.short} short`; $('n-unclear').textContent = `${s.unclear} unclear`;
+}
+function showLastStandard() {
+  try {
+    const l = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+    if (l) { const el = $('last-std'); el.hidden = false; el.innerHTML = `Last standard: <b>${Math.round(l.start)}° → ${Math.round(l.finish)}°</b> elbow angle.`; }
+  } catch {}
+}
+
+// ── Tracker ──────────────────────────────────────────────
+async function loadTracker() {
+  if (landmarker) return landmarker;
+  setStatus('Loading the tracker…');
+  const { PoseLandmarker, FilesetResolver } = await import(`${MP}/vision_bundle.mjs`);
+  const files = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+  const opts = (delegate) => ({ baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numPoses: 2, minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+  try { landmarker = await PoseLandmarker.createFromOptions(files, opts('GPU')); }
+  catch { landmarker = await PoseLandmarker.createFromOptions(files, opts('CPU')); }
+  return landmarker;
+}
+
+async function startCamera() {
+  source = 'camera';
+  try {
+    await loadTracker();
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false });
+  } catch (e) {
+    setStatus(e && e.name === 'NotAllowedError' ? 'Camera blocked — allow camera access and try again' : 'Couldn’t start: ' + (e && e.message || e), 'warn');
+    return;
+  }
+  video.srcObject = stream; video.classList.toggle('mirror', facing === 'user');
+  await video.play();
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
+  begin();
+}
+
+async function startFile(file) {
+  source = 'file';
+  try { await loadTracker(); } catch (e) { setStatus('Couldn’t load the tracker — check your connection', 'warn'); return; }
+  stopStream();
+  video.srcObject = null; video.src = URL.createObjectURL(file); video.classList.remove('mirror');
+  video.onended = () => endSet();
+  await video.play();
+  begin();
+}
+
+function begin() {
+  beep(660, 0.04); resetSet(); phase = 'finding'; show('live');
+  setStatus('Step side-on — finding you');
+  cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+}
+
+function stopStream() { if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; } }
+
+function loop() {
+  raf = requestAnimationFrame(loop);
+  if (demo) return; // the demo drives frames itself
+  if (!landmarker || video.readyState < 2) return;
+  if (video.currentTime === lastVideoT) return;
+  lastVideoT = video.currentTime;
+  const tMs = source === 'file' ? video.currentTime * 1000 : performance.now();
+  const res = landmarker.detectForVideo(video, tMs);
+  frame(res.landmarks || [], tMs / 1000, video.videoWidth, video.videoHeight);
+}
+
+// ── One frame of pose data ───────────────────────────────
+function frame(poses, t, vw, vh) {
+  if (phase === 'idle' || phase === 'done') return;
+  const idx = pickPerson(poses, center);
+  if (idx < 0) {
+    lostSince = lostSince ?? t;
+    if (phase === 'live' || phase === 'ready') { counter.push(t, NaN, false); trace.push({ t, a: NaN }); }
+    if (t - lostSince > 0.5) setStatus(center ? 'Lost you — step back into view' : 'Step side-on — finding you', 'warn');
+    if (t - lostSince > 2) center = null; // re-acquire whoever is largest
+    draw(null, vw, vh);
+    return;
+  }
+  lostSince = null;
+  const p = poses[idx];
+  center = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
+
+  // Work out which arm faces the camera (the one it sees best).
+  if (!side) {
+    visSum.left += armVisibility(p, 'left'); visSum.right += armVisibility(p, 'right');
+  }
+  const useSide = side || (visSum.left >= visSum.right ? 'left' : 'right');
+  const [si, ei, wi] = ARMS[useSide];
+  const px = (i) => ({ x: p[i].x * vw, y: p[i].y * vh, v: p[i].visibility ?? 0 });
+  const S = px(si), E = px(ei), W = px(wi);
+  const ok = Math.min(S.v, E.v, W.v) >= MIN_VIS;
+  const raw = ok ? jointAngle(S, E, W) : NaN;
+  const a = ok ? euro.filter(raw, t) : NaN;
+  current = a;
+
+  if (phase === 'finding') {
+    if (ok) {
+      steadySince = steadySince ?? t;
+      const held = t - steadySince;
+      setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
+      if (held >= CALIB_SECS) {
+        side = side || useSide;
+        phase = 'ready'; beep(880, 0.05); buzz(30);
+        setStatus(`Rep 1 sets the standard — full stretch, then curl to the top (${side} arm)`, 'good');
+      }
+    } else { steadySince = null; setStatus('Show the whole arm — shoulder, elbow and wrist'); }
+  } else {
+    trace.push({ t, a });
+    const ev = counter.push(t, a, ok);
+    if (ev) onEvent(ev);
+    if (!ok && phase === 'live') setStatus('Can’t see your arm clearly', 'warn');
+  }
+  updateMeter();
+  draw({ p, S, E, W, ok, a }, vw, vh);
+}
+
+function onEvent(ev) {
+  if (ev.type === 'standard') {
+    phase = 'live'; $('legend').hidden = false;
+    beep(988, 0.12); buzz([40, 40, 40]);
+    setStatus(`Standard locked: ${Math.round(ev.standard.start)}° → ${Math.round(ev.standard.finish)}°`, 'good');
+    try { localStorage.setItem(LAST_KEY, JSON.stringify({ start: ev.standard.start, finish: ev.standard.finish, at: Date.now() })); } catch {}
+  }
+  const r = ev.rep;
+  if (!r) return;
+  addChip(r);
+  if (ev.type === 'rep') {
+    if (r.result === 'counted') { beep(988); buzz(25); setStatus(`Rep ${counter.summary().counted}`, 'good'); }
+    else if (r.result === 'short') { beep(330, 0.14); buzz([60, 40, 60]); setStatus(r.shortFinish && r.shortStart ? 'Short — missed the stretch and the top' : r.shortFinish ? 'Short — didn’t reach the finish' : 'Short — didn’t return to full stretch', 'warn'); }
+    else setStatus('Unclear rep — the camera lost your arm', 'warn');
+  }
+  updateCounts();
+}
+
+function addChip(r) {
+  const c = document.createElement('span');
+  c.className = `chip ${r.result}${r.isStandard ? ' std' : ''}`;
+  c.textContent = r.result === 'counted' ? r.n : r.result === 'short' ? 'S' : '?';
+  c.title = `Rep ${r.n}: ${r.isStandard ? 'standard, ' : ''}${r.result}`;
+  $('chips').appendChild(c);
+}
+
+function updateMeter() {
+  const st = counter && counter.standard;
+  let pct = 0;
+  if (st && Number.isFinite(current)) pct = Math.max(0, Math.min(1, (st.start - current) / (st.start - st.finish)));
+  else if (Number.isFinite(current)) pct = Math.max(0, Math.min(1, (175 - current) / 135));
+  $('meter').style.width = (pct * 100).toFixed(1) + '%';
+}
+
+function endSet() {
+  if (phase === 'done') return;
+  phase = 'done'; cancelAnimationFrame(raf);
+  if (source === 'file') video.pause();
+  renderSummary(); show('done'); setStatus('Set complete', 'good');
+}
+
+// ── Drawing ──────────────────────────────────────────────
+function fit() {
+  const r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(r.width * dpr) || canvas.height !== Math.round(r.height * dpr)) {
+    canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+  }
+  return { cw: canvas.width, ch: canvas.height, dpr };
+}
+function draw(d, vw, vh) {
+  const { cw, ch, dpr } = fit();
+  ctx.clearRect(0, 0, cw, ch);
+  if (!d || !vw) return;
+  // object-fit: cover mapping, mirrored for the front camera
+  const sc = Math.max(cw / vw, ch / vh), ox = (cw - vw * sc) / 2, oy = (ch - vh * sc) / 2;
+  const mirror = source === 'camera' && facing === 'user' && !demo;
+  const m = (pt) => ({ x: mirror ? cw - (pt.x * sc + ox) : pt.x * sc + ox, y: pt.y * sc + oy });
+  const lm = (i) => m({ x: d.p[i].x * vw, y: d.p[i].y * vh });
+
+  ctx.lineCap = 'round';
+  // faint body
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2 * dpr;
+  for (const [a, b] of BODY) {
+    if ((d.p[a].visibility ?? 0) < 0.5 || (d.p[b].visibility ?? 0) < 0.5) continue;
+    const A = lm(a), B = lm(b); ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+  }
+  const S = m(d.S), E = m(d.E), W = m(d.W);
+  // standard gauge at the elbow
+  const st = counter && counter.standard;
+  const r = Math.hypot(W.x - E.x, W.y - E.y) * 0.6;
+  const up = Math.atan2(S.y - E.y, S.x - E.x);
+  const fore = Math.atan2(W.y - E.y, W.x - E.x);
+  const cross = (S.x - E.x) * (W.y - E.y) - (S.y - E.y) * (W.x - E.x);
+  const sgn = cross >= 0 ? 1 : -1;
+  const ray = (deg) => up + sgn * (deg * Math.PI) / 180;
+  if (st) {
+    ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 10 * dpr;
+    ctx.beginPath(); ctx.arc(E.x, E.y, r, Math.min(ray(st.start), ray(st.finish)), Math.max(ray(st.start), ray(st.finish))); ctx.stroke();
+    const tick = (deg, color) => { const ang = ray(deg); ctx.strokeStyle = color; ctx.lineWidth = 4 * dpr; ctx.beginPath(); ctx.moveTo(E.x + Math.cos(ang) * r * 0.75, E.y + Math.sin(ang) * r * 0.75); ctx.lineTo(E.x + Math.cos(ang) * r * 1.25, E.y + Math.sin(ang) * r * 1.25); ctx.stroke(); };
+    tick(st.start, '#FFFFFF'); tick(st.finish, '#58DB3D');
+  }
+  // working arm
+  ctx.strokeStyle = d.ok ? '#58DB3D' : 'rgba(232,163,58,.9)'; ctx.lineWidth = 7 * dpr;
+  ctx.beginPath(); ctx.moveTo(S.x, S.y); ctx.lineTo(E.x, E.y); ctx.lineTo(W.x, W.y); ctx.stroke();
+  for (const P of [S, E, W]) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(P.x, P.y, 6 * dpr, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = d.ok ? '#58DB3D' : '#E8A33A'; ctx.lineWidth = 3 * dpr; ctx.stroke(); }
+  // live angle
+  if (Number.isFinite(d.a)) {
+    ctx.font = `700 ${14 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = '#fff';
+    ctx.fillText(Math.round(d.a) + '°', E.x + 12 * dpr, E.y - 12 * dpr);
+  }
+}
+
+// ── Summary ──────────────────────────────────────────────
+function renderSummary() {
+  const s = counter.summary(), st = counter.standard;
+  $('d-count').textContent = s.counted; $('d-short').textContent = `${s.short} short`; $('d-unclear').textContent = `${s.unclear} unclear`;
+  const pts = trace.filter((p) => Number.isFinite(p.a));
+  const svg = $('chart');
+  if (pts.length < 2) { svg.innerHTML = '<text x="160" y="80" text-anchor="middle" font-size="12" fill="#8B957F">No tracked movement</text>'; }
+  else {
+    const t0 = pts[0].t, t1 = pts[pts.length - 1].t, W = 320, H = 150, pad = 10;
+    const lo = Math.min(...pts.map((p) => p.a), st ? st.finish - st.tol : 180) - 5;
+    const hi = Math.max(...pts.map((p) => p.a), st ? st.start + st.tol : 0) + 5;
+    const X = (t) => pad + ((t - t0) / Math.max(0.001, t1 - t0)) * (W - pad * 2);
+    const Y = (a) => pad + ((a - lo) / Math.max(1, hi - lo)) * (H - pad * 2); // curled (small angle) is up
+    const band = (a, color) => `<rect x="0" y="${Y(a - st.tol).toFixed(1)}" width="${W}" height="${Math.max(1, Y(a + st.tol) - Y(a - st.tol)).toFixed(1)}" fill="${color}"/>`;
+    let html = st ? band(st.finish, 'rgba(88,219,61,.22)') + band(st.start, 'rgba(23,27,18,.08)') : '';
+    html += `<polyline fill="none" stroke="#171B12" stroke-width="1.6" stroke-linejoin="round" points="${pts.map((p) => `${X(p.t).toFixed(1)},${Y(p.a).toFixed(1)}`).join(' ')}"/>`;
+    for (const r of counter.reps) {
+      const color = r.result === 'counted' ? '#237A12' : r.result === 'short' ? '#E8A33A' : '#8B957F';
+      if (r.topT != null) html += `<circle cx="${X(r.topT).toFixed(1)}" cy="${Y(r.top).toFixed(1)}" r="4" fill="${color}"/>`;
+    }
+    svg.innerHTML = html;
+  }
+  $('replist').innerHTML = counter.reps.map((r) => `<button class="rep" data-n="${r.n}">
+      <b>${r.n}</b><small>${Math.round(r.bottom)}° → ${Math.round(r.top)}°${r.isStandard ? ' · standard' : r.shortStart && r.shortFinish ? ' · missed stretch and top' : r.shortFinish ? ' · missed the top' : r.shortStart ? ' · missed the stretch' : ''}</small>
+      <span class="tag ${r.result}">${r.result === 'counted' ? 'Counted' : r.result === 'short' ? 'Short' : 'Unclear'}</span></button>`).join('') || '<p class="hint">No reps detected.</p>';
+}
+$('replist').addEventListener('click', (e) => {
+  const b = e.target.closest('.rep'); if (!b) return;
+  const r = counter.reps.find((x) => x.n === +b.dataset.n); if (!r || r.isStandard) return;
+  counter.override(r.n, r.result === 'counted' ? 'short' : 'counted');
+  renderSummary();
+});
+
+// ── Controls ─────────────────────────────────────────────
+$('start-btn').onclick = () => (demo ? startDemo() : startCamera());
+$('file-btn').onclick = () => $('file').click();
+$('file').onchange = (e) => { const f = e.target.files && e.target.files[0]; if (f) startFile(f); };
+$('end-btn').onclick = endSet;
+$('relock-btn').onclick = () => {
+  if (!counter) return;
+  counter.relock(); $('legend').hidden = true; phase = 'ready';
+  setStatus('Re-locking — next full rep becomes the standard', 'good');
+};
+$('again-btn').onclick = () => {
+  if (source === 'camera' && (stream || demo)) begin();
+  else { stopStream(); phase = 'idle'; show('pre'); showLastStandard(); setStatus('Side-on, phone at hip height, 2–3 m away'); }
+};
+$('arm-btn').onclick = () => {
+  armMode = armMode === 'auto' ? 'left' : armMode === 'left' ? 'right' : 'auto';
+  $('arm-btn').textContent = 'Arm: ' + armMode[0].toUpperCase() + armMode.slice(1);
+  if (phase === 'finding' || phase === 'ready') { side = armMode === 'auto' ? null : armMode; visSum = { left: 0, right: 0 }; }
+};
+$('flip-btn').onclick = async () => {
+  facing = facing === 'user' ? 'environment' : 'user';
+  if (stream) { stopStream(); await startCamera(); }
+};
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && stream) { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} }
+});
+showLastStandard();
+
+// ── Demo (?demo=1): a simulated arm through the same pipeline ───────────
+function startDemo() {
+  source = 'camera'; begin();
+  const fps = 30, vw = 1280, vh = 720;
+  // rep tops / bottoms (elbow angle): rep 1 sets the standard, rep 4 misses the top,
+  // rep 6 doesn't return to the stretch.
+  const plan = [[170, 45], [169, 46], [170, 47], [170, 78], [168, 46], [140, 45], [170, 48]];
+  const frames = [];
+  const hold = (a, s) => { for (let i = 0; i < s * fps; i++) frames.push(a); };
+  const move = (a0, a1, s) => { const n = Math.round(s * fps); for (let i = 1; i <= n; i++) frames.push(a0 + (a1 - a0) * (1 - Math.cos(Math.PI * i / n)) / 2); };
+  hold(170, 1.4);
+  plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : 170, 1.1); });
+  hold(170, 1.5);
+  const sh = { x: 0.47, y: 0.34 }, el = { x: 0.49, y: 0.56 };
+  const base = Math.atan2((sh.y - el.y) * vh, (sh.x - el.x) * vw);
+  let i = 0;
+  const tick = () => {
+    if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
+    const ang = base - (frames[i] * Math.PI) / 180;
+    const wr = { x: el.x + (Math.cos(ang) * 0.2 * vh) / vw, y: el.y + Math.sin(ang) * 0.2 };
+    const p = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.6, visibility: 0.1 }));
+    Object.assign(p, { 11: { ...sh, visibility: 0.97 }, 12: { x: sh.x + 0.02, y: sh.y, visibility: 0.4 }, 13: { ...el, visibility: 0.97 }, 15: { ...wr, visibility: 0.96 },
+      14: { x: el.x + 0.02, y: el.y, visibility: 0.3 }, 16: { x: wr.x + 0.02, y: wr.y, visibility: 0.3 }, 23: { x: 0.47, y: 0.72, visibility: 0.9 }, 24: { x: 0.49, y: 0.72, visibility: 0.6 } });
+    frame([p], i / fps, vw, vh); i++;
+    setTimeout(tick, 1000 / fps);
+  };
+  tick();
+}
+</script>
+</body>
+</html>

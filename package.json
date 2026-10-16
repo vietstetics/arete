@@ -15,7 +15,10 @@
     "test:training": "node --test \"features/training/__tests__/*.test.js\"",
     "test:muscles": "node --test \"features/muscles/__tests__/*.test.js\"",
     "test:exercises": "node --test \"features/exercises/__tests__/*.test.js\"",
-    "build:muscles": "node scripts/build-muscle-db.mjs"
+    "test:machines": "node --test \"features/machines/__tests__/*.test.js\"",
+    "build:machines": "node scripts/build-machine-db.mjs",
+    "build:muscles": "node scripts/build-muscle-db.mjs",
+    "test:standard": "node --test \"features/standard/__tests__/*.test.js\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",
