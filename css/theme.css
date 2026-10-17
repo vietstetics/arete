@@ -101,3 +101,7 @@ body { background: linear-gradient(180deg, #EFEFF2 0, #F7F7F9 280px, #F8F8FA 100
 .sec-hd .sec-sum { margin-left: 0; }
 /* Recovery legend: tighter spacing so it sits on as few lines as possible. */
 .mm-leg { gap: 8px 12px; }
+
+/* Energy Intelligence was removed (2026-10): hide its dashboard card and the
+ * Energy figure in the readiness card. (Code stays dormant; other pages use it.) */
+.card:has(#hd-energy), .rm:has(#ready-met-energy) { display: none !important; }

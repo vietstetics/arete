@@ -153,6 +153,32 @@ textarea{font-family:inherit;resize:none}
 .cons-stats .v{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
 .cons-stats .k{font-size:10px;color:var(--t3);font-weight:500}
 .cons-stats .warn{color:var(--ye)}.cons-stats .good{color:var(--gr)}
+/* Calories — Cal AI style: big number + ink ring, then three macro cards */
+.kc{margin-bottom:18px;display:grid;gap:12px}
+.kc-main{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border-radius:var(--r);box-shadow:var(--sh0);padding:22px 22px 22px 24px;color:inherit;text-decoration:none}
+.kc-num{display:flex;align-items:baseline;gap:2px}
+.kc-num b{font-size:44px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.kc-num span{font-size:15px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums}
+.kc-lbl{font-size:13px;color:var(--t2);margin-top:6px}
+.kc-ring{position:relative;width:104px;height:104px;flex-shrink:0}
+.kc-ring svg,.kc-mr svg{width:100%;height:100%;transform:rotate(-90deg)}
+.kc .t{fill:none;stroke:rgba(17,17,20,.07)}
+.kc .f{fill:none;stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.22,1,.36,1)}
+.kc-ring .t,.kc-ring .f{stroke-width:9}
+.kc-ring .f{stroke:#111114}
+.kc-ic{position:absolute;inset:0;display:grid;place-items:center}
+.kc-ic span{width:40px;height:40px;border-radius:50%;background:rgba(17,17,20,.05);display:grid;place-items:center}
+.kc-ic svg,.kc-mi svg{width:20px;height:20px;transform:none}
+.kc-macros{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kc-m{background:#fff;border-radius:20px;box-shadow:var(--sh0);padding:14px 12px 14px 14px;color:inherit;text-decoration:none;min-width:0}
+.kc-mn{display:flex;align-items:baseline;gap:1px;flex-wrap:wrap}
+.kc-mn b{font-size:20px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kc-mn span{font-size:11.5px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums}
+.kc-ml{font-size:11.5px;color:var(--t2);margin:2px 0 10px}
+.kc-mr{position:relative;width:62px;height:62px;margin:0 auto}
+.kc-mr .t,.kc-mr .f{stroke-width:6}
+.kc-mr .f{stroke:var(--c)}
+.kc-mi{position:absolute;inset:0;display:grid;place-items:center;color:var(--c)}
 .cons-msg{font-size:12.5px;color:var(--t3);padding:6px 0}
 /* Rep counter — entry to the camera rep-standard prototype (curl-lab.html) */
 .repc{display:flex;align-items:center;gap:14px;background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);margin-bottom:18px;padding:16px 18px;color:inherit;text-decoration:none;transition:border-color 160ms}
@@ -733,6 +759,31 @@ textarea{font-family:inherit;resize:none}
         <div class="hdr-av">J</div>
       </div>
     </div>
+
+    <!-- CALORIES (Cal AI style) -->
+    <section class="kc" id="kc-card" aria-label="Today's calories and macros">
+      <a class="kc-main" href="nutrition.html">
+        <div><div class="kc-num"><b id="kc-eaten">0</b><span id="kc-goal">/0</span></div><div class="kc-lbl">Calories eaten</div></div>
+        <div class="kc-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="t" cx="60" cy="60" r="50"/><circle class="f" id="kc-arc" cx="60" cy="60" r="50"/></svg><span class="kc-ic"><span><svg viewBox="0 0 24 24" fill="#111114"><path d="M12 2c1 3.5-1.5 5-1.5 7.5A2.5 2.5 0 0 0 13 12c1.6 0 2.5-1.3 2.3-3C18 10.6 19 13 19 15a7 7 0 0 1-14 0c0-4.2 3.6-6.2 4.6-9.6C10.3 4 11 3 12 2z"/></svg></span></span></div>
+      </a>
+      <div class="kc-macros">
+        <a class="kc-m" href="nutrition.html" style="--c:#E5484D">
+          <div class="kc-mn"><b id="kc-protein">0</b><span id="kc-protein-goal">/0g</span></div>
+          <div class="kc-ml">Protein eaten</div>
+          <div class="kc-mr"><svg viewBox="0 0 60 60" aria-hidden="true"><circle class="t" cx="30" cy="30" r="24"/><circle class="f" id="kc-protein-arc" cx="30" cy="30" r="24"/></svg><span class="kc-mi"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 3a5.5 5.5 0 0 1 3.9 9.4l-3.2 3.2a3 3 0 0 1-3.2.7l-1.8 1.8a2 2 0 1 1-2.8 2.8 2 2 0 1 1-2.8-2.8 2 2 0 1 1 2.8-2.8l1.8-1.8a3 3 0 0 1 .7-3.2l3.2-3.2A5.5 5.5 0 0 1 15.5 3z"/></svg></span></div>
+        </a>
+        <a class="kc-m" href="nutrition.html" style="--c:#E0954A">
+          <div class="kc-mn"><b id="kc-carbs">0</b><span id="kc-carbs-goal">/0g</span></div>
+          <div class="kc-ml">Carbs eaten</div>
+          <div class="kc-mr"><svg viewBox="0 0 60 60" aria-hidden="true"><circle class="t" cx="30" cy="30" r="24"/><circle class="f" id="kc-carbs-arc" cx="30" cy="30" r="24"/></svg><span class="kc-mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V9M12 9c0-3 2-5 5-5 0 3-2 5-5 5zM12 9c0-3-2-5-5-5 0 3 2 5 5 5zM12 15c0-3 2-5 5-5 0 3-2 5-5 5zM12 15c0-3-2-5-5-5 0 3 2 5 5 5z"/></svg></span></div>
+        </a>
+        <a class="kc-m" href="nutrition.html" style="--c:#5B8DEF">
+          <div class="kc-mn"><b id="kc-fat">0</b><span id="kc-fat-goal">/0g</span></div>
+          <div class="kc-ml">Fat eaten</div>
+          <div class="kc-mr"><svg viewBox="0 0 60 60" aria-hidden="true"><circle class="t" cx="30" cy="30" r="24"/><circle class="f" id="kc-fat-arc" cx="30" cy="30" r="24"/></svg><span class="kc-mi"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.7c3.4 4 6 7.2 6 10.8a6 6 0 0 1-12 0c0-3.6 2.6-6.8 6-10.8z"/></svg></span></div>
+        </a>
+      </div>
+    </section>
 
     <!-- REP COUNTER (prototype) -->
     <a class="repc" id="rep-counter-card" href="curl-lab.html">
@@ -1638,6 +1689,10 @@ function syncNutritionWidget(){
   bar('dash-c-bar', c, goalC);
   bar('dash-f-bar', fat, goalF);
   bar('dash-w-bar', water, goalW);
+  // Cal AI-style calorie + macro rings
+  const ring = (id, val, goal) => { const el = document.getElementById(id); if (!el) return; const C = 2 * Math.PI * el.r.baseVal.value; el.style.strokeDasharray = C; el.style.strokeDashoffset = C * (1 - Math.min(1, goal ? val / goal : 0)); };
+  txt('kc-eaten', Math.round(kcal).toLocaleString()); txt('kc-goal', '/' + goalK.toLocaleString()); ring('kc-arc', kcal, goalK);
+  [['protein', p, goalP], ['carbs', c, goalC], ['fat', fat, goalF]].forEach(([k, v, g]) => { txt('kc-' + k, Math.round(v)); txt('kc-' + k + '-goal', '/' + g + 'g'); ring('kc-' + k + '-arc', v, g); });
 }
 
 // ── DYNAMIC MUSCLE COLOUR UPDATE ──
@@ -2374,7 +2429,8 @@ const CI = (() => {
     setReadyVisual(parseInt((document.getElementById('ready-num') || {}).textContent, 10) || 0);
 
     // Brand-new user → one-time onboarding (any time of day).
-    if (!localStorage.getItem('jarvis_sleep_schedule')) {
+    // Energy Intelligence was removed (2026-10): no sleep-schedule onboarding.
+    if (false) {
       const ov = document.getElementById('ci-overlay');
       ov.classList.remove('ci-gone');
       document.body.style.overflow = 'hidden';
