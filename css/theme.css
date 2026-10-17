@@ -94,3 +94,10 @@ body { background: linear-gradient(180deg, #EFEFF2 0, #F7F7F9 280px, #F8F8FA 100
 
 /* Heat maps: keep green = trained (meaning colour). */
 .cons, .heat { --h1:#D7F0DF; --h2:#9FDDB4; --h3:#4CC27A; --h4:#22A355; }
+
+/* Collapsible dashboard cards: the title pushes the summary, link and chevron
+ * to the right in both states (the summary is hidden when a card is open). */
+.sec-hd .cl { margin-right: auto !important; }
+.sec-hd .sec-sum { margin-left: 0; }
+/* Recovery legend: tighter spacing so it sits on as few lines as possible. */
+.mm-leg { gap: 8px 12px; }
