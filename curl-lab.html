@@ -357,6 +357,17 @@ const EXERCISES = {
     fmt: (v) => `${Math.round(v - 100)}`,
     note: 'Bar height above your shoulders, relative to your build.',
     demo: { plan: [[205, 118], [205, 120], [205, 117], [205, 150], [205, 118], [175, 118], [205, 119]] } },
+  row: { row: true, title: 'T-bar row', name: 'T-bar row · hands', part: 'hands', measure: 'hand drop below the shoulders', start: 'hang', finish: 'top',
+    setup: 'Side-on, phone at hip height, 2–3 m away',
+    intro: 'Tracked at your <b>hands</b> only. Your <b>first rep sets the standard</b>: how long your arms hang and how high you pull. Every rep after must reach both to count. Speed is live in the top-right corner.',
+    rep1: 'Rep 1 sets the standard — arms long, pull to your chest, lower',
+    finding: 'Get set side-on — finding your hands',
+    still: 'Hold still with your arms long — then row',
+    show: 'Show your hands and shoulders',
+    lost: 'Can’t see your hands clearly',
+    fmt: (v) => `${Math.round(v)}%`,
+    note: 'Hand drop below your shoulders, as a % of your arm length.',
+    demo: { plan: [[95, 35], [94, 36], [95, 35], [95, 56], [93, 35], [74, 35], [95, 36]] } },
   press: { press: true, title: 'Chest press', name: 'Chest press · machine', part: 'arm', measure: 'elbow angle', start: 'hands back', finish: 'lockout',
     joints: { left: [11, 13, 15], right: [12, 14, 16] },
     setup: 'Side-on, phone at chest height, 2–3 m away',
@@ -393,7 +404,7 @@ const EX = EXERCISES[EXK];
 const ARMS = EX.joints;
 const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
 // How still you must hold before rep 1 (setting up must never count as a rep).
-const STILL_BANDS = { curl: [8], squat: [4], bench: [6], press: [8], pullup: [5, 0.06, 0.06] };
+const STILL_BANDS = { curl: [8], squat: [4], bench: [6], press: [8], row: [6], pullup: [5, 0.06, 0.06] };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // What to fix when the tracker can't lock on (squat and bench).
@@ -466,6 +477,14 @@ const GUIDES = {
     ],
     note: '<b>Height:</b> lens about 1–1.2 m high (around your waist when you stand), tilted down towards your chest. Any lower and your knees hide it. <b>Frame:</b> landscape, with the bar at lockout near the top of the picture. Prop the phone up rather than holding it.',
   },
+};
+GUIDES.row = {
+  svg: GUIDES.curl.svg,
+  items: [
+    ['best', 1, 'Side-on to you', '2–3 m away, lens at hip height. Both hands and your shoulders in frame for the whole set.'],
+    ['avoid', 2, 'In front or behind', 'Your hands move towards or away from the lens, so their height and speed can’t be read.'],
+  ],
+  note: 'Prop the phone up rather than holding it. Add your height for speed in m/s.',
 };
 GUIDES.press = {
   svg: GUIDES.curl.svg,
@@ -543,7 +562,7 @@ let heightCm = readNum(HEIGHT_KEY), kg = readNum(KG_KEY);
 const loadHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
 let armLens = [];
 function mpu() {
-  if (EX.press) {
+  if (EX.press || EX.row) {
     // Straight-arm length in pixels (90th percentile: the arm is straight at every lockout) ↔ shoulder→wrist length from your height.
     if (!heightCm || armLens.length < 10) return NaN;
     const s = armLens.slice().sort((x, y) => x - y);
@@ -620,7 +639,7 @@ function renderPanel(verdict) {
   const timed = list.filter((x) => Number.isFinite(x.mv) && x.r.result !== 'unclear');
   const best = timed.length ? Math.max(...timed.slice(0, 3).map((x) => x.mv)) : NaN;
   const last = timed[timed.length - 1];
-  const what = EX.press ? 'Hand speed' : 'Bar speed';
+  const what = EX.press || EX.row ? 'Hand speed' : 'Bar speed';
   $('vp-k').textContent = last ? `${what} · rep ${last.r.n}` : what;
   if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
   else {
@@ -727,7 +746,7 @@ function resetSet() {
   if (tracker) tracker.reset();
   if (pu) pu.reset();
   gate.reset(); armed = false;
-  barTrace = []; pendingVel = null; armLens = []; liveHist = [];
+  barTrace = []; pendingVel = null; armLens = []; liveHist = []; rowRef = null; rowCal = [];
   euro.reset(); trace = []; side = armMode === 'auto' ? null : armMode;
   visSum = { left: 0, right: 0 }; steadySince = null; lostSince = null; center = null; current = NaN;
   $('chips').innerHTML = ''; updateCounts(); $('legend').hidden = true;
@@ -826,6 +845,7 @@ function frame(poses, t, vw, vh) {
   const p = poses[idx];
   center = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
   if (EX.pullup) { pullupFrame(p, t, vw, vh); return; }
+  if (EX.row) { rowFrame(p, t, vw, vh); return; }
   if (EX.height) { heightFrame(p, t, vw, vh); return; }
 
   // Work out which arm faces the camera (the one it sees best).
@@ -865,6 +885,55 @@ function frame(poses, t, vw, vh) {
 
 // Squat and bench: hold still to lock your body size and the floor or bench
 // line, then follow hip or bar height against it.
+// T-bar row: the hands only. Hand height is measured against where the
+// shoulders were while you held still before rep 1 (locked, so the Start /
+// Finish lines stay put), in % of your arm length: about 95% hanging, lower
+// as you pull. Speed comes from the raw hand positions, frame by frame.
+let rowRef = null, rowCal = [];
+function rowHands(p, vw, vh) {
+  const seen = (i) => (p[i].visibility ?? 0) >= MIN_VIS;
+  const mid = (a, b) => { const v = [a, b].filter(seen); return v.length ? { x: v.reduce((s, i) => s + p[i].x * vw, 0) / v.length, y: v.reduce((s, i) => s + p[i].y * vh, 0) / v.length } : null; };
+  const W = mid(15, 16), S = mid(11, 12);
+  const arms = [[11, 15], [12, 16]].filter(([a, b]) => seen(a) && seen(b)).map(([a, b]) => Math.hypot((p[a].x - p[b].x) * vw, (p[a].y - p[b].y) * vh));
+  return { W, S, arm: arms.length ? Math.max(...arms) : NaN };
+}
+function rowFrame(p, t, vw, vh) {
+  const h = rowHands(p, vw, vh);
+  if (Number.isFinite(h.arm)) { armLens.push(h.arm); if (armLens.length > 3000) armLens.shift(); }
+  if (phase === 'finding') {
+    const ok = h.W && h.S && Number.isFinite(h.arm);
+    if (ok) {
+      rowCal.push({ s: h.S.y, arm: h.arm });
+      steadySince = steadySince ?? t;
+      const held = t - steadySince;
+      setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
+      if (held >= CALIB_SECS) {
+        const med = (xs) => xs.slice().sort((x, y) => x - y)[xs.length >> 1];
+        rowRef = { y: med(rowCal.map((c) => c.s)), arm: med(rowCal.map((c) => c.arm)) };
+        settle();
+      }
+    } else { steadySince = null; rowCal = []; setStatus(EX.show); }
+    draw({ p, ok }, vw, vh);
+    return;
+  }
+  const ok = !!h.W;
+  const a = ok ? euro.filter(((h.W.y - rowRef.y) / rowRef.arm) * 100, t) : NaN;
+  current = a;
+  if (phase === 'settle') {
+    if (gate.push(t, [a])) arm(EX.rep1);
+    else setStatus(ok ? EX.still : EX.lost, ok ? 'good' : 'warn');
+    updateMeter(); draw({ p, ok, a }, vw, vh);
+    return;
+  }
+  trace.push({ t, a });
+  pushBar(t, ok ? -h.W.y : NaN); // up = lifting, in pixels
+  const ev = counter.push(t, a, ok);
+  if (ev) onEvent(ev);
+  if (!ok && phase === 'live') setStatus(EX.lost, 'warn');
+  updateMeter();
+  draw({ p, ok, a }, vw, vh);
+}
+
 function heightFrame(p, t, vw, vh) {
   if (phase === 'finding') {
     const c = tracker.calibrate(p, vw, vh);
@@ -968,6 +1037,7 @@ function updateMeter() {
   if (st && Number.isFinite(current)) pct = (st.start - current) / (st.start - st.finish);
   else if (Number.isFinite(current)) {
     if (EX.pullup) pct = (110 - current) / 130;
+    else if (EX.row) pct = (95 - current) / 60;
     else if (!EX.height) pct = (175 - current) / 135;
     else { const top = tracker.calValue, low = EX.height === 'squat' ? 50 : 100; pct = Number.isFinite(top) && top > low ? (top - current) / (top - low) : 0; }
   }
@@ -1006,6 +1076,7 @@ function draw(d, vw, vh) {
 
   ctx.lineCap = 'round';
   if (EX.pullup) { drawPullup(d, lm, sc, oy, cw, dpr); return; }
+  if (EX.row) { drawRow(d, lm, sc, oy, cw, dpr); return; }
   // faint body
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2 * dpr;
   for (const [a, b] of BODY) {
@@ -1075,6 +1146,29 @@ function drawHeight(d, m, lm, sc, oy, cw, dpr) {
 // horizontal lines anchored to the bar line, not the body, so they don't
 // move while you do; then both arms and the nose, with any joint the
 // camera isn't sure of in amber. Minimal hides the arms during the set.
+// T-bar row: the hands only (wrist, thumb, index, little finger) and, after
+// rep 1, the Hang and Top lines at rep 1's heights.
+function drawRow(d, lm, sc, oy, cw, dpr) {
+  const st = counter && counter.standard;
+  if (st && rowRef) {
+    const line = (v, color, label) => {
+      const y = (rowRef.y + (v * rowRef.arm) / 100) * sc + oy;
+      ctx.strokeStyle = color; ctx.lineWidth = 3 * dpr; ctx.setLineDash([10 * dpr, 8 * dpr]);
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = `700 ${12 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = color; ctx.fillText(label, 12 * dpr, y - 8 * dpr);
+    };
+    line(st.start, '#FFFFFF', 'Hang'); line(st.finish, '#58DB3D', 'Top');
+  }
+  const seen = (i) => (d.p[i].visibility ?? 0) >= 0.5;
+  const col = d.ok ? '#58DB3D' : '#E8A33A';
+  for (const [w, pinky, index, thumb] of [[15, 17, 19, 21], [16, 18, 20, 22]]) {
+    if (!seen(w)) continue;
+    const W = lm(w);
+    ctx.strokeStyle = col; ctx.lineWidth = 4 * dpr; ctx.lineCap = 'round';
+    for (const f of [pinky, index, thumb]) { if (!seen(f)) continue; const F = lm(f); ctx.beginPath(); ctx.moveTo(W.x, W.y); ctx.lineTo(F.x, F.y); ctx.stroke(); }
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(W.x, W.y, 8 * dpr, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 3 * dpr; ctx.stroke();
+  }
+}
 function drawPullup(d, lm, sc, oy, cw, dpr) {
   const st = counter && counter.standard;
   if (st && pu.locked) {
@@ -1406,7 +1500,11 @@ document.querySelector('.ttl').firstChild.textContent = (EX.short || EX.title) +
 $('pre-h').textContent = EX.name;
 $('intro').innerHTML = EX.intro;
 // Squat and bench use both sides of the body, so there's no arm or leg to pick.
-$('arm-btn').hidden = !!EX.height || !!EX.pullup;
+$('arm-btn').hidden = !!EX.height || !!EX.pullup || !!EX.row;
+if (EX.row) {
+  const [a, b] = document.querySelectorAll('#legend span'); a.lastChild.textContent = 'Hang'; b.lastChild.textContent = 'Top';
+  const [m1, m2] = document.querySelectorAll('.meter-l span'); m1.textContent = 'Hang'; m2.textContent = 'Top';
+}
 if (EX.pullup) {
   // Front-on, both arms averaged; rear camera, full screen, sound cues.
   $('stage').classList.add('pu');
@@ -1444,7 +1542,7 @@ function startDemo() {
   let i = 0;
   const tick = () => {
     if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
-    frame([EX.height ? demoBody(frames[i], vw, vh) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
+    frame([EX.row ? demoRow(frames[i], vw, vh) : EX.height ? demoBody(frames[i], vw, vh) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
     setTimeout(tick, 1000 / fps);
   };
   tick();
@@ -1495,6 +1593,14 @@ function demoPull({ v, hand, hipX, torso }, vw, vh) {
   const p = blank();
   Object.assign(p, { 0: at(360, nose), 11: at(S[0].x, S[0].y), 12: at(S[1].x, S[1].y), 13: at(E[0].x, E[0].y), 14: at(E[1].x, E[1].y),
     15: at(W[0].x, W[0].y), 16: at(W[1].x, W[1].y), 23: at(330 + hipX * 300, hipY), 24: at(390 + hipX * 300, hipY) });
+  return p;
+}
+// T-bar row from the side: shoulders still, hands `v` % of an arm below them.
+function demoRow(v, vw, vh) {
+  const p = blank(), at = (x, y) => ({ x, y, visibility: 0.95 }), sh = 0.4, arm = 0.3, wy = sh + (v / 100) * arm, el = (sh + wy) / 2;
+  Object.assign(p, { 11: at(0.42, sh), 12: at(0.44, sh), 13: at(0.36, el), 14: at(0.38, el), 15: at(0.42, wy), 16: at(0.44, wy),
+    17: at(0.44, wy + 0.03), 18: at(0.46, wy + 0.03), 19: at(0.43, wy + 0.035), 20: at(0.45, wy + 0.035), 21: at(0.4, wy + 0.025), 22: at(0.42, wy + 0.025),
+    23: at(0.62, 0.45), 24: at(0.64, 0.45), 25: at(0.6, 0.65), 26: at(0.62, 0.65), 27: at(0.62, 0.85), 28: at(0.64, 0.85) });
   return p;
 }
 const blank = () => Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.6, visibility: 0.1 }));
