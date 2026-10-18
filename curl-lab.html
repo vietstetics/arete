@@ -342,6 +342,16 @@ const EXERCISES = {
     show: 'Show the whole arm — shoulder, elbow and wrist',
     fmt: (v) => `${Math.round(180 - v)}°`, // the signal is 180° − elbow angle (falls as you press); shown as the elbow angle
     demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[112, 14], [111, 15], [112, 15], [112, 40], [110, 15], [85, 14], [112, 16]] } },
+  tbar: { title: 'T-bar row standard', short: 'T-bar rows', name: 'T-bar row · range standard', part: 'arm', measure: 'elbow angle', start: 'arms long', finish: 'chest',
+    joints: { left: [11, 13, 15], right: [12, 14, 16] },
+    setup: 'Side-on, phone at hip height, 2–3 m away',
+    intro: 'Your <b>first rep sets the standard</b>: how long your arms get at the bottom and how far you row the handle in. Every rep after must reach both to count. Slowing down is fine.',
+    rep1: 'Rep 1 sets the standard — arms long, row to your chest, lower',
+    finding: 'Get set side-on — finding you',
+    still: 'Hold still at the bottom — then row',
+    show: 'Show the whole arm — shoulder, elbow and wrist',
+    fmt: (v) => `${Math.round(v)}°`,
+    demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[165, 75], [164, 76], [165, 74], [165, 105], [163, 76], [135, 75], [165, 77]] } },
   pullup: { pullup: true, speed: false, facing: 'environment', title: 'Pull-up standard', short: 'Pull-ups', name: 'Pull-up · strict standard', part: 'arms', measure: 'nose height', start: 'hang', finish: 'top',
     setup: 'Rear camera, portrait, 2–3 m in front of the bar',
     intro: 'Your <b>first rep sets the standard</b>, whatever it is: how low you hang, how high your nose gets and how much you swing. Every rep after must match all three to count. Slowing down is fine.',
@@ -439,6 +449,14 @@ GUIDES.press = {
     ['avoid', 2, 'In front or behind', 'Your hand moves towards or away from the lens, so its speed can’t be read.'],
   ],
   note: 'Keep shoulder, elbow and wrist in frame the whole set. Add your height for speed in m/s.',
+};
+GUIDES.tbar = {
+  svg: GUIDES.curl.svg,
+  items: [
+    ['best', 1, 'Side-on to the arm nearest the phone', '2–3 m away, lens at hip height. That arm is the one tracked.'],
+    ['avoid', 2, 'In front or behind', 'Your elbow bend can’t be read, and the plates hide your arms.'],
+  ],
+  note: 'Keep shoulder, elbow and wrist in frame the whole set, from arms long to the handle at your chest.',
 };
 GUIDES.pullup = {
   svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone straight in front of the bar, or up to 30 degrees to one side">
@@ -1321,6 +1339,7 @@ const setKg = (v) => { kg = v > 0 ? v : null; writeNum(KG_KEY, kg); $('kg-in').v
 $('kg-in').oninput = (e) => { kg = parseFloat(e.target.value) > 0 ? parseFloat(e.target.value) : null; writeNum(KG_KEY, kg); };
 $('kg-next').oninput = (e) => setKg(parseFloat(e.target.value));
 if (EXK === 'curl') $('kg-label').textContent = 'Dumbbell (kg)';
+if (EXK === 'tbar') $('kg-label').textContent = 'Plates loaded (kg)';
 if (EXK === 'press') $('kg-label').textContent = 'Weight on the stack (kg)';
 $('arm-btn').onclick = () => {
   armMode = armMode === 'auto' ? 'left' : armMode === 'left' ? 'right' : 'auto';
