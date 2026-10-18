@@ -161,7 +161,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .cv-tr span{display:block;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.6)}
 .cv-tr b{font-size:22px;font-weight:700}
 .cv-tr em{display:block;font-style:normal;font-size:10.5px;color:#F0B36B}
-.cv-note{position:absolute;left:10px;right:10px;bottom:14px;background:#fff;color:#111114;font-size:12.5px;line-height:1.4;padding:7px 10px;border-radius:8px;border-left:3px solid #111114;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.cv-note{position:absolute;left:10px;right:80px;bottom:14px;background:#fff;color:#111114;font-size:12.5px;line-height:1.4;padding:7px 10px;border-radius:8px;border-left:3px solid #111114;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 .cv-note small{display:block;color:#6B6B73;font-size:10.5px;margin-bottom:1px}
 .cv-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.2)}
 .cv-prog i{display:block;height:100%;background:#fff;width:0}
@@ -175,9 +175,15 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .cv-ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8A8A93}
 .cv-ch span{letter-spacing:0;text-transform:none;font-weight:500}
 .cv-chart svg{flex:1;min-height:0;width:100%;display:block;margin-top:2px;cursor:pointer}
-.cv-acts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #E6E6EA}
-.cv-act{white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border:1px solid #DCDCE1;border-radius:8px;background:#fff;color:#111114;font-size:12.5px;font-weight:600}
-.cv-act.on{background:#111114;color:#fff;border-color:#111114}
+.cv-acts{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px}
+.cv-act{width:60px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:8px;background:rgba(17,17,20,.74);color:#fff;font-size:10px;font-weight:600;line-height:1.15;text-align:center;border:1px solid rgba(255,255,255,.12)}
+.cv-act.on{background:#fff;color:#111114;border-color:#fff}
+.cv-act.flag.on{background:#C0392B;color:#fff;border-color:#C0392B}
+.cv-exp{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:#111114;border:1px solid #E6E6EA;background:#fff}
+.cv-status.flag{color:#A93226;border-color:#F0C4BF;background:#FCF1F0}
+.cv-flags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.cv-flags button{padding:8px 11px;border:1px solid #DCDCE1;border-radius:8px;font-size:13px;font-weight:600;background:#fff}
+.cv-flags button.on{background:#C0392B;border-color:#C0392B;color:#fff}
 .cv-sheet{position:absolute;left:0;right:0;bottom:0;z-index:2;background:#fff;border-top:1px solid #E6E6EA;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 24px rgba(0,0,0,.12)}
 .cv-sheet b{font-size:13px;font-weight:650}
 .cv-sheet textarea{width:100%;margin:8px 0;min-height:72px;border:1px solid #DCDCE1;border-radius:8px;padding:8px 10px;font:inherit;font-size:14px;resize:vertical}
@@ -277,28 +283,34 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
     <button class="cv-close" id="cv-close" aria-label="Close set review"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <div class="cv-ttl"><b id="cv-title">Set review</b><span id="cv-sub"></span></div>
     <span class="cv-status" id="cv-status">Not reviewed</span>
+    <button class="cv-exp" id="cv-share" aria-label="Export video"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
   </div>
   <div class="cv-stage" id="cv-stage">
     <video id="cv-video" playsinline muted loop></video>
     <div class="cv-ph" id="cv-ph" hidden></div>
     <div class="cv-tr"><span>Reps</span><b id="cv-n">0</b><em id="cv-short"></em></div>
     <div class="cv-note" id="cv-note" hidden></div>
+    <div class="cv-acts">
+      <button class="cv-act" id="cv-comment"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg><span id="cv-ccount">Comment</span></button>
+      <button class="cv-act" id="cv-reviewed"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Review</span></button>
+      <button class="cv-act flag" id="cv-flag"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg><span id="cv-flag-l">Flag</span></button>
+    </div>
     <div class="cv-prog"><i id="cv-prog"></i></div>
   </div>
   <div class="cv-tl" id="cv-tl"></div>
   <div class="cv-chart">
     <div class="cv-ch">Mean velocity per rep <span id="cv-loss"></span></div>
     <svg id="cv-svg" viewBox="0 0 320 150" role="img" aria-label="Velocity per rep, synced to the video"></svg>
+    <div class="cv-sheet" id="cv-fsheet" hidden>
+      <b>Flag this set</b>
+      <div class="cv-flags" id="cv-flags"><button data-f="Depth">Depth</button><button data-f="Lockout">Lockout</button><button data-f="Bar path">Bar path</button><button data-f="Tempo">Tempo</button><button data-f="RPE mismatch">RPE mismatch</button><button data-f="Technique">Technique</button></div>
+      <div class="row2"><button id="cv-fclear" style="background:#F1F1F3">Clear flags</button><button id="cv-fdone" style="background:#111114;color:#fff">Done</button></div>
+    </div>
     <div class="cv-sheet" id="cv-sheet" hidden>
       <b id="cv-sheet-t">Add comment</b>
       <textarea id="cv-text" placeholder="e.g. Depth consistent. Bar drifts forward on rep 4."></textarea>
       <div class="row2"><button id="cv-cancel" style="background:#F1F1F3">Cancel</button><button id="cv-save" style="background:#111114;color:#fff">Save comment</button></div>
     </div>
-  </div>
-  <div class="cv-acts">
-    <button class="cv-act" id="cv-comment"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg><span id="cv-ccount">Add comment</span></button>
-    <button class="cv-act" id="cv-reviewed"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Mark reviewed</span></button>
-    <button class="cv-act" id="cv-share"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg><span>Export</span></button>
   </div>
 </div>
 
@@ -1224,9 +1236,9 @@ function openCoach(tries = 0) {
     + m('RPE', Number.isFinite(rpe) ? rpe : '—') + m('Vel. loss', loss != null ? `${loss}%` : '—');
   $('cv-status').textContent = 'Not reviewed'; $('cv-status').classList.remove('on');
   $('cv-loss').textContent = speeds.length ? (Number.isFinite(mpu()) ? 'm/s' : 'relative to rep 1') : 'no speed data';
-  $('cv-reviewed').classList.remove('on'); $('cv-reviewed').lastElementChild.textContent = 'Mark reviewed';
-  $('cv-ccount').textContent = 'Add comment';
-  $('cv-note').hidden = true; $('cv-sheet').hidden = true;
+  $('cv-reviewed').classList.remove('on'); $('cv-reviewed').lastElementChild.textContent = 'Review'; cvFlags(new Set());
+  $('cv-ccount').textContent = 'Comment';
+  $('cv-note').hidden = true; $('cv-sheet').hidden = true; $('cv-fsheet').hidden = true;
   const hasVideo = !!recURL;
   cvv.hidden = !hasVideo; $('cv-ph').hidden = hasVideo;
   if (hasVideo) {
@@ -1322,10 +1334,10 @@ $('cv-save').onclick = () => {
   const text = $('cv-text').value.trim();
   if (!text) { $('cv-text').focus(); return; }
   cv.comments.push({ t: cvTime(), text });
-  $('cv-ccount').textContent = `${cv.comments.length} comment${cv.comments.length === 1 ? '' : 's'}`;
+  $('cv-ccount').textContent = `${cv.comments.length} note${cv.comments.length === 1 ? '' : 's'}`;
   $('cv-sheet').hidden = true; if (!cvv.hidden) cvv.play().catch(() => {});
 };
-$('cv-reviewed').onclick = () => { cv.reviewed = !cv.reviewed; $('cv-reviewed').classList.toggle('on', cv.reviewed); $('cv-status').classList.toggle('on', cv.reviewed); $('cv-status').textContent = cv.reviewed ? 'Reviewed' : 'Not reviewed'; $('cv-reviewed').lastElementChild.textContent = cv.reviewed ? 'Reviewed' : 'Mark reviewed'; };
+$('cv-reviewed').onclick = () => { cv.reviewed = !cv.reviewed; $('cv-reviewed').classList.toggle('on', cv.reviewed); cvFlags(cv.flags || new Set()); $('cv-reviewed').lastElementChild.textContent = cv.reviewed ? 'Reviewed' : 'Review'; };
 $('cv-share').onclick = async () => {
   if (!recBlob) { setStatus(source === 'file' ? 'This video is already on your device' : 'No recorded video to share', 'warn'); return; }
   const ext = recBlob.type.includes('mp4') ? 'mp4' : 'webm';
@@ -1333,6 +1345,23 @@ $('cv-share').onclick = async () => {
   try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Arete set' }); return; } } catch {}
   const a = document.createElement('a'); a.href = recURL; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
 };
+function cvFlags(set) {
+  if (cv) cv.flags = set;
+  const n = set.size;
+  $('cv-flag').classList.toggle('on', n > 0);
+  $('cv-flag-l').textContent = n ? (n === 1 ? [...set][0] : `${n} flags`) : 'Flag';
+  document.querySelectorAll('#cv-flags button').forEach((b) => b.classList.toggle('on', set.has(b.dataset.f)));
+  const st = $('cv-status');
+  if (n) { st.textContent = 'Flagged'; st.className = 'cv-status flag'; }
+  else { st.textContent = cv && cv.reviewed ? 'Reviewed' : 'Not reviewed'; st.className = 'cv-status' + (cv && cv.reviewed ? ' on' : ''); }
+}
+$('cv-flag').onclick = () => { $('cv-sheet').hidden = true; $('cv-fsheet').hidden = false; };
+$('cv-flags').onclick = (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const set = new Set(cv.flags || []); set.has(b.dataset.f) ? set.delete(b.dataset.f) : set.add(b.dataset.f); cvFlags(set);
+};
+$('cv-fclear').onclick = () => cvFlags(new Set());
+$('cv-fdone').onclick = () => { $('cv-fsheet').hidden = true; };
 $('coach-btn').onclick = () => openCoach();
 
 // ── Controls ─────────────────────────────────────────────
