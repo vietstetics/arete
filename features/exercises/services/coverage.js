@@ -9,9 +9,14 @@ import { actionId } from './catalogue.js';
 function contributed(selections, cat) {
   const out = new Map(); // `${target}|${action}` → { target, action, keys: Set }
   const actionless = new Set(); // targets with a contribution missing its action
+  const unresolved = new Map(); // target → names of selections whose record can't confirm the region
   for (const sel of selections) {
     const rec = sel.catalogId ? cat.get(sel.catalogId) : null;
-    if (!rec) continue;
+    if (!rec || rec.unrecorded) continue;
+    for (const c of rec.candidates || []) {
+      if (!unresolved.has(c.target)) unresolved.set(c.target, []);
+      if (!unresolved.get(c.target).includes(sel.name)) unresolved.get(c.target).push(sel.name);
+    }
     for (const c of rec.contributions) {
       if (!c.action) { actionless.add(c.target); continue; }
       const k = `${c.target}|${c.action}`;
@@ -19,7 +24,7 @@ function contributed(selections, cat) {
       out.get(k).keys.add(sel.key);
     }
   }
-  return { pairs: out, actionless };
+  return { pairs: out, actionless, unresolved };
 }
 
 /**
@@ -30,8 +35,8 @@ function contributed(selections, cat) {
  * cover, with no claim that the session is complete or incomplete.
  */
 export function sessionCoverage(selections, cat, planned = []) {
-  const { pairs, actionless } = contributed(selections, cat);
-  const unknownSelections = selections.filter((s) => !(s.catalogId && cat.get(s.catalogId)));
+  const { pairs, actionless, unresolved } = contributed(selections, cat);
+  const unknownSelections = selections.filter((s) => { const r = s.catalogId && cat.get(s.catalogId); return !r || r.unrecorded; });
   const observed = [...pairs.values()]
     .map((p) => ({ target: cat.entryById.get(p.target), action: p.action, actionLabel: cat.actionLabel(p.action), keys: [...p.keys] }))
     .sort((a, b) => a.target.order - b.target.order);
@@ -43,8 +48,10 @@ export function sessionCoverage(selections, cat, planned = []) {
     if (!entry) continue;
     const hit = pairs.get(`${id}|${actionId(entry.muscleAction)}`);
     if (hit) covered.push({ target: entry, keys: [...hit.keys] });
-    else if (unknownSelections.length || actionless.has(id)) {
-      undetermined.push({ target: entry, reason: actionless.has(id) ? 'a selection lists this region without its action' : `${unknownSelections.length} selection${unknownSelections.length === 1 ? ' is' : 's are'} not in the catalogue` });
+    else if (unresolved.has(id)) {
+      undetermined.push({ target: entry, reason: `region not recorded for ${unresolved.get(id).join(', ')}` });
+    } else if (unknownSelections.length || actionless.has(id)) {
+      undetermined.push({ target: entry, reason: actionless.has(id) ? 'a selection lists this region without its action' : `${unknownSelections.length} selection${unknownSelections.length === 1 ? ' has' : 's have'} no recorded muscle action` });
     } else missing.push({ target: entry });
   }
   return { planned: true, covered, missing, undetermined, observed };

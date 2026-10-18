@@ -10,7 +10,8 @@ mean sets are wasted or that growth is reduced.
 
 | File | Role |
 |---|---|
-| `data/catalogue.js` | `EXERCISES` and `EQUIVALENCES`. **Empty** until real records are supplied. |
+| `data/catalogue.js` | `EXERCISES` (non-machine records) and `EQUIVALENCES`. Both still **empty**. |
+| `index.js` | Builds the live catalogue: one record per machine mode from `features/machines`, plus `EXERCISES`. |
 | `services/catalogue.js` | Action catalogue, per-target comparison spec, record validation, lookup. |
 | `services/overlap.js` | Comparison, grouping and scoring within one session. |
 | `services/coverage.js` | Session coverage against intended targets; weekly planned coverage. |
@@ -20,6 +21,13 @@ mean sets are wasted or that growth is reduced.
 The foundation is `features/muscles`, which is generated from
 `Muscle_Actions_Updated_Profiles.csv`. This module reads it and never
 modifies it.
+
+**Records come from the machine database** (`features/machines`). That gives
+1,039 records: one per machine mode, plus one "unrecorded" record for each
+station, and for each use a machine's recorded action doesn't cover. Each
+record's contributions are its **confirmed targets** only. Regions the
+machine's action can't confirm travel as `candidates` and are never scored.
+See `features/machines/README.md`.
 
 ## Data structure
 
@@ -33,10 +41,13 @@ modifies it.
   contributions: [{
     target:  '<muscle-action entry id>',   // e.g. 'gluteus-maximus-lower'
     action:  '<action id>',                // e.g. 'hip-extension'
-    profile: 'ASCENDING' | 'DESCENDING' | 'MID-RANGE' | 'N/A' | 'Not specified',
+    profile: 'ASCENDING' | 'DESCENDING' | 'MID-RANGE' | 'BELL-SHAPED' | 'CONSTANT' | 'N/A' | 'Not specified',
+    profileDetail: 'raw wording' | null,  // shown when the profile can't be compared
     rom:     { joint, start, end } | null, // degrees
-    setup:   { attribute: value, … },      // only attributes that discriminate
+    setup:   { attribute: value, … },      // only attributes that discriminate; null = not recorded
   }],
+  candidates: [{ target, atom, label, kind, reason }],  // machine records: regions not confirmed
+  unrecorded: true | undefined,                          // machine records with no usable action
 }
 ```
 
@@ -47,9 +58,16 @@ modifies it.
 - **Equivalences** take the form `{ a, b, target|null, relation: 'same'|'different', note, reviewed: true }`. Only `reviewed: true` entries are used. They override the automatic comparison for that pair. Nothing is merged automatically.
 - Invalid records are excluded and reported in `catalogue.issues`. They are never repaired.
 
-Planner rows in a routine carry an optional `catalogId`. Routines carry
-optional `targets` (intended entry ids). Both are new optional fields. Saved
-plans, history and logged sessions are untouched.
+Planner rows in a routine carry an optional `machine` snapshot and its
+`catalogId` (`machineId` or `machineId#mode`). Routines carry optional
+`targets` (intended entry ids). All are optional fields. Saved plans, history
+and logged sessions written before them still work.
+
+Machine contributions record the machine's own movement as
+`setup.movement`, plus any detail your muscle list uses to separate regions
+of that movement (`hip position`, `knee position`, `foot rotation`, `shoulder
+position`, `grip`, `hip rotation`). Those details are set to `null` because
+the machine rows never state them.
 
 ## Grouping rules
 
@@ -72,8 +90,9 @@ For one session, each target is analysed separately.
      - ranges partly overlap → **possible**
      - recorded for different joints, or for only one → **possible**
      - recorded for neither, while the spec gives an angle range for this target → **possible**
-   - Setup attribute present in both with different values → **different**. Present in only one → **possible**.
+   - Setup attribute present in both with different values → **different**. Present in only one, or `null` (not recorded) in both → **possible**.
    - Equipment and variant names are never compared. Different names neither prove nor rule out overlap.
+   - The **same record** selected twice is **same**, whatever is unrecorded. It is the same machine, used the same way.
 5. **Comparing two selections:**
    - **Same** only if every part of each has a confirmed same partner in the other.
    - If anything is shared or uncertain without a full match → **possible / partial**. This is never counted.
@@ -85,6 +104,13 @@ For one session, each target is analysed separately.
    - N = 0 shows **Insufficient information**, never 0%.
    - N = 1 gives 0%, with a note that this says nothing about completeness.
 8. **Compound exercises** get one verdict per target (`bySelection`). An exercise is never labelled as a whole.
+9. **Unresolved regions.** A record's `candidates` are grouped by action ("Elbow flexion → Elbow flexors") and shown as **region not recorded**. With two or more selections, it reads **possible overlap**. They never enter N or U.
+10. **Not assessed at all.** These are listed with their reason and left out:
+    - selections with no machine;
+    - stations (no recorded action);
+    - uses a machine's action doesn't cover.
+
+    Targets where nothing could be assessed share one "Insufficient information" card.
 
 ### Special profile values
 
@@ -102,7 +128,10 @@ Coverage is separate from overlap.
 
 - A **planned target** is a specification entry: a region together with its action.
   - It is **covered** when a linked selection contributes that target with that action. Any profile counts.
-  - It is **cannot be determined** when it isn't covered but some selection isn't in the catalogue, or a contribution for it lacks its action.
+  - It is **cannot be determined** when it isn't covered and:
+    - a selection lists it as a region not recorded, or
+    - some selection has no machine or no recorded action, or
+    - a contribution for it lacks its action.
   - Otherwise it is **missing**.
 - With no intended targets, the panel shows **observed** coverage only. It makes no complete or incomplete claim.
 - **Weekly planned coverage** is the union of the sessions' targets. It shows which sessions cover each target and how many times a week, based on the plan's first full week. Repeating an exercise on another day is frequency, not overlap. There is no global quality score and no weighting.
@@ -119,4 +148,5 @@ rather than settled:
 5. **A record profile of `N/A` on a profile-relevant target** is treated as a contradiction and not assessed.
 6. **Reviewed equivalences only apply between assessable selections.** A review doesn't fill in missing data.
 7. **Coverage is matched by region + action, using the specification's action for that region.** A contribution to a region with a different action does not cover the planned entry.
-8. **`features/muscles/repositories/exerciseLinks.js`** (muscle → exercise id links) predates this module and is still unused. Contributions on exercise records are now the source of target data. Decide whether to remove that store or derive it from the catalogue once records exist.
+8. **`features/muscles/repositories/exerciseLinks.js`** (muscle → exercise id links) predates this module and is still unused. Machine records are now the source of target data. Decide whether to remove that store or derive it from the machines.
+9. **Unrecorded details as `null`.** When your muscle list separates a movement's regions by a detail the machine rows don't state, two different machines sharing that movement are only a *possible* overlap. Recording seated/lying/standing etc. per machine would let them be confirmed.

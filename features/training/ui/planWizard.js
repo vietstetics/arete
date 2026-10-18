@@ -9,7 +9,9 @@ import {
 import { starterFor } from '../data/starters.js';
 import { commitPlan, endPlan } from '../repositories/planStore.js';
 import { catalogue } from '../../exercises/index.js';
-import { recordSelectHtml, recordDetailHtml, targetsPickerHtml, sessionPanelHtml, planPanelHtml } from '../../exercises/ui/overlapPanel.js';
+import { targetsPickerHtml, sessionPanelHtml, planPanelHtml } from '../../exercises/ui/overlapPanel.js';
+import { machineDb, recordId } from '../../machines/index.js';
+import { chosenHtml } from '../../machines/ui/machineUI.js';
 
 const DRAFT_KEY = 'arete_plan_wizard';
 const STEPS = ['Split', 'Days', 'Workouts', 'Review'];
@@ -135,7 +137,7 @@ function buildPlan() {
       exercises: r.exercises.map((x) => {
         const lo = int(x.repMin, 1, 100, 8), hi = int(x.repMax, 1, 100, lo);
         const rir = x.rir === '' || x.rir == null ? null : Math.min(10, Math.max(0, Number(x.rir)));
-        return { id: x.id, name: x.name, ...(x.catalogId ? { catalogId: x.catalogId } : {}), sets: int(x.sets, 1, 20, 2), repMin: Math.min(lo, hi), repMax: Math.max(lo, hi), rir: Number.isFinite(rir) ? rir : null };
+        return { id: x.id, name: x.name, ...(x.catalogId ? { catalogId: x.catalogId } : {}), ...(x.machine ? { machine: x.machine } : {}), sets: int(x.sets, 1, 20, 2), repMin: Math.min(lo, hi), repMax: Math.max(lo, hi), rir: Number.isFinite(rir) ? rir : null };
       }),
     })),
   };
@@ -323,9 +325,22 @@ function exRow(r, x, i) {
       <label><span>Reps</span><span class="tw-range"><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="xmin" ${k} value="${esc(x.repMin)}" aria-label="Minimum reps"><i>–</i><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="xmax" ${k} value="${esc(x.repMax)}" aria-label="Maximum reps"></span></label>
       <label><span>RIR</span><input class="tw-num" type="number" inputmode="decimal" min="0" max="10" step="0.5" data-field="xrir" ${k} value="${esc(x.rir ?? '')}" placeholder="–"></label>
     </div>
-    ${recordSelectHtml(x, catalogue, k)}
-    ${recordDetailHtml(x, catalogue)}
+    ${machineRowHtml(x, k)}
   </div>`;
+}
+
+// The machine for a planner row: its details when chosen, else a button.
+function machineRowHtml(x, k) {
+  if (x.machine) {
+    return `<div class="tw-mc">${chosenHtml(x.machine, { attrs: `data-act="xmachine" ${k}`, compact: true })}
+      <button class="tw-link" data-act="xmachine-clear" ${k}>Remove machine</button></div>`;
+  }
+  const n = machineDb.exactCount(x.name);
+  return `<button class="tw-mc-add" data-act="xmachine" ${k}>＋ Choose machine${n ? `<span>${n} in the database for this exercise</span>` : ''}</button>`;
+}
+function setMachine(x, sel) {
+  if (sel) { x.machine = sel.snapshot; x.catalogId = recordId(sel.id, sel.mode); }
+  else { delete x.machine; delete x.catalogId; }
 }
 
 function step3() {
@@ -347,7 +362,7 @@ function step3() {
     <div class="tw-lbl tw-lbl-row">Workouts <button class="tw-link" data-act="goto" data-step="2">Edit</button></div>
     ${plan.routines.map((r) => `<div class="tw-rv">
       <div class="tw-rv-h">${esc(r.name)}</div>
-      ${r.exercises.length ? `<ul>${r.exercises.map((x) => `<li><span>${esc(x.name)}</span><span>${x.sets} × ${esc(repText(x))}${x.rir != null ? ` · ${x.rir} RIR` : ''}</span></li>`).join('')}</ul>` : '<p class="tw-p small">No exercises yet</p>'}
+      ${r.exercises.length ? `<ul>${r.exercises.map((x) => `<li><span>${esc(x.name)}${x.machine ? `<small class="tw-rv-mc">${esc([x.machine.brand, x.machine.name, x.machine.model].filter(Boolean).join(' · '))}</small>` : ''}</span><span>${x.sets} × ${esc(repText(x))}${x.rir != null ? ` · ${x.rir} RIR` : ''}</span></li>`).join('')}</ul>` : '<p class="tw-p small">No exercises yet</p>'}
     </div>`).join('')}
     <div class="tw-lbl">Overlap &amp; coverage</div>
     ${planPanelHtml(plan, catalogue, sessionsPerWeek(plan))}
@@ -401,9 +416,20 @@ function onClick(e) {
     case 'rot': st.rotation = el.dataset.v; render(); break;
     case 'ropen': st.open = st.open === id ? '' : id; render(); break;
     case 'xadd':
-      if (opts.pickExercise) opts.pickExercise((name) => { if (!name || !r) return; r.exercises.push(newExercise(name)); saveDraft(); render(); });
+      if (opts.pickExercise) opts.pickExercise((name, sel) => { if (!name || !r) return; const nx = newExercise(name); setMachine(nx, sel); r.exercises.push(nx); saveDraft(); render(); });
       return;
     case 'starter': if (r && !r.exercises.length) { r.exercises = starterFor(r.name).map((s) => newExercise(s.name, s)); } render(); break;
+    case 'xmachine': {
+      const rid = el.dataset.rid, xid = el.dataset.xid;
+      const cur = x && xi >= 0 ? x[xi] : null;
+      if (!cur || !opts.pickMachine) return;
+      opts.pickMachine(cur.name, cur.machine ? { id: cur.machine.id, mode: cur.machine.mode } : null, (sel) => {
+        const target = routine(rid)?.exercises.find((q) => q.id === xid); if (!target) return;
+        setMachine(target, sel); saveDraft(); render();
+      });
+      return;
+    }
+    case 'xmachine-clear': if (xi >= 0) setMachine(x[xi], null); render(); break;
     case 'xup': if (xi > 0) [x[xi - 1], x[xi]] = [x[xi], x[xi - 1]]; render(); break;
     case 'xdown': if (xi >= 0 && xi < x.length - 1) [x[xi + 1], x[xi]] = [x[xi], x[xi + 1]]; render(); break;
     case 'xdup': if (xi >= 0) x.splice(xi + 1, 0, { ...x[xi], id: 'x-' + uid() }); render(); break;
@@ -443,13 +469,7 @@ function onInput(e) {
     if (el.checked) set.add(v); else set.delete(v);
     r.targets = catalogue.entries.map((x) => x.id).filter((id) => set.has(id));
     saveDraft(); render(); return;
-  } else if (f === 'xcat') {
-    if (e.type !== 'change') return;
-    const r = routine(el.dataset.rid); const x = r && r.exercises.find((q) => q.id === el.dataset.xid); if (!x) return;
-    if (v) x.catalogId = v; else delete x.catalogId;
-    saveDraft(); render(); return;
-  }
-  else {
+  } else {
     const r = routine(el.dataset.rid); const x = r && r.exercises.find((q) => q.id === el.dataset.xid); if (!x) return;
     const key = { xsets: 'sets', xmin: 'repMin', xmax: 'repMax', xrir: 'rir' }[f];
     if (key) x[key] = v === '' ? '' : Number(v);
@@ -505,7 +525,8 @@ function onKey(e) { if (e.key === 'Escape' && root && !document.querySelector('.
 // ── Public API ──────────────────────────────────────────────────────────
 /**
  * Open the setup flow. `plan` (optional) edits an existing plan.
- * opts: { pickExercise(cb), onDone({store, plan, ended}), onClose() }
+ * opts: { pickExercise(cb(name, machine)), pickMachine(exercise, current, cb(machine|null)),
+ *         onDone({store, plan, ended}), onClose() }
  */
 export function openPlanWizard(plan, options = {}) {
   opts = options;

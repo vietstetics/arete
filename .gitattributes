@@ -2,3 +2,9 @@
 # generated module), and keep the generated module LF so `--check` is stable.
 features/muscles/data/*.csv -text
 features/muscles/data/muscleActions.js text eol=lf
+
+# Machine database source: byte-for-byte (SHA-256 recorded in the generated
+# module); generated module and review report pinned to LF for `--check`.
+features/machines/data/*.csv -text
+features/machines/data/machines.js text eol=lf
+features/machines/REVIEW.md text eol=lf

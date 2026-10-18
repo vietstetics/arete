@@ -18,7 +18,7 @@ const fmtProfile = (p) => (p === 'MID-RANGE' ? 'mid-range' : String(p).toLowerCa
 
 /** One contribution in canonical form (profile defaults to 'Not specified'). */
 function norm(c) {
-  return { target: c.target, action: c.action || null, profile: c.profile || 'Not specified', rom: c.rom || null, setup: c.setup || {} };
+  return { target: c.target, action: c.action || null, profile: c.profile || 'Not specified', profileDetail: c.profileDetail || null, rom: c.rom || null, setup: c.setup || {} };
 }
 
 /** A stable signature so duplicate tags on one record count once. */
@@ -32,7 +32,7 @@ export function partIssues(p, spec) {
   const out = [];
   if (!p.action) out.push('muscle action not recorded');
   if (spec.profileMatters) {
-    if (p.profile === 'Not specified') out.push('resistance profile not specified');
+    if (p.profile === 'Not specified') out.push(p.profileDetail ? `resistance profile isn't a single curve for this selection (${p.profileDetail})` : 'resistance profile not specified');
     else if (p.profile === 'N/A') out.push('record says the profile is N/A, but the specification treats it as relevant for this target — needs review');
   }
   return out;
@@ -61,6 +61,7 @@ export function compareParts(p, q, spec, label = (x) => x) {
   for (const k of new Set([...Object.keys(p.setup), ...Object.keys(q.setup)])) {
     const a = p.setup[k], b = q.setup[k];
     if (a != null && b != null) { if (a !== b) diff.push(`different ${k} (${a} vs ${b})`); }
+    else if (a == null && b == null) maybe.push(`${k} not recorded for either`);
     else maybe.push(`${k} recorded for only one of them`);
   }
   if (diff.length) return { status: 'different', reasons: diff };
@@ -103,9 +104,11 @@ export function analyseSession(selections, cat) {
   const label = cat.actionLabel;
   const unlinked = [];
   const byTarget = new Map(); // target → [{ sel, rec, parts }]
+  const unresolvedBy = new Map(); // action + kind → { label, kind, reason, regions, selections }
   for (const sel of selections) {
     const rec = sel.catalogId ? cat.get(sel.catalogId) : null;
     if (!rec) { unlinked.push({ key: sel.key, name: sel.name, reason: sel.catalogId ? 'catalogue record not found' : 'not linked to a catalogue record' }); continue; }
+    if (rec.unrecorded) { unlinked.push({ key: sel.key, name: sel.name, reason: rec.unrecordedReason || 'no muscle action recorded' }); continue; }
     const mine = new Map();
     for (const c of rec.contributions) {
       const p = norm(c);
@@ -115,6 +118,17 @@ export function analyseSession(selections, cat) {
     for (const [target, parts] of mine) {
       if (!byTarget.has(target)) byTarget.set(target, []);
       byTarget.get(target).push({ sel, rec, parts });
+    }
+    // Regions the record can't confirm (the specification needs a detail it
+    // doesn't state). Listed per action, never scored.
+    for (const c of rec.candidates || []) {
+      if (mine.has(c.target)) continue;
+      const k = `${c.atom}|${c.kind}`;
+      if (!unresolvedBy.has(k)) unresolvedBy.set(k, { label: c.label || c.atom, kind: c.kind, reason: c.reason, regions: [], selections: [] });
+      const u = unresolvedBy.get(k);
+      const entry = cat.entryById.get(c.target);
+      if (entry && !u.regions.includes(entry)) u.regions.push(entry);
+      if (!u.selections.some((x) => x.key === sel.key)) u.selections.push({ key: sel.key, name: sel.name });
     }
   }
 
@@ -141,6 +155,7 @@ export function analyseSession(selections, cat) {
         const review = cat.equivalence(a.rec.id, b.rec.id, targetId);
         const r = review
           ? { status: review.relation, reasons: [`reviewed: ${review.note || (review.relation === 'same' ? 'marked as the same coverage' : 'marked as different coverage')}`], reviewed: true }
+          : a.rec.id === b.rec.id ? { status: 'same', reasons: ['the same record selected twice'], sameRecord: true }
           : compareContributions(a.parts, b.parts, spec, label);
         rel.set(pairKey(i, j), r);
       }
@@ -191,7 +206,8 @@ export function analyseSession(selections, cat) {
     for (const x of t.notAssessed) (bySelection[x.key] ||= []).push({ target: t.target.id, verdict: 'not-assessed' });
   }
 
-  return { selections: selections.length, unlinked, targets, bySelection };
+  const unresolved = [...unresolvedBy.values()].map((u) => ({ ...u, regions: u.regions.sort((a, b) => a.order - b.order) }));
+  return { selections: selections.length, unlinked, targets, unresolved, bySelection };
 }
 
 /**
@@ -199,7 +215,12 @@ export function analyseSession(selections, cat) {
  * has; set counts are dropped here on purpose.
  */
 export function selectionsFromRoutine(routine) {
-  return ((routine && routine.exercises) || []).map((x) => ({ key: x.id, name: x.name, catalogId: x.catalogId || null }));
+  // The machine goes in the name so two rows of one exercise stay tellable apart.
+  return ((routine && routine.exercises) || []).map((x) => ({
+    key: x.id,
+    name: x.machine ? `${x.name} (${x.machine.brand} ${x.machine.model || x.machine.name})` : x.name,
+    catalogId: x.catalogId || null,
+  }));
 }
 
 /** Display line for one target, e.g. '50% overlap · 2 repeated selections'. */

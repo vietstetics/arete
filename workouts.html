@@ -326,6 +326,8 @@ input,select,textarea{font-family:inherit}
 .cat-ex-name{font-size:13px;font-weight:500;flex:1}
 .cat-muscles{font-size:10.5px;color:var(--t3)}
 .cat-foot{padding:14px 16px;border-top:1px solid var(--bd);flex-shrink:0;display:flex;align-items:center;gap:10px}
+#cat-panel [hidden]{display:none!important}
+#cat-machines{padding:12px 16px}
 .cat-count{font-size:12.5px;color:var(--t2);flex:1}
 .empty-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 32px;text-align:center;color:var(--t3);gap:12px;min-height:320px}
 .empty-panel h3{font-size:15px;font-weight:600;color:var(--t2)}
@@ -349,6 +351,7 @@ input,select,textarea{font-family:inherit}
 </style>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/training.css">
+<link rel="stylesheet" href="css/machines.css">
 <link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
@@ -366,8 +369,6 @@ input,select,textarea{font-family:inherit}
     <a href="sleep.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></a>
     <a href="habits.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/><path d="M4 12v6a2 2 0 0 0 2 2h12"/></svg><span>Habits</span></a>
     <div class="nav-section">Life</div>
-<a href="analytics.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg><span>Progress</span></a>
-    <a href="consistency.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>Consistency</span></a>
     <a href="settings.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
   </nav>
   <a href="settings.html" class="sb-foot"><div class="av">J</div><div><div class="av-name">Joseph N.</div><div class="av-plan">Arete Pro</div></div></a>
@@ -378,28 +379,28 @@ input,select,textarea{font-family:inherit}
   <div class="ph">
     <div>
       <div class="ph-title">Training</div>
-      <div class="ph-sub">Start a workout in one tap — from scratch, a routine, or today’s program.</div>
     </div>
   </div>
 
-  <div class="wtabs">
-    <button class="wtab on" data-tab="log"      onclick="setTab('log')">Workout</button>
-    <button class="wtab"    data-tab="programs" onclick="setTab('programs')">Programs</button>
-    <button class="wtab"    data-tab="coaching" onclick="setTab('coaching')">Coaching</button>
-    <button class="wtab"    data-tab="history"  onclick="setTab('history')">History</button>
+  <div class="wtabs" role="tablist" aria-label="Training">
+    <button class="wtab on" role="tab" data-tab="log"      onclick="setTab('log')">Today</button>
+    <button class="wtab"    role="tab" data-tab="plan"     onclick="setTab('plan')">Plan</button>
+    <button class="wtab"    role="tab" data-tab="history"  onclick="setTab('history')">History</button>
+    <button class="wtab"    role="tab" data-tab="machines" onclick="setTab('machines')">Machines</button>
   </div>
 
   <div id="view-log"></div>
 
-  <div id="view-programs" style="display:none">
-    <div class="ph" style="margin-bottom:14px">
-      <div><div style="font-size:15px;font-weight:600">Programs</div><div class="ph-sub">Your week, one card per day — tap <b>Start</b> on a day to log it, tap any exercise to see its weight progression.</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="exercises.html" class="btn btn-s btn-sm">Exercise database</a>
+  <div id="view-plan" style="display:none">
+    <div id="plan-overview"></div>
+    <details class="pl-box" id="pl-programs">
+      <summary><span><b>Weekday programs</b><small>One workout per weekday. Start a day, edit its exercises, or import one from a video.</small></span></summary>
+      <div id="view-programs" class="pl-body">
+      <div class="pl-acts">
+        <button class="btn btn-s btn-sm" onclick="createProgram()">＋ New program</button>
         <button class="btn btn-s btn-sm" onclick="openVid()">Import from video</button>
-        <button class="btn btn-p btn-sm" onclick="createProgram()">＋ New Program</button>
+        <a href="exercises.html" class="btn btn-s btn-sm">Exercise database</a>
       </div>
-    </div>
     <div class="cols">
       <div class="card" style="overflow:hidden">
         <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between">
@@ -412,8 +413,14 @@ input,select,textarea{font-family:inherit}
     </div>
   </div>
 
-  <div id="view-coaching" style="display:none"></div>
+    </details>
+    <details class="pl-box" id="pl-coaching">
+      <summary><span><b>Coaching</b><small>Share your training with a coach, or follow the people you coach.</small></span></summary>
+      <div id="view-coaching" class="pl-body"></div>
+    </details>
+  </div>
   <div id="view-history" style="display:none"></div>
+  <div id="view-machines" style="display:none"></div>
   <input type="file" id="coach-file" accept=".json,application/json" style="display:none" onchange="coachFilePicked(this)">
   <input type="file" id="phy-file" accept="image/*" style="display:none" onchange="phyPick(this)">
 </div>
@@ -422,11 +429,18 @@ input,select,textarea{font-family:inherit}
 
 <!-- Exercise picker -->
 <div class="modal-bk" id="ex-modal" onclick="if(event.target===this)closeEx()">
-  <div class="modal">
-    <div class="modal-h"><div class="modal-t">Add exercise</div><button class="icon-btn" onclick="closeEx()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="modal ex-modal" role="dialog" aria-modal="true" aria-label="Add exercise">
+    <div class="modal-h"><div class="modal-t">Add exercise</div><button class="icon-btn" onclick="closeEx()" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="ex-seg" role="tablist" aria-label="Add from">
+      <button role="tab" data-exv="machines" aria-selected="true" onclick="setExView('machines')">Machines</button>
+      <button role="tab" data-exv="exercises" aria-selected="false" onclick="setExView('exercises')">Exercises</button>
+    </div>
     <div class="modal-b">
-      <input class="srch" id="ex-srch" placeholder="Search exercises…" oninput="renderExList()" autocomplete="off">
-      <div class="exli" id="ex-list"></div>
+      <div id="ex-machines"></div>
+      <div id="ex-exercises" hidden>
+        <input class="srch" id="ex-srch" placeholder="Search exercises…" oninput="renderExList()" autocomplete="off">
+        <div class="exli" id="ex-list"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -489,11 +503,16 @@ input,select,textarea{font-family:inherit}
     </div>
     <button class="icon-btn" onclick="closeCatalogue()" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
-  <div class="cat-search-wrap">
+  <div class="ex-seg" role="tablist" aria-label="Add from">
+    <button role="tab" data-catv="machines" aria-selected="true" onclick="setCatView('machines')">Machines</button>
+    <button role="tab" data-catv="exercises" aria-selected="false" onclick="setCatView('exercises')">Exercises</button>
+  </div>
+  <div class="cat-body" id="cat-machines"></div>
+  <div class="cat-search-wrap" data-catx>
     <input class="cat-search" id="cat-search" placeholder="Search exercises…" oninput="filterCatalogue(this.value)">
   </div>
-  <div class="cat-body" id="cat-body"></div>
-  <div class="cat-foot">
+  <div class="cat-body" id="cat-body" data-catx></div>
+  <div class="cat-foot" data-catx>
     <span class="cat-count" id="cat-sel-count">0 selected</span>
     <button class="btn btn-vi btn-sm" onclick="addSelectedToDay()">Add to workout</button>
   </div>
@@ -533,7 +552,15 @@ const templates   = () => rj(K_TPL, []);
 function todayKey(d){ const x=d||new Date(); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; }
 function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200); }
-function musclesFor(name){ const m=F.EXERCISE_MUSCLES[name]; return { primary:(m&&m.primary)||[], secondary:(m&&m.secondary)||[] }; }
+function musclesFor(name){
+  let m=F.EXERCISE_MUSCLES[name];
+  // Machine exercises the library lacked borrow a library exercise's map (features/machines/data/exercises.js).
+  const x=!m && window.Machines ? window.Machines.db.newExercise(name) : null;
+  if(x && x.aliases) return { primary:aliasIds(x.aliases.primary), secondary:aliasIds(x.aliases.secondary) };
+  if(x && x.like) m=F.EXERCISE_MUSCLES[x.like];
+  return { primary:(m&&m.primary)||[], secondary:(m&&m.secondary)||[] };
+}
+function aliasIds(names){ const out=[]; (names||[]).forEach(n=>(F.MUSCLE_ALIAS[n]||[]).forEach(id=>{ if(!out.includes(id)) out.push(id); })); return out; }
 function muscleName(id){ const m=F.MUSCLE_GROUPS.find(x=>x.id===id); return m?m.name:id; }
 
 // ── Active workout draft ─────────────────────────────────────────
@@ -544,17 +571,36 @@ function newActive(name){
 function saveActive(){ wj(K_ACTIVE, active); }
 
 let tab = 'log';
+const TABS=['log','plan','history','machines'];
+// 'programs' and 'coaching' are sections of the Plan tab now; older links
+// and calls that name them open Plan with that section expanded.
 function setTab(t){
+  let section=null;
+  if(t==='programs'||t==='coaching'){ section=t; t='plan'; }
+  if(!TABS.includes(t)) t='log';
   tab=t;
-  document.querySelectorAll('.wtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
-  document.getElementById('view-log').style.display      = t==='log'?'':'none';
-  document.getElementById('view-programs').style.display = t==='programs'?'':'none';
-  document.getElementById('view-coaching').style.display = t==='coaching'?'':'none';
-  document.getElementById('view-history').style.display  = t==='history'?'':'none';
-  if(t==='log') renderLog();
-  if(t==='programs') programsBoot();
-  if(t==='coaching') renderCoaching();
+  document.querySelectorAll('.wtab').forEach(b=>{ const on=b.dataset.tab===t; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+  TABS.forEach(v=>{ document.getElementById('view-'+v).style.display = t===v?'':'none'; });
+  if(t==='log') renderLog(); else document.querySelector('.pg').classList.remove('in-workout');
+  if(t==='plan') renderPlanTab(section);
   if(t==='history') renderHistory();
+  if(t==='machines') renderMachines();
+}
+function renderPlanTab(section){
+  mountPlanOverview();
+  programsBoot();
+  renderCoaching();
+  if(section){
+    const box=document.getElementById('pl-'+section); box.open=true;
+    setTimeout(()=>box.scrollIntoView({ behavior:'smooth', block:'start' }), 60);
+  }
+}
+function mountPlanOverview(){
+  const host=document.getElementById('plan-overview'); if(!host) return;
+  onTraining(T=>T.ui().then(ui=>{
+    if(tab!=='plan') return;
+    ui.renderPlanOverview(host,{ hasDraft:ui.hasPlanDraft(), onCreate:()=>openPlanSetup(), onEdit:p=>openPlanSetup(p), onStart:startPlanSession });
+  }));
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -571,16 +617,18 @@ function hasPlan(){
   if(T) return !!T.currentPlan(T.loadStore(), T.localKey());
   return ((rj('jarvis_training_plan',{versions:[]}).versions)||[]).length>0;
 }
-function mountPlanHome(){
+// secondary: a workout is already in progress, so the plan's Start is not the main action.
+function mountPlanHome(secondary){
   const host=document.getElementById('plan-home'); if(!host) return;
   onTraining(T=>T.ui().then(ui=>{
     if(!document.body.contains(host)) return;
-    ui.renderPlanHome(host,{ hasDraft:ui.hasPlanDraft(), onCreate:()=>openPlanSetup(), onEdit:p=>openPlanSetup(p), onStart:startPlanSession });
+    ui.renderPlanHome(host,{ hasDraft:ui.hasPlanDraft(), secondary:!!secondary, onCreate:()=>openPlanSetup(), onEdit:p=>openPlanSetup(p), onStart:startPlanSession });
   }));
 }
 function openPlanSetup(plan){
   onTraining(T=>T.ui().then(ui=>ui.openPlanWizard(plan||null,{
     pickExercise: cb=>openEx(cb),
+    pickMachine: (exercise, current, cb)=>onMachineUI(ui=>ui.openPicker({ exercise, current, onPick:cb })),
     onDone: r=>{ setTab('log'); scrollMainTop(); toast(r.ended?'Plan ended — your history is kept':r.edited?'Plan updated from today on':'Training plan started'); },
   })));
 }
@@ -598,7 +646,7 @@ function startPlanSession(s){
   active={ id:'w-'+F.uid(), name:r.name, startedAt:Date.now(), notes:'',
     planId:s.plan.planId, planVersionId:s.plan.id, routineId:r.id, scheduledFor:s.date,
     exercises:r.exercises.map(x=>{ const m=musclesFor(x.name); return { id:'e-'+F.uid(), name:x.name,
-      primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetSets:x.sets, targetReps:repTxt(x), targetRir:(x.rir??''),
+      primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetSets:x.sets, targetReps:repTxt(x), targetRir:(x.rir??''), ...(x.machine?{ machine:x.machine }:{}),
       sets:Array.from({length:Math.max(1,x.sets||1)},()=>({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:'', rpe:'', rir:'', completed:false })) }; }) };
   saveActive(); setTab('log'); scrollMainTop();
 }
@@ -608,86 +656,132 @@ function pauseWorkout(){ if(!active) return; active.paused=true; saveActive(); r
 function resumeWorkout(){ if(!active) return; delete active.paused; saveActive(); renderLog(); scrollMainTop(); }
 function fmtDay(k){ return new Date(k+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}); }
 
+const TD_ICON = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4V8z"/></svg>',
+  trash: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
+};
+// One quiet row in "Other ways to train". `aside` is the right-hand label;
+// `del` adds a delete button (routines).
+function tdRow(icon, title, sub, onclick, aside, del){
+  return `<div class="td-row"><button class="td-go" onclick="${onclick}"><span class="td-ic">${icon}</span>
+    <span class="td-tx"><b>${esc(title)}</b>${sub?`<small>${esc(sub)}</small>`:''}</span>${aside?`<span class="td-aside">${esc(aside)}</span>`:''}</button>
+    ${del?`<button class="icon-btn" title="Delete routine" aria-label="Delete ${esc(title)}" onclick="${del}">${TD_ICON.trash}</button>`:''}</div>`;
+}
+let _allRoutines=false, _notesOpen=false;
+
 function renderLog(){
   const host = document.getElementById('view-log');
-  if(!active || active.paused){
-    const tpls = templates();
-    const tk = todayKey();
-    const planOn = hasPlan();
-    // An active training plan replaces the weekday-program suggestion.
-    const sugg = planOn ? null : todayFromPrograms();
-    const plansToday = planned().filter(p=>p.plannedFor===tk);
-    const upcoming = planned().filter(p=>p.plannedFor>tk).sort((a,b)=>a.plannedFor<b.plannedFor?-1:1);
+  const training = !!(active && !active.paused);
+  document.querySelector('.pg').classList.toggle('in-workout', training);
+  if(!training){ renderToday(host); return; }
+  renderWorkout(host);
+}
 
-    const suggCards =
-      plansToday.map(p=>suggCard('Scheduled today', p.name, `${p.exercises.length} exercise${p.exercises.length===1?'':'s'}`, `startPlanned('${p.id}')`)).join('') +
-      (sugg ? suggCard('Today in your program', sugg.day.name, `${esc(sugg.prog.name)} · ${sugg.day.exercises.length} exercises`, `startProgramWorkout('${sugg.prog.id}',${sugg.di})`) : '');
-    const draft = active && active.paused ? active : null;
-    const dSets = draft ? draft.exercises.reduce((n,e)=>n+e.sets.length,0) : 0;
-    const dDone = draft ? draft.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.completed).length,0) : 0;
+// Today: exactly one main action, then everything else as quiet rows.
+function renderToday(host){
+  const tpls = templates();
+  const tk = todayKey();
+  const planOn = hasPlan();
+  const draft = active && active.paused ? active : null;
+  const sugg = planOn ? null : todayFromPrograms();
+  const plansToday = planned().filter(p=>p.plannedFor===tk);
+  const upcoming = planned().filter(p=>p.plannedFor>tk).sort((a,b)=>a.plannedFor<b.plannedFor?-1:1);
+  const dateLabel = new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  const wiz = rj('arete_plan_wizard', null);
+  const wizDraft = !!(wiz && !wiz.editing && wiz.splitId);
 
-    host.innerHTML = `
-    ${draft ? `<div class="card tp-resume">
-      <div class="tp-rb"><div class="tp-rm">Workout in progress${draft.scheduledFor?' · '+esc(fmtDay(draft.scheduledFor)):''}</div><div class="tp-rn">${esc(draft.name)}</div><div class="tp-rm">${dDone} of ${dSets} sets done</div></div>
-      <button class="btn btn-p btn-sm" onclick="resumeWorkout()">Resume</button>
-      <button class="btn btn-s btn-sm" onclick="discardWorkout()">Discard</button>
-    </div>` : ''}
-    <div id="plan-home"></div>
-    <div class="card hero">
-      <h3>${planOn ? 'Off-plan session' : 'Ready to train?'}</h3>
-      <p>${suggCards ? 'Today’s session is ready — or start from scratch.' : 'Start from scratch, or tap a routine below.'}</p>
-      ${suggCards}
-      <div class="hero-actions">
-        <button class="btn btn-p" onclick="startWorkout()">＋ Start empty workout</button>
-        <button class="btn btn-s" onclick="openVid()">Import from video</button>
-        <button class="btn btn-s" onclick="openPlan()">Schedule for later</button>
-      </div>
-    </div>
-
-    <div class="sec-h"><span>My routines</span></div>
-    ${tpls.length ? `<div class="rt-grid">${tpls.map(rtCard).join('')}</div>`
-      : `<div class="card" style="padding:16px 18px;font-size:12.5px;color:var(--t3);line-height:1.55">No routines yet. Build a workout, tap <b>Save as routine</b>, and it’ll live here for one-tap starts.</div>`}
-
-    ${upcoming.length ? `<div class="sec-h"><span>Scheduled</span></div>
-    <div class="card">${upcoming.map(upRow).join('')}</div>` : ''}
-
-    <div class="sec-h"><span>Physique check-in</span></div>
-    <div class="card" id="phy-card">
-      <div class="phy-hd">
-        <span class="phy-streak" id="phy-streak" style="display:none"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg><span id="phy-streak-n"></span></span>
-        <span style="flex:1;font-size:11.5px;color:var(--t3)" id="phy-hint">A photo a day shows what the scale can’t.</span>
-        <button class="btn btn-p btn-sm" onclick="document.getElementById('phy-file').click()" id="phy-btn">Take today’s photo</button>
-      </div>
-      <div class="phy-grid" id="phy-grid"></div>
-    </div>`;
-    renderPhysique();
-    mountPlanHome();
-    return;
+  let main = '';
+  if(draft){
+    const ws = draft.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type!=='warmup').length,0);
+    const wd = draft.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type!=='warmup' && s.completed).length,0);
+    main = `<section class="card td-hero">
+      <div class="td-eye">Workout in progress</div>
+      <h3 class="td-h">${esc(draft.name)}</h3>
+      <div class="td-sub">${wd} of ${ws} sets done${draft.scheduledFor?' · planned for '+esc(fmtDay(draft.scheduledFor)):''}</div>
+      <button class="btn btn-p td-cta" onclick="resumeWorkout()">${TD_ICON.play} Resume workout</button>
+      <button class="td-text danger" onclick="discardWorkout()">Discard this workout</button>
+    </section>`;
   }
+  if(planOn){
+    main += '<div id="plan-home"></div>';
+  } else if(!draft && sugg){
+    const exs = sugg.day.exercises;
+    main = `<section class="card td-hero">
+      <div class="td-eye">Today · ${esc(sugg.prog.name)}</div>
+      <h3 class="td-h">${esc(sugg.day.name)}</h3>
+      <div class="td-sub">${esc(dateLabel)}</div>
+      ${exs.length?`<ul class="tp-ex">${exs.map(x=>`<li><span>${esc(x.name)}</span><span>${esc((x.targetSets||3)+' × '+(x.targetReps||''))}</span></li>`).join('')}</ul>`:''}
+      <button class="btn btn-p td-cta" onclick="startProgramWorkout('${sugg.prog.id}',${sugg.di})">${TD_ICON.play} Start workout</button>
+    </section>`;
+  } else if(!draft){
+    main = `<section class="card td-hero">
+      <div class="td-eye">${esc(dateLabel)}</div>
+      <h3 class="td-h">Ready to train?</h3>
+      <p class="td-p">Start a workout and add exercises as you go.</p>
+      <button class="btn btn-p td-cta" onclick="startWorkout()">${TD_ICON.plus} Start workout</button>
+    </section>`;
+  }
+  const setup = planOn ? '' : `<section class="card td-setup">
+      <div class="td-setup-b"><b>Train to a weekly plan</b><span>Choose a split and your days once. Arete puts the right session here every day and tracks your week.</span></div>
+      <button class="btn btn-s btn-sm" onclick="openPlanSetup()">${wizDraft?'Continue setup':'Set up plan'}</button>
+    </section>`;
+
+  const rows = [];
+  if(planOn || draft || sugg) rows.push(tdRow(TD_ICON.plus, 'Empty workout', 'Add exercises as you go', 'startWorkout()'));
+  plansToday.forEach(p=>rows.push(tdRow(TD_ICON.cal, p.name, `Scheduled for today · ${p.exercises.length} exercise${p.exercises.length===1?'':'s'}`, `startPlanned('${p.id}')`, 'Start')));
+  (_allRoutines ? tpls : tpls.slice(0,3)).forEach(t=>rows.push(tdRow(TD_ICON.list, t.name, `Routine · ${t.exercises.length} exercise${t.exercises.length===1?'':'s'}`, `startRoutine('${t.id}')`, 'Start', `delRoutine('${t.id}')`)));
+  rows.push(tdRow(TD_ICON.cal, 'Schedule a workout', 'Pick a day and it waits here', 'openPlan()'));
+  rows.push(tdRow(TD_ICON.video, 'Import from a video', 'Paste a TikTok, YouTube or Reels link', 'openVid()'));
+
+  host.innerHTML = `<div class="td">
+    ${main}
+    ${setup}
+    <div class="td-sec">${main ? 'Other ways to train' : 'Start something'}</div>
+    <div class="card td-list">${rows.join('')}</div>
+    ${tpls.length>3 ? `<button class="td-more" onclick="_allRoutines=!_allRoutines;renderLog()">${_allRoutines?'Show fewer routines':'Show all '+tpls.length+' routines'}</button>` : ''}
+    ${upcoming.length ? `<div class="td-sec">Scheduled</div><div class="card">${upcoming.map(upRow).join('')}</div>` : ''}
+  </div>`;
+  if(planOn) mountPlanHome(!!draft);
+}
+
+// The session in progress: one sticky bar (name, progress, Finish), the
+// exercises, then quiet secondary actions.
+function renderWorkout(host){
   _hist = completed();
   const t = targetMuscles(active);
-  const workingSets = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.type==='working').length,0);
+  const working = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.type==='working').length,0);
+  const workingDone = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.type==='working' && s.completed).length,0);
   const doneSets    = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.completed).length,0);
+  const workingSets = working;
+  const pct = working ? Math.round(workingDone/working*100) : 0;
+  const notes = active.notes || _notesOpen
+    ? `<textarea class="notes-in" id="wk-notes" placeholder="Session notes…" oninput="active.notes=this.value;saveActive()">${esc(active.notes||'')}</textarea>`
+    : `<button class="lg-link" onclick="_notesOpen=true;renderLog();document.getElementById('wk-notes').focus()">＋ Add a note</button>`;
 
   host.innerHTML = `
   <div class="log-grid">
-    <div class="card">
-      <div class="wk-head">
-        <input class="wk-name" id="wk-name" value="${esc(active.name)}" oninput="active.name=this.value;saveActive()" placeholder="Workout name">
-        <span class="wk-meta">${active.scheduledFor?`<span class="wk-sched">Scheduled · ${esc(fmtDay(active.scheduledFor))}</span>`:''}${active.exercises.length} exercise${active.exercises.length===1?'':'s'} · ${workingSets} working sets</span>
-        <button class="icon-btn" title="Discard" onclick="discardWorkout()" style="color:var(--re)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+    <div class="card lg">
+      <div class="wk-bar">
+        <div class="wk-bar-main">
+          <input class="wk-name" id="wk-name" value="${esc(active.name)}" oninput="active.name=this.value;saveActive()" placeholder="Workout name" aria-label="Workout name">
+          <div class="wk-sub"><b>${workingDone}</b> of ${working} sets done</div>
+        </div>
+        <button class="btn btn-p wk-finish" onclick="finishWorkout()">Finish</button>
+        <div class="wk-progress" role="progressbar" aria-label="Sets done" aria-valuemin="0" aria-valuemax="${working}" aria-valuenow="${workingDone}"><i style="width:${pct}%"></i></div>
       </div>
-      <div id="ex-wrap">${active.exercises.map(renderExercise).join('')||'<div class="empty" style="padding:32px"><p style="font-size:12.5px">No exercises yet — add your first one.</p></div>'}</div>
-      <div class="ex-foot">
-        <button class="btn btn-s btn-sm" onclick="openEx()" style="width:100%;justify-content:center">＋ Add exercise</button>
-      </div>
-      <div class="ex-foot" style="border-top:1px solid var(--bd)">
-        <textarea class="notes-in" placeholder="Session notes (optional)…" oninput="active.notes=this.value;saveActive()">${esc(active.notes||'')}</textarea>
-      </div>
-      <div class="ex-foot" style="border-top:1px solid var(--bd);display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-s btn-sm" onclick="saveTemplate()">Save as routine</button>
-        <button class="btn btn-s btn-sm" onclick="pauseWorkout()">Save draft</button>
-        <button class="btn btn-gr btn-sm" style="margin-left:auto" onclick="finishWorkout()">✓ Finish Workout</button>
+      <div id="ex-wrap">${active.exercises.map(renderExercise).join('')||'<div class="empty" style="padding:28px 24px 8px"><h3>No exercises yet</h3><p style="font-size:12.5px">Add your first one to start logging sets.</p></div>'}</div>
+      <div class="lg-add"><button class="btn btn-s" onclick="openEx()">＋ Add exercise</button></div>
+      <div class="lg-foot">
+        ${notes}
+        <div class="lg-acts">
+          <button class="lg-link" onclick="saveTemplate()">Save as routine</button>
+          <button class="lg-link" onclick="pauseWorkout()">Save for later</button>
+          <button class="lg-link danger" onclick="discardWorkout()">Discard workout</button>
+        </div>
       </div>
     </div>
 
@@ -707,7 +801,7 @@ function renderLog(){
         <div class="vol-row"><span>Exercises</span><b>${active.exercises.length}</b></div>
         <div class="vol-row"><span>Working sets</span><b>${workingSets}</b></div>
         <div class="vol-row"><span>Sets completed</span><b>${doneSets} / ${active.exercises.reduce((n,e)=>n+e.sets.length,0)}</b></div>
-        <div class="vol-row"><span>Muscle groups</span><b>${t.pri.size + t.sec.size}</b></div>
+        <div class="vol-row"><span>Muscle groups</span><b>${new Set([...t.pri, ...t.sec].map(shortMuscle)).size}</b></div>
       </div>
     </div>
   </div>`;
@@ -718,50 +812,54 @@ function renderLog(){
 
 // Most recent finished session's working sets for an exercise ("last time").
 let _hist = [];
-function lastPerf(name){
-  const key=normExName(name);
+// With a machine chosen, the same machine's last session wins; otherwise the
+// most recent one is shown and marked as from another (or no) machine.
+function lastPerf(name, machineId){
+  const key=normExName(name); let other=null;
   for(const w of _hist){
     if(active && w.id===active.id) continue;
     if(String(w.id).startsWith('mock-')) continue; // sample data seeded for first-time users
     const e=(w.exercises||[]).find(x=>normExName(x.name)===key); if(!e) continue;
     const sets=(e.sets||[]).filter(s=>s.type!=='warmup' && s.completed && (s.weight!==''||s.reps!==''));
-    if(sets.length) return { date:w.completedAt, sets };
+    if(!sets.length) continue;
+    const em=e.machine ? e.machine.id : null;
+    if(!machineId || em===machineId) return { date:w.completedAt, sets };
+    if(!other) other={ date:w.completedAt, sets, elsewhere: em ? 'on another machine' : 'no machine recorded' };
   }
-  return null;
+  return other;
 }
 function renderExercise(ex){
-  const tags = (ex.primaryMuscles||[]).slice(0,4).map(id=>`<span class="tg pri">${esc(shortMuscle(id))}</span>`).join('')
-             + (ex.secondaryMuscles||[]).slice(0,3).map(id=>`<span class="tg">${esc(shortMuscle(id))}</span>`).join('');
-  const last = lastPerf(ex.name);
+  const last = lastPerf(ex.name, ex.machine && ex.machine.id);
   const hasRir = ex.targetRir!=null && ex.targetRir!=='';
   const rows = ex.sets.map((s,i)=>{
     const wi = i - ex.sets.slice(0,i).filter(x=>x.type==='warmup').length; // working-set number (0-based)
-    const prev = s.type!=='warmup' && last ? last.sets[Math.min(wi, last.sets.length-1)] : null;
+    const prev = s.type!=='warmup' && last && !last.elsewhere ? last.sets[Math.min(wi, last.sets.length-1)] : null;
     return `
-    <div class="set-row">
-      <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" onclick="toggleType('${ex.id}','${s.id}')">${s.type==='warmup'?'W':wi+1}</button>
-      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
+    <div class="set-row${s.completed?' done':''}">
+      <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" aria-label="Set ${s.type==='warmup'?'warm-up':wi+1}: toggle warm-up" onclick="toggleType('${ex.id}','${s.id}')">${s.type==='warmup'?'W':wi+1}</button>
+      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
       <input class="set-in" type="number" inputmode="numeric" placeholder="${s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps||''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
-      <input class="set-in" id="rpe-${s.id}" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="RPE" title="Effort 1–10 (10 = nothing left). Filling either RPE or RIR fills the other." value="${s.rpe||''}" oninput="setEffort('${ex.id}','${s.id}','rpe',this.value)">
-      <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'RIR'}" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
-      <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-      <button class="icon-btn" title="Remove set" onclick="removeSet('${ex.id}','${s.id}')" style="width:26px;height:26px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
+      <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set done':'Mark set done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+      <button class="set-rm" title="Remove set" aria-label="Remove set" onclick="removeSet('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
     </div>`; }).join('');
   const tgt = ex.targetReps
     ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
     : (hasRir ? `${ex.targetRir} RIR` : '');
-  const rirTag = tgt ? `<span class="tg" style="background:var(--vid);color:var(--vi)">Target ${esc(tgt)}</span>` : '';
-  const lastLine = last ? `<div class="ex-last">Last time · ${esc(F.fmtDate(last.date))}: <b>${last.sets.map(s=>`${s.weight!==''?esc(s.weight):'–'} × ${s.reps!==''?esc(s.reps):'–'}`).join(', ')}</b></div>` : '';
+  const meta = [
+    tgt ? `<span>Target <b>${esc(tgt)}</b></span>` : '',
+    last ? `<span>Last time${last.elsewhere?` (${last.elsewhere})`:''} <b>${last.sets.map(s=>`${s.weight!==''?esc(s.weight):'–'} × ${s.reps!==''?esc(s.reps):'–'}`).join(', ')}</b> · ${esc(F.fmtDate(last.date))}</span>` : '',
+  ].filter(Boolean).join('');
   return `<div class="ex">
     <div class="ex-hd">
-      <div class="ex-name" style="cursor:pointer" title="See weight progression" onclick="showProg('${jsName(ex.name)}')">${esc(ex.name)}</div>
-      <button class="icon-btn" title="Plate calculator" onclick="openPlates('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 7v10M18 7v10M9 5v14M15 5v14M9 12h6"/></svg></button>
-      <button class="icon-btn" title="Remove exercise" onclick="removeExercise('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <button class="ex-name" title="See weight progression" onclick="showProg('${jsName(ex.name)}')">${esc(ex.name)}</button>
+      <button class="icon-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlates('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 7v10M18 7v10M9 5v14M15 5v14M9 12h6"/></svg></button>
+      <button class="icon-btn" title="Remove exercise" aria-label="Remove ${esc(ex.name)}" onclick="removeExercise('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    ${tags||rirTag?`<div class="ex-tags">${rirTag}${tags}</div>`:''}
-    ${lastLine}
+    ${meta?`<div class="ex-meta">${meta}</div>`:''}
+    ${machineBlock(ex)}
     <div class="sets">
-      <div class="set-row head"><span>Set</span><span>Weight</span><span>Reps</span><span title="Effort 1–10 (10 = nothing left)">RPE</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
+      <div class="set-row head"><span>Set</span><span>kg</span><span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
       ${rows}
       <button class="add-set" onclick="addSet('${ex.id}')">＋ Add set</button>
     </div>
@@ -778,7 +876,7 @@ function targetMuscles(wk){
 }
 function renderTargets(t){
   const el=document.getElementById('wk-targets'); if(!el) return;
-  const names = [...t.pri].map(id=>`<span class="tg pri">${esc(shortMuscle(id))}</span>`);
+  const names = [...new Set([...t.pri].map(shortMuscle))].map(n=>`<span class="tg pri">${esc(n)}</span>`);
   if(!names.length){ el.innerHTML='<span style="font-size:11.5px;color:var(--t3)">Add exercises to see targeted muscles</span>'; return; }
   el.innerHTML = names.join('');
 }
@@ -863,29 +961,64 @@ function discardWorkout(){ if(!confirm('Discard this workout? Nothing from it wi
 
 // The picker also serves the plan setup: pass a callback to receive the name.
 let _exPick = null;
-function openEx(cb){ _exPick = typeof cb==='function' ? cb : null; document.getElementById('ex-srch').value=''; renderExList(); document.getElementById('ex-modal').classList.add('open'); setTimeout(()=>document.getElementById('ex-srch').focus(),60); }
+// Opens on the machine list (all machines, with resistance profile and
+// muscle action); the plain exercise list is the second tab.
+function openEx(cb){
+  _exPick = typeof cb==='function' ? cb : null;
+  document.getElementById('ex-srch').value=''; renderExList();
+  const host=document.getElementById('ex-machines');
+  if(_mui) _mui.mountAddList(host, { onAdd:addMachine });
+  else host.innerHTML='<div class="mc-none">Loading the machine database…</div>';
+  document.getElementById('ex-modal').classList.add('open');
+  setExView(_mui ? 'machines' : 'exercises');
+}
+function setExView(v){
+  document.querySelectorAll('#ex-modal [data-exv]').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.exv===v)));
+  document.getElementById('ex-machines').hidden = v!=='machines';
+  document.getElementById('ex-exercises').hidden = v!=='exercises';
+  const f = v==='machines' ? document.querySelector('#ex-machines .srch') : document.getElementById('ex-srch');
+  // Focus search on desktop only: on a phone the keyboard would cover the list.
+  if(f && window.matchMedia('(min-width:768px)').matches) setTimeout(()=>f.focus(),60);
+}
+function addMachine(sel, exercise){
+  const cb=_exPick; closeEx();
+  if(cb){ cb(exercise, sel); return; }
+  pushExercise(exercise, sel);
+  toast('Added '+exercise+' · '+sel.snapshot.brand+' '+sel.snapshot.name);
+}
 function closeEx(){ _exPick=null; document.getElementById('ex-modal').classList.remove('open'); }
 function renderExList(){
   const q=document.getElementById('ex-srch').value.trim().toLowerCase();
   // Built-in library plus the user's own catalogue from the Exercises page.
   const own=(rj('jarvis_exercises',[])||[]).map(e=>e&&e.name).filter(Boolean);
-  let names=[...new Set(F.EXERCISE_NAMES.concat(own))].sort((a,b)=>a.localeCompare(b)).filter(n=>!q||n.toLowerCase().includes(q));
+  const M=window.Machines;
+  const mx=M ? M.db.exerciseNames() : [];
+  let names=[...new Set(F.EXERCISE_NAMES.concat(own, mx))].sort((a,b)=>a.localeCompare(b)).filter(n=>!q||n.toLowerCase().includes(q));
   const wrap=document.getElementById('ex-list');
   let html=names.map(n=>{
     const m=musclesFor(n);
     const mu=m.primary.map(shortMuscle).filter((v,i,a)=>a.indexOf(v)===i).slice(0,3).join(', ');
-    return `<div class="exli-row" onclick="addExercise('${esc(n).replace(/'/g,"\\'")}')"><div><div class="nm">${esc(n)}</div><div class="mu">${esc(mu)}</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--vi)" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
+    const nm=M ? M.db.exactCount(n) : 0;
+    const info=[mu, nm ? nm+' machine'+(nm===1?'':'s') : ''].filter(Boolean).join(' · ');
+    return `<div class="exli-row" onclick="addExercise('${esc(n).replace(/'/g,"\\'")}')"><div><div class="nm">${esc(n)}</div><div class="mu">${esc(info)}</div></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--vi)" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>`;
   }).join('');
   if(q && !names.includes(q)) html += `<div class="exli-row" onclick="addExercise('${esc(q).replace(/'/g,"\\'")}',true)"><div><div class="nm">Add “${esc(q)}”</div><div class="mu">Custom exercise</div></div></div>`;
   wrap.innerHTML = html || '<div class="empty"><p style="font-size:12px">No matches</p></div>';
 }
+// Exercises with machines in the database go through the machine step;
+// closing it adds the exercise without a machine.
 function addExercise(name, custom){
-  if(_exPick){ const cb=_exPick; closeEx(); cb(name); return; }
+  const cb=_exPick; closeEx();
+  const finish=sel=>{ if(cb){ cb(name, sel||null); return; } pushExercise(name, sel); };
+  if(!custom && _mui && window.Machines.db.exactCount(name)){ _mui.openPicker({ exercise:name, onPick:finish, dismiss:'skip' }); return; }
+  finish(null);
+}
+function pushExercise(name, sel){
   if(!active) active=newActive();
   const m=musclesFor(name);
-  active.exercises.push({ id:'e-'+F.uid(), name, primaryMuscles:m.primary, secondaryMuscles:m.secondary,
+  active.exercises.push({ id:'e-'+F.uid(), name, primaryMuscles:m.primary, secondaryMuscles:m.secondary, ...(sel?{ machine:sel.snapshot }:{}),
     sets:[{ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:'', completed:false }] });
-  saveActive(); closeEx(); renderLog();
+  saveActive(); renderLog();
 }
 function removeExercise(eid){ active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
 function findEx(eid){ return active.exercises.find(e=>e.id===eid); }
@@ -1075,14 +1208,14 @@ function saveTemplate(){
   if(!active || !active.exercises.length){ toast('Nothing to save yet'); return; }
   const name = prompt('Routine name:', active.name) ; if(!name) return;
   const tpls=templates();
-  tpls.unshift({ id:'t-'+F.uid(), name, exercises: active.exercises.map(e=>({ name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, sets:e.sets.map(s=>({type:s.type, weight:s.weight, reps:s.reps, rpe:s.rpe, rir:s.rir})) })) });
+  tpls.unshift({ id:'t-'+F.uid(), name, exercises: active.exercises.map(e=>({ name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, machine:e.machine, sets:e.sets.map(s=>({type:s.type, weight:s.weight, reps:s.reps, rpe:s.rpe, rir:s.rir})) })) });
   wj(K_TPL, tpls.slice(0,40));
   toast('Routine saved — it’s on your Workout screen');
 }
 function instantiate(tpl){
   return { id:'w-'+F.uid(), name:tpl.name, startedAt:Date.now(), notes:'',
     exercises: tpl.exercises.map(e=>{ const m=musclesFor(e.name); return { id:'e-'+F.uid(), name:e.name,
-      primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary, targetRir:e.targetRir,
+      primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary, targetRir:e.targetRir, ...(e.machine?{ machine:e.machine }:{}),
       sets:(e.sets||[{type:'working'}]).map(s=>({ id:'s-'+F.uid(), type:s.type||'working', weight:s.weight??'', unit:'kg', reps:s.reps??'', rpe:s.rpe??'', rir:s.rir??'', completed:false })) }; }) };
 }
 // ════════════════════════════════════════════════════════════════
@@ -1414,10 +1547,7 @@ function renderCoaching(){
   }).join('');
 
   host.innerHTML=`
-    <div class="ph" style="margin-bottom:14px">
-      <div><div style="font-size:15px;font-weight:600">Coaching</div>
-      <div class="ph-sub">Coach and athlete stay in sync with training files — no accounts needed. Files travel over any messenger.</div></div>
-    </div>
+    <p class="pl-note">Coach and athlete stay in sync with training files — no accounts needed. Files travel over any messenger.</p>
 
     <div class="card hero" style="margin-bottom:16px">
       <h3>Training with a coach?</h3>
@@ -1930,10 +2060,21 @@ function vidAdd(){
 // ════════════════════════════════════════════════════════════════
 //  HISTORY TAB
 // ════════════════════════════════════════════════════════════════
+// Physique check-in lives with your history (moved off the Today screen).
+const PHYSIQUE_HTML = `
+    <div class="sec-h"><span>Physique check-in</span></div>
+    <div class="card" id="phy-card">
+      <div class="phy-hd">
+        <span class="phy-streak" id="phy-streak" style="display:none"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg><span id="phy-streak-n"></span></span>
+        <span style="flex:1;font-size:11.5px;color:var(--t3)" id="phy-hint">A photo a day shows what the scale can’t.</span>
+        <button class="btn btn-s btn-sm" onclick="document.getElementById('phy-file').click()" id="phy-btn">Take today’s photo</button>
+      </div>
+      <div class="phy-grid" id="phy-grid"></div>
+    </div>`;
 function renderHistory(){
   const host=document.getElementById('view-history');
   const list=completed();
-  if(!list.length){ host.innerHTML='<div class="card"><div class="empty"><h3>No workouts logged yet</h3><p style="font-size:12.5px">Finish a session on the Workout tab and it’ll show up here.</p></div></div>'; return; }
+  if(!list.length){ host.innerHTML='<div class="card"><div class="empty"><h3>No workouts logged yet</h3><p style="font-size:12.5px">Finish a session on the Today tab and it’ll show up here.</p></div></div>'+PHYSIQUE_HTML; renderPhysique(); return; }
   // 7-day volume
   const wk = list.filter(w=>w.completedAt > Date.now()-7*864e5);
   const wkSets = wk.reduce((n,w)=>n+w.exercises.reduce((m,e)=>m+e.sets.filter(s=>s.type==='working'&&s.completed).length,0),0);
@@ -1943,13 +2084,15 @@ function renderHistory(){
       <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${wkSets}</div><div style="font-size:11px;color:var(--t3)">Working sets (7d)</div></div>
       <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${list.length}</div><div style="font-size:11px;color:var(--t3)">Total logged</div></div>
     </div>
-    <div class="card">${list.map(hrow).join('')}</div>`;
+    <div class="card">${list.map(hrow).join('')}</div>
+    ${PHYSIQUE_HTML}`;
+  renderPhysique();
 }
 function hrow(w){
   const d=new Date(w.completedAt);
   const sets=w.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type==='working').length,0);
   const t=targetMuscles(w);
-  const muscles=[...t.pri].slice(0,5).map(shortMuscle).join(' · ');
+  const muscles=[...new Set([...t.pri].map(shortMuscle))].slice(0,5).join(' · ');
   return `<div class="hrow" onclick="openSession('${w.id}')" title="See this session">
     <div class="hdate"><div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString(undefined,{month:'short'})}</div></div>
     <div class="hname"><div class="n">${esc(w.name)}</div><div class="s">${w.exercises.length} exercises · ${sets} sets${muscles?' · '+esc(muscles):''}</div></div>
@@ -1970,6 +2113,7 @@ function openSession(id){
   document.getElementById('sess-body').innerHTML = w.exercises.length ? w.exercises.map(e=>`
     <div style="margin-bottom:14px">
       <div style="font-size:14px;font-weight:700;cursor:pointer" onclick="closeSession();showProg('${jsName(e.name)}')" title="See weight progression">${esc(e.name)}${e.targetReps?` <span style="font-weight:500;color:var(--t3);font-size:12px">· target ${esc((e.targetSets?e.targetSets+' × ':'')+e.targetReps)}</span>`:''}</div>
+      ${e.machine?`<div class="mc-hist">${esc(machineLabel(e.machine))}</div>`:''}
       <div style="display:grid;grid-template-columns:40px 1fr 1fr 1fr 28px;gap:4px;font-size:12.5px;margin-top:6px;font-variant-numeric:tabular-nums">
         <span style="color:var(--t3);font-size:10.5px;font-weight:700">SET</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">WEIGHT</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">REPS</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">RIR</span><span></span>
         ${e.sets.map((s,i)=>`<span style="color:var(--t2)">${s.type==='warmup'?'W':i+1-e.sets.slice(0,i).filter(x=>x.type==='warmup').length}</span><span>${s.weight!==''&&s.weight!=null?esc(s.weight)+' kg':'–'}</span><span>${s.reps!==''&&s.reps!=null?esc(s.reps):'–'}</span><span>${s.rir!==''&&s.rir!=null?esc(s.rir):'–'}</span><span style="color:${s.completed?'var(--gr)':'var(--t3)'}">${s.completed?'✓':'–'}</span>`).join('')}
@@ -1982,8 +2126,74 @@ function closeSession(){ document.getElementById('sess-modal').classList.remove(
 function repeatWorkout(id){
   if(!keepDraftOk()) return; 
   const w=completed().find(x=>x.id===id); if(!w) return;
-  active = instantiate({ name:w.name, exercises:w.exercises.map(e=>({name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir}))})) });
+  active = instantiate({ name:w.name, exercises:w.exercises.map(e=>({name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, machine:e.machine, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir}))})) });
   saveActive(); setTab('log'); toast('Loaded — edit and finish to log again');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MACHINES — choose the specific machine for an exercise, and browse the
+//  database (features/machines). Brand, model, resistance profile, recorded
+//  muscle action and derived muscles travel with the logged exercise.
+// ════════════════════════════════════════════════════════════════
+let _mui = null;
+function onMachineUI(cb){
+  if(_mui){ cb(_mui); return; }
+  const go=()=>window.Machines.ui().then(ui=>{ _mui=ui; cb(ui); });
+  if(window.Machines) go(); else window.addEventListener('machines-ready', go, { once:true });
+}
+onMachineUI(()=>{}); // load the UI early so the first tap isn't slow
+const machineLabel = s => [s.brand, s.name, s.model, s.modeLabel ? s.modeLabel+' mode' : ''].filter(Boolean).join(' · ');
+function machineBlock(ex){
+  if(ex.machine){
+    if(_mui && window.Machines.db.get(ex.machine.id)) return `<div class="mc-on">${_mui.chosenHtml(ex.machine,{ attrs:`onclick="showMachine('${ex.id}')"`, compact:true })}</div>`;
+    return `<div class="mc-on"><button class="mc-add" onclick="chooseMachine('${ex.id}')">${esc(machineLabel(ex.machine))}</button></div>`;
+  }
+  if(_mui && window.Machines.db.exactCount(ex.name)) return `<div class="mc-on"><button class="mc-add" onclick="chooseMachine('${ex.id}')">＋ Choose machine</button></div>`;
+  return '';
+}
+function chooseMachine(exId){
+  const ex=findEx(exId); if(!ex) return;
+  onMachineUI(ui=>ui.openPicker({ exercise:ex.name, current:ex.machine?{ id:ex.machine.id, mode:ex.machine.mode }:null, onPick:sel=>{
+    const e=findEx(exId); if(!e) return;
+    if(sel) e.machine=sel.snapshot; else delete e.machine;
+    saveActive(); renderLog();
+  } }));
+}
+function showMachine(exId){
+  const ex=findEx(exId); if(!ex || !ex.machine) return;
+  if(!_mui || !window.Machines.db.get(ex.machine.id)){ chooseMachine(exId); return; }
+  _mui.openDetails(ex.machine.id, ex.machine.mode, { actions:[
+    { label:'Remove machine', kind:'danger', run:()=>{ _mui.closeSheet(); const e=findEx(exId); if(e){ delete e.machine; saveActive(); renderLog(); } } },
+    { label:'Change machine', kind:'primary', run:()=>{ _mui.closeSheet(); chooseMachine(exId); } },
+  ]});
+}
+// Machines tab: browse all machines; "Add to workout" goes to the open session.
+let _mbMounted=false;
+function renderMachines(){
+  const host=document.getElementById('view-machines');
+  if(!_mui){ host.innerHTML='<div class="card"><div class="empty"><p style="font-size:12.5px">Loading the machine database…</p></div></div>'; return; }
+  if(_mbMounted) return;
+  _mbMounted=true;
+  _mui.mountBrowser(host, { onAdd:(sel, exercise)=>{
+    if(active && active.paused) delete active.paused; // add to the saved draft rather than replace it
+    pushExercise(exercise, sel);
+    setTab('log'); scrollMainTop();
+    toast('Added '+exercise+' · '+sel.snapshot.brand+' '+sel.snapshot.name);
+  } });
+}
+// Programs: a machine per program exercise, carried into the session.
+function progMachineBtn(progId, di, ei, ex){
+  if(ex.machine) return `<button class="mc-add ed-mc" onclick="progMachine('${progId}',${di},${ei})" title="Change machine">${esc(machineLabel(ex.machine))}</button>`;
+  if(_mui && window.Machines.db.exactCount(ex.name)) return `<button class="mc-add ed-mc" onclick="progMachine('${progId}',${di},${ei})">＋ Machine</button>`;
+  return '';
+}
+function progMachine(progId, di, ei){
+  const prog=getPrograms().find(p=>p.id===progId); const ex=prog && prog.days[di] && prog.days[di].exercises[ei]; if(!ex) return;
+  onMachineUI(ui=>ui.openPicker({ exercise:ex.name, current:ex.machine?{ id:ex.machine.id, mode:ex.machine.mode }:null, onPick:sel=>{
+    const p=getPrograms().find(x=>x.id===progId); const e=p && p.days[di] && p.days[di].exercises[ei]; if(!e) return;
+    if(sel) e.machine=sel.snapshot; else delete e.machine;
+    saveProgram(p); renderDetail(progId);
+  } }));
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2090,7 +2300,7 @@ function renderDetail(id){
       ${wo && wo.exercises.length ? `
       <div class="ed-row head"><span>Exercise</span><span>Sets</span><span></span><span>Reps</span><span title="Reps in reserve — how many reps you could still do. 0 = to failure, 2 is a common target.">RIR</span><span></span></div>
       ${wo.exercises.map((ex,ei)=>`<div class="ed-row">
-        <span class="ed-name" onclick="showProg('${jsName(ex.name)}')" title="See weight progression">${esc(ex.name)}</span>
+        <span class="ed-nm"><span class="ed-name" onclick="showProg('${jsName(ex.name)}')" title="See weight progression">${esc(ex.name)}</span>${progMachineBtn(id,di,ei,ex)}</span>
         <input class="ed-in" type="number" min="1" value="${ex.targetSets}" onchange="updateField('${id}',${di},${ei},'targetSets',+this.value)">
         <span style="text-align:center;font-size:11px;color:var(--t3)">×</span>
         <input class="ed-in" type="text" value="${esc(ex.targetReps)}" onchange="updateField('${id}',${di},${ei},'targetReps',this.value)">
@@ -2223,19 +2433,44 @@ function startProgramWorkout(progId, di){
     const m = musclesFor(ex.name);
     const sets = [{ id:'s-'+F.uid(), type:'warmup', weight:'', unit:'kg', reps:'', completed:false }];
     for (let i = 0; i < (ex.targetSets || 3); i++) sets.push({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:ex.targetReps || '', rpe:'', rir:(ex.targetRir??''), completed:false });
-    return { id:'e-'+F.uid(), name:ex.name, primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetRir:ex.targetRir, sets };
+    return { id:'e-'+F.uid(), name:ex.name, primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetRir:ex.targetRir, ...(ex.machine?{ machine:ex.machine }:{}), sets };
   }) };
   saveActive(); setTab('log'); toast('Loaded “'+day.name+'” — finish to log it');
 }
 
+// Opens on every machine (with its resistance profile and muscle action), like
+// the workout's Add exercise sheet; the plain exercise list is the second tab.
 function openCatalogue(progId, di){
   catProgId = progId; catDayIdx = di; catSelected.clear();
-  document.getElementById('cat-target-label').textContent = `Adding to ${DAY_NAMES[di]} workout`;
+  const prog = getPrograms().find(p => p.id === progId), day = prog && prog.days[di];
+  document.getElementById('cat-target-label').textContent = `Adding to ${day && day.name ? day.name : DAY_NAMES[di] + ' workout'}`;
   document.getElementById('cat-search').value = '';
   renderCatalogue('');
+  const host = document.getElementById('cat-machines');
+  host.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3);font-size:13px">Loading the machine database…</div>';
+  onMachineUI(ui => ui.mountAddList(host, { onAdd: addMachineToDay }));
+  setCatView('machines');
   document.getElementById('cat-backdrop').classList.add('open');
   document.getElementById('cat-panel').classList.add('open');
-  setTimeout(() => document.getElementById('cat-search').focus(), 260);
+}
+function setCatView(v){
+  document.querySelectorAll('#cat-panel [data-catv]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.catv === v)));
+  document.getElementById('cat-machines').hidden = v !== 'machines';
+  document.querySelectorAll('#cat-panel [data-catx]').forEach(el => { el.hidden = v !== 'exercises'; });
+  // Focus search on desktop only: on a phone the keyboard would cover the list.
+  const f = v === 'machines' ? document.querySelector('#cat-machines .srch') : document.getElementById('cat-search');
+  if (f && window.matchMedia('(min-width:768px)').matches) setTimeout(() => f.focus(), 260);
+}
+// A machine picked for a program day: added with that machine, and the panel
+// stays open so several can be added in a row.
+function addMachineToDay(sel, exercise){
+  const prog = getPrograms().find(p => p.id === catProgId); if (!prog || catDayIdx === null) return;
+  if (!prog.days[catDayIdx]) prog.days[catDayIdx] = { name: DAY_NAMES[catDayIdx] + ' Workout', exercises: [] };
+  const list = prog.days[catDayIdx].exercises;
+  if (list.some(e => e.name === exercise && e.machine && e.machine.id === sel.snapshot.id && e.machine.mode === sel.snapshot.mode)) { toast('Already in this workout'); return; }
+  list.push({ name: exercise, targetSets: 3, targetReps: '8-12', machine: sel.snapshot });
+  saveProgram(prog); editingDayIdx = catDayIdx; renderDetail(catProgId);
+  toast('Added ' + exercise + ' · ' + sel.snapshot.brand + ' ' + sel.snapshot.name);
 }
 function closeCatalogue(){ document.getElementById('cat-backdrop').classList.remove('open'); document.getElementById('cat-panel').classList.remove('open'); catSelected.clear(); updateSelCount(); }
 function renderCatalogue(query){
@@ -2245,6 +2480,8 @@ function renderCatalogue(query){
     const filtered = custom.filter(e => !q || e.name.toLowerCase().includes(q));
     if (filtered.length) html += `<div class="cat-section"><div class="cat-section-label">Your Catalogue</div>${filtered.map(e => catRow(e.name, e.primaryMuscles?.join(', ') || '')).join('')}</div>`;
   }
+  const machineEx = window.Machines ? window.Machines.db.exerciseNames().filter(n => !q || n.toLowerCase().includes(q)) : [];
+  if (machineEx.length) html += `<div class="cat-section"><div class="cat-section-label">Machine exercises</div>${machineEx.map(n => catRow(n, (window.Machines.db.exactCount(n)||0)+' machines')).join('')}</div>`;
   Object.entries(CATALOGUE).forEach(([cat, names]) => {
     const filtered = names.filter(n => !q || n.toLowerCase().includes(q));
     if (!filtered.length) return;
@@ -2298,14 +2535,17 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCatalog
     });
     return;
   }
-  let h = (location.hash || '').replace('#','');
-  if(h==='plan') h='log'; // old Plan tab now lives on the Workout screen
-  setTab(['log','programs','coaching','history'].includes(h) ? h : 'log');
+  const h = (location.hash || '').replace('#','');
+  setTab(['log','plan','programs','coaching','history','machines'].includes(h) ? h : 'log');
 })();
 // The plan module loads after this script; refresh the Workout home once it's in.
 onTraining(()=>{ if(tab==='log' && (!active || active.paused)) renderLog(); });
+// Machine database (features/machines): loads after this script too; the
+// exercise cards and the picker light up once it's in.
+onMachineUI(()=>{ if(tab==='log' && active && !active.paused) renderLog(); if(tab==='machines') renderMachines(); if(tab==='plan') renderPrograms(); });
 </script>
 <script type="module" src="features/training/index.js"></script>
+<script type="module" src="features/machines/index.js"></script>
 <script src="js/mobilenav.js" defer></script>
 </body>
 </html>

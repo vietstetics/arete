@@ -6,8 +6,9 @@ import { slug } from '../../muscles/services/parse.js';
 
 // Profile values an exercise record may carry. 'IRRELEVANT' is a muscle-level
 // statement in the specification, not a property of an exercise, so records
-// can't use it.
-export const RECORD_PROFILES = ['ASCENDING', 'DESCENDING', 'MID-RANGE', 'N/A', 'Not specified'];
+// can't use it. BELL-SHAPED and CONSTANT come from the machine database and
+// stay distinct from the specification's MID-RANGE (equivalence unreviewed).
+export const RECORD_PROFILES = ['ASCENDING', 'DESCENDING', 'MID-RANGE', 'BELL-SHAPED', 'CONSTANT', 'N/A', 'Not specified'];
 export const EQUIPMENT_CATEGORIES = ['machine', 'cable', 'free-weight', 'bodyweight', 'other'];
 
 /** Stable id for a muscle action, from the specification's own wording. */

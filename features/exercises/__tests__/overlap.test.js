@@ -5,7 +5,7 @@ import { EXERCISES, EQUIVALENCES } from '../data/catalogue.js';
 import { buildCatalogue, actionCatalogue, targetSpec } from '../services/catalogue.js';
 import { analyseSession, selectionsFromRoutine, overlapLine, compareParts } from '../services/overlap.js';
 import { sessionCoverage, weeklyCoverage } from '../services/coverage.js';
-import { sessionPanelHtml, planPanelHtml, recordSelectHtml } from '../ui/overlapPanel.js';
+import { sessionPanelHtml, planPanelHtml } from '../ui/overlapPanel.js';
 import { FIXTURES, EQUIV, IDS, sel } from './fixtures.js';
 
 const cat = buildCatalogue({ entries: MUSCLE_ACTIONS, exercises: FIXTURES, equivalences: EQUIV });
@@ -186,14 +186,13 @@ test('actions come from the specification and stay distinct by wording', () => {
   assert.equal(new Set(acts.map((a) => a.id)).size, acts.length);
 });
 
-test('the live catalogue is empty and the interface handles it', () => {
+test('non-machine records stay empty, and an empty catalogue shows its empty state', () => {
   assert.equal(EXERCISES.length, 0);
   assert.equal(EQUIVALENCES.length, 0);
   assert.equal(empty.records.length, 0);
   const routine = { id: 'r', name: 'Upper', exercises: [{ id: 'x', name: 'Bench Press', sets: 3 }] };
   assert.match(sessionPanelHtml(routine, empty), /exercise catalogue is empty/);
   assert.match(planPanelHtml({ routines: [routine] }, empty, {}), /catalogue/);
-  assert.equal(recordSelectHtml(routine.exercises[0], empty, ''), '');
   const a = analyseSession(selectionsFromRoutine(routine), empty);
   assert.deepEqual([a.unlinked.length, a.targets.length], [1, 0]);
 });
