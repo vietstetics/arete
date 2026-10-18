@@ -116,8 +116,15 @@ input,select,textarea{font-family:inherit}
 
 .ex{border-bottom:1px solid var(--bd)}
 .ex:last-child{border-bottom:0}
-.ex-hd{display:flex;align-items:center;gap:8px;padding:13px 18px 8px}
-.ex-name{font-size:14px;font-weight:600;flex:1;min-width:0}
+/* Each exercise's heading stands out as a dark band, so the list is easy to scan mid-set. */
+.ex-hd{display:flex;align-items:center;gap:8px;margin:12px 12px 6px;padding:6px 6px 6px 14px;border-radius:12px;background:var(--t1)}
+.ex-name{font-size:15px;font-weight:700;flex:1;min-width:0;text-align:left;color:#fff}
+.ex-hd button.ex-name,.ex-hd button.ex-name:hover{color:#fff}
+.ex-hd .icon-btn{color:#fff;background:rgba(255,255,255,.14)}
+.ex-sides{display:inline-flex;gap:2px;padding:2px;margin:2px 18px 6px;border-radius:9px;background:var(--s2)}
+.ex-sides button{padding:5px 10px;border-radius:7px;font-size:12px;font-weight:600;color:var(--t2)}
+.ex-sides button[aria-pressed="true"]{background:#fff;color:var(--t1);box-shadow:var(--sh0)}
+.set-row.uni{grid-template-columns:30px 1fr 1fr 1fr 46px 46px 30px}
 .ex-tags{display:flex;flex-wrap:wrap;gap:3px;margin:0 18px 6px}
 .tg{font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--s2);color:var(--t2)}
 .tg.pri{background:var(--vid);color:var(--vi)}
@@ -347,6 +354,7 @@ input,select,textarea{font-family:inherit}
 .pm-days{font-size:10.5px;font-weight:600;color:var(--vi);margin-top:8px}
 .pm-opt.blank .pm-days{color:var(--t3)}
 @media(max-width:560px){.pm-b{grid-template-columns:1fr}}
+@media(max-width:920px){.set-row.uni{grid-template-columns:24px 1fr 1fr 1fr 38px 38px 26px;gap:4px}}
 @media(max-width:900px){.cols{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="css/theme.css">
@@ -835,9 +843,12 @@ function renderExercise(ex){
     const wi = i - ex.sets.slice(0,i).filter(x=>x.type==='warmup').length; // working-set number (0-based)
     const prev = s.type!=='warmup' && last && !last.elsewhere ? last.sets[Math.min(wi, last.sets.length-1)] : null;
     return `
-    <div class="set-row${s.completed?' done':''}">
+    <div class="set-row${ex.unilateral?' uni':''}${s.completed?' done':''}">
       <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" aria-label="Set ${s.type==='warmup'?'warm-up':wi+1}: toggle warm-up" onclick="toggleType('${ex.id}','${s.id}')">${s.type==='warmup'?'W':wi+1}</button>
-      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
+      ${ex.unilateral
+        ? `<input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'L'}" aria-label="Left weight in kg" value="${s.weightL??''}" oninput="setSide('${ex.id}','${s.id}','weightL',this.value)">
+      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'R'}" aria-label="Right weight in kg" value="${s.weightR??''}" oninput="setSide('${ex.id}','${s.id}','weightR',this.value)">`
+        : `<input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">`}
       <input class="set-in" type="number" inputmode="numeric" placeholder="${s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps||''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
       <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set done':'Mark set done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
@@ -856,10 +867,14 @@ function renderExercise(ex){
       <button class="icon-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlates('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 7v10M18 7v10M9 5v14M15 5v14M9 12h6"/></svg></button>
       <button class="icon-btn" title="Remove exercise" aria-label="Remove ${esc(ex.name)}" onclick="removeExercise('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
+    <div class="ex-sides" role="group" aria-label="Sides">
+      <button aria-pressed="${!ex.unilateral}" onclick="setSides('${ex.id}',false)">Bilateral</button>
+      <button aria-pressed="${!!ex.unilateral}" onclick="setSides('${ex.id}',true)" title="Separate left and right weights for each set">Unilateral</button>
+    </div>
     ${meta?`<div class="ex-meta">${meta}</div>`:''}
     ${machineBlock(ex)}
     <div class="sets">
-      <div class="set-row head"><span>Set</span><span>kg</span><span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
+      <div class="set-row head${ex.unilateral?' uni':''}"><span>Set</span>${ex.unilateral?'<span>L kg</span><span>R kg</span>':'<span>kg</span>'}<span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
       ${rows}
       <button class="add-set" onclick="addSet('${ex.id}')">＋ Add set</button>
     </div>
@@ -1022,9 +1037,27 @@ function pushExercise(name, sel){
 }
 function removeExercise(eid){ active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
 function findEx(eid){ return active.exercises.find(e=>e.id===eid); }
-function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
+function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', ...(ex.unilateral?{ weightL:last?last.weightL??'':'', weightR:last?last.weightR??'':'' }:{}), unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
 function removeSet(eid,sid){ const ex=findEx(eid); ex.sets=ex.sets.filter(s=>s.id!==sid); if(!ex.sets.length) active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
 function setField(eid,sid,f,v){ const s=findEx(eid).sets.find(s=>s.id===sid); s[f]= v===''?'':parseFloat(v); saveActive(); }
+// Unilateral sets keep a left and a right weight. The set's own weight follows
+// the heavier side, so last time, PRs and progression charts keep working.
+function setSide(eid,sid,f,v){
+  const s=findEx(eid).sets.find(x=>x.id===sid);
+  s[f]= v===''?'':parseFloat(v);
+  const sides=[s.weightL,s.weightR].filter(x=>x!==''&&x!=null&&Number.isFinite(x));
+  s.weight= sides.length ? Math.max(...sides) : '';
+  saveActive();
+}
+function setSides(eid,on){
+  const ex=findEx(eid); if(!ex || !!ex.unilateral===on) return;
+  ex.unilateral=on;
+  ex.sets.forEach(s=>{
+    if(on){ if(s.weightL==null) s.weightL=s.weight; if(s.weightR==null) s.weightR=s.weight; }
+    else { delete s.weightL; delete s.weightR; }
+  });
+  saveActive(); renderLog();
+}
 // RPE and RIR are two views of the same effort (RIR ≈ 10 − RPE): fill either
 // and the other follows.
 function setEffort(eid,sid,f,v){
