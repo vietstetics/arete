@@ -315,7 +315,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 </div>
 
 <script type="module">
-import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
+import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, armExtension, REACH_DEFAULTS, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
 import { concentricVelocity, metresPerUnit, setVerdict, compareToLast, lossBand, BODY as PROPORTIONS } from './features/standard/services/velocity.js';
 
 // Exercise setups. Curl: elbow angle, judged at the top of each rep.
@@ -357,16 +357,16 @@ const EXERCISES = {
     fmt: (v) => `${Math.round(v - 100)}`,
     note: 'Bar height above your shoulders, relative to your build.',
     demo: { plan: [[205, 118], [205, 120], [205, 117], [205, 150], [205, 118], [175, 118], [205, 119]] } },
-  row: { row: true, title: 'T-bar row', name: 'T-bar row · hands', part: 'hands', measure: 'hand drop below the shoulders', start: 'hang', finish: 'top',
-    setup: 'Side-on, phone at hip height, 2–3 m away',
-    intro: 'Tracked at your <b>hands</b> only. Your <b>first rep sets the standard</b>: how long your arms hang and how high you pull. Every rep after must reach both to count. Speed is live in the top-right corner.',
+  row: { row: true, title: 'T-bar row', name: 'T-bar row · hands', part: 'hands', measure: 'arm reach', start: 'hang', finish: 'top',
+    setup: 'Phone 2–3 m away, side-on or at an angle',
+    intro: 'Tracked at your <b>hands</b> only, from any angle. Your <b>first rep sets the standard</b>: how long your arms hang and how high you pull. Every rep after must reach both to count. Speed is live in the top-right corner.',
     rep1: 'Rep 1 sets the standard — arms long, pull to your chest, lower',
     finding: 'Get set side-on — finding your hands',
     still: 'Hold still with your arms long — then row',
     show: 'Show your hands and shoulders',
     lost: 'Can’t see your hands clearly',
     fmt: (v) => `${Math.round(v)}%`,
-    note: 'Hand drop below your shoulders, as a % of your arm length.',
+    note: 'How far your arms reach, as a % of their full length.',
     demo: { plan: [[95, 35], [94, 36], [95, 35], [95, 56], [93, 35], [74, 35], [95, 36]] } },
   press: { press: true, title: 'Chest press', name: 'Chest press · machine', part: 'arm', measure: 'elbow angle', start: 'hands back', finish: 'lockout',
     joints: { left: [11, 13, 15], right: [12, 14, 16] },
@@ -481,8 +481,8 @@ const GUIDES = {
 GUIDES.row = {
   svg: GUIDES.curl.svg,
   items: [
-    ['best', 1, 'Side-on to you', '2–3 m away, lens at hip height. Both hands and your shoulders in frame for the whole set.'],
-    ['avoid', 2, 'In front or behind', 'Your hands move towards or away from the lens, so their height and speed can’t be read.'],
+    ['best', 1, 'Side-on, or at an angle in front', '2–3 m away. Rows are measured in 3D, so the angle doesn’t matter as long as your hands and shoulders stay in view.'],
+    ['avoid', 2, 'Directly behind you', 'Your body hides your hands.'],
   ],
   note: 'Prop the phone up rather than holding it. Add your height for speed in m/s.',
 };
@@ -562,7 +562,8 @@ let heightCm = readNum(HEIGHT_KEY), kg = readNum(KG_KEY);
 const loadHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
 let armLens = [];
 function mpu() {
-  if (EX.press || EX.row) {
+  if (EX.row) return heightCm ? (PROPORTIONS.arm * heightCm) / 100 : NaN; // the row is measured in arm lengths
+  if (EX.press) {
     // Straight-arm length in pixels (90th percentile: the arm is straight at every lockout) ↔ shoulder→wrist length from your height.
     if (!heightCm || armLens.length < 10) return NaN;
     const s = armLens.slice().sort((x, y) => x - y);
@@ -742,11 +743,11 @@ function show(view) {
   $('bigc').hidden = !EX.pullup || view === 'pre';
 }
 function resetSet() {
-  counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : createRepCounter();
+  counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : EX.row ? createRepCounter(REACH_DEFAULTS) : createRepCounter();
   if (tracker) tracker.reset();
   if (pu) pu.reset();
   gate.reset(); armed = false;
-  barTrace = []; pendingVel = null; armLens = []; liveHist = []; rowRef = null; rowCal = [];
+  barTrace = []; pendingVel = null; armLens = []; liveHist = [];
   euro.reset(); trace = []; side = armMode === 'auto' ? null : armMode;
   visSum = { left: 0, right: 0 }; steadySince = null; lostSince = null; center = null; current = NaN;
   $('chips').innerHTML = ''; updateCounts(); $('legend').hidden = true;
@@ -823,12 +824,12 @@ function loop() {
   lastVideoT = video.currentTime;
   const tMs = source === 'file' ? video.currentTime * 1000 : performance.now();
   const res = landmarker.detectForVideo(video, tMs);
-  frame(res.landmarks || [], tMs / 1000, video.videoWidth, video.videoHeight);
+  frame(res.landmarks || [], tMs / 1000, video.videoWidth, video.videoHeight, res.worldLandmarks || []);
 }
 
 // ── One frame of pose data ───────────────────────────────
 let curT = 0; // time of the frame being processed (rep timing for the coach view)
-function frame(poses, t, vw, vh) {
+function frame(poses, t, vw, vh, worlds = []) {
   curT = t;
   if (phase === 'idle' || phase === 'done') return;
   const idx = pickPerson(poses, center);
@@ -845,7 +846,7 @@ function frame(poses, t, vw, vh) {
   const p = poses[idx];
   center = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
   if (EX.pullup) { pullupFrame(p, t, vw, vh); return; }
-  if (EX.row) { rowFrame(p, t, vw, vh); return; }
+  if (EX.row) { rowFrame(p, t, vw, vh, worlds[idx] || null); return; }
   if (EX.height) { heightFrame(p, t, vw, vh); return; }
 
   // Work out which arm faces the camera (the one it sees best).
@@ -885,39 +886,26 @@ function frame(poses, t, vw, vh) {
 
 // Squat and bench: hold still to lock your body size and the floor or bench
 // line, then follow hip or bar height against it.
-// T-bar row: the hands only. Hand height is measured against where the
-// shoulders were while you held still before rep 1 (locked, so the Start /
-// Finish lines stay put), in % of your arm length: about 95% hanging, lower
-// as you pull. Speed comes from the raw hand positions, frame by frame.
-let rowRef = null, rowCal = [];
-function rowHands(p, vw, vh) {
-  const seen = (i) => (p[i].visibility ?? 0) >= MIN_VIS;
-  const mid = (a, b) => { const v = [a, b].filter(seen); return v.length ? { x: v.reduce((s, i) => s + p[i].x * vw, 0) / v.length, y: v.reduce((s, i) => s + p[i].y * vh, 0) / v.length } : null; };
-  const W = mid(15, 16), S = mid(11, 12);
-  const arms = [[11, 15], [12, 16]].filter(([a, b]) => seen(a) && seen(b)).map(([a, b]) => Math.hypot((p[a].x - p[b].x) * vw, (p[a].y - p[b].y) * vh));
-  return { W, S, arm: arms.length ? Math.max(...arms) : NaN };
-}
-function rowFrame(p, t, vw, vh) {
-  const h = rowHands(p, vw, vh);
-  if (Number.isFinite(h.arm)) { armLens.push(h.arm); if (armLens.length > 3000) armLens.shift(); }
+// T-bar row: the hands only, measured in 3D. How far the arms reach
+// (shoulder→wrist ÷ arm length, from the pose model's 3D joints) shrinks as
+// you pull, from any camera angle — the flat picture loses a row filmed from
+// the front or at an angle, because the hands move towards the lens. ~95%
+// arms long, lower as you pull in. Speed is how fast that reach changes, in
+// arm lengths per second (× your arm length from your height = m/s).
+function rowFrame(p, t, vw, vh, world) {
+  const x = armExtension(p, world, { minVis: 0.5, vw, vh });
+  const ok = x.ok;
   if (phase === 'finding') {
-    const ok = h.W && h.S && Number.isFinite(h.arm);
     if (ok) {
-      rowCal.push({ s: h.S.y, arm: h.arm });
       steadySince = steadySince ?? t;
       const held = t - steadySince;
       setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
-      if (held >= CALIB_SECS) {
-        const med = (xs) => xs.slice().sort((x, y) => x - y)[xs.length >> 1];
-        rowRef = { y: med(rowCal.map((c) => c.s)), arm: med(rowCal.map((c) => c.arm)) };
-        settle();
-      }
-    } else { steadySince = null; rowCal = []; setStatus(EX.show); }
+      if (held >= CALIB_SECS) settle();
+    } else { steadySince = null; setStatus(EX.show); }
     draw({ p, ok }, vw, vh);
     return;
   }
-  const ok = !!h.W;
-  const a = ok ? euro.filter(((h.W.y - rowRef.y) / rowRef.arm) * 100, t) : NaN;
+  const a = ok ? euro.filter(x.ratio * 100, t) : NaN;
   current = a;
   if (phase === 'settle') {
     if (gate.push(t, [a])) arm(EX.rep1);
@@ -926,7 +914,7 @@ function rowFrame(p, t, vw, vh) {
     return;
   }
   trace.push({ t, a });
-  pushBar(t, ok ? -h.W.y : NaN); // up = lifting, in pixels
+  pushBar(t, ok ? -x.ratio : NaN); // up = pulling in, in arm lengths
   const ev = counter.push(t, a, ok);
   if (ev) onEvent(ev);
   if (!ok && phase === 'live') setStatus(EX.lost, 'warn');
@@ -1149,22 +1137,23 @@ function drawHeight(d, m, lm, sc, oy, cw, dpr) {
 // T-bar row: the hands only (wrist, thumb, index, little finger) and, after
 // rep 1, the Hang and Top lines at rep 1's heights.
 function drawRow(d, lm, sc, oy, cw, dpr) {
+  const ch = canvas.height, x = 24 * dpr, y0 = 0.3 * ch, y1 = 0.72 * ch;
+  const Y = (v) => y1 - ((110 - Math.max(10, Math.min(110, v))) / 100) * (y1 - y0); // arms long (110%) at the bottom, pulled in (10%) at the top
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 6 * dpr; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y1); ctx.stroke();
   const st = counter && counter.standard;
-  if (st && rowRef) {
-    const line = (v, color, label) => {
-      const y = (rowRef.y + (v * rowRef.arm) / 100) * sc + oy;
-      ctx.strokeStyle = color; ctx.lineWidth = 3 * dpr; ctx.setLineDash([10 * dpr, 8 * dpr]);
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = `700 ${12 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = color; ctx.fillText(label, 12 * dpr, y - 8 * dpr);
-    };
-    line(st.start, '#FFFFFF', 'Hang'); line(st.finish, '#58DB3D', 'Top');
+  if (st) {
+    const tick = (v, color, label) => { const y = Y(v); ctx.strokeStyle = color; ctx.lineWidth = 4 * dpr; ctx.beginPath(); ctx.moveTo(x - 10 * dpr, y); ctx.lineTo(x + 10 * dpr, y); ctx.stroke();
+      ctx.font = `700 ${12 * dpr}px Inter, system-ui, sans-serif`; ctx.fillStyle = color; ctx.fillText(label, x + 16 * dpr, y + 4 * dpr); };
+    tick(st.start, '#FFFFFF', 'Hang'); tick(st.finish, '#58DB3D', 'Top');
   }
+  if (Number.isFinite(d.a)) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, Y(d.a), 7 * dpr, 0, Math.PI * 2); ctx.fill(); }
   const seen = (i) => (d.p[i].visibility ?? 0) >= 0.5;
   const col = d.ok ? '#58DB3D' : '#E8A33A';
   for (const [w, pinky, index, thumb] of [[15, 17, 19, 21], [16, 18, 20, 22]]) {
     if (!seen(w)) continue;
     const W = lm(w);
-    ctx.strokeStyle = col; ctx.lineWidth = 4 * dpr; ctx.lineCap = 'round';
+    ctx.strokeStyle = col; ctx.lineWidth = 4 * dpr;
     for (const f of [pinky, index, thumb]) { if (!seen(f)) continue; const F = lm(f); ctx.beginPath(); ctx.moveTo(W.x, W.y); ctx.lineTo(F.x, F.y); ctx.stroke(); }
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(W.x, W.y, 8 * dpr, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 3 * dpr; ctx.stroke();
   }
@@ -1542,7 +1531,8 @@ function startDemo() {
   let i = 0;
   const tick = () => {
     if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
-    frame([EX.row ? demoRow(frames[i], vw, vh) : EX.height ? demoBody(frames[i], vw, vh) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
+    if (EX.row) { const d = demoRow(frames[i]); frame([d.p], i / fps, vw, vh, [d.w]); i++; setTimeout(tick, 1000 / fps); return; }
+    frame([EX.height ? demoBody(frames[i], vw, vh) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
     setTimeout(tick, 1000 / fps);
   };
   tick();
@@ -1595,13 +1585,25 @@ function demoPull({ v, hand, hipX, torso }, vw, vh) {
     15: at(W[0].x, W[0].y), 16: at(W[1].x, W[1].y), 23: at(330 + hipX * 300, hipY), 24: at(390 + hipX * 300, hipY) });
   return p;
 }
-// T-bar row from the side: shoulders still, hands `v` % of an arm below them.
-function demoRow(v, vw, vh) {
-  const p = blank(), at = (x, y) => ({ x, y, visibility: 0.95 }), sh = 0.4, arm = 0.3, wy = sh + (v / 100) * arm, el = (sh + wy) / 2;
-  Object.assign(p, { 11: at(0.42, sh), 12: at(0.44, sh), 13: at(0.36, el), 14: at(0.38, el), 15: at(0.42, wy), 16: at(0.44, wy),
-    17: at(0.44, wy + 0.03), 18: at(0.46, wy + 0.03), 19: at(0.43, wy + 0.035), 20: at(0.45, wy + 0.035), 21: at(0.4, wy + 0.025), 22: at(0.42, wy + 0.025),
-    23: at(0.62, 0.45), 24: at(0.64, 0.45), 25: at(0.6, 0.65), 26: at(0.62, 0.65), 27: at(0.62, 0.85), 28: at(0.64, 0.85) });
-  return p;
+// T-bar row filmed from the front-side angle in the user's photos (55°): the
+// hands move across and towards the lens and hardly up the screen. `v` is
+// arm reach in %; returns the 2D picture and the 3D joints the pose model gives.
+function demoRow(v) {
+  const UA = 0.32, FA = 0.28, d = (v / 100) * (UA + FA), th = (55 * Math.PI) / 180;
+  const nrm = (q) => { const l = Math.hypot(...q); return q.map((c) => c / l); };
+  const dir = nrm([0.05, 0.25, -0.95]), w = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0 }));
+  for (const [sI, eI, wI, fI, side] of [[11, 13, 15, 17, -1], [12, 14, 16, 18, 1]]) {
+    const S = [side * 0.18, -0.45, 0], W = S.map((c, i) => c + dir[i] * d);
+    const a = (UA * UA - FA * FA + d * d) / (2 * d), h = Math.sqrt(Math.max(0, UA * UA - a * a));
+    let perp = [side, -0.3, 0]; const k = perp.reduce((acc, c, i) => acc + c * dir[i], 0); perp = nrm(perp.map((c, i) => c - k * dir[i]));
+    const E = S.map((c, i) => c + dir[i] * a + perp[i] * h);
+    w[sI] = { x: S[0], y: S[1], z: S[2] }; w[eI] = { x: E[0], y: E[1], z: E[2] }; w[wI] = { x: W[0], y: W[1], z: W[2] };
+    for (const [j, o] of [[fI, [0.03, 0.04, -0.02]], [fI + 2, [0.0, 0.05, -0.03]], [fI + 4, [-0.03, 0.03, -0.02]]]) w[j] = { x: W[0] + o[0], y: W[1] + o[1], z: W[2] + o[2] };
+  }
+  w[23] = { x: -0.1, y: 0, z: 0 }; w[24] = { x: 0.1, y: 0, z: 0 }; w[25] = { x: -0.1, y: 0.45, z: -0.1 }; w[26] = { x: 0.1, y: 0.45, z: -0.1 }; w[27] = { x: -0.1, y: 0.85, z: 0 }; w[28] = { x: 0.1, y: 0.85, z: 0 };
+  // Kept in the middle of the frame, which is what a portrait phone shows of the demo's landscape picture.
+  const p = w.map((P, i) => ({ x: 0.52 + 0.2 * (P.x * Math.cos(th) + P.z * Math.sin(th)), y: 0.45 + 0.45 * P.y, visibility: i <= 28 && (i >= 11) ? 0.95 : 0.1 }));
+  return { p, w };
 }
 const blank = () => Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.6, visibility: 0.1 }));
 function demoArm(deg, vw, vh) {

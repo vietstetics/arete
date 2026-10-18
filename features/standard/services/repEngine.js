@@ -544,3 +544,41 @@ export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct =
     reset() { win = []; bar = null; wristY = null; noseY = null; },
   };
 }
+
+// ── Rows and presses from any camera angle ──────────────────────────────
+/**
+ * Rep counter settings for arm reach (%, see armExtension): a full row
+ * covers ~60 points, so anything over 15 is a rep — a partial one is judged
+ * short against rep 1, never silently ignored (the curl's 40 is in degrees).
+ */
+export const REACH_DEFAULTS = { minRange: 15, hysteresis: 8 };
+
+/**
+ * How far the arms reach: shoulder→wrist distance ÷ (upper arm + forearm),
+ * from the pose model's 3D joints (world landmarks, metres). 1 = arm
+ * straight, smaller as you pull the hands in. A flat picture loses movement
+ * towards or away from the lens — filmed from the front or at an angle, a
+ * row's hands barely move up the screen — but the 3D distance still shrinks,
+ * so this reads the same from the side, the front or anywhere between.
+ * Segment lengths come from the same frame, so no calibration is needed.
+ * Both arms count, weighted by how clearly each is seen. Without 3D joints
+ * it falls back to the 2D picture (vw / vh keep pixels square).
+ *   pose: 33 landmarks { x, y, visibility } (0–1); world: 33 { x, y, z } (m) or null
+ * Returns { ok, ratio, sides, threeD }.
+ */
+export function armExtension(pose, world, { minVis = 0.5, vw = 1, vh = 1 } = {}) {
+  const has3D = Array.isArray(world) && world.length > 16 && world[11] && Number.isFinite(world[11].z);
+  const dist = (a, b) => (has3D
+    ? Math.hypot(world[a].x - world[b].x, world[a].y - world[b].y, world[a].z - world[b].z)
+    : Math.hypot((pose[a].x - pose[b].x) * vw, (pose[a].y - pose[b].y) * vh));
+  let wsum = 0, rsum = 0, sides = 0;
+  for (const [s, e, w] of [[11, 13, 15], [12, 14, 16]]) {
+    const vis = Math.min(pose[s]?.visibility ?? 0, pose[w]?.visibility ?? 0);
+    if (vis < minVis) continue;
+    const arm = dist(s, e) + dist(e, w);
+    if (!(arm > 0)) continue;
+    const r = Math.min(1, dist(s, w) / arm);
+    wsum += vis; rsum += vis * r; sides++;
+  }
+  return sides ? { ok: true, ratio: rsum / wsum, sides, threeD: has3D } : { ok: false, ratio: NaN, sides: 0, threeD: has3D };
+}
