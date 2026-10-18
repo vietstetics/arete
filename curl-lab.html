@@ -143,6 +143,38 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .app.fs .btn.s{background:rgba(255,255,255,.16);color:#fff}
 @media(prefers-reduced-motion:reduce){.flash.go{animation-duration:.01s}}
 @media(min-width:760px){.sheet{max-width:560px;margin:0 auto;width:100%}}
+
+/* Coach's display (prototype): TikTok-style set review — video 2/3, live velocity chart 1/3 */
+.cv{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column}
+.cv-stage{position:relative;flex:0 0 66%;background:#0b0b0d;overflow:hidden}
+.cv-stage video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.cv-stage video.mirror{transform:scaleX(-1)}
+.cv-ph{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.55);font-size:14px;text-align:center;padding:24px}
+.cv-close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:12px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:grid;place-items:center}
+.cv-tl{position:absolute;top:calc(60px + env(safe-area-inset-top,0px));left:12px;display:flex;flex-direction:column;gap:6px;max-width:55%}
+.cv-pill{background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;width:max-content;max-width:100%}
+.cv-pill.k{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#B9F5AA}
+.cv-tr{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;background:rgba(0,0,0,.6);border-radius:18px;padding:8px 16px;text-align:center;color:#fff;min-width:64px}
+.cv-tr b{display:block;font-size:38px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.cv-tr span{font-size:11px;color:rgba(255,255,255,.7)}
+.cv-tr em{display:block;font-style:normal;font-size:11px;color:#F5B35A;margin-top:2px}
+.cv-acts{position:absolute;right:10px;bottom:22px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.cv-act{display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;font-size:11px;font-weight:600}
+.cv-act i{width:46px;height:46px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center}
+.cv-act.on i{background:#22A355}
+.cv-note{position:absolute;left:12px;bottom:22px;max-width:62%;background:rgba(0,0,0,.62);color:#fff;font-size:13px;line-height:1.4;padding:8px 12px;border-radius:14px}
+.cv-note small{display:block;color:rgba(255,255,255,.6);font-size:11px;margin-bottom:2px}
+.cv-prog{position:absolute;left:12px;right:12px;bottom:8px;height:3px;border-radius:3px;background:rgba(255,255,255,.28)}
+.cv-prog i{display:block;height:100%;border-radius:3px;background:#fff;width:0}
+.cv-chart{flex:1;min-height:0;background:#fff;border-radius:22px 22px 0 0;margin-top:-14px;position:relative;padding:12px 14px calc(8px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column}
+.cv-ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;font-weight:700;color:#111114}
+.cv-ch span{font-size:12px;font-weight:500;color:#6B6B73}
+.cv-chart svg{flex:1;min-height:0;width:100%;display:block;margin-top:4px;cursor:pointer}
+.cv-sheet{position:absolute;left:0;right:0;bottom:0;z-index:2;background:#fff;border-radius:22px 22px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 30px rgba(0,0,0,.25)}
+.cv-sheet b{font-size:15px}
+.cv-sheet textarea{width:100%;margin:10px 0;min-height:80px;border:1px solid rgba(17,17,20,.12);border-radius:14px;padding:10px 12px;font:inherit;font-size:15px;resize:vertical}
+.cv-sheet .row2{display:flex;gap:8px}
+.cv-sheet .row2 button{flex:1;min-height:46px;border-radius:14px;font-weight:700}
 </style>
 </head>
 <body>
@@ -216,15 +248,45 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
         <div class="sub"><span class="s" id="d-short">0 short</span><span id="d-unclear">0 unclear</span></div>
       </div>
       <div class="verdict" id="verdict"></div>
-      <div class="chart" id="chart-wrap" hidden><svg id="chart" viewBox="0 0 320 150" preserveAspectRatio="none" role="img" aria-label="Nose height through the set"></svg></div>
+      <div class="chart" id="chart-wrap" hidden><svg id="chart" viewBox="0 0 320 150" role="img" aria-label="Nose height through the set"></svg></div>
       <p class="hint">Tap a rep to change its result if the camera got it wrong.</p>
       <div class="list" id="replist"></div>
+      <div class="acts">
+        <label class="field">RPE<input id="rpe-in" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="Optional"></label>
+        <button class="btn p" id="coach-btn">Show coach’s display</button>
+      </div>
       <div class="acts">
         <label class="field" id="kg-next-f">Next set (kg)<input id="kg-next" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
         <button class="btn p" id="again-btn">New set</button>
       </div>
     </div>
   </section>
+</div>
+
+<div class="cv" id="cv-wrap" hidden role="dialog" aria-label="Coach's display">
+  <div class="cv-stage" id="cv-stage">
+    <video id="cv-video" playsinline muted loop></video>
+    <div class="cv-ph" id="cv-ph" hidden></div>
+    <div class="cv-tl" id="cv-tl"></div>
+    <div class="cv-tr"><b id="cv-n">0</b><span>reps</span><em id="cv-short"></em></div>
+    <button class="cv-close" id="cv-close" aria-label="Close coach's display"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <div class="cv-note" id="cv-note" hidden></div>
+    <div class="cv-acts">
+      <button class="cv-act" id="cv-comment" aria-label="Add comment"><i><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h6M9 14h4"/></svg></i><span id="cv-ccount">Add comment</span></button>
+      <button class="cv-act" id="cv-reviewed" aria-label="Mark reviewed"><i><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></i><span>Reviewed</span></button>
+      <button class="cv-act" id="cv-share" aria-label="Save or share video"><i><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></i><span>Share</span></button>
+    </div>
+    <div class="cv-prog"><i id="cv-prog"></i></div>
+  </div>
+  <div class="cv-chart">
+    <div class="cv-ch">Velocity <span id="cv-loss"></span></div>
+    <svg id="cv-svg" viewBox="0 0 320 150" preserveAspectRatio="none" role="img" aria-label="Velocity per rep, building as the video plays"></svg>
+    <div class="cv-sheet" id="cv-sheet" hidden>
+      <b id="cv-sheet-t">Add comment</b>
+      <textarea id="cv-text" placeholder="Depth looked good, keep the bar over midfoot"></textarea>
+      <div class="row2"><button id="cv-cancel" style="background:#F1F1F3">Cancel</button><button id="cv-save" style="background:#111114;color:#fff">Save comment</button></div>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -683,6 +745,7 @@ async function startFile(file) {
 
 function begin() {
   if (!EX.pullup) beep(660, 0.04);
+  startRecording();
   resetSet(); phase = 'finding'; show('live'); showPanel(SPEED); if (SPEED) renderPanel();
   setStatus(EX.finding);
   cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
@@ -702,7 +765,9 @@ function loop() {
 }
 
 // ── One frame of pose data ───────────────────────────────
+let curT = 0; // time of the frame being processed (rep timing for the coach view)
 function frame(poses, t, vw, vh) {
+  curT = t;
   if (phase === 'idle' || phase === 'done') return;
   const idx = pickPerson(poses, center);
   if (idx < 0) {
@@ -821,6 +886,7 @@ function pullupFrame(p, t, vw, vh) {
 }
 
 function onEvent(ev) {
+  if (ev && ev.rep && ev.rep.at == null) ev.rep.at = curT;
   if (ev.type === 'finish') { sfx('tick'); return; }
   if (ev.type === 'standard') {
     phase = 'live'; $('legend').hidden = !!EX.pullup;
@@ -868,6 +934,7 @@ function updateMeter() {
 function endSet() {
   if (phase === 'done') return;
   phase = 'done'; cancelAnimationFrame(raf);
+  stopRecording();
   if (source === 'file') video.pause();
   if (pendingVel) settleVel(Infinity);
   if (SPEED) saveSet();
@@ -1081,6 +1148,155 @@ $('replist').addEventListener('click', (e) => {
   counter.override(r.n, r.result === 'counted' ? 'short' : 'counted');
   renderSummary();
 });
+
+// ── Set recording (for the coach's display) ─────────────
+let rec = null, recChunks = [], recT0 = 0, recURL = null, recBlob = null;
+function startRecording() {
+  if (recURL && recBlob) URL.revokeObjectURL(recURL);
+  rec = null; recURL = null; recBlob = null; recChunks = [];
+  if (demo) { recT0 = 0; return; }
+  if (source === 'file') { recT0 = 0; recURL = video.src; return; } // file frames are timed by video.currentTime
+  if (!stream || !window.MediaRecorder) return;
+  const type = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find((t) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+  try { rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined); } catch { rec = null; return; }
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
+  rec.onstop = () => { recBlob = new Blob(recChunks, { type: rec.mimeType || type || 'video/webm' }); recURL = URL.createObjectURL(recBlob); };
+  rec.start(1000);
+  recT0 = performance.now() / 1000;
+}
+function stopRecording() { try { if (rec && rec.state !== 'inactive') rec.stop(); } catch {} }
+
+// ── Coach's display (prototype) ─────────────────────────
+// Video on top (2/3), the velocity chart below builds live: each rep's bar
+// appears when that rep finishes in the replay, a playhead follows the video,
+// tapping a bar jumps to that rep. Rep counter top right, set details top left.
+const cvv = $('cv-video');
+let cv = null, cvRAF = 0, cvClock0 = 0;
+function cvReps() {
+  return counter.reps.map((r) => ({ r, vt: Number.isFinite(r.at) ? Math.max(0, r.at - recT0) : null, v: speedOf(r) }));
+}
+function openCoach(tries = 0) {
+  if (!counter || !counter.reps.length) { setStatus('Record a set first', 'warn'); return; }
+  if (rec && !recURL && tries < 20) { setTimeout(() => openCoach(tries + 1), 150); return; } // wait for the recording to finish saving
+  const reps = cvReps();
+  const end = Math.max(...reps.map((x) => x.vt || 0)) + 1.5;
+  cv = { reps, end, comments: cv && cv.reps === reps ? cv.comments : [], reviewed: false };
+  const sv = counter.summary();
+  const rpe = parseFloat($('rpe-in').value);
+  const speeds = reps.filter((x) => x.r.result === 'counted' && Number.isFinite(x.v)).map((x) => x.v);
+  const loss = speeds.length > 1 ? Math.round((1 - Math.min(...speeds) / speeds[0]) * 100) : null;
+  cv.loss = loss;
+  $('cv-tl').innerHTML = [
+    `<span class="cv-pill k">${EX.name}</span>`,
+    kg ? `<span class="cv-pill">${kg} kg</span>` : '',
+    `<span class="cv-pill">Reps ${sv.counted}${sv.short ? ` · ${sv.short} short` : ''}</span>`,
+    Number.isFinite(rpe) ? `<span class="cv-pill">RPE ${rpe}</span>` : '',
+    loss != null ? `<span class="cv-pill">Velocity loss ${loss}%</span>` : '',
+  ].join('');
+  $('cv-loss').textContent = speeds.length ? (Number.isFinite(mpu()) ? 'm/s per rep' : 'speed per rep (rep 1 = 100%)') : 'reps (no speed data)';
+  $('cv-reviewed').classList.remove('on');
+  $('cv-ccount').textContent = 'Add comment';
+  $('cv-note').hidden = true; $('cv-sheet').hidden = true;
+  const hasVideo = !!recURL;
+  cvv.hidden = !hasVideo; $('cv-ph').hidden = hasVideo;
+  if (hasVideo) {
+    cvv.src = recURL; cvv.classList.toggle('mirror', source === 'camera' && facing === 'user');
+    cvv.currentTime = 0; cvv.play().catch(() => {});
+  } else {
+    $('cv-ph').textContent = demo ? 'Demo set — no camera video. The chart and rep counter still play back in time.' : 'No video was recorded on this device. The chart and rep counter still play back in time.';
+    cvClock0 = performance.now();
+  }
+  $('cv-wrap').hidden = false;
+  cancelAnimationFrame(cvRAF); cvRAF = requestAnimationFrame(cvTick);
+}
+function cvTime() {
+  if (!cvv.hidden && cvv.src) return cvv.currentTime;
+  return ((performance.now() - cvClock0) / 1000) % cv.end;
+}
+function cvTick() {
+  if ($('cv-wrap').hidden || !cv) return;
+  cvRAF = requestAnimationFrame(cvTick);
+  const t = cvTime();
+  const dur = !cvv.hidden && cvv.duration && isFinite(cvv.duration) ? cvv.duration : cv.end;
+  $('cv-prog').style.width = Math.min(100, (t / dur) * 100) + '%';
+  const shown = cv.reps.filter((x) => x.vt != null && x.vt <= t);
+  $('cv-n').textContent = shown.filter((x) => x.r.result === 'counted').length;
+  const sh = shown.filter((x) => x.r.result === 'short').length;
+  $('cv-short').textContent = sh ? `${sh} short` : '';
+  drawCoachChart(t, shown.length);
+  const near = cv.comments.filter((c) => Math.abs(c.t - t) < 2.5).pop();
+  $('cv-note').hidden = !near;
+  if (near) $('cv-note').innerHTML = `<small>Coach · ${near.t.toFixed(1)}s</small>${near.text.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]))}`;
+}
+function drawCoachChart(t, nShown) {
+  const box = $('cv-svg').getBoundingClientRect();
+  const W = Math.max(200, Math.round(box.width) || 320), H = Math.max(110, Math.round(box.height) || 150), top = 26, base = H - 22;
+  $('cv-svg').setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const reps = cv.reps, n = Math.max(reps.length, 4);
+  const slot = W / n, bw = Math.min(46, slot * 0.62);
+  const speeds = reps.map((x) => x.v).filter(Number.isFinite);
+  const first = speeds.length ? (reps.find((x) => Number.isFinite(x.v)) || {}).v : null;
+  const max = speeds.length ? Math.max(...speeds) * 1.12 : 1;
+  const metric = Number.isFinite(mpu());
+  const yOf = (v) => base - (v / max) * (base - top);
+  let html = `<line x1="0" y1="${base}" x2="${W}" y2="${base}" stroke="#E6E6EA" stroke-width="1"/>`;
+  if (first) { const y = yOf(first * 0.8); html += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#E5484D" stroke-width="1" stroke-dasharray="4 4"/><text x="${W - 2}" y="${y - 4}" text-anchor="end" font-size="10" fill="#E5484D">20% loss</text>`; }
+  reps.forEach((x, i) => {
+    const cx = slot * i + slot / 2, show = i < nShown;
+    html += `<text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="11" fill="#6B6B73">${x.r.n}</text>`;
+    if (!show) { html += `<rect x="${cx - bw / 2}" y="${base - 6}" width="${bw}" height="6" rx="3" fill="#F1F1F3"/>`; return; }
+    const ok = x.r.result === 'counted', has = Number.isFinite(x.v);
+    const y = has ? yOf(x.v) : top + 20;
+    const label = !has ? (ok ? '✓' : x.r.result === 'short' ? 'short' : '?') : metric ? x.v.toFixed(2) : `${Math.round((x.v / first) * 100)}%`;
+    html += ok
+      ? `<rect x="${cx - bw / 2}" y="${y}" width="${bw}" height="${base - y}" rx="8" fill="#111114"/>`
+      : `<rect x="${cx - bw / 2 + 1}" y="${y}" width="${bw - 2}" height="${base - y}" rx="8" fill="none" stroke="#E0954A" stroke-width="2" stroke-dasharray="5 4"/>`;
+    html += `<text x="${cx}" y="${y - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="${ok ? '#111114' : '#B5651D'}">${label}</text>`;
+  });
+  // Playhead: between rep i-1 and rep i in time → between their bar centres.
+  const times = reps.map((x) => x.vt);
+  let px = 0;
+  const k = times.findIndex((v) => v != null && v > t);
+  if (k === -1) px = slot * (reps.length - 1) + slot / 2 + slot * 0.4;
+  else { const t0 = k ? times[k - 1] : 0, x0 = k ? slot * (k - 1) + slot / 2 : 0, x1 = slot * k + slot / 2; px = x0 + ((t - t0) / Math.max(0.01, times[k] - t0)) * (x1 - x0); }
+  html += `<line x1="${Math.min(W - 1, px)}" y1="${top - 14}" x2="${Math.min(W - 1, px)}" y2="${base}" stroke="#22A355" stroke-width="2"/>`;
+  $('cv-svg').innerHTML = html;
+}
+$('cv-svg').addEventListener('click', (e) => {
+  if (!cv) return;
+  const r = $('cv-svg').getBoundingClientRect();
+  const i = Math.floor(((e.clientX - r.left) / r.width) * Math.max(cv.reps.length, 4));
+  const x = cv.reps[i]; if (!x || x.vt == null) return;
+  const to = Math.max(0, x.vt - 1.6);
+  if (!cvv.hidden && cvv.src) { cvv.currentTime = to; cvv.play().catch(() => {}); } else cvClock0 = performance.now() - to * 1000;
+});
+$('cv-stage').addEventListener('click', (e) => {
+  if (e.target.closest('button') || cvv.hidden) return;
+  if (cvv.paused) cvv.play().catch(() => {}); else cvv.pause();
+});
+$('cv-close').onclick = () => { $('cv-wrap').hidden = true; cancelAnimationFrame(cvRAF); cvv.pause(); };
+$('cv-comment').onclick = () => {
+  if (!cvv.hidden) cvv.pause();
+  $('cv-sheet-t').textContent = `Add comment at ${cvTime().toFixed(1)}s`;
+  $('cv-text').value = ''; $('cv-sheet').hidden = false; $('cv-text').focus();
+};
+$('cv-cancel').onclick = () => { $('cv-sheet').hidden = true; if (!cvv.hidden) cvv.play().catch(() => {}); };
+$('cv-save').onclick = () => {
+  const text = $('cv-text').value.trim();
+  if (!text) { $('cv-text').focus(); return; }
+  cv.comments.push({ t: cvTime(), text });
+  $('cv-ccount').textContent = `${cv.comments.length} comment${cv.comments.length === 1 ? '' : 's'}`;
+  $('cv-sheet').hidden = true; if (!cvv.hidden) cvv.play().catch(() => {});
+};
+$('cv-reviewed').onclick = () => { cv.reviewed = !cv.reviewed; $('cv-reviewed').classList.toggle('on', cv.reviewed); };
+$('cv-share').onclick = async () => {
+  if (!recBlob) { setStatus(source === 'file' ? 'This video is already on your device' : 'No recorded video to share', 'warn'); return; }
+  const ext = recBlob.type.includes('mp4') ? 'mp4' : 'webm';
+  const file = new File([recBlob], `arete-${EXK}-set.${ext}`, { type: recBlob.type });
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Arete set' }); return; } } catch {}
+  const a = document.createElement('a'); a.href = recURL; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+};
+$('coach-btn').onclick = () => openCoach();
 
 // ── Controls ─────────────────────────────────────────────
 $('start-btn').onclick = () => { audioInit(); demo ? startDemo() : startCamera(); };
