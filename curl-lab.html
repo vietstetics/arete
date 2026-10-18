@@ -97,6 +97,9 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .vp-loss{font-size:17px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.75)}
 .vp-loss.fresh{color:#58DB3D}.vp-loss.work{color:#F2B544}.vp-loss.grind{color:#FF6B5E}
 .vp-bars{position:relative;display:flex;align-items:flex-end;gap:4px;height:78px;margin-top:10px}
+.vp .vp-live{position:static;inset:auto;display:block;width:100%;height:64px;margin-top:6px;border-radius:8px;background:rgba(255,255,255,.06)}
+.vp-now{display:flex;justify-content:space-between;margin-top:6px;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}
+.vp-now b{color:#fff;font-size:15px}
 .vp-bars i{flex:1;min-width:6px;max-width:28px;border-radius:5px 5px 2px 2px;background:#58DB3D}
 .vp-bars i.work{background:#F2B544}.vp-bars i.grind{background:#FF6B5E}
 .vp-bars i.short{opacity:.45}.vp-bars i.none{background:rgba(255,255,255,.22);height:6px!important}
@@ -160,6 +163,8 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="vp-k" id="vp-k">Bar speed</div>
       <div class="vp-n"><b id="vp-v">–</b><span id="vp-u"></span></div>
       <div class="vp-loss" id="vp-loss">Shows after each rep</div>
+      <div class="vp-now"><span>Live</span><span><b id="vp-now">–</b> <span id="vp-now-u"></span></span></div>
+      <canvas class="vp-live" id="vp-live" aria-hidden="true"></canvas>
       <div class="vp-bars" id="vp-bars" aria-hidden="true"></div>
       <div class="vp-verdict" id="vp-verdict" hidden></div>
     </aside>
@@ -224,7 +229,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 
 <script type="module">
 import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
-import { concentricVelocity, metresPerUnit, setVerdict, compareToLast, lossBand } from './features/standard/services/velocity.js';
+import { concentricVelocity, metresPerUnit, setVerdict, compareToLast, lossBand, BODY as PROPORTIONS } from './features/standard/services/velocity.js';
 
 // Exercise setups. Curl: elbow angle, judged at the top of each rep.
 // Squat and bench: height (hips above the feet, bar above the shoulders),
@@ -265,6 +270,16 @@ const EXERCISES = {
     fmt: (v) => `${Math.round(v - 100)}`,
     note: 'Bar height above your shoulders, relative to your build.',
     demo: { plan: [[205, 118], [205, 120], [205, 117], [205, 150], [205, 118], [175, 118], [205, 119]] } },
+  press: { press: true, title: 'Chest press', name: 'Chest press · machine', part: 'arm', measure: 'elbow angle', start: 'hands back', finish: 'lockout',
+    joints: { left: [11, 13, 15], right: [12, 14, 16] },
+    setup: 'Side-on, phone at chest height, 2–3 m away',
+    intro: 'Your <b>first rep sets the standard</b>: how far back your hands come and how far you press. Speed is measured at your <b>hands</b> (it’s a machine), live in the top-right corner.',
+    rep1: 'Rep 1 sets the standard — hands back, press to lockout',
+    finding: 'Sit side-on — finding you',
+    still: 'Hold still — then press',
+    show: 'Show the whole arm — shoulder, elbow and wrist',
+    fmt: (v) => `${Math.round(180 - v)}°`, // the signal is 180° − elbow angle (falls as you press); shown as the elbow angle
+    demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[112, 14], [111, 15], [112, 15], [112, 40], [110, 15], [85, 14], [112, 16]] } },
   pullup: { pullup: true, speed: false, facing: 'environment', title: 'Pull-up standard', short: 'Pull-ups', name: 'Pull-up · strict standard', part: 'arms', measure: 'nose height', start: 'hang', finish: 'top',
     setup: 'Rear camera, portrait, 2–3 m in front of the bar',
     intro: 'Your <b>first rep sets the standard</b>, whatever it is: how low you hang, how high your nose gets and how much you swing. Every rep after must match all three to count. Slowing down is fine.',
@@ -281,7 +296,7 @@ const EX = EXERCISES[EXK];
 const ARMS = EX.joints;
 const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
 // How still you must hold before rep 1 (setting up must never count as a rep).
-const STILL_BANDS = { curl: [8], squat: [4], bench: [6], pullup: [5, 0.06, 0.06] };
+const STILL_BANDS = { curl: [8], squat: [4], bench: [6], press: [8], pullup: [5, 0.06, 0.06] };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // What to fix when the tracker can't lock on (squat and bench).
@@ -355,6 +370,14 @@ const GUIDES = {
     note: '<b>Height:</b> lens about 1–1.2 m high (around your waist when you stand), tilted down towards your chest. Any lower and your knees hide it. <b>Frame:</b> landscape, with the bar at lockout near the top of the picture. Prop the phone up rather than holding it.',
   },
 };
+GUIDES.press = {
+  svg: GUIDES.curl.svg,
+  items: [
+    ['best', 1, 'Side-on to the arm nearest the phone', '2–3 m away, lens at chest height. That arm is the one tracked.'],
+    ['avoid', 2, 'In front or behind', 'Your hand moves towards or away from the lens, so its speed can’t be read.'],
+  ],
+  note: 'Keep shoulder, elbow and wrist in frame the whole set. Add your height for speed in m/s.',
+};
 GUIDES.pullup = {
   svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone straight in front of the bar, or up to 30 degrees to one side">
     <circle cx="150" cy="84" r="50" fill="none" stroke="#C0403A" stroke-width="1.5" stroke-dasharray="3 4" opacity=".7"/>
@@ -407,18 +430,63 @@ let audio = null, wakeLock = null, current = NaN;
 // units for squat and bench), up = lifting. Each rep's mean lifting speed is
 // measured from it; metresPerUnit() turns that into m/s from your height.
 const HEIGHT_KEY = 'arete_lab_height_cm', KG_KEY = `arete_${EXK}_lab_kg`, HIST_KEY = `arete_${EXK}_lab_history`;
-const STEP_KG = { squat: 2.5, bench: 2.5, curl: 2 };
+const STEP_KG = { squat: 2.5, bench: 2.5, curl: 2, press: 5 };
 let barTrace = [], pendingVel = null;
 const readNum = (k) => { try { const v = parseFloat(localStorage.getItem(k)); return v > 0 ? v : null; } catch { return null; } };
 const writeNum = (k, v) => { try { v > 0 ? localStorage.setItem(k, String(v)) : localStorage.removeItem(k); } catch {} };
 let heightCm = readNum(HEIGHT_KEY), kg = readNum(KG_KEY);
 const loadHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
+let armLens = [];
 function mpu() {
+  if (EX.press) {
+    // Straight-arm length in pixels (90th percentile: the arm is straight at every lockout) ↔ shoulder→wrist length from your height.
+    if (!heightCm || armLens.length < 10) return NaN;
+    const s = armLens.slice().sort((x, y) => x - y);
+    return (PROPORTIONS.arm * heightCm) / 100 / s[Math.round(0.9 * (s.length - 1))];
+  }
   return metresPerUnit(EXK, { heightM: heightCm ? heightCm / 100 : 0, scale: tracker?.scale, standShoulderPx: tracker?.standShoulderPx, armPx: tracker?.armPx });
+}
+// Live speed: least-squares slope of the last 0.15 s of positions, + = lifting.
+let liveHist = [];
+function liveSpeed() {
+  const n = barTrace.length;
+  if (n < 4) return NaN;
+  const tEnd = barTrace[n - 1].t;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0, m = 0;
+  for (let i = n - 1; i >= 0 && tEnd - barTrace[i].t <= 0.15; i--) {
+    const q = barTrace[i];
+    if (!Number.isFinite(q.y)) return NaN;
+    const x = q.t - tEnd; sx += x; sy += q.y; sxx += x * x; sxy += x * q.y; m++;
+  }
+  if (m < 3 || m * sxx - sx * sx <= 0) return NaN;
+  const k = mpu();
+  return ((m * sxy - sx * sy) / (m * sxx - sx * sx)) * (Number.isFinite(k) ? k : 1);
+}
+// The last 5 s of live speed, drawn in the top-right panel.
+function drawLive(t) {
+  const v = liveSpeed(), k = mpu(), metres = Number.isFinite(k);
+  liveHist.push({ t, v });
+  while (liveHist.length && t - liveHist[0].t > 5) liveHist.shift();
+  $('vp-now').textContent = Number.isFinite(v) && metres ? Math.max(0, v).toFixed(2) : '–';
+  $('vp-now-u').textContent = metres ? 'm/s' : 'add height for m/s';
+  const cv = $('vp-live'), dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
+  if (!W || !H) return;
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const c = cv.getContext('2d');
+  c.clearRect(0, 0, W, H);
+  const vals = liveHist.map((p) => p.v).filter(Number.isFinite);
+  const top = Math.max(metres ? 0.5 : 1e-9, ...vals.map((x) => Math.abs(x))) * 1.15;
+  const X = (tt) => ((tt - (t - 5)) / 5) * W, Y = (x) => H / 2 - (x / top) * (H / 2 - 4 * dpr);
+  c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = dpr; c.beginPath(); c.moveTo(0, H / 2); c.lineTo(W, H / 2); c.stroke();
+  c.strokeStyle = '#58DB3D'; c.lineWidth = 2.5 * dpr; c.lineJoin = 'round'; c.beginPath();
+  let pen = false;
+  for (const p of liveHist) { if (!Number.isFinite(p.v)) { pen = false; continue; } const x = X(p.t), y = Y(p.v); if (pen) c.lineTo(x, y); else { c.moveTo(x, y); pen = true; } }
+  c.stroke();
 }
 function pushBar(t, y) {
   barTrace.push({ t, y });
   if (barTrace.length > 20000) barTrace.splice(0, 2000);
+  if (SPEED) drawLive(t);
   if (pendingVel && t >= pendingVel.until) settleVel(t);
 }
 // Curl reps are measured as soon as they're judged (the lift is over).
@@ -447,7 +515,8 @@ function renderPanel(verdict) {
   const timed = list.filter((x) => Number.isFinite(x.mv) && x.r.result !== 'unclear');
   const best = timed.length ? Math.max(...timed.slice(0, 3).map((x) => x.mv)) : NaN;
   const last = timed[timed.length - 1];
-  $('vp-k').textContent = last ? `Bar speed · rep ${last.r.n}` : 'Bar speed';
+  const what = EX.press ? 'Hand speed' : 'Bar speed';
+  $('vp-k').textContent = last ? `${what} · rep ${last.r.n}` : what;
   if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
   else {
     const loss = (best - last.mv) / best;
@@ -553,7 +622,7 @@ function resetSet() {
   if (tracker) tracker.reset();
   if (pu) pu.reset();
   gate.reset(); armed = false;
-  barTrace = []; pendingVel = null;
+  barTrace = []; pendingVel = null; armLens = []; liveHist = [];
   euro.reset(); trace = []; side = armMode === 'auto' ? null : armMode;
   visSum = { left: 0, right: 0 }; steadySince = null; lostSince = null; center = null; current = NaN;
   $('chips').innerHTML = ''; updateCounts(); $('legend').hidden = true;
@@ -660,8 +729,9 @@ function frame(poses, t, vw, vh) {
   const px = (i) => ({ x: p[i].x * vw, y: p[i].y * vh, v: p[i].visibility ?? 0 });
   const S = px(si), E = px(ei), W = px(wi);
   const ok = Math.min(S.v, E.v, W.v) >= MIN_VIS;
-  const rawA = ok ? jointAngle(S, E, W) : NaN;
+  const rawA = ok ? (EX.press ? 180 - jointAngle(S, E, W) : jointAngle(S, E, W)) : NaN;
   const a = ok ? euro.filter(rawA, t) : NaN;
+  if (EX.press && ok) { armLens.push(Math.hypot(W.x - S.x, W.y - S.y)); if (armLens.length > 3000) armLens.shift(); }
   current = a;
 
   if (phase === 'finding') {
@@ -676,7 +746,7 @@ function frame(poses, t, vw, vh) {
     else setStatus(ok ? EX.still : EX.show, ok ? 'good' : '');
   } else {
     trace.push({ t, a });
-    pushBar(t, Number.isFinite(rawA) ? ((180 - rawA) * Math.PI) / 180 : NaN);
+    pushBar(t, !Number.isFinite(rawA) ? NaN : EX.press ? Math.hypot(W.x - S.x, W.y - S.y) : ((180 - rawA) * Math.PI) / 180);
     const ev = counter.push(t, a, ok);
     if (ev) onEvent(ev);
     if (!ok && phase === 'live') setStatus(`Can’t see your ${EX.part} clearly`, 'warn');
@@ -1035,6 +1105,7 @@ const setKg = (v) => { kg = v > 0 ? v : null; writeNum(KG_KEY, kg); $('kg-in').v
 $('kg-in').oninput = (e) => { kg = parseFloat(e.target.value) > 0 ? parseFloat(e.target.value) : null; writeNum(KG_KEY, kg); };
 $('kg-next').oninput = (e) => setKg(parseFloat(e.target.value));
 if (EXK === 'curl') $('kg-label').textContent = 'Dumbbell (kg)';
+if (EXK === 'press') $('kg-label').textContent = 'Weight on the stack (kg)';
 $('arm-btn').onclick = () => {
   armMode = armMode === 'auto' ? 'left' : armMode === 'left' ? 'right' : 'auto';
   $('arm-btn').textContent = cap(EX.part) + ': ' + cap(armMode);
@@ -1090,7 +1161,7 @@ function startDemo() {
   let i = 0;
   const tick = () => {
     if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
-    frame([EX.height ? demoBody(frames[i], vw, vh) : demoArm(frames[i], vw, vh)], i / fps, vw, vh); i++;
+    frame([EX.height ? demoBody(frames[i], vw, vh) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
     setTimeout(tick, 1000 / fps);
   };
   tick();
