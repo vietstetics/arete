@@ -55,9 +55,6 @@
     { href: 'sleep.html',       label: 'Sleep',       icon: ic.sleep },
     { href: 'connections.html', label: 'Connections', icon: ic.connect },
     { href: 'exercises.html',   label: 'Exercises',   icon: ic.exercises },
-    { href: 'analytics.html',   label: 'Progress',    icon: ic.progress },
-    { href: 'consistency.html', label: 'Consistency', icon: ic.streak },
-    { href: 'finance.html',     label: 'Finance',     icon: ic.finance },
     { href: 'settings.html',    label: 'Settings',    icon: ic.settings },
   ];
 
