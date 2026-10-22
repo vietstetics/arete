@@ -5,7 +5,7 @@
  *  - Never touches /api/ or cross-origin requests (Open Food Facts, fonts…)
  *  Bump VERSION to invalidate old caches on deploy.
  * ==========================================================================*/
-const VERSION = 'arete-v13';
+const VERSION = 'arete-v15';
 
 const CORE = [
   'index.html', 'workouts.html', 'nutrition.html', 'recovery.html',
@@ -30,6 +30,21 @@ const CORE = [
   'features/machines/ui/machineUI.js',
   'manifest.webmanifest',
   'icon-180.png', 'icon-192.png', 'icon-512.png',
+  'curl-lab.html', 'velocity-lab.html',
+  'features/standard/services/repEngine.js', 'features/standard/services/velocity.js',
+  'features/velocity/index.js', 'features/velocity/services/record.js',
+  'features/velocity/services/workout.js', 'features/velocity/services/sources.js',
+  'features/velocity/services/pipeline.js', 'features/velocity/services/timing.js',
+  'features/velocity/services/smooth.js', 'features/velocity/services/metrics.js',
+  'features/velocity/services/weight.js', 'features/velocity/services/compare.js',
+  'features/velocity/services/bar3d.js', 'features/velocity/demo/synth.js',
+  'features/velocity/services/live/plateSession.js', 'features/velocity/services/live/frameGrabber.js',
+  'features/velocity/services/live/motion.js', 'features/velocity/services/live/repVelocity.js',
+  'features/velocity/services/live/frameClock.js',
+  'features/velocity/services/vision/image.js', 'features/velocity/services/vision/geometry.js',
+  'features/velocity/services/vision/ellipse.js', 'features/velocity/services/vision/plate.js',
+  'features/velocity/services/vision/camera.js', 'features/velocity/services/vision/circle3d.js',
+  'features/velocity/services/vision/plate3d.js',
 ];
 
 self.addEventListener('install', (e) => {

@@ -39,6 +39,34 @@ test('a long pause at the bottom does not slow the reading', () => {
   assert.ok(near(a, b, 0.03));
 });
 
+test('nonfinite, duplicate and backwards timestamps never produce a velocity', () => {
+  const { samples, end } = lift();
+  for (const t of [NaN, Infinity, -Infinity, samples[9].t, samples[8].t]) {
+    const bad = samples.map((p) => ({ ...p })); bad[10].t = t;
+    assert.equal(concentricVelocity(bad, 0, end), null);
+  }
+  for (const [t0, t1] of [[NaN, end], [0, Infinity], [end, 0], [1, 1]]) assert.equal(concentricVelocity(samples, t0, t1), null);
+});
+
+test('a recording cut off during a lift and a long occlusion get no velocity', () => {
+  const { samples, end } = lift({ secs: 2 });
+  assert.equal(concentricVelocity(samples.filter((p) => p.t > 1), 0, end), null);
+  assert.equal(concentricVelocity(samples.filter((p) => p.t < 2), 0, end), null);
+  const missing = samples.map((p) => ({ ...p, y: p.t > 1.1 && p.t < 1.8 ? NaN : p.y }));
+  assert.equal(concentricVelocity(missing, 0, end), null);
+});
+
+test('actual uneven timestamps preserve mean and peak speed', () => {
+  const samples = [];
+  for (let t = 0, i = 0; t < 2; i++, t += (1 + 0.2 * Math.sin(i * 1.7)) / 60) {
+    const u = Math.min(1, Math.max(0, t - 0.5));
+    samples.push({ t, y: 0.25 * (1 - Math.cos(Math.PI * u)) });
+  }
+  const result = concentricVelocity(samples, 0, 2);
+  assert.ok(near(result.mv, 0.5, 0.08));
+  assert.ok(near(result.pv, Math.PI / 4, 0.04));
+});
+
 test('reps left: fresh set says add weight, a grinding set says hold', () => {
   const add = setVerdict([0.62, 0.61, 0.58, 0.55, 0.5].map((mv) => ({ mv, result: 'counted' })), { lift: 'squat', metres: true });
   assert.equal(add.kind, 'add'); assert.ok(add.rir > 3 && add.rir < 4);
@@ -63,6 +91,24 @@ test('a short rep at the end means hold, whatever the speed; unclear reps are ig
   reps.push({ mv: 0.59, result: 'short' });
   assert.equal(setVerdict(reps, { lift: 'squat', metres: true }).kind, 'hold');
   assert.equal(setVerdict([{ mv: 0.6, result: 'counted' }, { mv: NaN, result: 'unclear' }], { lift: 'squat', metres: true }).kind, 'none');
+});
+
+test('short reps and invalid speeds never influence the velocity trend', () => {
+  const reps = [0.62, 0.61, 0.6].map((mv) => ({ mv, result: 'counted' }));
+  reps.splice(1, 0, { mv: 20, result: 'short' });
+  const result = setVerdict(reps, { lift: 'squat', metres: true });
+  assert.equal(result.best, 0.62); assert.equal(result.last, 0.6); assert.equal(result.kind, 'add');
+  assert.equal(setVerdict([{ mv: 1, result: 'short' }, { mv: 0.6, result: 'counted' }], { lift: 'squat', metres: true }).kind, 'none');
+  for (const bad of [NaN, Infinity, 0, -1]) {
+    assert.equal(estimateRir([0.6, bad], { lift: 'squat', metres: true }), null);
+    assert.equal(setVerdict([{ mv: 0.6, result: 'counted' }, { mv: bad, result: 'counted' }], { lift: 'squat', metres: true }).kind, 'none');
+  }
+});
+
+test('a nonfinite physical calibration never claims a real-world scale', () => {
+  for (const heightM of [NaN, Infinity, 0, -1]) assert.ok(Number.isNaN(metresPerUnit('curl', { heightM })));
+  for (const scale of [NaN, Infinity, 0, -1]) assert.ok(Number.isNaN(metresPerUnit('squat', { heightM: 1.8, standShoulderPx: 300, scale })));
+  assert.ok(Number.isNaN(metresPerUnit('bench', { heightM: 1.8, scale: 200, armPx: Infinity })));
 });
 
 test('without m/s (curl, or no height) reps left come from slowing down relative to your best', () => {

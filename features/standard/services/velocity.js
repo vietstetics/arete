@@ -37,13 +37,15 @@ export const NEAR_FAILURE_DROP = { squat: 0.06, bench: 0.05 };
 /** Relative fallback (curls, or no height): failure ≈ half your best speed. */
 const REL_FAILURE = 0.5, REL_DROP = 0.08;
 
-/** Converts native units to metres. NaN when it can't be known yet. */
+/** Anthropometric estimate of metres per native unit; NaN without a finite calibration. */
 export function metresPerUnit(lift, { heightM, scale, standShoulderPx, armPx } = {}) {
-  if (!(heightM > 0)) return NaN;
+  if (!Number.isFinite(heightM) || !(heightM > 0)) return NaN;
   if (lift === 'curl') return BODY.curlRadius * heightM;
-  if (lift === 'squat') return standShoulderPx > 0 && scale > 0 ? (scale * BODY.shoulderAboveAnkle * heightM) / standShoulderPx : NaN;
-  if (lift === 'bench') return armPx > 0 && scale > 0 ? (scale * BODY.arm * heightM) / armPx : NaN;
-  return NaN;
+  if (!Number.isFinite(scale) || !(scale > 0)) return NaN;
+  const length = lift === 'squat' ? standShoulderPx : lift === 'bench' ? armPx : NaN;
+  const fraction = lift === 'squat' ? BODY.shoulderAboveAnkle : BODY.arm;
+  const mpu = Number.isFinite(length) && length > 0 ? (scale * fraction * heightM) / length : NaN;
+  return Number.isFinite(mpu) && mpu > 0 ? mpu : NaN;
 }
 
 /**
@@ -54,39 +56,55 @@ export function metresPerUnit(lift, { heightM, scale, standShoulderPx, armPx } =
  * `threshold` × peak, so pauses at the bottom or top never count. Start and
  * end are interpolated between frames: at 30 fps, rounding to whole frames
  * alone would be ~8% off on a quick rep.
- * Checked against simulated reps (smooth, early-peaking, late-peaking and
- * flat-topped speed curves, 0.5–2 s, ±0–5 mm jitter): about 1% low on
- * average, never more than ~11% off.
+ * Synthetic regression tests cover known displacement and timing, position
+ * jitter and uneven frame intervals; they do not establish camera accuracy.
  * Returns { mv, pv, range, dur } in native units per second, or null.
  */
 export function concentricVelocity(samples, t0, t1, { threshold = 0.1 } = {}) {
+  if (!Number.isFinite(t0) || !Number.isFinite(t1) || !(t1 > t0) || !(threshold > 0 && threshold < 1)) return null;
+  if (!Array.isArray(samples) || !samples.every((s, i) => s && Number.isFinite(s.t) && (i === 0 || s.t > samples[i - 1].t))) return null;
   const pts = samples.filter((s) => s.t >= t0 && s.t <= t1 && Number.isFinite(s.y));
   const n = pts.length;
   if (n < 5) return null;
-  // Light 3-frame smoothing so camera jitter doesn't swamp the slow ends.
-  const ys = pts.map((_, i) => (pts[Math.max(0, i - 1)].y + pts[i].y + pts[Math.min(n - 1, i + 1)].y) / 3);
+  // A local linear fit at the actual timestamp. An equal-weight moving
+  // average shifts positions in time when frame spacings differ and can
+  // create false peak speeds even in a perfectly smooth trace.
+  const ys = pts.map((point, i) => {
+    let count = 0, sx = 0, sxx = 0, sy = 0, sxy = 0;
+    for (let j = Math.max(0, i - 1); j <= Math.min(n - 1, i + 1); j++) {
+      const x = pts[j].t - point.t;
+      count++; sx += x; sxx += x * x; sy += pts[j].y; sxy += x * pts[j].y;
+    }
+    return (sy * sxx - sx * sxy) / (count * sxx - sx * sx);
+  });
   const t = pts.map((p) => p.t);
   let iMin = 0;
   for (let i = 1; i < n; i++) if (ys[i] < ys[iMin]) iMin = i;
   let iMax = iMin;
   for (let i = iMin + 1; i < n; i++) if (ys[i] > ys[iMax]) iMax = i;
   if (iMax - iMin < 3) return null;
-  const v = ys.map((_, i) => (i === 0 || i === n - 1 ? 0 : (ys[i + 1] - ys[i - 1]) / (t[i + 1] - t[i - 1])));
+  // Endpoints have no centred derivative: assigning zero would invent a
+  // resting bottom/top when the recording actually started/stopped moving.
+  const v = ys.map((_, i) => (i === 0 || i === n - 1 ? NaN : (ys[i + 1] - ys[i - 1]) / (t[i + 1] - t[i - 1])));
   let ip = iMin;
-  for (let i = iMin; i <= iMax; i++) if (v[i] > v[ip]) ip = i;
+  for (let i = iMin; i <= iMax; i++) if (Number.isFinite(v[i]) && (!Number.isFinite(v[ip]) || v[i] > v[ip])) ip = i;
   const pv = v[ip];
   if (!(pv > 0)) return null;
   const thr = threshold * pv;
   let s = ip; while (s > iMin && v[s - 1] >= thr) s--;
   let e = ip; while (e < iMax && v[e + 1] >= thr) e++;
+  if (!(s > 0 && e < n - 1 && Number.isFinite(v[s - 1]) && v[s - 1] < thr && Number.isFinite(v[e + 1]) && v[e + 1] < thr)) return null;
+  // Filtering missing positions must not silently bridge a long occlusion.
+  for (let i = s; i <= e + 1; i++) if (t[i] - t[i - 1] > 0.5 + 1e-6) return null;
   const cross = (below, above) => {
     const f = (thr - v[below]) / (v[above] - v[below]);
     return { t: t[below] + f * (t[above] - t[below]), y: ys[below] + f * (ys[above] - ys[below]) };
   };
   const A = s > iMin ? cross(s - 1, s) : { t: t[s], y: ys[s] };
   const B = e < iMax ? cross(e + 1, e) : { t: t[e], y: ys[e] };
-  if (!(B.t > A.t)) return null;
-  return { mv: (B.y - A.y) / (B.t - A.t), pv, range: ys[iMax] - ys[iMin], dur: B.t - A.t };
+  const dur = B.t - A.t, mv = (B.y - A.y) / dur, range = ys[iMax] - ys[iMin];
+  if (!(dur > 0) || !Number.isFinite(mv) || !(mv > 0) || !Number.isFinite(pv) || !Number.isFinite(range)) return null;
+  return { mv, pv, range, dur };
 }
 
 /** Least-squares slope of ys against 0, 1, 2… */
@@ -106,7 +124,7 @@ function slope(ys) {
  * mvs: mean velocities in rep order. metres: are they in m/s?
  */
 export function estimateRir(mvs, { lift, metres }) {
-  if (mvs.length < 2) return null;
+  if (mvs.length < 2 || !mvs.every((v) => Number.isFinite(v) && v > 0)) return null;
   const best = Math.max(...mvs.slice(0, 3)), last = mvs[mvs.length - 1];
   const trend = -slope(mvs.slice(-3));
   const abs = metres && MVT[lift];
@@ -123,7 +141,7 @@ export function estimateRir(mvs, { lift, metres }) {
  *   none — not enough clear reps to say
  */
 export function setVerdict(reps, { lift, metres }) {
-  const timed = reps.filter((r) => r.result !== 'unclear' && Number.isFinite(r.mv));
+  const timed = reps.filter((r) => r.result === 'counted' && Number.isFinite(r.mv) && r.mv > 0);
   if (timed.length < 2) return { kind: 'none' };
   const mvs = timed.map((r) => r.mv);
   const best = Math.max(...mvs.slice(0, 3)), last = mvs[mvs.length - 1];

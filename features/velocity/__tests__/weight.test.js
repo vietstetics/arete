@@ -50,7 +50,7 @@ function filmSet({ ups = [0.8, 0.95, 1.1], yawDeg = 15, hide = null, fps = 60 } 
   return { frames, track, ups, upStarts, vw, vh, fps };
 }
 
-const run = (set, opts = {}) => analyseSet({ frames: set.frames, vw: set.vw, vh: set.vh, lift: 'squat', fps: set.fps, heightCm: 180, massKg: 180, tracker: 'plate', plateTrack: set.track, ...opts });
+const run = (set, opts = {}) => analyseSet({ frames: set.frames, vw: set.vw, vh: set.vh, lift: 'squat', fps: set.fps, heightCm: 180, massKg: 180, tracker: 'plate', plateTrack: set.track, diameterM: 0.45, ...opts });
 
 const SET15 = filmSet();
 
@@ -86,7 +86,8 @@ test('the plate hidden for over 0.5 s mid-rep makes that rep unclear — never f
   const res = run(hidden);
   assert.deepEqual(res.rows.map((r) => r.velocity), ['ok', 'unclear', 'ok']);
   assert.match(res.rows[1].why, /0\.5 s/);
-  assert.ok(Number.isFinite(res.rows[1].poseMcv), 'the pose still had it — and it was not used');
+  assert.ok(Number.isFinite(res.rows[1].poseRel), 'the pose still had it — and it was not used');
+  assert.ok(Number.isNaN(res.rows[1].poseMcv), 'uncalibrated pose does not publish physical speed');
 });
 
 test('without a diameter there is no m/s, only relative speed', () => {

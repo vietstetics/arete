@@ -12,18 +12,29 @@
 // never filled in from the body. The body-pose baseline from step 1 (bar on
 // the shoulders, hands, the dumbbell's arc around the elbow) stays available,
 // clearly labelled, so the two can be compared on the same set.
+//
+// The barbell's default is the plate in 3D ('plate3d'): the same measurement
+// the live camera page makes — the plate's outline every frame
+// (vision/plate3d.js createRimTracker), its 3D centre (reconstruct3D) and
+// transducer-style numbers per lift (bar3d.js barMetrics). Counted pose rows
+// keep the original standard's D / T. Separate lab measurements list every
+// plate lift and its own distance / time, alongside the pose verdict.
 
 import {
   createRepCounter, createReturnCounter, createHeightTracker, createStillGate,
   HEIGHT_DEFAULTS, jointAngle, oneEuro, pickPerson,
 } from '../../standard/services/repEngine.js';
-import { metresPerUnit, concentricVelocity } from '../../standard/services/velocity.js';
+import { metresPerUnit } from '../../standard/services/velocity.js';
 import { velocitySourceFor } from './sources.js';
 import { savitzkyGolay } from './smooth.js';
 import { weightSamples } from './weight.js';
 import { PLATE_DIAMETER_M, MAX_OFF_AXIS_DEG } from './vision/geometry.js';
 import { setVelocities, intraSetFatigue } from './timing.js';
 import { repMetrics, confidence } from './metrics.js';
+import { reconstruct3D, heightsFromTrack } from './vision/plate3d.js';
+import { barMetrics, G } from './bar3d.js';
+import { videoIntrinsics, setQuality, DEFAULT_HFOV_DEG } from './live/plateSession.js';
+import { standardizeLifts } from './live/repVelocity.js';
 
 // Same values as curl-lab.html, so the harness judges reps the way the app does.
 const MIN_VIS = 0.55, CALIB_SECS = 0.8;
@@ -33,20 +44,21 @@ const STILL_BANDS = { curl: [8], squat: [4], bench: [6] };
 // bar velocity) or 'path' (dumbbell: distance along its arc). prior: the
 // landmarks the weight sits next to, to find it in the first frame.
 export const LIFTS = {
-  squat: { label: 'Back squat', exercise: 'Back Squat', equipment: 'Barbell', point: 'bar on your shoulders', defaultMass: 'bar+body', weight: 'plate', path: 'height', prior: [11, 12] },
-  bench: { label: 'Bench press', exercise: 'Bench Press', equipment: 'Barbell', point: 'your hands', defaultMass: 'bar', weight: 'plate', path: 'height', prior: [15, 16] },
+  squat: { label: 'Back squat', exercise: 'Back Squat', equipment: 'Barbell', point: 'bar on your shoulders', defaultMass: 'bar+body', weight: 'plate', weight3d: true, path: 'height', prior: [11, 12] },
+  bench: { label: 'Bench press', exercise: 'Bench Press', equipment: 'Barbell', point: 'your hands', defaultMass: 'bar', weight: 'plate', weight3d: true, path: 'height', prior: [15, 16] },
   curl: { label: 'Dumbbell curl', exercise: 'Dumbbell Curl', equipment: 'Dumbbell', point: 'the dumbbell’s arc around your elbow', defaultMass: 'bar', weight: 'dumbbell', path: 'path', prior: [15, 16] },
 };
 
-/** The trackers a lift can be measured with: the weight first, the pose baseline second. */
+/** The trackers a lift can be measured with: the weight first (in 3D for a barbell, then the older 2D), the pose baseline last. */
 export function trackerChoices(lift) {
-  return [trackerFor(lift, LIFTS[lift].weight), trackerFor(lift, 'pose-baseline')];
+  return [...(LIFTS[lift].weight3d ? [trackerFor(lift, 'plate3d')] : []), trackerFor(lift, LIFTS[lift].weight), trackerFor(lift, 'pose-baseline')];
 }
 
-/** How velocity is measured for a lift (default: at the weight). */
-export function trackerFor(lift, id = LIFTS[lift].weight) {
+/** How velocity is measured for a lift (default: at the weight, in 3D where it can be). */
+export function trackerFor(lift, id = LIFTS[lift].weight3d ? 'plate3d' : LIFTS[lift].weight) {
   const source = velocitySourceFor({ name: LIFTS[lift].exercise, equipment: LIFTS[lift].equipment });
-  if (id === 'plate') return { source, id, label: 'The plate (bar end)' };
+  if (id === 'plate3d') return { source, id, label: 'The plate in 3D (estimated camera geometry)' };
+  if (id === 'plate') return { source, id, label: 'The plate, 2D (older: side-on only)' };
   if (id === 'dumbbell') return { source, id, label: 'The dumbbell head' };
   return source === 'weight'
     ? { source, id: 'pose-baseline', label: `Body-pose baseline (${LIFTS[lift].point}), not the weight itself` }
@@ -133,17 +145,19 @@ export function repWindows(reps, lift, tMax) {
 /**
  * Full analysis of one recorded set.
  *   frames, vw, vh: pose frames (see runPose); fps: capture frame rate
- *   heightCm: for m/s; massKg: system mass for power / force
+ *   heightCm: optional internal anthropometric estimate, never a measured physical calibration
+ *   massKg: system mass for power / force when the measured point has a physical scale
  * Returns everything the harness shows: reps with D/T velocity and metrics,
  * D, units, frame-rate tiers and the current live panel's reading for comparison.
  */
-export function analyseSet({ frames, vw, vh, lift, fps, heightCm = null, massKg = null, tracker, plateTrack = null, diameterM = PLATE_DIAMETER_M, gravity }) {
+export function analyseSet({ frames, vw, vh, lift, fps, heightCm = null, massKg = null, tracker, plateTrack = null, diameterM = null, gravity, plate3d = null }) {
   const t = trackerFor(lift, tracker);
   const pose = runPose(frames, { lift, vw, vh, heightCm });
+  if (t.id === 'plate3d') return plate3dSet({ t, pose, lift, fps, massKg, diameterM, plate3d });
   const tMax = frames.length ? frames[frames.length - 1].t : 0;
   const windows = repWindows(pose.reps, lift, tMax);
   // The measured point: the weight from the video, or the body-pose baseline.
-  let samples = pose.samples, mpu = pose.mpu, view = null, refused = '', quality = pose.quality;
+  let samples = pose.samples, mpu = NaN, view = null, refused = '', quality = pose.quality;
   if (t.id === 'plate' || t.id === 'dumbbell') {
     const ws = weightSamples(plateTrack || [], { diameterM, gravity, mode: LIFTS[lift].path });
     view = ws.view; samples = ws.samples; mpu = view && view.scaled ? 1 : NaN;
@@ -155,26 +169,104 @@ export function analyseSet({ frames, vw, vh, lift, fps, heightCm = null, massKg 
   const fit = savitzkyGolay(samples);
   const dt = setVelocities(samples, fit, pose.reps, windows, { mpu });
   if (refused) dt.rows.forEach((r) => { if (r.result === 'counted') Object.assign(r, { velocity: 'unclear', why: refused, mcv: NaN, mcvOwn: NaN, rel: NaN, loss: NaN }); });
-  // For comparison on the same set: the body-pose baseline and today's live panel method.
+  // A height-based body model is not a measured scale. Pose comparisons may retain timing ratios,
+  // but cannot publish m/s, centimetres, watts or force from anthropometric proportions.
   const poseFit = t.id === 'pose-baseline' ? fit : savitzkyGolay(pose.samples);
-  const base = t.id === 'pose-baseline' ? dt : setVelocities(pose.samples, poseFit, pose.reps, windows, { mpu: pose.mpu });
-  const poseScaled = Number.isFinite(pose.mpu);
+  const base = t.id === 'pose-baseline' ? dt : setVelocities(pose.samples, poseFit, pose.reps, windows);
+  const poseOnly = t.id === 'pose-baseline' || t.id === 'pose-hand';
+  const estimate = poseOnly ? 'Uncalibrated body pose: height alone does not establish a measured physical scale' : '';
   const rows = dt.rows.map((row, i) => {
     const m = repMetrics(fit, row, { D: dt.D, mpu, massKg });
-    const w = windows[i];
-    const live = row.result === 'counted' && w ? concentricVelocity(pose.samples, w.t0, w.t1) : null;
     return {
-      ...row, ...m,
+      ...pose.reps[i], ...row, ...m, isStandard: !!pose.reps[i].isStandard,
+      ...(!dt.scaled ? { mcv: NaN, mcvOwn: NaN, distance: NaN, pv: NaN, mpv: NaN } : {}),
       romCm: dt.scaled && Number.isFinite(row.distance) ? row.distance * 100 : NaN,
-      poseMcv: base.rows[i] && base.rows[i].velocity === 'ok' && poseScaled ? base.rows[i].mcv : NaN,
-      liveMv: live && poseScaled ? live.mv * pose.mpu : NaN,
-      badges: Object.fromEntries(['mv', 'loss', 'rom', 'avgPower', 'mpv', 'pv', 'peakPower', 'peakForce'].map((k) => [k, confidence(k, { fps, quality })])),
+      poseRel: base.rows[i]?.velocity === 'ok' ? base.rows[i].rel : NaN,
+      poseMcv: NaN, liveMv: NaN, ...(estimate ? { estimate } : {}),
+      badges: Object.fromEntries(['mv', 'loss', 'rom', 'avgPower', 'mpv', 'pv', 'peakPower', 'peakForce'].map((k) => [k, poseOnly ? 'estimate' : confidence(k, { fps, quality })])),
     };
   });
   return {
     lift, tracker: t, fps, scaled: dt.scaled, mpu, D: dt.D, Dm: dt.Dm, view, refused, diameterM: t.id === 'pose-baseline' ? null : diameterM,
     standard: pose.standard, armedAt: pose.armedAt, quality,
-    rows, fatigue: intraSetFatigue(rows), samples, fit,
+    calibration: { kind: poseOnly ? 'uncalibrated-pose' : dt.scaled ? 'measured-diameter' : 'relative-weight', estimate: true },
+    rows, fatigue: intraSetFatigue(rows.map((r) => ({ ...r, mcv: r.rel }))), samples, fit,
+  };
+}
+
+/**
+ * The 3D plate measurement of a recorded set — the live page's own numbers.
+ *   plate3d: { vw, vh, hfovDeg, frames: [{ t, ok, e: { cx, cy, a, b, phi } (full-frame px) }] } from the
+ *     rim tracker. A video carries no gravity, so the camera's up comes from the plate (upFromPlate: exact
+ *     for the tilt the plate can see; the turn about the bar itself is taken as level).
+ *   diameterM: the plate's diameter (its radius sets the scale)
+ * rows: one per pose rep, counted reps only get D / T from the original standard.
+ * measurementRows: one per detected plate lift, own distance / time for lab comparisons, independently of
+ * the pose verdict. This series is never used to count reps or establish the workout's standard.
+ * Unknown physical diameter preserves time and relative speed while suppressing all SI measurements.
+ */
+export function plate3dSet({ t, pose, lift, fps, massKg = null, diameterM = null, plate3d }) {
+  const scaled = Number.isFinite(diameterM) && diameterM > 0;
+  const badges = Object.fromEntries(['mv', 'loss', 'rom', 'avgPower', 'mpv', 'pv', 'peakPower', 'peakForce'].map((k) => [k, 'estimate']));
+  const unavailableRows = standardizeLifts(pose.reps, []).rows.map(({ rep, lift: L, ...row }) => ({
+    ...rep, ...row, n: rep.n, result: rep.result, isStandard: !!rep.isStandard, poseRep: rep.n,
+    romCm: NaN, avgPower: NaN, peakPower: NaN, peakForce: NaN, poseMcv: NaN, liveMv: NaN, badges: { ...badges },
+  }));
+  const base = { lift, tracker: t, fps, scaled, mpu: scaled ? 1 : NaN, D: NaN, Dm: NaN, view: null, refused: '', diameterM: scaled ? diameterM : null, standard: pose.standard, armedAt: pose.armedAt, quality: 0, rows: unavailableRows, measurementRows: [], fatigue: NaN, samples: [], fit: [] };
+  const frames = plate3d && plate3d.frames ? plate3d.frames : [];
+  if (!frames.some((f) => f.ok)) return { ...base, refused: 'The plate was never found in the video' };
+  let K;
+  try { K = videoIntrinsics(plate3d.vw, plate3d.vh, plate3d.hfovDeg ?? DEFAULT_HFOV_DEG); }
+  catch { return { ...base, refused: 'Invalid video dimensions or camera field of view' }; }
+  if (frames.some((f, i) => !Number.isFinite(f.t) || (i > 0 && f.t <= frames[i - 1].t))) return { ...base, refused: 'Frame timestamps must increase' };
+  // An arbitrary common radius preserves timings and speed ratios when the physical diameter is unknown.
+  // It never authorises SI output. The scale remains an estimate even with a measured diameter because the
+  // video intrinsics and the camera's up are inferred, rather than calibrated against a reference instrument.
+  const rec = reconstruct3D(frames, K, { up: null, R: (scaled ? diameterM : PLATE_DIAMETER_M) / 2 });
+  const heights = heightsFromTrack(rec.frames, rec.up);
+  const m = barMetrics(heights);
+  const quality = setQuality(frames, rec);
+  const standardized = standardizeLifts(pose.reps, m.reps);
+  const estimate = 'Assumed camera field of view and inferred vertical; real-video accuracy has not been validated';
+  const rows = standardized.rows.map(({ rep, lift: L, ...row }) => {
+    const ok = row.velocity === 'ok';
+    return {
+      ...rep, ...row, n: rep.n, result: rep.result, isStandard: !!rep.isStandard, poseRep: rep.n,
+      ...(quality.ok ? {} : { velocity: rep.result === 'counted' ? 'unclear' : 'none', why: 'The plate was not followed cleanly', mcv: NaN, mcvOwn: NaN, rel: NaN, loss: NaN, pv: NaN, mpv: NaN }),
+      ...(!scaled ? { mcv: NaN, mcvOwn: NaN, pv: NaN, mpv: NaN, distance: NaN } : {}),
+      romCm: ok && quality.ok && scaled ? row.distance * 100 : NaN,
+      avgPower: ok && quality.ok && scaled && Number.isFinite(massKg) && massKg > 0 ? massKg * G * standardized.D / row.T : NaN,
+      peakPower: NaN, peakForce: NaN, poseMcv: NaN, liveMv: NaN,
+      estimate: [estimate, L?.estimate, L?.peakWhy].filter(Boolean).join('; '), badges: { ...badges },
+    };
+  });
+  // Measurements are a separate lab-only series. They may include setup movements, short reps and lifts
+  // without a pose verdict; they must never become counted workout velocities or establish the standard.
+  const first = m.reps[0]?.ok ? m.reps[0] : null;
+  const measurementRows = m.reps.map((L, i) => {
+    const matched = standardized.rows.find((r) => r.lift === L);
+    const rel = L.ok && first ? L.mcv / first.mcv : NaN;
+    return {
+      n: i + 1, result: matched?.rep.result || 'not counted', poseRep: matched?.rep.n ?? null,
+      velocity: L.ok ? 'ok' : 'unclear', why: L.ok ? '' : L.why,
+      T: L.ok ? L.T : NaN, tStart: L.tStart, tEnd: L.tEnd,
+      mcv: L.ok && scaled ? L.mcv : NaN, mcvOwn: L.ok && scaled ? L.mcv : NaN,
+      distance: L.ok && scaled ? L.distance : NaN, romCm: L.ok && scaled ? L.distance * 100 : NaN,
+      pv: L.ok && scaled ? L.pv : NaN, mpv: L.ok && scaled ? L.mpv : NaN,
+      avgPower: L.ok && scaled && Number.isFinite(massKg) && massKg > 0 ? massKg * G * L.distance / L.T : NaN,
+      rel, loss: 1 - rel, peakPower: NaN, peakForce: NaN, poseMcv: NaN, liveMv: NaN,
+      estimate: [estimate, L.estimate, L.peakWhy].filter(Boolean).join('; '), badges: { ...badges },
+    };
+  });
+  const view = {
+    threeD: true, scaled, ok: quality.ok, clear: quality.clear, rimFit: quality.rimFit, offAxisDeg: quality.offAxisDeg, tiltDeg: quality.tiltDeg, spreadDeg: quality.spreadDeg,
+    focalScale: quality.focalScale, lost: quality.lost, upFrom: rec.upFrom,
+  };
+  return {
+    ...base, rows, measurementRows, view, quality: 1 - quality.lost, D: quality.ok ? standardized.D : NaN, Dm: quality.ok && scaled ? standardized.D : NaN,
+    calibration: { kind: scaled ? 'measured-diameter-estimated-camera' : 'relative-plate', diameterM: scaled ? diameterM : null, estimate: true },
+    fatigue: intraSetFatigue(rows.map((r) => ({ ...r, mcv: r.rel }))),
+    samples: heights, fit: m.fit, rec, setQuality: quality,
   };
 }
 

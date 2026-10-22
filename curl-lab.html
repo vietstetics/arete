@@ -91,6 +91,9 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 /* Live bar-speed panel: top right of the camera view, readable from the bar */
 .vp{position:absolute;top:calc(60px + env(safe-area-inset-top,0px));right:12px;z-index:3;width:min(46vw,240px);padding:12px 12px 10px;border-radius:18px;background:rgba(14,17,12,.92);color:#fff}
 .vp-k{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+.vp-src{font-size:10.5px;font-weight:600;margin-top:2px;color:rgba(255,255,255,.62)}
+.vp-src.plate{color:#58DB3D}
+.vp-src.est{color:#E8A33A}
 .vp-n{display:flex;align-items:baseline;gap:6px;margin-top:2px}
 .vp-n b{font-size:52px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
 .vp-n span{font-size:14px;font-weight:700;color:rgba(255,255,255,.7)}
@@ -208,6 +211,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
     <div class="status" id="status" role="status" aria-live="polite">Side-on, phone at hip height, 2–3 m away</div>
     <aside class="vp" id="vp" hidden aria-label="Bar speed per rep">
       <div class="vp-k" id="vp-k">Bar speed</div>
+      <div class="vp-src" id="vp-src" hidden></div>
       <div class="vp-n"><b id="vp-v">–</b><span id="vp-u"></span></div>
       <div class="vp-loss" id="vp-loss">Shows after each rep</div>
       <div class="vp-now"><span>Live</span><span><b id="vp-now">–</b> <span id="vp-now-u"></span></span></div>
@@ -231,7 +235,8 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
         <label class="field">Your height (cm)<input id="height-in" type="number" inputmode="numeric" min="120" max="230" placeholder="e.g. 180"></label>
         <label class="field"><span id="kg-label">Weight on the bar (kg)</span><input id="kg-in" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
       </div>
-      <p class="hint" id="fields-hint">Your height turns camera movement into bar speed in m/s. The weight lets each set be compared with your last one at that weight.</p>
+      <label class="field" id="diameter-field" hidden>Known outer plate diameter (cm)<input id="diameter-in" type="number" inputmode="decimal" min="5" max="100" step="0.1" placeholder="Leave blank for relative speed"></label>
+      <p class="hint" id="fields-hint">Body tracking shows relative speed. A known plate diameter enables estimated m/s; camera geometry still needs real-world validation. The weight lets you compare sets at the same load.</p>
       <section class="guide" id="guide" aria-labelledby="guide-h"></section>
       <p class="hint">Gym clutter in the background is fine. Video is processed on your phone and never uploaded.</p>
       <div class="acts">
@@ -266,6 +271,8 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="chart" id="chart-wrap" hidden><svg id="chart" viewBox="0 0 320 150" role="img" aria-label="Nose height through the set"></svg></div>
       <p class="hint">Tap a rep to change its result if the camera got it wrong.</p>
       <div class="list" id="replist"></div>
+      <p class="hint" id="workout-save" role="status"></p>
+      <a class="btn s" id="workout-return" href="workouts.html?tab=log" hidden>Return to workout</a>
       <div class="acts">
         <label class="field">RPE<input id="rpe-in" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="Optional"></label>
         <button class="btn p" id="coach-btn">Review set (coach view)</button>
@@ -316,7 +323,15 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 
 <script type="module">
 import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, armExtension, REACH_DEFAULTS, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
-import { concentricVelocity, metresPerUnit, setVerdict, compareToLast, lossBand, BODY as PROPORTIONS } from './features/standard/services/velocity.js';
+import { concentricVelocity, setVerdict, compareToLast, lossBand } from './features/standard/services/velocity.js';
+import { createPlateSession } from './features/velocity/services/live/plateSession.js';
+import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
+import { requestMotionPermission, createMotionWatch } from './features/velocity/services/live/motion.js';
+import { barMetrics } from './features/velocity/services/bar3d.js';
+import { standardizeLifts, standardizeMeasurements } from './features/velocity/services/live/repVelocity.js';
+import { createFrameClock } from './features/velocity/services/live/frameClock.js';
+import { buildLiveSetRecord, saveSetRecord } from './features/velocity/services/record.js';
+import { parseWorkoutContext, attachTrackedSet } from './features/velocity/services/workout.js';
 
 // Exercise setups. Curl: elbow angle, judged at the top of each rep.
 // Squat and bench: height (hips above the feet, bar above the shoulders),
@@ -401,6 +416,8 @@ const EXERCISES = {
 const EXQ = new URLSearchParams(location.search).get('ex');
 const EXK = EXERCISES[EXQ] ? EXQ : 'curl';
 const EX = EXERCISES[EXK];
+const requestedSource = new URLSearchParams(location.search).get('velocitySource');
+const requestedName = new URLSearchParams(location.search).get('exerciseName') || '';
 const ARMS = EX.joints;
 const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
 // How still you must hold before rep 1 (setting up must never count as a rep).
@@ -453,11 +470,11 @@ const GUIDES = {
       ${marker(272, 110, 'ok', 2, [200, 110])}${marker(150, 18, 'ok', 2, [150, 99])}${marker(150, 204, 'ok', 2, [150, 158])}
       ${marker(183, 143, 'avoid', 3)}</svg>`,
     items: [
-      ['best', 1, 'At 45°, in front or behind', 'Sees your hips and feet without the plates in the way.'],
-      ['ok', 2, 'Side-on, straight behind or in front', 'These work too: the count uses how high your hips are above your feet, so the camera angle doesn’t matter.'],
-      ['avoid', 3, 'Closer than about 2.5 m', 'Your feet have to stay in frame at the top of every rep.'],
+      ['best', 1, 'At 45°, in front or behind', 'Sees your hips and feet, and the face of a plate: bar speed is measured from the plate itself, in 3D.'],
+      ['ok', 2, 'Side-on', 'Counts reps and measures the plate too. Straight behind or in front, reps still count but the plates are edge-on, so speed comes from your body (an estimate).'],
+      ['avoid', 3, 'Closer than about 2.5 m', 'Your feet and the whole plate have to stay in frame at the top and bottom of every rep.'],
     ],
-    note: '<b>Height:</b> lens at hip height (about 1 m), portrait. <b>Distance:</b> 3–4 m. Head to feet in frame for the whole set, and keep the phone still: prop it up rather than holding it.',
+    note: '<b>Height:</b> lens at hip height (about 1 m), portrait. <b>Distance:</b> 3–4 m. Head to feet and the whole plate in frame for the whole set — best with the plate’s path near the middle of the picture. Keep the phone still: prop it up rather than holding it. A standard 45 cm plate (bumper or 20 kg) gives the scale.',
   },
   bench: {
     svg: `<svg viewBox="0 0 300 230" role="img" aria-label="Top-down view: phone past your feet, in line with the bench or up to 45 degrees to one side">
@@ -470,12 +487,12 @@ const GUIDES = {
       ${marker(150, 214, 'best', 1, [150, 82])}${marker(236, 196, 'ok', 2, [158, 84])}
       ${marker(282, 78, 'avoid', 3, [236, 78])}${marker(150, 12, 'avoid', 4)}</svg>`,
     items: [
-      ['best', 1, 'Past your feet, in line with the bench', '2–3 m from the end of the bench. Both hands, both shoulders and the bar stay in view.'],
-      ['ok', 2, 'Past your feet, up to 45° to one side', 'Use this if a rack or a spotter is in the way.'],
+      ['best', 1, 'Past your feet, about 45° to one side', '2–3 m away. Both hands and shoulders stay in view for the count, and the near plate shows its face, so bar speed is measured from the plate in 3D.'],
+      ['ok', 2, 'Past your feet, in line with the bench', 'Counts reps best, but the plates are edge-on from here, so speed comes from your body (an estimate).'],
       ['avoid', 3, 'Side-on to the bench', 'From the side you look straight down the bar, so the plate sits in front of your hand.'],
       ['avoid', 4, 'At your head', 'You appear upside down, which the tracker handles badly.'],
     ],
-    note: '<b>Height:</b> lens about 1–1.2 m high (around your waist when you stand), tilted down towards your chest. Any lower and your knees hide it. <b>Frame:</b> landscape, with the bar at lockout near the top of the picture. Prop the phone up rather than holding it.',
+    note: '<b>Height:</b> lens about 1–1.2 m high (around your waist when you stand), tilted down towards your chest. Any lower and your knees hide it. <b>Frame:</b> landscape, with the bar at lockout near the top of the picture and the whole near plate in view at the top and the bottom. Prop the phone up rather than holding it.',
   },
 };
 GUIDES.row = {
@@ -556,20 +573,186 @@ let audio = null, wakeLock = null, current = NaN;
 const HEIGHT_KEY = 'arete_lab_height_cm', KG_KEY = `arete_${EXK}_lab_kg`, HIST_KEY = `arete_${EXK}_lab_history`;
 const STEP_KG = { squat: 2.5, bench: 2.5, curl: 2, press: 5 };
 let barTrace = [], pendingVel = null;
+let diameterCm = null, liveRecordId = null, liveRecordAt = Date.now(), savedTypedRir, sourceURL = null, starting = false, startGeneration = 0;
+const frameClock = createFrameClock();
+const workoutContext = parseWorkoutContext(location.search);
+
+// ── The plate (squat, bench): the bar's own speed, measured in 3D ─────────
+// While you hold still before rep 1, the plate is found near the bar (your
+// shoulders for the squat, your hands for the bench) and from then on it's
+// followed in 3D (features/velocity/services/live/plateSession.js): the
+// speed panel shows the bar's real vertical speed in m/s — no height needed,
+// from any angle the plate can be seen. When the set ends, every frame is
+// worked out again with everything the set showed (which way the plate
+// faces, the camera's focal length) for the numbers that are kept. Without
+// a plate in view, speed falls back to the body — an estimate, and labelled.
+const PLATE_ON = !!EX.height && requestedSource !== 'hand' && !/dumbbell|goblet/i.test(requestedName);
+let plateSess = null, grabber = null, motion = null, motionAsk = null, plateRes = null, plateFrame = 0, barSource = 'pose', plateFinal = null, plateNote = '';
+let plateOkT = -Infinity, plateRecent = [], platePrior = null, armMs = 0, plateBroke = false, plateMoved = false, plateInvalid = false;
+function plateStart() {
+  plateSess = null; plateRes = null; plateFinal = null; plateNote = ''; plateFrame = 0; barSource = 'pose';
+  plateOkT = -Infinity; plateRecent = []; platePrior = null; armMs = 0; plateBroke = false; plateMoved = false; plateInvalid = false;
+  if (!PLATE_ON || demo) return;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return;
+  plateSess = createPlateSession({ vw, vh, radiusM: (diameterCm || 45) / 200 });
+  grabber = grabber || createFrameGrabber();
+  if (source === 'camera') {
+    motion = motion || createMotionWatch();
+    const generation = startGeneration;
+    (motionAsk || Promise.resolve(true)).then((ok) => { if (ok && generation === startGeneration && phase !== 'done' && phase !== 'idle') motion.start(); });
+  }
+  showSource();
+}
+/** Gravity from the phone's motion sensors (camera only): the last second's average, while the phone is at rest. */
+function plateGravity() {
+  if (!plateSess || !motion || source !== 'camera') return;
+  const u = motion.up({ facing });
+  if (u) plateSess.setUp(u);
+}
+/** Where the bar should be, from the pose: across the shoulders (squat), in the hands (bench). */
+function barPrior(p, vw, vh) {
+  if (!p) return null;
+  const [a, b] = EX.height === 'bench' ? [15, 16] : [11, 12];
+  return { x: ((p[a].x + p[b].x) / 2) * vw, y: ((p[a].y + p[b].y) / 2) * vh };
+}
+/**
+ * How big a 45 cm plate should look, from the body: about the length of a
+ * torso (shoulders to hips, ~0.5 m) when standing, or 1.1× the shoulder width
+ * (~0.4 m) on the bench. Returned as a radius range in pixels, generous both
+ * ways — it only has to rule out the plate's hub or a dumbbell on the floor.
+ */
+function plateSizeHint(p, vw, vh) {
+  if (!p) return null;
+  const seen = (...ids) => ids.every((i) => (p[i].visibility ?? 0) >= 0.5);
+  const d = (a, b) => Math.hypot((p[a].x - p[b].x) * vw, (p[a].y - p[b].y) * vh);
+  let r = NaN;
+  if (EX.height === 'bench' && seen(11, 12)) r = 0.56 * d(11, 12);
+  else if (seen(11, 12, 23, 24)) r = 0.45 * Math.hypot(((p[11].x + p[12].x - p[23].x - p[24].x) / 2) * vw, ((p[11].y + p[12].y - p[23].y - p[24].y) / 2) * vh);
+  return r > 4 ? [0.35 * r, 2.2 * r] : null;
+}
+/**
+ * Once per video frame: look for the plate while setting up, follow it once found. Until counting starts
+ * the choice isn't final: a plate lost for 0.3 s (walked out of its crop after the unrack, say) is looked
+ * for again, and gravity keeps being read while the phone rests.
+ */
+function plateStep(t, poses) {
+  plateRes = null;
+  if (!plateSess) return;
+  const vw = video.videoWidth, vh = video.videoHeight, before = phase === 'finding' || phase === 'settle';
+  const i = pickPerson(poses, center);
+  if (i >= 0) platePrior = barPrior(poses[i], vw, vh);
+  if (before) plateGravity();
+  if (plateSess.state === 'searching') {
+    if (!before || plateFrame++ % 6) return;
+    const s = Math.min(1, 480 / Math.max(vw, vh)), img = grabber.grab(video, 0, 0, vw, vh, Math.round(vw * s), Math.round(vh * s));
+    plateSess.detect(img, s, { prior: i >= 0 ? platePrior : null, radiusPx: i >= 0 ? plateSizeHint(poses[i], vw, vh) : null });
+    plateOkT = t; plateRecent = [];
+    showSource();
+    return;
+  }
+  const plan = plateSess.roiPlan();
+  plateRes = plateSess.track(grabber.grab(video, plan.sx, plan.sy, plan.sw, plan.sh, plan.ow, plan.oh), t);
+  if (plateRes.ok) plateOkT = t;
+  plateRecent.push({ t, ok: !!plateRes.ok, e: plateRes.e });
+  while (plateRecent.length && t - plateRecent[0].t > 0.5) plateRecent.shift();
+  if (plateSess.state === 'searching' || (before && t - plateOkT > 0.3)) { plateSess.reset(); showSource(); } // lost it before counting: look again
+}
+/**
+ * Is the plate being followed the bar's, and followed well, as counting starts? Most of the last half
+ * second tracked, and level with the bar the pose sees (the plate sits on the bar's end: beside it in the
+ * picture by up to ~4 plate radii when filming at an angle, but never far above or below).
+ */
+function plateReady() {
+  if (!plateSess || plateSess.state !== 'tracking' || plateRecent.length < 4) return false;
+  const ok = plateRecent.filter((f) => f.ok);
+  if (ok.length < 0.8 * plateRecent.length) return false;
+  const e = ok[ok.length - 1].e;
+  if (!platePrior || !e) return true;
+  return Math.abs(e.cy - platePrior.y) < 1.6 * e.a && Math.abs(e.cx - platePrior.x) < 5 * e.a;
+}
+function showSource() {
+  const el = $('vp-src');
+  if (!PLATE_ON || demo) { el.hidden = true; return; }
+  el.hidden = false;
+  if (barSource === 'plate') { el.textContent = plateBroke ? 'Plate lost' : 'Plate · 3D'; el.className = 'vp-src ' + (plateBroke ? 'est' : 'plate'); }
+  else if (phase === 'live' || phase === 'done') { el.textContent = 'Body · estimate (no plate seen)'; el.className = 'vp-src est'; }
+  else { el.textContent = plateSess && plateSess.state !== 'searching' ? 'Plate found' : 'Looking for the plate…'; el.className = 'vp-src'; }
+}
+/**
+ * A rep's speed from the plate trace: the lift that rises out of this rep's bottom — the first lift that ends
+ * after the rep's deepest point (topT), before the next rep's bottom. The deepest point
+ * can be anywhere in such a pause, so it isn't matched to the lift's start; nor to its top, which for the
+ * set's last lift can be seconds later (nothing after it confirms it).
+ */
+function plateRepVel(rep, metrics) {
+  applyPlateVelocities(metrics || barMetrics(barTrace).reps);
+  return rep.vel;
+}
+function applyPlateVelocities(lifts, moved = plateMoved) {
+  plateMoved = moved;
+  const result = standardizeLifts(counter.reps, lifts);
+  for (const row of result.rows) {
+    row.rep.velocityWhy = moved ? 'Phone moved during the set' : plateInvalid ? 'The plate could not be followed consistently' : row.why;
+    row.rep.vel = !moved && !plateInvalid && row.velocity === 'ok' ? { mv: row.mcv, pv: row.pv, mpv: row.mpv,
+      dist: row.distance, D: result.D, T: row.T, rel: row.rel, loss: row.loss, src: 'plate', estimate: true } : null;
+  }
+}
+function applyBodyVelocities() {
+  const reps = counter.reps;
+  const result = standardizeMeasurements(reps, reps.map((r) => r.rawVel
+    ? { T: r.rawVel.dur, distance: r.rawVel.range, pv: r.rawVel.pv } : null));
+  for (const row of result.rows) {
+    row.rep.velocityWhy = row.why;
+    row.rep.vel = row.velocity === 'ok' ? { mv: row.mcv, pv: row.pv, dist: row.distance,
+      D: result.D, T: row.T, rel: row.rel, loss: row.loss, src: 'pose-baseline', estimate: true } : null;
+  }
+}
+// ?debug=1: the plate session's workings, for checking a set by hand (or from a test).
+if (new URLSearchParams(location.search).has('debug')) window.__plateDebug = () => ({ source: barSource, note: plateNote, quality: plateFinal && plateFinal.quality, reps: plateFinal && plateFinal.metrics && plateFinal.metrics.reps, trace: barTrace.map((q) => [+q.t.toFixed(3), Number.isFinite(q.y) ? +q.y.toFixed(4) : null]), poseReps: counter && counter.reps.map((r) => ({ n: r.n, result: r.result, topT: r.topT, vel: r.vel })) });
+/**
+ * After the set: every frame again in 3D with what the whole set showed; the reps' numbers come from that.
+ * Unclear reps get no speed. If this pass can't run, the live numbers stay, marked as estimates.
+ */
+function plateFinish() {
+  if (barSource !== 'plate') return;
+  const keepLive = (note) => {
+    for (const r of counter.reps) { if (r.result !== 'counted') r.vel = null; else if (r.vel) r.vel.estimate = true; }
+    plateNote = note;
+  };
+  if (!plateSess) { keepLive('Plate tracking stopped partway through the set — speeds are estimates, and reps after that have none'); return; }
+  let fin;
+  try { fin = plateSess.finish(); } catch (err) { console.error('plate finish failed:', err); keepLive('Speeds are estimates (the set couldn’t be worked out again in 3D)'); return; }
+  plateFinal = fin;
+  if (!fin.ok) { keepLive('Speeds are estimates (the plate wasn’t followed well enough to work them out again)'); return; }
+  plateInvalid = !fin.quality.ok;
+  // The phone must hold still while the bar moves: checked from counting's start to the last lift's top
+  // (so the taps on Start and End don't count). Camera frame times share the motion sensors' clock.
+  const lifts = fin.metrics.reps, lastTop = lifts.length ? lifts[lifts.length - 1].tTop : NaN;
+  const moved = motion && source === 'camera' && armMs && Number.isFinite(lastTop) ? motion.moved(armMs, (lastTop + 0.3) * 1000) : { moved: false };
+  const noGravity = fin.rec && !String(fin.rec.upFrom).startsWith('sensors');
+  for (const r of counter.reps) {
+    r.vel = null;
+  }
+  applyPlateVelocities(lifts, moved.moved);
+  // Sensors were running but nothing covers the lift: whether the phone stayed still can't be told.
+  const unchecked = motion && source === 'camera' && motion.count > 0 && moved.known === false;
+  plateNote = !fin.quality.ok ? 'Plate tracking was unsteady — velocities are unavailable'
+    : !fin.quality.clear ? 'The plate’s edge was only partly clear — speeds are estimates (film 20–40° off side-on, the whole plate against a plain background)'
+    : moved.moved ? 'The phone moved during the set — velocities are unavailable'
+    : fin.quality.slow ? `The phone only managed ${Math.round(fin.quality.rate)} frames a second — speeds are estimates (close other apps; 30 or more is needed)`
+    : noGravity && source === 'camera' ? 'Bar speed measured from the plate, in 3D (no motion sensors: the phone was taken as upright)'
+    : unchecked ? 'Bar speed measured from the plate, in 3D (whether the phone stayed still couldn’t be checked)' : '';
+}
 const readNum = (k) => { try { const v = parseFloat(localStorage.getItem(k)); return v > 0 ? v : null; } catch { return null; } };
 const writeNum = (k, v) => { try { v > 0 ? localStorage.setItem(k, String(v)) : localStorage.removeItem(k); } catch {} };
 let heightCm = readNum(HEIGHT_KEY), kg = readNum(KG_KEY);
-const loadHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch { return []; } };
+const loadHistory = () => { try { const h = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); return Array.isArray(h) ? h : []; } catch { return []; } };
 let armLens = [];
 function mpu() {
-  if (EX.row) return heightCm ? (PROPORTIONS.arm * heightCm) / 100 : NaN; // the row is measured in arm lengths
-  if (EX.press) {
-    // Straight-arm length in pixels (90th percentile: the arm is straight at every lockout) ↔ shoulder→wrist length from your height.
-    if (!heightCm || armLens.length < 10) return NaN;
-    const s = armLens.slice().sort((x, y) => x - y);
-    return (PROPORTIONS.arm * heightCm) / 100 / s[Math.round(0.9 * (s.length - 1))];
-  }
-  return metresPerUnit(EXK, { heightM: heightCm ? heightCm / 100 : 0, scale: tracker?.scale, standShoulderPx: tracker?.standShoulderPx, armPx: tracker?.armPx });
+  // Anthropometric proportions and an assumed camera view are not a physical
+  // calibration of the measured point. Body paths stay relative.
+  return barSource === 'plate' && diameterCm ? 1 : NaN;
 }
 // Live speed: least-squares slope of the last 0.15 s of positions, + = lifting.
 let liveHist = [];
@@ -593,7 +776,7 @@ function drawLive(t) {
   liveHist.push({ t, v });
   while (liveHist.length && t - liveHist[0].t > 5) liveHist.shift();
   $('vp-now').textContent = Number.isFinite(v) && metres ? Math.max(0, v).toFixed(2) : '–';
-  $('vp-now-u').textContent = metres ? 'm/s' : 'add height for m/s';
+  $('vp-now-u').textContent = metres ? 'm/s · estimate' : 'relative tracking';
   const cv = $('vp-live'), dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
   if (!W || !H) return;
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
@@ -619,35 +802,37 @@ function pushBar(t, y) {
 // reading is refined half a second later, once the bar has reached the top.
 function measureRep(rep, t) {
   if (pendingVel) settleVel(t);
-  if (!EX.height) { rep.vel = concentricVelocity(barTrace, rep.startT - 0.15, rep.topT + 0.15); return; }
-  rep.vel = concentricVelocity(barTrace, rep.topT - 0.2, t);
+  if (!EX.height) { rep.rawVel = concentricVelocity(barTrace, rep.startT - 0.15, rep.topT + 0.15); applyBodyVelocities(); return; }
+  if (barSource === 'plate') plateRepVel(rep);
+  else { rep.rawVel = concentricVelocity(barTrace, rep.topT - 0.2, t); applyBodyVelocities(); }
   pendingVel = { rep, until: t + 0.5 };
 }
 function settleVel(t) {
   const { rep, until } = pendingVel; pendingVel = null;
-  rep.vel = concentricVelocity(barTrace, rep.topT - 0.2, Math.min(t, until)) || rep.vel;
+  if (barSource === 'plate') plateRepVel(rep);
+  else { rep.rawVel = concentricVelocity(barTrace, rep.topT - 0.2, Math.min(t, until)); applyBodyVelocities(); }
   renderPanel();
 }
 // Speeds of every rep in display units: m/s when your height is known,
 // otherwise the native unit (only shown relative to your best rep).
 function repSpeeds() {
   const k = mpu(), metres = Number.isFinite(k);
-  return { metres, list: (counter ? counter.reps : []).map((r) => ({ r, mv: r.vel ? r.vel.mv * (metres ? k : 1) : NaN })) };
+  return { metres, list: (counter ? counter.reps : []).map((r) => ({ r, mv: r.result === 'counted' && r.vel ? r.vel.mv * (metres ? k : 1) : NaN })) };
 }
 const fmtV = (v, metres) => (metres ? `${v.toFixed(2)} m/s` : '');
 function renderPanel(verdict) {
   const { metres, list } = repSpeeds();
   const timed = list.filter((x) => Number.isFinite(x.mv) && x.r.result !== 'unclear');
-  const best = timed.length ? Math.max(...timed.slice(0, 3).map((x) => x.mv)) : NaN;
+  const best = timed.find((x) => x.r.isStandard)?.mv ?? NaN;
   const last = timed[timed.length - 1];
-  const what = EX.press || EX.row ? 'Hand speed' : 'Bar speed';
+  const what = barSource === 'plate' ? 'Bar speed · estimate' : EX.press || EX.row || requestedSource === 'hand' ? 'Hand speed · relative' : 'Body speed · relative';
   $('vp-k').textContent = last ? `${what} · rep ${last.r.n}` : what;
   if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
   else {
     const loss = (best - last.mv) / best;
     $('vp-v').textContent = metres ? last.mv.toFixed(2) : `${Math.round((last.mv / best) * 100)}%`;
-    $('vp-u').textContent = metres ? 'm/s' : 'of best';
-    $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'Fastest yet' : `−${Math.round(loss * 100)}% vs best`;
+    $('vp-u').textContent = metres ? 'm/s · est.' : 'of rep 1';
+    $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'At or above baseline' : `−${Math.round(loss * 100)}% vs rep 1`;
     $('vp-loss').className = 'vp-loss ' + (timed.length < 2 ? '' : lossBand(loss));
   }
   const top = Number.isFinite(best) ? Math.max(best, ...timed.map((x) => x.mv)) * 1.1 : 1;
@@ -733,7 +918,19 @@ const shortReasons = (r) => [r.shortFinish && 'Didn’t reach your top', r.short
 
 // Before rep 1: hold still in your start position, then counting starts.
 function settle() { phase = 'settle'; gate.reset(); setStatus(EX.still, 'good'); }
-function arm(msg) { phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good'); }
+function arm(msg) {
+  phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good');
+  if (PLATE_ON) {
+    // The source is settled here, for the whole set (metres and body units never mix): the plate if it's
+    // being followed well and sits on the bar, otherwise the body (and the plate stops being looked at).
+    plateGravity();
+    barSource = plateReady() ? 'plate' : 'pose';
+    if (barSource === 'pose') { plateSess = null; plateRes = null; }
+    armMs = performance.now();
+    if (motion) motion.mark(); // rotation rates from here to the end of the set (the phone-moved check)
+    showSource();
+  }
+}
 
 // ── Phases ───────────────────────────────────────────────
 function show(view) {
@@ -743,6 +940,10 @@ function show(view) {
   $('bigc').hidden = !EX.pullup || view === 'pre';
 }
 function resetSet() {
+  liveRecordId = null;
+  liveRecordAt = Date.now(); savedTypedRir = undefined;
+  $('workout-save').textContent = '';
+  $('relock-btn').disabled = false;
   counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : EX.row ? createRepCounter(REACH_DEFAULTS) : createRepCounter();
   if (tracker) tracker.reset();
   if (pu) pu.reset();
@@ -782,49 +983,111 @@ async function loadTracker() {
 }
 
 async function startCamera() {
+  if (starting) return;
+  starting = true;
+  const generation = ++startGeneration;
   source = 'camera';
   try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera unavailable. Use HTTPS and a supported browser, or analyse a video.');
     await loadTracker();
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }, audio: false });
+    if (generation !== startGeneration) return;
+    // Squat and bench measure the bar from the plate: 60 fps where the phone can (bar speed is more
+    // accurate — about 2.5% vs 4% mean error in the accuracy sweep); frames are timed as captured either way.
+    const acquired = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: PLATE_ON ? 60 : 30 } }, audio: false });
+    if (generation !== startGeneration) { acquired.getTracks().forEach((t) => t.stop()); return; }
+    stopStream(); stream = acquired;
+    if (sourceURL) { URL.revokeObjectURL(sourceURL); sourceURL = null; }
+    video.removeAttribute('src'); video.onended = null;
+    video.srcObject = stream; video.classList.toggle('mirror', facing === 'user');
+    await video.play();
+    if (generation !== startGeneration) { stopStream(); return; }
+    try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
+    if (generation !== startGeneration) { stopStream(); if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } return; }
+    begin();
   } catch (e) {
+    stopStream();
     setStatus(e && e.name === 'NotAllowedError' ? 'Camera blocked — allow camera access and try again' : 'Couldn’t start: ' + (e && e.message || e), 'warn');
-    return;
+  } finally {
+    starting = false;
   }
-  video.srcObject = stream; video.classList.toggle('mirror', facing === 'user');
-  await video.play();
-  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
-  begin();
 }
 
 async function startFile(file) {
+  if (starting) return;
+  starting = true;
+  const generation = ++startGeneration;
   source = 'file';
-  try { await loadTracker(); } catch (e) { setStatus('Couldn’t load the tracker — check your connection', 'warn'); return; }
-  stopStream();
-  video.srcObject = null; video.src = URL.createObjectURL(file); video.classList.remove('mirror');
-  video.onended = () => endSet();
-  await video.play();
-  begin();
+  try {
+    await loadTracker();
+    if (generation !== startGeneration) return;
+    stopStream();
+    if (sourceURL) URL.revokeObjectURL(sourceURL);
+    sourceURL = URL.createObjectURL(file);
+    video.srcObject = null; video.src = sourceURL; video.classList.remove('mirror');
+    video.onended = () => endSet();
+    await video.play();
+    if (generation !== startGeneration) { video.pause(); return; }
+    begin();
+  } catch (e) { setStatus('Couldn’t analyse this video: ' + (e.message || e), 'warn'); }
+  finally { starting = false; }
 }
 
 function begin() {
   if (!EX.pullup) beep(660, 0.04);
   startRecording();
-  resetSet(); phase = 'finding'; show('live'); showPanel(SPEED); if (SPEED) renderPanel();
+  resetSet(); phase = 'finding'; show('live'); showPanel(SPEED); plateStart(); if (SPEED) renderPanel();
   setStatus(EX.finding);
-  cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+  cancelAnimationFrame(raf); if (!RVFC) raf = requestAnimationFrame(loop);
+  setLastMs = -Infinity; lastVideoT = -1; frameClock.reset();
+  if (RVFC) { stopFrames(); if (!demo) rvfcId = video.requestVideoFrameCallback(onVideoFrame); }
 }
 
-function stopStream() { if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; } }
+function stopStream() { if (RVFC) stopFrames(); if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; } }
 
+// Frames are timed when the camera captured them (requestVideoFrameCallback's
+// captureTime), not when they're processed: processing time jitters by
+// several milliseconds, which goes straight into the speed. Files use the
+// frame's own media time. Browsers without the callback fall back to the
+// animation-frame loop.
+const RVFC = typeof HTMLVideoElement !== 'undefined' && 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+// The pose model needs times that only ever increase, across sets and sources (a new file starts again at
+// 0): its clock is the source's, shifted past the last time it was given. The set itself runs on the
+// source's own clock; a frame that doesn't move it on (a repeat) is skipped.
+let lastTs = -1, tsShift = 0, setLastMs = -Infinity, rvfcId = 0;
+function processFrame(tMs) {
+  if (!(tMs > setLastMs)) return;
+  setLastMs = tMs;
+  if (tMs + tsShift <= lastTs) tsShift = lastTs + 1 - tMs;
+  lastTs = tMs + tsShift;
+  let res;
+  try { res = landmarker.detectForVideo(video, lastTs); }
+  catch (e) { endSet(); setStatus('Tracking stopped. Your completed reps were kept. Try again with better light or another video.', 'warn'); return; }
+  // The plate never breaks the rep count: if its tracking throws, it stops for this set. Before counting
+  // starts the body is used instead; once the set runs on the plate it stays on it (metres never mix with
+  // body units), and the reps after the failure get no speed.
+  if (PLATE_ON && plateSess) {
+    try { plateStep(tMs / 1000, res.landmarks || []); }
+    catch (err) { console.error('plate tracking stopped:', err); plateSess = null; plateRes = null; if (barSource === 'plate') plateBroke = true; showSource(); }
+  }
+  frame(res.landmarks || [], tMs / 1000, video.videoWidth, video.videoHeight, res.worldLandmarks || []);
+}
+function stopFrames() { if (rvfcId && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(rvfcId); rvfcId = 0; }
+function onVideoFrame(now, md) {
+  rvfcId = 0;
+  if (phase === 'idle' || phase === 'done' || demo) return;
+  rvfcId = video.requestVideoFrameCallback(onVideoFrame);
+  if (!landmarker) return;
+  const t = frameClock.time(md.mediaTime, now, { file: source === 'file', captureTime: md.captureTime });
+  if (t !== null) processFrame(t);
+}
 function loop() {
   raf = requestAnimationFrame(loop);
-  if (demo) return; // the demo drives frames itself
+  if (demo || RVFC) return; // the demo drives frames itself; with the callback, frames arrive there
   if (!landmarker || video.readyState < 2) return;
   if (video.currentTime === lastVideoT) return;
   lastVideoT = video.currentTime;
-  const tMs = source === 'file' ? video.currentTime * 1000 : performance.now();
-  const res = landmarker.detectForVideo(video, tMs);
-  frame(res.landmarks || [], tMs / 1000, video.videoWidth, video.videoHeight, res.worldLandmarks || []);
+  const t = frameClock.time(video.currentTime, performance.now(), { file: source === 'file' });
+  if (t !== null) processFrame(t);
 }
 
 // ── One frame of pose data ───────────────────────────────
@@ -875,7 +1138,10 @@ function frame(poses, t, vw, vh, worlds = []) {
     else setStatus(ok ? EX.still : EX.show, ok ? 'good' : '');
   } else {
     trace.push({ t, a });
-    pushBar(t, !Number.isFinite(rawA) ? NaN : EX.press ? Math.hypot(W.x - S.x, W.y - S.y) : ((180 - rawA) * Math.PI) / 180);
+    // Pose still judges ROM at the elbow. Hand-mode curls measure the wrist
+    // separately, rather than reporting angular speed as hand displacement.
+    pushBar(t, !Number.isFinite(rawA) ? NaN : EX.press ? Math.hypot(W.x - S.x, W.y - S.y)
+      : requestedSource === 'hand' ? -W.y : ((180 - rawA) * Math.PI) / 180);
     const ev = counter.push(t, a, ok);
     if (ev) onEvent(ev);
     if (!ok && phase === 'live') setStatus(`Can’t see your ${EX.part} clearly`, 'warn');
@@ -947,7 +1213,7 @@ function heightFrame(p, t, vw, vh) {
     return;
   }
   trace.push({ t, a });
-  pushBar(t, Number.isFinite(m.bar) ? m.bar : NaN);
+  pushBar(t, barSource === 'plate' ? (plateRes && plateRes.ok ? plateRes.h : NaN) : Number.isFinite(m.bar) ? m.bar : NaN);
   const ev = counter.push(t, a, m.ok);
   if (ev) onEvent(ev);
   if (!m.ok && phase === 'live') setStatus(EX.lost, 'warn');
@@ -997,6 +1263,7 @@ function onEvent(ev) {
   }
   const r = ev.rep;
   if (!r) return;
+  $('relock-btn').disabled = true; // one ROM/velocity reference per set
   if (SPEED) { measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0); renderPanel(); }
   addChip(r);
   if (ev.type === 'rep' && EX.pullup) {
@@ -1033,11 +1300,17 @@ function updateMeter() {
 }
 
 function endSet() {
-  if (phase === 'done') return;
+  if (phase === 'done' || phase === 'idle') return;
   phase = 'done'; cancelAnimationFrame(raf);
   stopRecording();
   if (source === 'file') video.pause();
+  if (RVFC) stopFrames();
   if (pendingVel) settleVel(Infinity);
+  try { plateFinish(); } catch (err) { console.error('plate finish failed:', err); }
+  stopStream();
+  if (motion) motion.stop();
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  persistTrackedSet();
   if (SPEED) saveSet();
   if (EX.pullup) sfx('end');
   $('legend').hidden = true; // the verdict takes that corner
@@ -1102,6 +1375,13 @@ function draw(d, vw, vh) {
 // floor or the bench, not the moving body); the tracked point is the hips
 // or the hands.
 function drawHeight(d, m, lm, sc, oy, cw, dpr) {
+  if (plateRes && plateRes.e) {
+    const e = plateRes.e, c = Math.cos(e.phi), sn = Math.sin(e.phi);
+    ctx.strokeStyle = barSource === 'plate' || phase === 'finding' || phase === 'settle' ? '#58DB3D' : 'rgba(255,255,255,.6)'; ctx.lineWidth = 3 * dpr;
+    ctx.beginPath();
+    for (let k = 0; k <= 48; k++) { const al = (k / 48) * Math.PI * 2, X = e.a * Math.cos(al), Y = e.b * Math.sin(al), P = m({ x: e.cx + X * c - Y * sn, y: e.cy + X * sn + Y * c }); k ? ctx.lineTo(P.x, P.y) : ctx.moveTo(P.x, P.y); }
+    ctx.stroke();
+  }
   const st = counter && counter.standard;
   if (st && tracker.locked) {
     const line = (v, color, label) => {
@@ -1195,13 +1475,38 @@ let setCompare = null;
 function saveSet() {
   const { metres, list } = repSpeeds();
   const v = setVerdict(list.map((x) => ({ mv: x.mv, result: x.r.result })), { lift: EXK, metres });
-  setCompare = v.kind === 'none' ? null : compareToLast(loadHistory(), { kg, best: v.best, metres });
+  // A set is only compared with earlier sets measured the same way (the plate's speed vs the body's estimate).
+  const src = barSource, est = counter.reps.some((r) => r.vel && r.vel.estimate);
+  setCompare = v.kind === 'none' ? null : compareToLast(loadHistory().filter((x) => x.metric === 'standard-DT-v1' && (x.src || 'pose') === src), { kg, best: v.best, metres });
   if (v.kind === 'none') return;
   try {
     const h = loadHistory();
-    h.push({ at: Date.now(), kg: kg || null, metres, best: v.best, last: v.last, loss: v.loss, rir: v.rir, reps: counter.summary().counted });
+    h.push({ at: Date.now(), metric: 'standard-DT-v1', kg: kg || null, metres, best: v.best, last: v.last, loss: v.loss, rir: v.rir, reps: counter.summary().counted, src, est });
     localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-100)));
   } catch {}
+}
+function persistTrackedSet(updateTypedRir = false) {
+  if (!counter?.reps.length || demo) return;
+  const contextParams = new URLSearchParams(location.search);
+  const rpe = parseFloat($('rpe-in').value), rirParam = contextParams.get('typedRir');
+  const typedRir = updateTypedRir ? rpe >= 1 && rpe <= 10 ? 10 - rpe : null
+    : savedTypedRir !== undefined ? savedTypedRir : rirParam !== null && Number.isFinite(+rirParam) ? +rirParam : null;
+  savedTypedRir = typedRir;
+  const dts = barTrace.slice(1).map((f, i) => f.t - barTrace[i].t).filter((d) => d > 0).sort((a,b) => a-b);
+  const record = buildLiveSetRecord({ ...(liveRecordId ? { id: liveRecordId } : {}),
+    at: liveRecordAt, reps: counter.reps, standard: counter.standard, lift: EXK, exercise: contextParams.get('exerciseName') || EX.name,
+    loadKg: kg, typedRir, source: barSource === 'plate' ? 'plate' : 'pose-baseline', scaled: Number.isFinite(mpu()),
+    fps: dts.length ? 1 / dts[dts.length >> 1] : null,
+    calibration: { diameterM: diameterCm ? diameterCm / 100 : null, cameraIntrinsics: 'assumed', validated: false },
+    quality: { estimate: true, note: plateNote || (barSource === 'plate' ? 'Camera geometry is estimated' : 'Body tracking: relative speed only') },
+  });
+  liveRecordId = record.id;
+  let saved = false;
+  try { saveSetRecord(localStorage, record); saved = true; } catch {}
+  const attached = workoutContext ? attachTrackedSet(localStorage, workoutContext, record, { updateTypedRir }) : null;
+  $('workout-save').textContent = attached?.ok ? 'Saved to this workout set. Review load and effort in the logger.'
+    : attached ? `${attached.reason} ${saved ? 'A separate copy is saved on this device.' : 'Storage is unavailable; keep this page open.'}`
+    : saved ? 'Set measurements saved on this device.' : 'Storage is unavailable. Keep this page open to review your results.';
 }
 function renderSummary() {
   const s = counter.summary();
@@ -1237,8 +1542,8 @@ function renderCall() {
   if (v.kind === 'none') lines.push('Do at least two reps the camera can see clearly to get a call on the weight.');
   else {
     const speed = metres ? `Last rep ${fmtV(v.last, true)}, ${Math.round(v.loss * 100)}% slower than your best (${fmtV(v.best, true)}).` : `Last rep was ${Math.round(v.loss * 100)}% slower than your best.`;
-    const n = repsDown(v.rir);
-    const why = v.brokeDown ? 'Your range broke down on the last reps.' : v.rir < 0.5 ? 'You were at failure.' : v.rir >= 5 ? 'You had 5 or more reps left.' : `You had about ${n} rep${n === 1 ? '' : 's'} left.`;
+  const n = repsDown(v.rir);
+    const why = v.brokeDown ? 'Your range broke down on the last reps.' : v.rir < 0.5 ? 'Speed-based estimate: near failure.' : v.rir >= 5 ? 'Speed-based estimate: 5 or more reps left.' : `Speed-based estimate: about ${n} rep${n === 1 ? '' : 's'} left.`;
     lines.push(`${why} ${speed}`);
     if (v.kind === 'add' && kg) lines.push(`Try ${+(kg + (EX.height === 'squat' && v.rir >= 5 ? 5 : STEP_KG[EXK])).toFixed(1)} kg next.`);
     const c = setCompare;
@@ -1249,7 +1554,8 @@ function renderCall() {
       lines.push(same ? `Same best speed as last time at ${kg} kg (${when}).` : c.delta > 0 ? `Best rep ${diff} faster than last time at ${kg} kg (${when}): you're stronger at this weight.` : `Best rep ${diff} slower than last time at ${kg} kg (${when}): you may not be fully recovered.`);
     } else if (!kg) lines.push('Add the weight before your next set to compare it with your last set at that weight.');
   }
-  if (!heightCm) lines.push('Add your height on the first screen to see bar speed in m/s.');
+  if (barSource === 'plate') lines.push((plateNote || 'Tracked at the plate.') + (diameterCm ? ' Absolute speed is an estimate using the entered diameter and assumed camera geometry.' : ' Relative speed only: no known plate diameter was entered.'));
+  else lines.push((EX.press || EX.row || requestedSource === 'hand' ? 'Relative hand movement only.' : 'Relative body movement only; the weight itself was not measured.') + ' Speed-based effort feedback is an unvalidated estimate.');
   const titles = { add: 'Add weight next set', keep: 'Keep the weight, go for one more rep', hold: v.brokeDown ? 'Stay at this weight: your range broke down' : 'Stay at this weight: that was close to failure', none: 'Not enough reps for a call' };
   $('verdict').className = 'verdict ' + v.kind;
   $('verdict').innerHTML = `<b>${titles[v.kind]}</b>${lines.map((l, i) => `<p class="${i ? 'm' : ''}">${l}</p>`).join('')}`;
@@ -1258,20 +1564,23 @@ function renderCall() {
 function renderRepList() {
   const range = (r) => (EX.height || EX.pullup ? `${cap(EX.finish)} ${EX.fmt(r.top)} · ${EX.start} ${EX.fmt(r.bottom)}` : `${EX.fmt(r.bottom)} → ${EX.fmt(r.top)}`);
   $('replist').innerHTML = counter.reps.map((r) => `<button class="rep" data-n="${r.n}">
-      <b>${r.n}</b><small>${SPEED && Number.isFinite(speedOf(r)) ? `${speedText(r)} · ` : ''}${range(r)}${r.isStandard ? ' · standard' : EX.pullup ? (r.result === 'short' ? ` · ${shortReasons(r).toLowerCase()}` : '') : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
+      <b>${r.n}</b><small>${SPEED && r.result !== 'unclear' && Number.isFinite(speedOf(r)) ? `${speedText(r)} · ` : ''}${range(r)}${r.isStandard ? ' · standard' : EX.pullup ? (r.result === 'short' ? ` · ${shortReasons(r).toLowerCase()}` : '') : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
       <span class="tag ${r.result}">${r.result === 'counted' ? 'Counted' : r.result === 'short' ? 'Short' : 'Unclear'}</span></button>`).join('') || '<p class="hint">No reps detected.</p>';
 }
-function speedOf(r) { const k = mpu(); return r.vel ? r.vel.mv * (Number.isFinite(k) ? k : 1) : NaN; }
+function speedOf(r) { const k = mpu(); return r.result === 'counted' && r.vel ? r.vel.mv * (Number.isFinite(k) ? k : 1) : NaN; }
 function speedText(r) {
   const k = mpu();
-  if (Number.isFinite(k)) return `${(r.vel.mv * k).toFixed(2)} m/s`;
-  const all = (counter.reps || []).filter((x) => x.vel && x.result !== 'unclear').slice(0, 3).map((x) => x.vel.mv);
-  return all.length ? `${Math.round((r.vel.mv / Math.max(...all)) * 100)}% speed` : '';
+  if (Number.isFinite(k)) return `≈${(r.vel.mv * k).toFixed(2)} m/s mean${Number.isFinite(r.vel.pv) ? ` · ≈${(r.vel.pv * k).toFixed(2)} peak` : ''}`;
+  const first = counter.reps.find((x) => x.isStandard && x.result === 'counted' && x.vel)?.vel.mv;
+  return first > 0 ? `${Math.round((r.vel.mv / first) * 100)}% of rep 1` : '';
 }
 $('replist').addEventListener('click', (e) => {
   const b = e.target.closest('.rep'); if (!b) return;
   const r = counter.reps.find((x) => x.n === +b.dataset.n); if (!r || r.isStandard) return;
   counter.override(r.n, r.result === 'counted' ? 'short' : 'counted');
+  if (barSource === 'plate' && plateFinal?.ok) applyPlateVelocities(plateFinal.metrics.reps);
+  else if (barSource !== 'plate') applyBodyVelocities();
+  persistTrackedSet();
   renderSummary();
 });
 
@@ -1285,8 +1594,17 @@ function startRecording() {
   if (!stream || !window.MediaRecorder) return;
   const type = ['video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find((t) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
   try { rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined); } catch { rec = null; return; }
-  rec.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
-  rec.onstop = () => { recBlob = new Blob(recChunks, { type: rec.mimeType || type || 'video/webm' }); recURL = URL.createObjectURL(recBlob); };
+  const recorder = rec, chunks = recChunks;
+  let bytes = 0;
+  recorder.ondataavailable = (e) => {
+    if (e.data?.size) { chunks.push(e.data); bytes += e.data.size; }
+    // Keep a long recording from consuming unbounded phone memory.
+    if (bytes > 96 * 1024 * 1024 && recorder.state !== 'inactive') recorder.stop();
+  };
+  recorder.onstop = () => {
+    if (rec !== recorder) return;
+    recBlob = new Blob(chunks, { type: recorder.mimeType || type || 'video/webm' }); recURL = URL.createObjectURL(recBlob);
+  };
   rec.start(1000);
   recT0 = performance.now() / 1000;
 }
@@ -1448,16 +1766,23 @@ $('cv-fdone').onclick = () => { $('cv-fsheet').hidden = true; };
 $('coach-btn').onclick = () => openCoach();
 
 // ── Controls ─────────────────────────────────────────────
-$('start-btn').onclick = () => { audioInit(); demo ? startDemo() : startCamera(); };
+$('start-btn').onclick = () => {
+  audioInit();
+  // iPhone: motion data needs permission from this tap, before anything is awaited.
+  if (PLATE_ON && !demo && !motionAsk) motionAsk = requestMotionPermission();
+  demo ? startDemo() : startCamera();
+};
 $('file-btn').onclick = () => { audioInit(); $('file').click(); };
 $('file').onchange = (e) => { const f = e.target.files && e.target.files[0]; if (f) startFile(f); };
 $('end-btn').onclick = endSet;
 $('relock-btn').onclick = () => {
   if (!counter || (phase !== 'live' && phase !== 'ready')) return; // never skip the hold-still wait
+  if (counter.reps.length) { setStatus('End this set and start a new set to change the standard.', 'warn'); return; }
   counter.relock(); $('legend').hidden = true; phase = 'ready';
   setStatus('Re-locking — next full rep becomes the standard', 'good');
 };
 $('again-btn').onclick = () => {
+  if (workoutContext) { location.href = 'workouts.html?tab=log'; return; }
   audioInit();
   if (demo) startDemo();
   else if (source === 'camera' && stream) begin();
@@ -1465,6 +1790,12 @@ $('again-btn').onclick = () => {
 };
 $('height-in').value = heightCm || '';
 $('kg-in').value = kg || '';
+const launchLoad = new URLSearchParams(location.search).get('loadKg');
+if (launchLoad !== null && Number.isFinite(+launchLoad) && +launchLoad >= 0) { kg = +launchLoad; $('kg-in').value = launchLoad; }
+$('diameter-field').hidden = !PLATE_ON;
+$('diameter-in').oninput = (e) => { const v = parseFloat(e.target.value); diameterCm = v >= 5 && v <= 100 ? v : null; };
+$('rpe-in').onchange = () => { if (phase === 'done') persistTrackedSet(true); };
+if (workoutContext) { $('workout-return').hidden = false; $('again-btn').textContent = 'Return to workout'; }
 $('height-in').oninput = (e) => { const v = parseFloat(e.target.value); heightCm = v >= 120 && v <= 230 ? v : null; writeNum(HEIGHT_KEY, heightCm); };
 const setKg = (v) => { kg = v > 0 ? v : null; writeNum(KG_KEY, kg); $('kg-in').value = kg || ''; };
 $('kg-in').oninput = (e) => { kg = parseFloat(e.target.value) > 0 ? parseFloat(e.target.value) : null; writeNum(KG_KEY, kg); };
@@ -1478,11 +1809,21 @@ $('arm-btn').onclick = () => {
   if (phase === 'finding' || phase === 'ready') { side = armMode === 'auto' ? null : armMode; visSum = { left: 0, right: 0 }; }
 };
 $('flip-btn').onclick = async () => {
+  if (counter?.reps.length && phase !== 'done') endSet();
   facing = facing === 'user' ? 'environment' : 'user';
   if (stream) { stopStream(); await startCamera(); }
 };
 document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'hidden' && starting) startGeneration++;
+  if (document.visibilityState === 'hidden' && (phase === 'live' || phase === 'ready' || phase === 'settle' || phase === 'finding')) { endSet(); setStatus('Set ended when the app went into the background. Completed reps were kept.', 'warn'); }
   if (document.visibilityState === 'visible' && stream) { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} }
+});
+window.addEventListener('pagehide', () => {
+  startGeneration++;
+  if (phase !== 'done' && phase !== 'idle') endSet();
+  stopStream(); motion?.stop(); landmarker?.close();
+  if (sourceURL) URL.revokeObjectURL(sourceURL);
+  if (recURL && recBlob) URL.revokeObjectURL(recURL);
 });
 document.title = 'Arete — ' + EX.title;
 document.querySelector('.ttl').firstChild.textContent = (EX.short || EX.title) + ' ';

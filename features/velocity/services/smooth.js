@@ -35,8 +35,11 @@ function solve(A) {
  * Returns [{ t, y, v, a, full }] — smoothed position, velocity and
  * acceleration (per second), and `full` = the window reached both sides
  * (edge frames have one-sided fits and must not be trusted for peaks).
+ * minPts / maxHalf (optional): where frames are sparse (a busy phone skipped
+ * some), widen that frame's window — up to ±maxHalf s — until it holds
+ * minPts samples, instead of giving up on it.
  */
-export function savitzkyGolay(samples, { half = SG.half, order = SG.order } = {}) {
+export function savitzkyGolay(samples, { half = SG.half, order = SG.order, minPts = 0, maxHalf = half } = {}) {
   const n = samples.length, k = order + 1, out = new Array(n);
   let lo = 0, hi = 0;
   for (let i = 0; i < n; i++) {
@@ -44,12 +47,21 @@ export function savitzkyGolay(samples, { half = SG.half, order = SG.order } = {}
     if (!Number.isFinite(samples[i].y)) { out[i] = { t: ti, y: NaN, v: NaN, a: NaN, full: false }; continue; }
     while (samples[lo].t < ti - half - 1e-9) lo++;
     while (hi + 1 < n && samples[hi + 1].t <= ti + half + 1e-9) hi++;
+    let h = half, L = lo, H = hi;
+    if (minPts > 0) {
+      const count = () => { let m = 0; for (let j = L; j <= H; j++) if (Number.isFinite(samples[j].y)) m++; return m; };
+      while (count() < minPts && h < maxHalf) {
+        h = Math.min(maxHalf, h * 1.25);
+        while (L > 0 && samples[L - 1].t >= ti - h - 1e-9) L--;
+        while (H + 1 < n && samples[H + 1].t <= ti + h + 1e-9) H++;
+      }
+    }
     const A = Array.from({ length: k }, () => new Array(k + 1).fill(0));
     let m = 0, before = false, after = false;
-    for (let j = lo; j <= hi; j++) {
+    for (let j = L; j <= H; j++) {
       const y = samples[j].y;
       if (!Number.isFinite(y)) continue;
-      const u = (samples[j].t - ti) / half;
+      const u = (samples[j].t - ti) / h;
       if (u < -0.6) before = true;
       if (u > 0.6) after = true;
       const pw = [1];
@@ -59,7 +71,7 @@ export function savitzkyGolay(samples, { half = SG.half, order = SG.order } = {}
     }
     const c = m > k ? solve(A) : null;
     out[i] = c
-      ? { t: ti, y: c[0], v: c[1] / half, a: (2 * c[2]) / (half * half), full: before && after }
+      ? { t: ti, y: c[0], v: c[1] / h, a: (2 * c[2]) / (h * h), full: before && after }
       : { t: ti, y: NaN, v: NaN, a: NaN, full: false };
   }
   return out;

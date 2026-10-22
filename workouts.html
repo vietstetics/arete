@@ -356,6 +356,15 @@ input,select,textarea{font-family:inherit}
 @media(max-width:560px){.pm-b{grid-template-columns:1fr}}
 @media(max-width:920px){.set-row.uni{grid-template-columns:24px 1fr 1fr 1fr 38px 38px 26px;gap:4px}}
 @media(max-width:900px){.cols{grid-template-columns:1fr}}
+.velocity-row{padding:5px 0 10px 30px;font-size:11.5px;color:var(--t2)}
+.velocity-row .btn{margin-bottom:5px}
+.velocity-summary{border:1px solid var(--bd);border-radius:10px;padding:9px 10px;margin:4px 0 8px;line-height:1.5}
+.velocity-bars{display:flex;align-items:flex-end;gap:6px;overflow-x:auto;padding:6px 0 2px}
+.velocity-slot{min-width:37px;text-align:center;font-size:10px;flex:1}
+.velocity-track{height:64px;display:flex;align-items:flex-end;justify-content:center;margin:3px 0;border-bottom:1px solid var(--bd)}
+.velocity-bar{width:24px;min-height:1px;background:var(--vi);border-radius:3px 3px 0 0}
+.velocity-bar.empty{height:12px;background:transparent;border:1px dashed var(--t3)}
+.velocity-detail{font-size:10.5px;color:var(--t3)}
 </style>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/training.css">
@@ -853,7 +862,8 @@ function renderExercise(ex){
       <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set done':'Mark set done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
       <button class="set-rm" title="Remove set" aria-label="Remove set" onclick="removeSet('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-    </div>`; }).join('');
+    </div>
+    ${renderTrackedSet(ex,s)}`; }).join('');
   const tgt = ex.targetReps
     ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
     : (hasRir ? `${ex.targetRir} RIR` : '');
@@ -1037,9 +1047,56 @@ function pushExercise(name, sel){
 }
 function removeExercise(eid){ active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
 function findEx(eid){ return active.exercises.find(e=>e.id===eid); }
+async function trackWorkoutSet(eid,sid){
+  try{
+    const tracking=window.VelocityWorkout || await import('./features/velocity/services/workout.js');
+    const url=tracking.prepareWorkoutTracking(active,eid,sid);
+    saveActive();
+    location.href=url;
+  }catch(err){ toast(err.message || 'Camera tracking could not open'); }
+}
+function renderTrackedSet(ex,s){
+  const supported=window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex);
+  if(!supported && !s.velocity) return '';
+  return `<div class="velocity-row">${supported?`<button class="btn btn-s btn-xs" onclick="trackWorkoutSet('${ex.id}','${s.id}')">${s.velocity?'Track again':'Track reps with camera'}</button>`:''}${s.velocity?renderVelocityResult(s.velocity):''}</div>`;
+}
+function renderVelocityResult(record, chartMax){
+  if(!record || !Array.isArray(record.reps)) return '';
+  const abs=record.units==='m/s';
+  const rows=record.reps;
+  const value=r=>r.result==='counted' && r.velocity==='ok' ? (abs?r.mcv:r.rel) : null;
+  const vals=rows.map(value).filter(v=>Number.isFinite(v)&&v>=0);
+  const top=Math.max(abs?1:1.2,chartMax||0,...vals);
+  const fmt=v=>Number.isFinite(v)?(abs?v.toFixed(2):Math.round(v*100)+'%'):'—';
+  const short=rows.filter(r=>r.result==='short').length, unclear=rows.filter(r=>r.result==='unclear').length;
+  const loss=Number.isFinite(record.lossPct)?` · ${Math.round(record.lossPct)}% loss from rep 1`:'';
+  const peak=abs?rows.filter(r=>r.result==='counted').map(r=>r.peak).filter(Number.isFinite):[];
+  return `<div class="velocity-summary"><b>${esc(record.counted)} counted</b>${short?' · '+short+' short':''}${unclear?' · '+unclear+' unclear':''}${loss}
+    <div class="velocity-detail">${abs?'Mean concentric speed · m/s (camera estimate)':'Relative speed · rep 1 = 100%'}${abs&&peak.length?' · peak '+Math.max(...peak).toFixed(2)+' m/s (estimate)':''}</div>
+    <div class="velocity-bars" role="img" aria-label="Velocity by repetition">${rows.map(r=>{
+      const v=value(r), good=Number.isFinite(v)&&v>=0;
+      const label=good?fmt(v):(r.result==='counted'?'unclear speed':r.result);
+      return `<div class="velocity-slot" title="Rep ${esc(r.n)}: ${esc(label)}${r.why?' · '+esc(r.why):''}"><span>${esc(good?fmt(v):r.result==='counted'?'—':r.result)}</span><div class="velocity-track"><i class="velocity-bar${good?'':' empty'}" style="${good?'height:'+Math.max(1,v/top*100).toFixed(1)+'%':''}"></i></div><span>${esc(r.n)}</span></div>`;
+    }).join('')}</div>
+    ${!abs&&!Number.isFinite(record.rep1)?'<div class="velocity-detail">Reference rep speed unavailable; relative speeds cannot be compared.</div>':''}
+    </div>`;
+}
+function velocityHistoryHtml(name,srcWorkouts){
+  const key=normExName(name), list=[];
+  (srcWorkouts||completed()).forEach(w=>(w.exercises||[]).filter(e=>normExName(e.name)===key).forEach(e=>(e.sets||[]).forEach((s,i)=>{ if(s.velocity) list.push({record:s.velocity,at:w.completedAt,set:i+1}); })));
+  list.sort((a,b)=>b.at-a.at);
+  if(!list.length) return '';
+  const recent=list.slice(0,8), max={relative:1.2,'m/s':1};
+  recent.forEach(x=>(x.record.reps||[]).forEach(r=>{ const v=x.record.units==='m/s'?r.mcv:r.rel; if(Number.isFinite(v)) max[x.record.units]=Math.max(max[x.record.units]||0,v); }));
+  return `<h4 style="margin:18px 0 8px">Tracked sets</h4>${recent.map(x=>`<div class="velocity-detail">${esc(F.fmtDate(x.at))} · Set ${x.set}${Number.isFinite(x.record.loadKg)?' · '+esc(x.record.loadKg)+' kg':''}${Number.isFinite(x.record.typedRir)?' · '+esc(x.record.typedRir)+' RIR':''}</div>${renderVelocityResult(x.record,max[x.record.units])}`).join('')}`;
+}
 function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', ...(ex.unilateral?{ weightL:last?last.weightL??'':'', weightR:last?last.weightR??'':'' }:{}), unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
 function removeSet(eid,sid){ const ex=findEx(eid); ex.sets=ex.sets.filter(s=>s.id!==sid); if(!ex.sets.length) active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
-function setField(eid,sid,f,v){ const s=findEx(eid).sets.find(s=>s.id===sid); s[f]= v===''?'':parseFloat(v); saveActive(); }
+function setField(eid,sid,f,v){
+  const s=findEx(eid).sets.find(s=>s.id===sid); s[f]=v===''?'':parseFloat(v);
+  if(f==='weight'&&s.velocity) s.velocity.loadKg=Number.isFinite(s.weight)?s.weight:null;
+  saveActive();
+}
 // Unilateral sets keep a left and a right weight. The set's own weight follows
 // the heavier side, so last time, PRs and progression charts keep working.
 function setSide(eid,sid,f,v){
@@ -1062,7 +1119,7 @@ function setSides(eid,on){
 // and the other follows.
 function setEffort(eid,sid,f,v){
   const s=findEx(eid).sets.find(x=>x.id===sid);
-  if(v===''){ s[f]=''; saveActive(); return; }
+  if(v===''){ s[f]=''; if(f==='rir'&&s.velocity) s.velocity.typedRir=null; saveActive(); return; }
   const num=Math.max(0,Math.min(10,parseFloat(v)));
   if(!isFinite(num)) return;
   s[f]=num;
@@ -1070,6 +1127,7 @@ function setEffort(eid,sid,f,v){
   s[other]=Math.max(0,Math.min(10,Math.round((10-num)*2)/2));
   const el=document.getElementById(other+'-'+sid);
   if(el) el.value=s[other];
+  if(s.velocity) s.velocity.typedRir=s.rir;
   saveActive();
 }
 function toggleType(eid,sid){ const s=findEx(eid).sets.find(s=>s.id===sid); s.type = s.type==='working'?'warmup':'working'; saveActive(); renderLog(); }
@@ -1328,6 +1386,7 @@ function showProg(name, srcWorkouts, whose){
       <div style="font-size:10.5px;color:var(--t3);margin:4px 0 12px">Top working-set weight per session · ${h.length} sessions · hover a point for the full sets</div>
       ${h.slice(-8).reverse().map(x=>`<div class="pg-sess"><span class="d">${x.date.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><span class="s">${esc(x.setsTxt)}</span><span class="e">e1RM ${x.e1rm}</span></div>`).join('')}`;
   }
+  body.innerHTML+=velocityHistoryHtml(name,srcWorkouts);
   document.getElementById('prog-modal').classList.add('open');
 }
 function closeProg(){ document.getElementById('prog-modal').classList.remove('open'); }
@@ -1456,7 +1515,8 @@ function buildClientExport(){
   return { kind:'arete-client', v:1, name:myName(), exportedAt:Date.now(),
     programs:getPrograms(),
     workouts: completed().filter(w=>w.completedAt>cutoff).map(w=>({ name:w.name, completedAt:w.completedAt,
-      exercises:w.exercises.map(e=>({ name:e.name, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir})) })) })) };
+      exercises:w.exercises.map(e=>({ name:e.name, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir,
+        ...(s.velocity?{velocity:s.velocity}:{}),...(s.velocityHistory?{velocityHistory:s.velocityHistory}:{})})) })) })) };
 }
 function buildCoachUpdate(progId){
   const p=getPrograms().find(x=>x.id===progId); if(!p) return null;
@@ -2151,6 +2211,7 @@ function openSession(id){
         <span style="color:var(--t3);font-size:10.5px;font-weight:700">SET</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">WEIGHT</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">REPS</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">RIR</span><span></span>
         ${e.sets.map((s,i)=>`<span style="color:var(--t2)">${s.type==='warmup'?'W':i+1-e.sets.slice(0,i).filter(x=>x.type==='warmup').length}</span><span>${s.weight!==''&&s.weight!=null?esc(s.weight)+' kg':'–'}</span><span>${s.reps!==''&&s.reps!=null?esc(s.reps):'–'}</span><span>${s.rir!==''&&s.rir!=null?esc(s.rir):'–'}</span><span style="color:${s.completed?'var(--gr)':'var(--t3)'}">${s.completed?'✓':'–'}</span>`).join('')}
       </div>
+      ${e.sets.map((s,i)=>s.velocity?`<div class="velocity-detail" style="margin-top:8px">Tracked set ${i+1}</div>${renderVelocityResult(s.velocity)}`:'').join('')}
     </div>`).join('') : `<p style="font-size:13px;color:var(--t2)">${esc(w.notes||'No exercises recorded for this session.')}</p>`;
   document.getElementById('sess-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="closeSession()">Close</button>${w.exercises.length?`<button class="btn btn-p btn-sm" onclick="closeSession();repeatWorkout('${w.id}')">Repeat workout</button>`:''}`;
   document.getElementById('sess-modal').classList.add('open');
@@ -2576,6 +2637,14 @@ onTraining(()=>{ if(tab==='log' && (!active || active.paused)) renderLog(); });
 // Machine database (features/machines): loads after this script too; the
 // exercise cards and the picker light up once it's in.
 onMachineUI(()=>{ if(tab==='log' && active && !active.paused) renderLog(); if(tab==='machines') renderMachines(); if(tab==='plan') renderPrograms(); });
+// Camera results may arrive while this page is held in the browser's back cache.
+window.addEventListener('pageshow',()=>{ active=rj(K_ACTIVE,null); if(tab==='log') renderLog(); });
+window.addEventListener('storage',e=>{ if(e.key===K_ACTIVE){ active=rj(K_ACTIVE,null); if(tab==='log') renderLog(); } });
+</script>
+<script type="module">
+import * as tracking from './features/velocity/services/workout.js';
+window.VelocityWorkout=tracking;
+if(tab==='log' && active && !active.paused) renderLog();
 </script>
 <script type="module" src="features/training/index.js"></script>
 <script type="module" src="features/machines/index.js"></script>

@@ -5,8 +5,9 @@ import { savitzkyGolay, at } from '../services/smooth.js';
 import { concentricTiming, setVelocities, longestGap, intraSetFatigue } from '../services/timing.js';
 import { confidence, repMetrics, G } from '../services/metrics.js';
 import { parseReference, agreement, compareSet, passes, accuracyTable, toCsv } from '../services/compare.js';
-import { analyseSet, estimateFps, trackerFor } from '../services/pipeline.js';
+import { analyseSet, estimateFps, trackerFor, trackerChoices } from '../services/pipeline.js';
 import { BODY } from '../../standard/services/velocity.js';
+import { buildSetRecord } from '../services/record.js';
 
 const near = (a, b, pct) => Math.abs(a - b) / Math.abs(b) <= pct;
 
@@ -28,7 +29,9 @@ test('velocity source: machines and cables at the hand, free weights at the weig
 test('free weights are measured at the weight; the pose baseline is labelled, never passed off as the weight', () => {
   for (const lift of ['squat', 'bench', 'curl']) {
     assert.equal(trackerFor(lift).source, 'weight');
-    assert.equal(trackerFor(lift).id, lift === 'curl' ? 'dumbbell' : 'plate');
+    // A barbell is measured at the plate in 3D by default (the app's own measurement); the older 2D tracker stays selectable.
+    assert.equal(trackerFor(lift).id, lift === 'curl' ? 'dumbbell' : 'plate3d');
+    if (lift !== 'curl') assert.deepEqual(trackerChoices(lift).map((t) => t.id), ['plate3d', 'plate', 'pose-baseline']);
     const t = trackerFor(lift, 'pose-baseline');
     assert.equal(t.id, 'pose-baseline');
     assert.match(t.label, /baseline/i);
@@ -250,9 +253,8 @@ test('frame rate from timestamps', () => {
 // Lifter 1.80 m tall, 500 px per metre, portrait 1000×2000. The bar (on the
 // shoulders) drops 0.50 m each rep and comes up in a known time. First the
 // lifter walks out and shuffles their feet: that must not become rep 1.
-// Bounds come from running this set with 10 different jitter patterns at ±1 px:
-// bar speed averaged +3.1% (worst 5.9%), relative speed −0.1% (worst 3.4%).
-test('end to end: a filmed squat set gives the true bar speed within 6% and true velocity loss within 3.5%', () => {
+// The entered height is an anthropometric prior, not a measured camera scale.
+test('end to end: pose gives relative timing within 3.5% and never publishes physical units from height alone', () => {
   const H = 1.8, k = 500, vw = 1000, vh = 2000, ankle = 1900, fps = 60, d = 0.5;
   let s = 3; const jit = () => ((s = (s * 16807) % 2147483647) / 2147483647 - 0.5) * 2 * 0.0005; // ±1 px (±2 mm)
   const pose = (drop, sway = 0) => {
@@ -277,13 +279,29 @@ test('end to end: a filmed squat set gives the true bar speed within 6% and true
   const counted = res.rows.filter((r) => r.velocity === 'ok');
   assert.equal(res.rows.length, 5, 'exactly the five real reps (the setup dip did not count)');
   assert.equal(counted.length, 5);
-  assert.equal(res.scaled, true);
-  assert.ok(near(res.Dm, d, 0.04), `D = ${res.Dm.toFixed(3)} m vs ${d}`);
+  assert.equal(res.scaled, false);
+  assert.ok(Number.isNaN(res.Dm));
+  assert.ok(Number.isNaN(res.mpu));
+  assert.equal(res.calibration.kind, 'uncalibrated-pose');
   counted.forEach((r, i) => {
-    assert.ok(near(r.mcv, d / ups[i], 0.06), `rep ${i + 1}: ${r.mcv.toFixed(3)} vs ${(d / ups[i]).toFixed(3)} m/s`);
     assert.ok(near(r.rel, ups[0] / ups[i], 0.035), `rep ${i + 1} relative speed ${r.rel.toFixed(3)} vs ${(ups[0] / ups[i]).toFixed(3)}`);
+    for (const k of ['mcv', 'mcvOwn', 'pv', 'mpv', 'distance', 'romCm', 'avgPower', 'peakPower', 'peakForce', 'poseMcv', 'liveMv']) assert.ok(Number.isNaN(r[k]), k);
+    assert.equal(r.isStandard, i === 0);
   });
-  assert.equal(res.rows[0].badges.mv, 'reliable');
+  assert.equal(res.rows[0].badges.mv, 'estimate');
   assert.equal(res.rows[0].badges.pv, 'estimate', '60 fps: peak velocity is an estimate');
   assert.match(res.tracker.label, /baseline/i);
+  const record = buildSetRecord(res, { lift: 'squat' });
+  assert.equal(record.units, 'relative');
+  assert.equal(record.rep1, 1);
+  assert.equal(record.D, null);
+  assert.equal(record.calibration.kind, 'uncalibrated-pose');
+  for (const row of record.reps) {
+    assert.equal(row.mcv, null);
+    assert.equal(row.peak, null);
+    assert.equal(row.distance, null);
+    assert.ok(Number.isFinite(row.rel));
+    assert.ok(Number.isFinite(row.rom.start));
+    assert.match(row.estimate, /uncalibrated/i);
+  }
 });

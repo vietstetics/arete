@@ -61,7 +61,7 @@ export function createRepCounter(opts = {}) {
   let reps = [];
   // Turning-point tracking. dir 'extend' = angle rising (lowering the weight).
   let dir = 'extend', peak = null, peakT = 0, trough = null, troughT = 0;
-  let repFrames = 0, repLow = 0, lastConfT = null, gap = 0, started = false;
+  let repFrames = 0, repLow = 0, lastConfT = null, gap = 0, started = false, lastT = -Infinity;
 
   const H = () => (standard ? Math.max(o.hysteresis * 0.75, o.hysteresisPct * (standard.start - standard.finish)) : o.hysteresis);
   const tol = () => (standard ? Math.max(o.tolFloor, o.tolPct * (standard.start - standard.finish)) : o.tolFloor);
@@ -74,10 +74,14 @@ export function createRepCounter(opts = {}) {
   }
 
   function push(t, angle, confident = true) {
+    if (!Number.isFinite(t) || t <= lastT) return null;
+    lastT = t;
     if (!started) { lastConfT = t; started = true; }
     if (dir === 'flex') { repFrames++; if (!confident || !Number.isFinite(angle)) repLow++; }
     if (!confident || !Number.isFinite(angle)) { gap = Math.max(gap, t - (lastConfT ?? t)); return null; }
     if (dir === 'flex') gap = Math.max(gap, t - lastConfT);
+    // Reacquiring at rest must not turn an unseen movement into a new rep.
+    if (dir === 'extend' && lastConfT !== null && t - lastConfT > o.maxGap) { peak = angle; peakT = t; }
     lastConfT = t;
 
     if (peak === null) { peak = angle; peakT = t; return null; }
@@ -164,7 +168,7 @@ export function createReturnCounter(opts = {}) {
   // 'top' = at lockout (tracking how high it gets), 'down' = descending
   // (tracking the deepest point), 'up' = coming back up.
   let phase = 'top', peak = null, startTop = 0, trough = 0, troughT = 0, rise = 0;
-  let repFrames = 0, repLow = 0, lastConfT = null, gap = 0, started = false;
+  let repFrames = 0, repLow = 0, lastConfT = null, gap = 0, started = false, lastT = -Infinity;
   // A rep counts the moment it passes the lockout line; its recorded lockout
   // keeps rising to the real top until the next descent starts.
   let finishing = null;
@@ -197,6 +201,11 @@ export function createReturnCounter(opts = {}) {
       if (unclear) {
         const rep = { ...base, result: 'unclear', shortStart: false, shortFinish: false, isStandard: false };
         reps.push(rep); event = { type: 'rep', rep };
+      } else if (turnedDown) {
+        // The first attempt did not return to its own start. It cannot lock
+        // a standard that every subsequent full rep would be judged against.
+        const rep = { ...base, result: 'short', shortStart: true, shortFinish: false, isStandard: false };
+        reps.push(rep); event = { type: 'rep', rep };
       } else {
         standard = { start: startTop, finish: trough, sway };
         const rep = { ...base, result: 'counted', shortStart: false, shortFinish: false, isStandard: true };
@@ -216,12 +225,15 @@ export function createReturnCounter(opts = {}) {
   }
 
   function push(t, value, confident = true, sway = null) {
+    if (!Number.isFinite(t) || t <= lastT) return null;
+    lastT = t;
     const good = confident && Number.isFinite(value);
     if (!started) { lastConfT = t; started = true; }
     const inRep = phase !== 'top';
     if (inRep) { repFrames++; if (!good) repLow++; }
     if (!good) { if (inRep) gap = Math.max(gap, t - (lastConfT ?? t)); return null; }
     if (inRep) { gap = Math.max(gap, t - lastConfT); trackSway(sway); }
+    if (!inRep && lastConfT !== null && t - lastConfT > o.maxGap) { peak = value; finishing = null; }
     lastConfT = t;
 
     if (peak === null) { peak = value; return null; }

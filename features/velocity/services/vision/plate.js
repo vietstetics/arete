@@ -119,16 +119,20 @@ export function detectPlates(img, { rMin, rMax, prior = null, max = 4 } = {}) {
  * Optical flow of the plate between two frames: pyramidal Lucas–Kanade,
  * translation only, using pixels inside the plate (the background stays
  * still and would pull the answer towards zero). guess: expected shift.
+ * stride: use every stride-th pixel at full resolution (faster).
  * Returns { dx, dy, ok }.
  */
-export function lkTranslate(prev, cur, e, guess = { dx: 0, dy: 0 }, { levels = 2, iters = 10 } = {}) {
-  const pyr = (img) => { const p = [img]; for (let l = 1; l < levels; l++) p.push(half(p[l - 1])); return p; };
-  const P = prev.pyr || (prev.pyr = pyr(prev)), C = cur.pyr || (cur.pyr = pyr(cur));
+export function lkTranslate(prev, cur, e, guess = { dx: 0, dy: 0 }, { levels = 2, iters = 10, stride = 1 } = {}) {
+  // Image pyramids, cached on the image and extended if a call wants more levels than were built before.
+  const pyr = (img) => { const p = img.pyr || (img.pyr = [img]); while (p.length < levels) p.push(half(p[p.length - 1])); return p; };
+  const P = pyr(prev), C = pyr(cur);
   let dx = guess.dx / 2 ** (levels - 1), dy = guess.dy / 2 ** (levels - 1), ok = true;
   for (let l = levels - 1; l >= 0; l--) {
     const k = 2 ** l, A = P[l], B = C[l], cx = e.cx / k, cy = e.cy / k, ra = (e.a * 1.05) / k, rb = (e.b * 1.05) / k;
     const c = Math.cos(e.phi), s = Math.sin(e.phi), half_ = Math.ceil(ra), pts = [];
-    for (let j = -half_; j <= half_; j++) for (let i = -half_; i <= half_; i++) {
+    // stride > 1: every stride-th pixel at the finest level (the result is only a starting guess for the rim fit).
+    const st = l === 0 ? stride : 1;
+    for (let j = -half_; j <= half_; j += st) for (let i = -half_; i <= half_; i += st) {
       const u = i * c + j * s, v = -i * s + j * c;
       if ((u * u) / (ra * ra) + (v * v) / (rb * rb) > 1) continue;
       const x = cx + i, y = cy + j, Ix = (sample(A, x + 1, y) - sample(A, x - 1, y)) / 2, Iy = (sample(A, x, y + 1) - sample(A, x, y - 1)) / 2, I0 = sample(A, x, y);
@@ -151,7 +155,7 @@ export function lkTranslate(prev, cur, e, guess = { dx: 0, dy: 0 }, { levels = 2
 }
 
 /** Strongest edge of the given polarity on one ray, to a fraction of a pixel. */
-function rayEdge(img, cx, cy, ux, uy, r1, r2, polarity, step = 0.5) {
+export function rayEdge(img, cx, cy, ux, uy, r1, r2, polarity, step = 0.5) {
   const n = Math.max(3, Math.ceil((r2 - r1) / step) + 1), v = new Float32Array(n);
   for (let i = 0; i < n; i++) { const g = dirDeriv(img, cx + ux * (r1 + i * step), cy + uy * (r1 + i * step), ux, uy); v[i] = Number.isFinite(g) ? polarity * g : 0; }
   let bi = -1, bv = 0;

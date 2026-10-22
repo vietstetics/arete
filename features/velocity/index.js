@@ -12,4 +12,5 @@ export { fitEllipse, robustEllipse, radiusAt } from './services/vision/ellipse.j
 export { viewFromEllipses, gravityFromRoll, PLATE_DIAMETER_M, MAX_OFF_AXIS_DEG } from './services/vision/geometry.js';
 export { detectPlates, refineEllipse, fitCenter, lkTranslate, createPlateTracker } from './services/vision/plate.js';
 export { weightSamples } from './services/weight.js';
-export { buildSetRecord, listSetRecords, saveSetRecord, SETS_KEY, RECORD_VERSION } from './services/record.js';
+export { buildSetRecord, buildLiveSetRecord, listSetRecords, saveSetRecord, SETS_KEY, RECORD_VERSION } from './services/record.js';
+export { trackerModeFor, prepareWorkoutTracking, parseWorkoutContext, attachTrackedSet, ACTIVE_WORKOUT_KEY } from './services/workout.js';

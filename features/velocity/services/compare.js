@@ -5,7 +5,22 @@
 // velocity.
 
 export const TARGET_PCT = 5;
-export const REFERENCES = ['Qwik VBT', 'Metric', 'Linear transducer', 'Other'];
+export const REFERENCES = ['GymAware', 'Vitruve', 'Tendo', 'Linear transducer (other)', 'Qwik VBT', 'Metric', 'Other'];
+/**
+ * Transducer-level agreement on mean velocity, in m/s — what two good
+ * devices manage against each other (GymAware vs 3D motion capture: standard
+ * error 0.02–0.04 m/s, limits of agreement about ±0.03–0.06): average
+ * difference within ±bias, root-mean-square difference within rms, and 95%
+ * of differences within ±loa.
+ */
+export const TRANSDUCER = { bias: 0.03, rms: 0.04, loa: 0.06 };
+
+/** Does an agreement() meet TRANSDUCER? { ok, bias, rms, loa } (each true / false; loa needs 2+ reps). */
+export function transducerLevel(a) {
+  const bias = Math.abs(a.bias) <= TRANSDUCER.bias, rms = a.rms <= TRANSDUCER.rms;
+  const loa = a.n > 1 && a.loa[0] >= -TRANSDUCER.loa && a.loa[1] <= TRANSDUCER.loa;
+  return { ok: a.n > 1 && bias && rms && loa, bias, rms, loa };
+}
 
 const num = (s) => {
   const v = parseFloat(String(s).replace(',', '.'));
@@ -40,9 +55,13 @@ export function parseReference(text) {
     if (cols.mv < 0) cols.mv = head.findIndex((h) => /vel/i.test(h) && !/peak|max|propul/i.test(h));
     body = lines.slice(1);
   }
-  const rows = body.map((l, i) => {
-    const c = split(l).map(num);
-    if (!isHeader && c.length >= 2 && c[0] === i + 1) c.shift(); // "1  0.62  0.95": rep number first
+  // "1  0.62  0.95": a rep number first — decided for the whole paste (1, 2, 3… on every line), never line by
+  // line: a first rep whose mean velocity is exactly 1.00 is a speed, not a rep number.
+  const cells = body.map((l) => split(l).map(num));
+  const numbered = !isHeader && cells.length >= 2 && cells.every((c, i) => c.length >= 2 && c[0] === i + 1);
+  const rows = cells.map((c0) => {
+    const c = c0.slice();
+    if (numbered) c.shift();
     const get = (i) => (i >= 0 && i < c.length ? c[i] : NaN);
     return { mv: get(cols.mv), pv: get(cols.pv), romCm: get(cols.romCm), power: get(cols.power) };
   }).filter((r) => Number.isFinite(r.mv));
@@ -51,16 +70,16 @@ export function parseReference(text) {
   return rows;
 }
 
-/** Bias, spread and limits of agreement of ours − reference, in absolute and % terms. */
+/** Bias, spread, root-mean-square difference and limits of agreement of ours − reference, in absolute and % terms. */
 export function agreement(pairs) {
   const ok = pairs.filter((p) => Number.isFinite(p.ours) && Number.isFinite(p.ref) && p.ref !== 0);
   const n = ok.length;
-  if (!n) return { n: 0, bias: NaN, sd: NaN, loa: [NaN, NaN], mae: NaN, mape: NaN, maxPct: NaN, biasPct: NaN };
+  if (!n) return { n: 0, bias: NaN, sd: NaN, rms: NaN, loa: [NaN, NaN], mae: NaN, mape: NaN, maxPct: NaN, biasPct: NaN };
   const d = ok.map((p) => p.ours - p.ref), pct = ok.map((p) => ((p.ours - p.ref) / p.ref) * 100);
   const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
   const bias = mean(d), sd = n > 1 ? Math.sqrt(d.reduce((s, x) => s + (x - bias) ** 2, 0) / (n - 1)) : 0;
   return {
-    n, bias, sd, loa: [bias - 1.96 * sd, bias + 1.96 * sd],
+    n, bias, sd, rms: Math.sqrt(mean(d.map((x) => x * x))), loa: [bias - 1.96 * sd, bias + 1.96 * sd],
     mae: mean(d.map(Math.abs)), mape: mean(pct.map(Math.abs)), maxPct: Math.max(...pct.map(Math.abs)), biasPct: mean(pct),
   };
 }
