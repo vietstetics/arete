@@ -114,7 +114,7 @@ test('dumbbell head: distance along its arc, not just its height', () => {
 test('velocity per rep is stored per set', () => {
   const res = run(SET15);
   const rec = buildSetRecord(res, { lift: 'squat', exercise: 'Back Squat', loadKg: 100, typedRir: 2, at: 1 });
-  assert.equal(rec.v, 1); assert.equal(rec.tracker, 'plate'); assert.equal(rec.source, 'weight'); assert.equal(rec.units, 'm/s');
+  assert.equal(rec.v, 2); assert.equal(rec.tracker, 'plate'); assert.equal(rec.source, 'weight'); assert.equal(rec.units, 'm/s');
   assert.equal(rec.loadKg, 100); assert.equal(rec.typedRir, 2); assert.equal(rec.counted, 3);
   assert.ok(near(rec.D, D, 0.03));
   assert.ok(rec.standard && Number.isFinite(rec.standard.start) && Number.isFinite(rec.standard.finish));

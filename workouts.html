@@ -365,9 +365,17 @@ input,select,textarea{font-family:inherit}
 .velocity-bar{width:24px;min-height:1px;background:var(--vi);border-radius:3px 3px 0 0}
 .velocity-bar.empty{height:12px;background:transparent;border:1px dashed var(--t3)}
 .velocity-detail{font-size:10.5px;color:var(--t3)}
+.set-calibration{margin:6px 0 10px;font-size:11.5px}
+.set-calibration summary{cursor:pointer;font-weight:600;padding:5px 0}
+.set-calibration label{display:flex;align-items:center;gap:7px;margin:8px 0;flex-wrap:wrap}
+.set-calibration input[type=number]{width:88px;padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--t1)}
+.set-calibration select{max-width:100%;padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--t1)}
+.ex-equipment{font-size:11.5px;color:var(--t2);margin:6px 0 9px}
+.ex-equipment input{width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:7px;margin-top:4px;background:var(--bg);color:var(--t1)}
 </style>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/training.css">
+<link rel="stylesheet" href="css/velocity-coach.css">
 <link rel="stylesheet" href="css/machines.css">
 <link rel="apple-touch-icon" href="icon-180.png">
 </head>
@@ -583,8 +591,9 @@ function muscleName(id){ const m=F.MUSCLE_GROUPS.find(x=>x.id===id); return m?m.
 // ── Active workout draft ─────────────────────────────────────────
 let active = rj(K_ACTIVE, null);
 function newActive(name){
-  return { id:'w-'+F.uid(), name:name||'New Workout', startedAt:Date.now(), exercises:[], notes:'' };
+  return { id:'w-'+F.uid(), name:name||'New Workout', startedAt:Date.now(), userId:trainingUserId(), exercises:[], notes:'' };
 }
+function trainingUserId(){ try{ const session=window.Auth?.localSession?.(); return session?.user?.id || session?.id || session?.email || null; }catch{ return null; } }
 function saveActive(){ wj(K_ACTIVE, active); }
 
 let tab = 'log';
@@ -883,6 +892,7 @@ function renderExercise(ex){
     </div>
     ${meta?`<div class="ex-meta">${meta}</div>`:''}
     ${machineBlock(ex)}
+    <label class="ex-equipment">Equipment variation for personal predictions${ex.machine?`<span> · ${esc(machineLabel(ex.machine))}</span>`:`<input value="${esc(ex.equipmentKey||'')}" placeholder="Optional, e.g. barbell · flat bench" onchange="setEquipmentVariation('${ex.id}',this.value)">`}</label>
     <div class="sets">
       <div class="set-row head${ex.unilateral?' uni':''}"><span>Set</span>${ex.unilateral?'<span>L kg</span><span>R kg</span>':'<span>kg</span>'}<span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
       ${rows}
@@ -1050,15 +1060,27 @@ function findEx(eid){ return active.exercises.find(e=>e.id===eid); }
 async function trackWorkoutSet(eid,sid){
   try{
     const tracking=window.VelocityWorkout || await import('./features/velocity/services/workout.js');
-    const url=tracking.prepareWorkoutTracking(active,eid,sid);
+    const previous=active.exercises.flatMap(e=>e.sets||[]).filter(s=>s.completedAt).sort((a,b)=>b.completedAt-a.completedAt)[0];
+    const selected=findEx(eid).sets.find(s=>s.id===sid);
+    if(previous && previous.id!==sid){ selected.restSec=Math.max(0,(Date.now()-previous.completedAt)/1000); selected.restMethod='logger-completion-to-camera-launch'; }
+    const url=tracking.prepareWorkoutTracking(active,eid,sid,{userId:trainingUserId()});
     saveActive();
     location.href=url;
   }catch(err){ toast(err.message || 'Camera tracking could not open'); }
 }
 function renderTrackedSet(ex,s){
   const supported=window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex);
-  if(!supported && !s.velocity) return '';
-  return `<div class="velocity-row">${supported?`<button class="btn btn-s btn-xs" onclick="trackWorkoutSet('${ex.id}','${s.id}')">${s.velocity?'Track again':'Track reps with camera'}</button>`:''}${s.velocity?renderVelocityResult(s.velocity):''}</div>`;
+  const endpoint=s.rirEndpoint || s.failureEndpoint?.type || '';
+  return `<div class="velocity-row">${supported?`<button class="btn btn-s btn-xs" onclick="trackWorkoutSet('${ex.id}','${s.id}')">${s.velocity?'Track again':'Track reps with camera'}</button>`:''}
+    <details class="set-calibration"><summary>Reported effort &amp; optional calibration</summary>
+      <label>Reported RPE <input id="rpe-${s.id}" type="number" min="1" max="10" step="0.5" inputmode="decimal" value="${s.reportedEffort?.rpe??''}" placeholder="Optional" oninput="setEffort('${ex.id}','${s.id}','rpe',this.value)"></label>
+      <label>RIR endpoint <select onchange="setCalibrationField('${ex.id}','${s.id}','endpoint',this.value)"><option value="">Not specified</option><option value="technical"${endpoint==='technical'?' selected':''}>Technical: next rep breaks the standard</option><option value="momentary"${endpoint==='momentary'?' selected':''}>Momentary: no further full rep possible</option></select></label>
+      <label class="calibration-check"><input type="checkbox" ${s.failureEndpoint?.verified?'checked':''} onchange="setCalibrationField('${ex.id}','${s.id}','failure',this.checked)"> I reached and verified this endpoint</label>
+      <label class="calibration-check"><input type="checkbox" ${s.maximalIntent?'checked':''} onchange="setCalibrationField('${ex.id}','${s.id}','maximalIntent',this.checked)"> Maximal intended concentric effort</label>
+      <label class="calibration-check"><input type="checkbox" ${s.epleySupported?'checked':''} onchange="setCalibrationField('${ex.id}','${s.id}','epleySupported',this.checked)"> Enable optional Epley 1RM estimate for this exercise (assumes 1–10 reps to failure)</label>
+      <label class="calibration-check"><input type="checkbox" ${s.tested1RM?.verified?'checked':''} onchange="setCalibrationField('${ex.id}','${s.id}','tested1RM',this.checked)"> Successful maximal single (actual tested 1RM)</label>
+      <div class="velocity-detail">Optional labels describe this set. Training to failure or attempting a maximum is never required. Reported effort is separate from model estimates.</div>
+    </details>${s.velocity?renderVelocityResult(s.velocity):s.predictions&&window.VelocityCoachMetrics?window.VelocityCoachMetrics.renderCoachMetrics(loggedPredictionRecord(ex,s),{predictions:s.predictions}):''}</div>`;
 }
 function renderVelocityResult(record, chartMax){
   if(!record || !Array.isArray(record.reps)) return '';
@@ -1069,7 +1091,7 @@ function renderVelocityResult(record, chartMax){
   const top=Math.max(abs?1:1.2,chartMax||0,...vals);
   const fmt=v=>Number.isFinite(v)?(abs?v.toFixed(2):Math.round(v*100)+'%'):'—';
   const short=rows.filter(r=>r.result==='short').length, unclear=rows.filter(r=>r.result==='unclear').length;
-  const loss=Number.isFinite(record.lossPct)?` · ${Math.round(record.lossPct)}% loss from rep 1`:'';
+  const loss=Number.isFinite(record.lossPct)?` · ${Math.round(record.lossPct)}% loss from ${record.v>=2?'fastest valid rep':'rep 1 (legacy)'}`:'';
   const peak=abs?rows.filter(r=>r.result==='counted').map(r=>r.peak).filter(Number.isFinite):[];
   return `<div class="velocity-summary"><b>${esc(record.counted)} counted</b>${short?' · '+short+' short':''}${unclear?' · '+unclear+' unclear':''}${loss}
     <div class="velocity-detail">${abs?'Mean concentric speed · m/s (camera estimate)':'Relative speed · rep 1 = 100%'}${abs&&peak.length?' · peak '+Math.max(...peak).toFixed(2)+' m/s (estimate)':''}</div>
@@ -1079,6 +1101,7 @@ function renderVelocityResult(record, chartMax){
       return `<div class="velocity-slot" title="Rep ${esc(r.n)}: ${esc(label)}${r.why?' · '+esc(r.why):''}"><span>${esc(good?fmt(v):r.result==='counted'?'—':r.result)}</span><div class="velocity-track"><i class="velocity-bar${good?'':' empty'}" style="${good?'height:'+Math.max(1,v/top*100).toFixed(1)+'%':''}"></i></div><span>${esc(r.n)}</span></div>`;
     }).join('')}</div>
     ${!abs&&!Number.isFinite(record.rep1)?'<div class="velocity-detail">Reference rep speed unavailable; relative speeds cannot be compared.</div>':''}
+    ${window.VelocityCoachMetrics?window.VelocityCoachMetrics.renderCoachMetrics(record):''}
     </div>`;
 }
 function velocityHistoryHtml(name,srcWorkouts){
@@ -1090,11 +1113,40 @@ function velocityHistoryHtml(name,srcWorkouts){
   recent.forEach(x=>(x.record.reps||[]).forEach(r=>{ const v=x.record.units==='m/s'?r.mcv:r.rel; if(Number.isFinite(v)) max[x.record.units]=Math.max(max[x.record.units]||0,v); }));
   return `<h4 style="margin:18px 0 8px">Tracked sets</h4>${recent.map(x=>`<div class="velocity-detail">${esc(F.fmtDate(x.at))} · Set ${x.set}${Number.isFinite(x.record.loadKg)?' · '+esc(x.record.loadKg)+' kg':''}${Number.isFinite(x.record.typedRir)?' · '+esc(x.record.typedRir)+' RIR':''}</div>${renderVelocityResult(x.record,max[x.record.units])}`).join('')}`;
 }
+function strengthAnalyticsHtml(name,srcWorkouts){
+  const rows=[],key=normExName(name);
+  (srcWorkouts||completed()).forEach(w=>(w.exercises||[]).filter(e=>normExName(e.name)===key).forEach(e=>(e.sets||[]).forEach((s,i)=>{
+    if(s.predictions||s.velocity?.predictions||s.tested1RM) rows.push({s,e,w,set:i+1,p:s.predictions||s.velocity?.predictions});
+  })));
+  if(!rows.length) return '';
+  rows.sort((a,b)=>b.w.completedAt-a.w.completedAt);
+  const estimate=(p,unit='')=>p?.status==='available'&&Number.isFinite(p.estimate)?`${p.estimate.toFixed(1)}${unit}${Array.isArray(p.range)?' ('+p.range.map(v=>Number.isFinite(v)?v.toFixed(1):'—').join('–')+')':''}`:'Unavailable';
+  const model=rows[0].p;
+  const profiles=new Map();
+  rows.forEach(x=>{
+    const fit=x.p?.oneRm,profile=x.p?.profile;
+    if(fit?.points?.length&&profile?.key&&!profiles.has(profile.key)) profiles.set(profile.key,{fit,profile,equipment:x.e.equipmentKey||machineLabel(x.e.machine||{})});
+  });
+  const plots=[...profiles.values()].slice(0,3).map(({fit,profile,equipment})=>{
+    const pts=fit.points.filter(p=>Number.isFinite(p.velocity)&&p.velocity>0&&Number.isFinite(p.loadKg)&&p.loadKg>0);
+    if(!pts.length) return '';
+    const W=360,H=170,P={l:38,r:16,t:16,b:28},maxV=Math.max(...pts.map(p=>p.velocity))*1.1,maxL=Math.max(...pts.map(p=>p.loadKg))*1.1;
+    const X=v=>P.l+v/maxV*(W-P.l-P.r),Y=l=>H-P.b-l/maxL*(H-P.t-P.b);
+    const line=fit.fit?.status==='available'?`<line x1="${X(fit.fit.velocityRange[0])}" y1="${Y(fit.fit.intercept+fit.fit.slope*fit.fit.velocityRange[0])}" x2="${X(fit.fit.velocityRange[1])}" y2="${Y(fit.fit.intercept+fit.fit.slope*fit.fit.velocityRange[1])}" stroke="var(--vi)" stroke-width="2"/>`:'';
+    return `<div class="velocity-summary"><b>Personal load–MCV profile · ${esc(equipment||profile.equipmentId)}</b><svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block" role="img" aria-label="Personal load against mean concentric velocity"><path d="M${P.l},${P.t} V${H-P.b} H${W-P.r}" stroke="var(--t3)" fill="none"/>${line}${pts.map(p=>`<circle cx="${X(p.velocity)}" cy="${Y(p.loadKg)}" r="4" fill="var(--vi)"><title>${p.loadKg} kg · ${p.velocity.toFixed(2)} m/s${p.maximal?' · tested maximal single':''}</title></circle>`).join('')}<text x="${P.l}" y="${P.t-3}" font-size="10" fill="currentColor">${maxL.toFixed(0)} kg</text><text x="${W-P.r}" y="${H-6}" text-anchor="end" font-size="10" fill="currentColor">Mean concentric velocity (m/s), 0–${maxV.toFixed(2)}</text></svg><div class="velocity-detail">${pts.length} usable loading points. ${esc(fit.reason||'Individual fitted line; 1RM validation is assessed separately.')}</div></div>`;
+  }).join('');
+  return `<h4 style="margin:18px 0 8px">Strength estimates &amp; actual tests</h4><div class="velocity-detail">Personal model: ${esc(model?.profile?.calibrationStatus||'unavailable')}. ${esc(model?.profile?.reason||'More suitable individual evidence is needed.')} Reported effort, actual tests, velocity estimates and conventional estimates remain separate. Small changes have not been established as real strength changes.</div>
+    ${plots||`<div class="velocity-summary velocity-detail">Load–velocity profile unavailable. ${esc(model?.oneRm?.reason||'Reliable calibrated physical velocity points are needed.')}</div>`}
+    <div class="coach-reps-wrap"><table class="coach-reps-table"><thead><tr><th>Date / set</th><th>Equipment</th><th>Actual tested 1RM</th><th>Velocity 1RM estimate</th><th>Optional Epley estimate</th><th>Estimated RIR</th><th>Estimated RPE</th></tr></thead><tbody>${rows.slice(0,20).map(({s,e,w,set,p})=>`<tr><td>${esc(F.fmtDate(w.completedAt))} · ${set}</td><td>${esc(e.equipmentKey||e.machine?.name||'Unspecified')}</td><td>${s.tested1RM?.verified&&Number.isFinite(s.tested1RM.loadKg)?esc(s.tested1RM.loadKg)+' kg':'—'}</td><td>${esc(estimate(p?.oneRm,' kg'))}</td><td>${esc(estimate(p?.repetitionOneRm,' kg'))}</td><td>${esc(estimate(p?.rir))}</td><td>${esc(estimate(p?.rpe))}</td></tr>`).join('')}</tbody></table></div>`;
+}
 function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', ...(ex.unilateral?{ weightL:last?last.weightL??'':'', weightR:last?last.weightR??'':'' }:{}), unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
 function removeSet(eid,sid){ const ex=findEx(eid); ex.sets=ex.sets.filter(s=>s.id!==sid); if(!ex.sets.length) active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
 function setField(eid,sid,f,v){
-  const s=findEx(eid).sets.find(s=>s.id===sid); s[f]=v===''?'':parseFloat(v);
+  const ex=findEx(eid), s=ex.sets.find(s=>s.id===sid); s[f]=v===''?'':parseFloat(v);
   if(f==='weight'&&s.velocity) s.velocity.loadKg=Number.isFinite(s.weight)?s.weight:null;
+  if((f==='weight'||f==='reps')&&s.tested1RM && !(+s.reps===1&&+s.weight>0)) delete s.tested1RM;
+  if(f==='weight'&&s.tested1RM?.verified&&+s.reps===1) s.tested1RM={...s.tested1RM,loadKg:+s.weight,at:Date.now()};
+  refreshSetPrediction(ex,s);
   saveActive();
 }
 // Unilateral sets keep a left and a right weight. The set's own weight follows
@@ -1115,25 +1167,80 @@ function setSides(eid,on){
   });
   saveActive(); renderLog();
 }
-// RPE and RIR are two views of the same effort (RIR ≈ 10 − RPE): fill either
-// and the other follows.
+// Actual reports stay independent; legacy scalar fields retain their existing
+// approximate conversion only when the other value was not explicitly reported.
 function setEffort(eid,sid,f,v){
-  const s=findEx(eid).sets.find(x=>x.id===sid);
-  if(v===''){ s[f]=''; if(f==='rir'&&s.velocity) s.velocity.typedRir=null; saveActive(); return; }
-  const num=Math.max(0,Math.min(10,parseFloat(v)));
-  if(!isFinite(num)) return;
-  s[f]=num;
+  const ex=findEx(eid), s=ex.sets.find(x=>x.id===sid);
+  const num=v===''?null:Math.max(f==='rpe'?1:0,Math.min(10,parseFloat(v)));
+  if(num!==null&&!Number.isFinite(num)) return;
+  s.reportedEffort={...(s.reportedEffort||{rir:null,rpe:null}),[f]:num,enteredAs:f,at:Date.now()};
+  s[f]=num===null?'':num;
   const other=f==='rpe'?'rir':'rpe';
-  s[other]=Math.max(0,Math.min(10,Math.round((10-num)*2)/2));
-  const el=document.getElementById(other+'-'+sid);
-  if(el) el.value=s[other];
-  if(s.velocity) s.velocity.typedRir=s.rir;
+  if(!Number.isFinite(s.reportedEffort[other])) s[other]=num===null?'':Math.round((10-num)*2)/2;
+  if(s.velocity) s.velocity.typedRir=Number.isFinite(s.reportedEffort.rir)?s.reportedEffort.rir:null;
+  refreshSetPrediction(ex,s);
   saveActive();
+}
+function loggedPredictionRecord(ex,s,workout=active){
+  const tracking=window.VelocityWorkout;
+  const number=v=>v!==''&&v!=null&&Number.isFinite(+v)?+v:null;
+  return {...(s.velocity||{}),id:s.velocity?.id||`manual-${workout?.id}-${s.id}`,at:s.velocity?.at||s.completedAt||workout?.startedAt||Date.now(),
+    reps:s.velocity?.reps||[],counted:s.velocity?.counted??number(s.reps),completedReps:number(s.reps),loadKg:number(s.weight),
+    source:s.velocity?.source||'manual-log',units:s.velocity?.units||'none',metric:s.velocity?.metric||null,
+    userId:s.velocity?.userId||workout?.userId||(workout===active?trainingUserId():null),exercise:ex.name,exerciseId:tracking?.canonicalExerciseId(ex.name),
+    equipmentKey:tracking?.equipmentKeyFor(ex),sessionId:workout?.id,
+    reportedEffort:s.reportedEffort||s.velocity?.reportedEffort||null,rirEndpoint:s.rirEndpoint||null,
+    failureEndpoint:s.failureEndpoint||null,tested1RM:s.tested1RM||null,maximalIntent:s.maximalIntent===true,
+    ...(Number.isFinite(s.restSec)?{restSec:s.restSec,restMethod:s.restMethod||null}:{}),predictions:s.predictions||s.velocity?.predictions||null};
+}
+function refreshSetPrediction(ex,s){
+  if(!active) return;
+  if(!active.userId) active.userId=trainingUserId();
+  const record=loggedPredictionRecord(ex,s);
+  if(record.reps.length && Number.isFinite(record.completedReps) && record.completedReps!==record.counted){
+    record.quality={...(record.quality||{}),accepted:false,loggedRepMismatch:true,note:'Logged reps differ from tracked valid reps; excluded from personal calibration'};
+  }
+  if(window.VelocityPredictions && window.VelocityWorkout){
+    const history=window.VelocityWorkout.gatherPredictionHistory(localStorage).filter(r=>r.id!==record.id);
+    const context={...window.VelocityWorkout.predictionContextFor(active,ex),epleySupported:s.epleySupported===true};
+    s.predictions={...window.VelocityPredictions.predictionsForSet(record,history,context),computedAt:Date.now()};
+    const report=record.reportedEffort;
+    s.predictionEvaluation={rirError:s.predictions.rir?.status==='available'&&Number.isFinite(report?.rir)?s.predictions.rir.estimate-report.rir:null,
+      rpeError:s.predictions.rpe?.status==='available'&&Number.isFinite(report?.rpe)?s.predictions.rpe.estimate-report.rpe:null,
+      at:Date.now(),modelVersion:s.predictions.version};
+    record.predictions=s.predictions;
+    record.predictionEvaluation=s.predictionEvaluation;
+    s.evaluation=s.predictionEvaluation;
+    record.evaluation=s.predictionEvaluation;
+  }
+  if(s.velocity) s.velocity={...s.velocity,...record};
+}
+function setEquipmentVariation(eid,value){
+  const ex=findEx(eid); ex.equipmentKey=value.trim()||null;
+  ex.sets.forEach(s=>refreshSetPrediction(ex,s)); saveActive(); renderLog();
+}
+function setCalibrationField(eid,sid,field,value){
+  const ex=findEx(eid),s=ex.sets.find(x=>x.id===sid);
+  if(field==='endpoint'){
+    s.rirEndpoint=['technical','momentary'].includes(value)?value:null;
+    if(s.failureEndpoint) s.failureEndpoint=s.rirEndpoint?{...s.failureEndpoint,type:s.rirEndpoint,at:Date.now()}:null;
+  } else if(field==='failure'){
+    if(value&&!s.rirEndpoint){ toast('Choose the endpoint that was reached'); renderLog(); return; }
+    if(value&&!(+s.reps>0)){ toast('Log the completed reps before verifying the endpoint'); renderLog(); return; }
+    s.failureEndpoint=value?{verified:true,type:s.rirEndpoint,at:Date.now()}:null;
+  } else if(field==='tested1RM'){
+    if(value&&!(+s.reps===1&&+s.weight>0&&(!s.velocity||s.velocity.counted===1))){ toast('A tested 1RM is one successful repetition with a recorded load'); renderLog(); return; }
+    s.tested1RM=value?{verified:true,loadKg:+s.weight,at:Date.now()}:null;
+  } else if(field==='maximalIntent') s.maximalIntent=!!value;
+  else if(field==='epleySupported') s.epleySupported=!!value;
+  refreshSetPrediction(ex,s); saveActive(); renderLog();
 }
 function toggleType(eid,sid){ const s=findEx(eid).sets.find(s=>s.id===sid); s.type = s.type==='working'?'warmup':'working'; saveActive(); renderLog(); }
 function toggleDone(eid,sid){
   const ex=findEx(eid); const s=ex.sets.find(s=>s.id===sid);
   s.completed=!s.completed;
+  if(s.completed) s.completedAt=Date.now(); else delete s.completedAt;
+  refreshSetPrediction(ex,s);
   if(s.completed && s.type!=='warmup'){ checkPR(ex,s); startRest(); }
   saveActive(); renderLog();
 }
@@ -1275,7 +1382,7 @@ function finishWorkout(){
   const logged = active.exercises.some(e=>e.sets.some(s=>s.type==='working' && (s.completed || s.reps || s.weight!=='')));
   if(!logged){ toast('Log at least one set first'); return; }
   // auto-complete any working sets the user filled but didn't tick
-  active.exercises.forEach(e=>e.sets.forEach(s=>{ if(s.type==='working' && (s.reps||s.weight!=='')) s.completed=true; }));
+  active.exercises.forEach(e=>e.sets.forEach(s=>{ if(s.type==='working' && (s.reps||s.weight!=='')){ s.completed=true; if(!s.completedAt) s.completedAt=Date.now(); refreshSetPrediction(e,s); } }));
   active.completedAt = Date.now();
   active.date = todayKey(new Date(active.completedAt)); // local calendar day, for the heatmap
   active.status = 'completed';
@@ -1299,14 +1406,14 @@ function saveTemplate(){
   if(!active || !active.exercises.length){ toast('Nothing to save yet'); return; }
   const name = prompt('Routine name:', active.name) ; if(!name) return;
   const tpls=templates();
-  tpls.unshift({ id:'t-'+F.uid(), name, exercises: active.exercises.map(e=>({ name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, machine:e.machine, sets:e.sets.map(s=>({type:s.type, weight:s.weight, reps:s.reps, rpe:s.rpe, rir:s.rir})) })) });
+  tpls.unshift({ id:'t-'+F.uid(), name, exercises: active.exercises.map(e=>({ name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, machine:e.machine, equipmentKey:e.equipmentKey, sets:e.sets.map(s=>({type:s.type, weight:s.weight, reps:s.reps, rpe:s.rpe, rir:s.rir})) })) });
   wj(K_TPL, tpls.slice(0,40));
   toast('Routine saved — it’s on your Workout screen');
 }
 function instantiate(tpl){
   return { id:'w-'+F.uid(), name:tpl.name, startedAt:Date.now(), notes:'',
     exercises: tpl.exercises.map(e=>{ const m=musclesFor(e.name); return { id:'e-'+F.uid(), name:e.name,
-      primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary, targetRir:e.targetRir, ...(e.machine?{ machine:e.machine }:{}),
+      primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary, targetRir:e.targetRir, equipmentKey:e.equipmentKey, ...(e.machine?{ machine:e.machine }:{}),
       sets:(e.sets||[{type:'working'}]).map(s=>({ id:'s-'+F.uid(), type:s.type||'working', weight:s.weight??'', unit:'kg', reps:s.reps??'', rpe:s.rpe??'', rir:s.rir??'', completed:false })) }; }) };
 }
 // ════════════════════════════════════════════════════════════════
@@ -1386,7 +1493,7 @@ function showProg(name, srcWorkouts, whose){
       <div style="font-size:10.5px;color:var(--t3);margin:4px 0 12px">Top working-set weight per session · ${h.length} sessions · hover a point for the full sets</div>
       ${h.slice(-8).reverse().map(x=>`<div class="pg-sess"><span class="d">${x.date.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</span><span class="s">${esc(x.setsTxt)}</span><span class="e">e1RM ${x.e1rm}</span></div>`).join('')}`;
   }
-  body.innerHTML+=velocityHistoryHtml(name,srcWorkouts);
+  body.innerHTML+=strengthAnalyticsHtml(name,srcWorkouts)+velocityHistoryHtml(name,srcWorkouts);
   document.getElementById('prog-modal').classList.add('open');
 }
 function closeProg(){ document.getElementById('prog-modal').classList.remove('open'); }
@@ -1514,8 +1621,10 @@ function buildClientExport(){
   const cutoff=Date.now()-90*864e5;
   return { kind:'arete-client', v:1, name:myName(), exportedAt:Date.now(),
     programs:getPrograms(),
-    workouts: completed().filter(w=>w.completedAt>cutoff).map(w=>({ name:w.name, completedAt:w.completedAt,
-      exercises:w.exercises.map(e=>({ name:e.name, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir,
+    workouts: completed().filter(w=>w.completedAt>cutoff).map(w=>({ id:w.id,userId:w.userId,name:w.name, completedAt:w.completedAt,
+      exercises:w.exercises.map(e=>({ name:e.name,equipmentKey:e.equipmentKey,machine:e.machine, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir,
+        reportedEffort:s.reportedEffort||null,failureEndpoint:s.failureEndpoint||null,rirEndpoint:s.rirEndpoint||null,tested1RM:s.tested1RM||null,maximalIntent:s.maximalIntent===true,epleySupported:s.epleySupported===true,predictions:s.predictions||s.velocity?.predictions||null,evaluation:s.evaluation||s.velocity?.evaluation||null,predictionEvaluation:s.predictionEvaluation||s.velocity?.predictionEvaluation||null,
+        ...(Number.isFinite(s.restSec)?{restSec:s.restSec,restMethod:s.restMethod||null}:{}),
         ...(s.velocity?{velocity:s.velocity}:{}),...(s.velocityHistory?{velocityHistory:s.velocityHistory}:{})})) })) })) };
 }
 function buildCoachUpdate(progId){
@@ -2211,7 +2320,7 @@ function openSession(id){
         <span style="color:var(--t3);font-size:10.5px;font-weight:700">SET</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">WEIGHT</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">REPS</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">RIR</span><span></span>
         ${e.sets.map((s,i)=>`<span style="color:var(--t2)">${s.type==='warmup'?'W':i+1-e.sets.slice(0,i).filter(x=>x.type==='warmup').length}</span><span>${s.weight!==''&&s.weight!=null?esc(s.weight)+' kg':'–'}</span><span>${s.reps!==''&&s.reps!=null?esc(s.reps):'–'}</span><span>${s.rir!==''&&s.rir!=null?esc(s.rir):'–'}</span><span style="color:${s.completed?'var(--gr)':'var(--t3)'}">${s.completed?'✓':'–'}</span>`).join('')}
       </div>
-      ${e.sets.map((s,i)=>s.velocity?`<div class="velocity-detail" style="margin-top:8px">Tracked set ${i+1}</div>${renderVelocityResult(s.velocity)}`:'').join('')}
+      ${e.sets.map((s,i)=>s.velocity||s.predictions?`<div class="velocity-detail" style="margin-top:8px">Set ${i+1} measurements &amp; estimates</div>${s.velocity?renderVelocityResult(s.velocity):window.VelocityCoachMetrics?.renderCoachMetrics(loggedPredictionRecord(e,s,w),{predictions:s.predictions})||''}`:'').join('')}
     </div>`).join('') : `<p style="font-size:13px;color:var(--t2)">${esc(w.notes||'No exercises recorded for this session.')}</p>`;
   document.getElementById('sess-foot').innerHTML = `<button class="btn btn-s btn-sm" onclick="closeSession()">Close</button>${w.exercises.length?`<button class="btn btn-p btn-sm" onclick="closeSession();repeatWorkout('${w.id}')">Repeat workout</button>`:''}`;
   document.getElementById('sess-modal').classList.add('open');
@@ -2643,7 +2752,11 @@ window.addEventListener('storage',e=>{ if(e.key===K_ACTIVE){ active=rj(K_ACTIVE,
 </script>
 <script type="module">
 import * as tracking from './features/velocity/services/workout.js';
+import * as predictions from './features/velocity/services/predictions.js';
+import * as metrics from './features/velocity/services/coachMetrics.js';
 window.VelocityWorkout=tracking;
+window.VelocityPredictions=predictions;
+window.VelocityCoachMetrics=metrics;
 if(tab==='log' && active && !active.paused) renderLog();
 </script>
 <script type="module" src="features/training/index.js"></script>

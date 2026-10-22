@@ -156,7 +156,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .cv-ttl span{font-size:11.5px;color:#6B6B73}
 .cv-status{font-size:11px;font-weight:600;color:#6B6B73;border:1px solid #E6E6EA;border-radius:6px;padding:3px 7px}
 .cv-status.on{color:#1E7A43;border-color:#BFE3CD;background:#EEF8F2}
-.cv-stage{position:relative;flex:0 0 50%;background:#0b0b0d;overflow:hidden}
+.cv-stage{position:relative;flex:0 0 32%;min-height:150px;background:#0b0b0d;overflow:hidden}
 .cv-stage video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
 .cv-stage video.mirror{transform:scaleX(-1)}
 .cv-ph{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.5);font-size:13px;text-align:center;padding:24px}
@@ -174,7 +174,10 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .cv-m span{display:block;font-size:9.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8A8A93}
 .cv-m b{font-size:15px;font-weight:650}
 .cv-m b small{font-size:11px;font-weight:500;color:#B5651D;margin-left:3px}
-.cv-chart{flex:1;min-height:0;background:#fff;position:relative;padding:8px 12px 4px;display:flex;flex-direction:column}
+.cv-detail{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;background:#fff}
+.cv-chart{height:210px;background:#fff;position:relative;padding:8px 12px 4px;display:flex;flex-direction:column}
+#cv-metrics{padding:0 12px calc(18px + env(safe-area-inset-bottom,0px))}
+.cv-metrics-link{font-size:11px;font-weight:600;border-bottom:1px solid currentColor;white-space:nowrap}
 .cv-ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#8A8A93}
 .cv-ch span{letter-spacing:0;text-transform:none;font-weight:500}
 .cv-chart svg{flex:1;min-height:0;width:100%;display:block;margin-top:2px;cursor:pointer}
@@ -235,6 +238,8 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
         <label class="field">Your height (cm)<input id="height-in" type="number" inputmode="numeric" min="120" max="230" placeholder="e.g. 180"></label>
         <label class="field"><span id="kg-label">Weight on the bar (kg)</span><input id="kg-in" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
       </div>
+      <label class="field">Equipment / setup ID<input id="equipment-in" type="text" maxlength="160" placeholder="Optional, e.g. home bench + straight bar"></label>
+      <p class="hint">Use the same setup ID across sessions to build a personal profile. Different machines or exercise variations need separate IDs.</p>
       <label class="field" id="diameter-field" hidden>Known outer plate diameter (cm)<input id="diameter-in" type="number" inputmode="decimal" min="5" max="100" step="0.1" placeholder="Leave blank for relative speed"></label>
       <p class="hint" id="fields-hint">Body tracking shows relative speed. A known plate diameter enables estimated m/s; camera geometry still needs real-world validation. The weight lets you compare sets at the same load.</p>
       <section class="guide" id="guide" aria-labelledby="guide-h"></section>
@@ -274,9 +279,19 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <p class="hint" id="workout-save" role="status"></p>
       <a class="btn s" id="workout-return" href="workouts.html?tab=log" hidden>Return to workout</a>
       <div class="acts">
-        <label class="field">RPE<input id="rpe-in" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="Optional"></label>
+        <label class="field">Reported RPE<input id="rpe-in" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="Optional"></label>
+        <label class="field">Reported RIR<input id="rir-in" type="number" inputmode="decimal" min="0" max="10" step="0.5" placeholder="Optional"></label>
         <button class="btn p" id="coach-btn">Review set (coach view)</button>
       </div>
+      <details class="coach-metrics"><summary>Optional personal calibration labels</summary>
+        <p class="hint">Report what happened; training to failure is not required. Reports are subjective labels, not exact ground truth.</p>
+        <label class="field">RIR endpoint<select id="failure-endpoint"><option value="">Not specified</option><option value="technical">Technical failure (cannot maintain the agreed form)</option><option value="momentary">Momentary muscular failure (cannot complete the lift)</option></select></label>
+        <p><label><input type="checkbox" id="failure-verified"> I confirm I reached that endpoint on the final full rep</label></p>
+        <p><label><input type="checkbox" id="maximal-intent"> Maximal intended concentric speed</label></p>
+        <p><label><input type="checkbox" id="tested-max"> Successful tested 1RM (one full rep only)</label></p>
+        <p><label><input type="checkbox" id="epley-supported"> Show the optional repetition-based 1RM estimate for this exercise</label></p>
+        <p class="hint">This separate formula assumes reps + reported RIR describe 1–10 reps to failure. It has no personal error range and is not a velocity-based 1RM.</p>
+      </details>
       <div class="acts">
         <label class="field" id="kg-next-f">Next set (kg)<input id="kg-next" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
         <button class="btn p" id="again-btn">New set</button>
@@ -305,8 +320,9 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
     <div class="cv-prog"><i id="cv-prog"></i></div>
   </div>
   <div class="cv-tl" id="cv-tl"></div>
+  <div class="cv-detail" id="cv-detail">
   <div class="cv-chart">
-    <div class="cv-ch">Mean velocity per rep <span id="cv-loss"></span></div>
+    <div class="cv-ch">Mean velocity per rep <span id="cv-loss"></span><button class="cv-metrics-link" id="cv-all">All metrics ↓</button></div>
     <svg id="cv-svg" viewBox="0 0 320 150" role="img" aria-label="Velocity per rep, synced to the video"></svg>
     <div class="cv-sheet" id="cv-fsheet" hidden>
       <b>Flag this set</b>
@@ -319,11 +335,14 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="row2"><button id="cv-cancel" style="background:#F1F1F3">Cancel</button><button id="cv-save" style="background:#111114;color:#fff">Save comment</button></div>
     </div>
   </div>
+  <div id="cv-metrics" aria-label="All set metrics"></div>
+  </div>
 </div>
 
+<link rel="stylesheet" href="css/velocity-coach.css">
 <script type="module">
 import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, armExtension, REACH_DEFAULTS, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
-import { concentricVelocity, setVerdict, compareToLast, lossBand } from './features/standard/services/velocity.js';
+import { concentricVelocity, lossBand } from './features/standard/services/velocity.js';
 import { createPlateSession } from './features/velocity/services/live/plateSession.js';
 import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
 import { requestMotionPermission, createMotionWatch } from './features/velocity/services/live/motion.js';
@@ -331,7 +350,9 @@ import { barMetrics } from './features/velocity/services/bar3d.js';
 import { standardizeLifts, standardizeMeasurements } from './features/velocity/services/live/repVelocity.js';
 import { createFrameClock } from './features/velocity/services/live/frameClock.js';
 import { buildLiveSetRecord, saveSetRecord } from './features/velocity/services/record.js';
-import { parseWorkoutContext, attachTrackedSet } from './features/velocity/services/workout.js';
+import { parseWorkoutContext, attachTrackedSet, canonicalExerciseId, gatherPredictionHistory } from './features/velocity/services/workout.js';
+import { coachMetrics, renderCoachMetrics } from './features/velocity/services/coachMetrics.js';
+import { predictionsForSet } from './features/velocity/services/predictions.js';
 
 // Exercise setups. Curl: elbow angle, judged at the top of each rep.
 // Squat and bench: height (hips above the feet, bar above the shoulders),
@@ -571,9 +592,8 @@ let audio = null, wakeLock = null, current = NaN;
 // units for squat and bench), up = lifting. Each rep's mean lifting speed is
 // measured from it; metresPerUnit() turns that into m/s from your height.
 const HEIGHT_KEY = 'arete_lab_height_cm', KG_KEY = `arete_${EXK}_lab_kg`, HIST_KEY = `arete_${EXK}_lab_history`;
-const STEP_KG = { squat: 2.5, bench: 2.5, curl: 2, press: 5 };
 let barTrace = [], pendingVel = null;
-let diameterCm = null, liveRecordId = null, liveRecordAt = Date.now(), savedTypedRir, sourceURL = null, starting = false, startGeneration = 0;
+let diameterCm = null, setLoadKg = null, liveRecordId = null, liveRecordAt = Date.now(), savedTypedRir, sourceURL = null, starting = false, startGeneration = 0;
 const frameClock = createFrameClock();
 const workoutContext = parseWorkoutContext(location.search);
 
@@ -695,7 +715,9 @@ function applyPlateVelocities(lifts, moved = plateMoved) {
   for (const row of result.rows) {
     row.rep.velocityWhy = moved ? 'Phone moved during the set' : plateInvalid ? 'The plate could not be followed consistently' : row.why;
     row.rep.vel = !moved && !plateInvalid && row.velocity === 'ok' ? { mv: row.mcv, pv: row.pv, mpv: row.mpv,
-      dist: row.distance, D: result.D, T: row.T, rel: row.rel, loss: row.loss, src: 'plate', estimate: true } : null;
+      dist: row.distance, D: result.D, T: row.T, tStart:row.tStart, tEnd:row.tEnd,
+      avgPower:diameterCm && setLoadKg>0?setLoadKg*9.81*row.distance/row.T:NaN,
+      rel: row.rel, loss: row.loss, src: 'plate', estimate: true } : null;
   }
 }
 function applyBodyVelocities() {
@@ -817,22 +839,23 @@ function settleVel(t) {
 // otherwise the native unit (only shown relative to your best rep).
 function repSpeeds() {
   const k = mpu(), metres = Number.isFinite(k);
-  return { metres, list: (counter ? counter.reps : []).map((r) => ({ r, mv: r.result === 'counted' && r.vel ? r.vel.mv * (metres ? k : 1) : NaN })) };
+  return { metres, list: (counter ? counter.reps : []).map((r) => ({ r, mv: speedOf(r) })) };
 }
 const fmtV = (v, metres) => (metres ? `${v.toFixed(2)} m/s` : '');
-function renderPanel(verdict) {
+function renderPanel() {
   const { metres, list } = repSpeeds();
   const timed = list.filter((x) => Number.isFinite(x.mv) && x.r.result !== 'unclear');
-  const best = timed.find((x) => x.r.isStandard)?.mv ?? NaN;
+  const best = timed.length ? Math.max(...timed.map((x) => x.mv)) : NaN;
+  const reference = timed.find((x) => x.r.isStandard)?.mv ?? NaN;
   const last = timed[timed.length - 1];
   const what = barSource === 'plate' ? 'Bar speed · estimate' : EX.press || EX.row || requestedSource === 'hand' ? 'Hand speed · relative' : 'Body speed · relative';
   $('vp-k').textContent = last ? `${what} · rep ${last.r.n}` : what;
   if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
   else {
     const loss = (best - last.mv) / best;
-    $('vp-v').textContent = metres ? last.mv.toFixed(2) : `${Math.round((last.mv / best) * 100)}%`;
+    $('vp-v').textContent = metres ? last.mv.toFixed(2) : `${Math.round((last.mv / reference) * 100)}%`;
     $('vp-u').textContent = metres ? 'm/s · est.' : 'of rep 1';
-    $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'At or above baseline' : `−${Math.round(loss * 100)}% vs rep 1`;
+    $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'Fastest rep' : `−${Math.round(loss * 100)}% vs fastest`;
     $('vp-loss').className = 'vp-loss ' + (timed.length < 2 ? '' : lossBand(loss));
   }
   const top = Number.isFinite(best) ? Math.max(best, ...timed.map((x) => x.mv)) * 1.1 : 1;
@@ -841,13 +864,8 @@ function renderPanel(verdict) {
     const h = Math.max(4, (x.mv / top) * 100);
     return `<i class="${lossBand((best - x.mv) / best)}${x.r.result === 'short' ? ' short' : ''}" style="height:${h.toFixed(1)}%"></i>`;
   }).join('') + (Number.isFinite(best) ? `<div class="vp-line" style="bottom:${((best * 0.8) / top * 100).toFixed(1)}%"><span>−20%</span></div>` : '');
-  const vEl = $('vp-verdict');
-  vEl.hidden = !verdict;
-  if (verdict) { vEl.className = 'vp-verdict ' + verdict.kind; vEl.innerHTML = `${VERDICT[verdict.kind]}${verdict.brokeDown ? '<small>Range broke down</small>' : Number.isFinite(verdict.rir) ? `<small>${repsLeft(verdict.rir)}</small>` : ''}`; }
+  $('vp-verdict').hidden = true;
 }
-const VERDICT = { add: 'Add weight', keep: 'Keep weight, +1 rep', hold: 'Stay at this weight', none: 'Not enough reps' };
-const repsDown = (rir) => Math.max(1, Math.floor(rir));
-const repsLeft = (rir) => (rir >= 5 ? '5+ reps left' : rir < 0.5 ? 'At failure' : `~${repsDown(rir)} rep${repsDown(rir) === 1 ? '' : 's'} left`);
 function showPanel(on) { $('vp').hidden = !on; $('stage').classList.toggle('has-vp', on); }
 
 // ── Feedback ─────────────────────────────────────────────
@@ -942,6 +960,7 @@ function show(view) {
 function resetSet() {
   liveRecordId = null;
   liveRecordAt = Date.now(); savedTypedRir = undefined;
+  setLoadKg = kg;
   $('workout-save').textContent = '';
   $('relock-btn').disabled = false;
   counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : EX.row ? createRepCounter(REACH_DEFAULTS) : createRepCounter();
@@ -1311,7 +1330,6 @@ function endSet() {
   if (motion) motion.stop();
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   persistTrackedSet();
-  if (SPEED) saveSet();
   if (EX.pullup) sfx('end');
   $('legend').hidden = true; // the verdict takes that corner
   renderSummary(); show('done'); setStatus('Set complete', 'good');
@@ -1469,38 +1487,57 @@ function drawPullup(d, lm, sc, oy, cw, dpr) {
 }
 
 // ── Summary ──────────────────────────────────────────────
-// The set's result is saved once, when it ends: compared first with your last
-// set at the same weight, so it's never compared with itself.
-let setCompare = null;
-function saveSet() {
-  const { metres, list } = repSpeeds();
-  const v = setVerdict(list.map((x) => ({ mv: x.mv, result: x.r.result })), { lift: EXK, metres });
-  // A set is only compared with earlier sets measured the same way (the plate's speed vs the body's estimate).
-  const src = barSource, est = counter.reps.some((r) => r.vel && r.vel.estimate);
-  setCompare = v.kind === 'none' ? null : compareToLast(loadHistory().filter((x) => x.metric === 'standard-DT-v1' && (x.src || 'pose') === src), { kg, best: v.best, metres });
-  if (v.kind === 'none') return;
-  try {
-    const h = loadHistory();
-    h.push({ at: Date.now(), metric: 'standard-DT-v1', kg: kg || null, metres, best: v.best, last: v.last, loss: v.loss, rir: v.rir, reps: counter.summary().counted, src, est });
-    localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-100)));
-  } catch {}
+// Construct once per completed-set edit, never in the frame loop.
+function currentLiveRecord() {
+  const params = new URLSearchParams(location.search);
+  const typed = (id, lo, hi) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= lo && v <= hi ? v : null; };
+  const reportedRir = typed('rir-in', 0, 10), reportedRpe = typed('rpe-in', 1, 10);
+  const defaults = { curl: ['Dumbbell Curl', 'Dumbbell'], squat: ['Back Squat', 'Barbell'], bench: ['Bench Press', 'Barbell'], row: ['T-bar Row', 'T-bar'], press: ['Chest Press', 'Machine'], tbar: ['T-bar Row', 'T-bar'], pullup: ['Pull-up', 'Bodyweight'] };
+  const [name, equipment] = defaults[EXK];
+  const exerciseName = params.get('exerciseName') || name;
+  let userId = params.get('userId') || null;
+  try { userId ||= window.Auth?.localSession()?.email || null; } catch {}
+  const dts = barTrace.slice(1).map((f,i) => f.t-barTrace[i].t).filter((d) => d>0).sort((a,b)=>a-b);
+  const fps = dts.length ? 1/dts[dts.length>>1] : null;
+  const accepted = !demo && fps >= 24 && !plateMoved && !plateInvalid && !plateBroke
+    && counter.reps.length > 0 && counter.reps.every((r) => r.result === 'counted' && r.vel)
+    && (barSource !== 'plate' || !!plateFinal?.quality?.ok && !!plateFinal?.quality?.clear);
+  const record = buildLiveSetRecord({ ...(liveRecordId ? {id:liveRecordId}:{}), at:liveRecordAt,
+    reps:counter.reps, standard:counter.standard, lift:EXK, exercise:exerciseName, loadKg:setLoadKg,
+    typedRir:reportedRir, reportedEffort:{rir:reportedRir,rpe:reportedRpe,enteredAs:reportedRir!==null?'rir':reportedRpe!==null?'rpe':null,at:Date.now()},
+    source:barSource==='plate'?'plate':'pose-baseline', scaled:Number.isFinite(mpu()), fps,
+    nativeUnits:barSource==='plate'?'nominal-scale-units':EX.height?'body-lengths':EX.row?'arm-lengths':EX.press||requestedSource==='hand'?'pixels':'radians',
+    calibration:{version:'plate-diameter-v1',diameterM:diameterCm?diameterCm/100:null,cameraIntrinsics:'assumed',validated:false},
+    quality:{accepted,estimate:true,note:demo?'Synthetic demonstration; excluded from personal calibration':plateNote || (barSource==='plate'?'Camera geometry is estimated':'Body tracking: relative speed only')},
+  });
+  Object.assign(record,{userId:userId?.trim().toLowerCase()||null,exerciseId:canonicalExerciseId(exerciseName),equipmentKey:$('equipment-in').value.trim().toLowerCase()||null,
+    sessionId:params.get('sessionId')||workoutContext?.workoutId||('prototype-'+new Date(liveRecordAt).toLocaleDateString('en-CA')),metric:'mean-concentric-velocity',
+    rirEndpoint:$('failure-endpoint').value||null,maximalIntent:$('maximal-intent').checked,
+    failureEndpoint:{verified:$('failure-verified').checked,type:$('failure-endpoint').value||null,at:Date.now()},
+    tested1RM:{verified:$('tested-max').checked && record.counted===1,loadKg:setLoadKg,at:Date.now()},epleySupported:$('epley-supported').checked,synthetic:demo});
+  record.massContext = 'External load only; body mass is excluded from power estimates';
+  const rest = params.get('restSec');
+  if (rest !== null && Number.isFinite(+rest) && +rest>=0) record.restSec=+rest;
+  if (params.get('restMethod')) record.restMethod=params.get('restMethod');
+  // A small audit trace is separate from metrics; native pose/nominal-radius
+  // coordinates are never labelled metres. Retain the full track in the lab
+  // export when measurement debugging needs every frame.
+  const stride = Math.max(1, Math.ceil(barTrace.length / 240));
+  record.observations = { clock: source==='file'?'video-media-seconds':'video-frame-seconds-aligned-to-monotonic-clock', frameCount: barTrace.length,
+    positionUnits: barSource === 'plate' && diameterCm ? 'estimated-metres' : 'native',
+    stride, sampled: stride > 1, points: barTrace.filter((_,i)=>i%stride===0).map((f)=>[+f.t.toFixed(4),Number.isFinite(f.y)?+f.y.toFixed(5):null]) };
+  liveRecordId=record.id;
+  const history = demo ? [] : gatherPredictionHistory(localStorage).filter((r)=>r.id!==record.id);
+  record.predictions=predictionsForSet(record,history,{userId:record.userId,exerciseId:record.exerciseId,equipmentKey:record.equipmentKey,epleySupported:record.epleySupported});
+  record.predictionVersion=record.predictions.version;
+  record.evaluation = { at:Date.now(), modelVersion:record.predictions.version,
+    rirError:record.predictions.rir.status==='available' && reportedRir!==null?record.predictions.rir.estimate-reportedRir:null,
+    rpeError:record.predictions.rpe.status==='available' && reportedRpe!==null?record.predictions.rpe.estimate-reportedRpe:null };
+  return record;
 }
 function persistTrackedSet(updateTypedRir = false) {
   if (!counter?.reps.length || demo) return;
-  const contextParams = new URLSearchParams(location.search);
-  const rpe = parseFloat($('rpe-in').value), rirParam = contextParams.get('typedRir');
-  const typedRir = updateTypedRir ? rpe >= 1 && rpe <= 10 ? 10 - rpe : null
-    : savedTypedRir !== undefined ? savedTypedRir : rirParam !== null && Number.isFinite(+rirParam) ? +rirParam : null;
-  savedTypedRir = typedRir;
-  const dts = barTrace.slice(1).map((f, i) => f.t - barTrace[i].t).filter((d) => d > 0).sort((a,b) => a-b);
-  const record = buildLiveSetRecord({ ...(liveRecordId ? { id: liveRecordId } : {}),
-    at: liveRecordAt, reps: counter.reps, standard: counter.standard, lift: EXK, exercise: contextParams.get('exerciseName') || EX.name,
-    loadKg: kg, typedRir, source: barSource === 'plate' ? 'plate' : 'pose-baseline', scaled: Number.isFinite(mpu()),
-    fps: dts.length ? 1 / dts[dts.length >> 1] : null,
-    calibration: { diameterM: diameterCm ? diameterCm / 100 : null, cameraIntrinsics: 'assumed', validated: false },
-    quality: { estimate: true, note: plateNote || (barSource === 'plate' ? 'Camera geometry is estimated' : 'Body tracking: relative speed only') },
-  });
-  liveRecordId = record.id;
+  const record = currentLiveRecord();
   let saved = false;
   try { saveSetRecord(localStorage, record); saved = true; } catch {}
   const attached = workoutContext ? attachTrackedSet(localStorage, workoutContext, record, { updateTypedRir }) : null;
@@ -1535,30 +1572,10 @@ function renderChart() {
   svg.innerHTML = html;
 }
 function renderCall() {
-  const { metres, list } = repSpeeds();
-  const v = setVerdict(list.map((x) => ({ mv: x.mv, result: x.r.result })), { lift: EXK, metres });
-  renderPanel(v);
-  const lines = [];
-  if (v.kind === 'none') lines.push('Do at least two reps the camera can see clearly to get a call on the weight.');
-  else {
-    const speed = metres ? `Last rep ${fmtV(v.last, true)}, ${Math.round(v.loss * 100)}% slower than your best (${fmtV(v.best, true)}).` : `Last rep was ${Math.round(v.loss * 100)}% slower than your best.`;
-  const n = repsDown(v.rir);
-    const why = v.brokeDown ? 'Your range broke down on the last reps.' : v.rir < 0.5 ? 'Speed-based estimate: near failure.' : v.rir >= 5 ? 'Speed-based estimate: 5 or more reps left.' : `Speed-based estimate: about ${n} rep${n === 1 ? '' : 's'} left.`;
-    lines.push(`${why} ${speed}`);
-    if (v.kind === 'add' && kg) lines.push(`Try ${+(kg + (EX.height === 'squat' && v.rir >= 5 ? 5 : STEP_KG[EXK])).toFixed(1)} kg next.`);
-    const c = setCompare;
-    if (c) {
-      const when = new Date(c.prev.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-      const same = metres ? Math.abs(c.delta) < 0.02 : Math.abs(c.rel) < 0.03;
-      const diff = metres ? `${Math.abs(c.delta).toFixed(2)} m/s` : `${Math.round(Math.abs(c.rel) * 100)}%`;
-      lines.push(same ? `Same best speed as last time at ${kg} kg (${when}).` : c.delta > 0 ? `Best rep ${diff} faster than last time at ${kg} kg (${when}): you're stronger at this weight.` : `Best rep ${diff} slower than last time at ${kg} kg (${when}): you may not be fully recovered.`);
-    } else if (!kg) lines.push('Add the weight before your next set to compare it with your last set at that weight.');
-  }
-  if (barSource === 'plate') lines.push((plateNote || 'Tracked at the plate.') + (diameterCm ? ' Absolute speed is an estimate using the entered diameter and assumed camera geometry.' : ' Relative speed only: no known plate diameter was entered.'));
-  else lines.push((EX.press || EX.row || requestedSource === 'hand' ? 'Relative hand movement only.' : 'Relative body movement only; the weight itself was not measured.') + ' Speed-based effort feedback is an unvalidated estimate.');
-  const titles = { add: 'Add weight next set', keep: 'Keep the weight, go for one more rep', hold: v.brokeDown ? 'Stay at this weight: your range broke down' : 'Stay at this weight: that was close to failure', none: 'Not enough reps for a call' };
-  $('verdict').className = 'verdict ' + v.kind;
-  $('verdict').innerHTML = `<b>${titles[v.kind]}</b>${lines.map((l, i) => `<p class="${i ? 'm' : ''}">${l}</p>`).join('')}`;
+  renderPanel();
+  const record = currentLiveRecord();
+  $('verdict').className = 'verdict';
+  $('verdict').innerHTML = renderCoachMetrics(record);
   $('kg-next').value = kg || '';
 }
 function renderRepList() {
@@ -1567,12 +1584,12 @@ function renderRepList() {
       <b>${r.n}</b><small>${SPEED && r.result !== 'unclear' && Number.isFinite(speedOf(r)) ? `${speedText(r)} · ` : ''}${range(r)}${r.isStandard ? ' · standard' : EX.pullup ? (r.result === 'short' ? ` · ${shortReasons(r).toLowerCase()}` : '') : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
       <span class="tag ${r.result}">${r.result === 'counted' ? 'Counted' : r.result === 'short' ? 'Short' : 'Unclear'}</span></button>`).join('') || '<p class="hint">No reps detected.</p>';
 }
-function speedOf(r) { const k = mpu(); return r.result === 'counted' && r.vel ? r.vel.mv * (Number.isFinite(k) ? k : 1) : NaN; }
+function speedOf(r) { return r.result === 'counted' && r.vel?.T > 0 && Number.isFinite(r.vel.dist) ? r.vel.dist / r.vel.T : NaN; }
 function speedText(r) {
   const k = mpu();
-  if (Number.isFinite(k)) return `≈${(r.vel.mv * k).toFixed(2)} m/s mean${Number.isFinite(r.vel.pv) ? ` · ≈${(r.vel.pv * k).toFixed(2)} peak` : ''}`;
-  const first = counter.reps.find((x) => x.isStandard && x.result === 'counted' && x.vel)?.vel.mv;
-  return first > 0 ? `${Math.round((r.vel.mv / first) * 100)}% of rep 1` : '';
+  if (Number.isFinite(k)) return `≈${speedOf(r).toFixed(2)} m/s mean${Number.isFinite(r.vel.pv) ? ` · ≈${(r.vel.pv * k).toFixed(2)} peak` : ''}`;
+  const first = speedOf(counter.reps.find((x) => x.isStandard) || {});
+  return first > 0 ? `${Math.round((speedOf(r) / first) * 100)}% of rep 1` : '';
 }
 $('replist').addEventListener('click', (e) => {
   const b = e.target.closest('.rep'); if (!b) return;
@@ -1626,15 +1643,18 @@ function openCoach(tries = 0) {
   const end = Math.max(...reps.map((x) => x.vt || 0)) + 1.5;
   cv = { reps, end, comments: cv && cv.reps === reps ? cv.comments : [], reviewed: false };
   const sv = counter.summary();
+  const record = currentLiveRecord();
   const rpe = parseFloat($('rpe-in').value);
   const speeds = reps.filter((x) => x.r.result === 'counted' && Number.isFinite(x.v)).map((x) => x.v);
-  const loss = speeds.length > 1 ? Math.round((1 - Math.min(...speeds) / speeds[0]) * 100) : null;
+  const loss = speeds.length > 1 ? Math.round((1 - speeds[speeds.length - 1] / Math.max(...speeds)) * 100) : null;
   cv.loss = loss;
   const m = (label, val) => `<div class="cv-m"><span>${label}</span><b>${val}</b></div>`;
   $('cv-title').textContent = EX.name;
-  $('cv-sub').textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · Set 1';
-  $('cv-tl').innerHTML = m('Load', kg ? `${kg} kg` : '—') + m('Reps', `${sv.counted}${sv.short ? `<small>+${sv.short} short</small>` : ''}`)
-    + m('RPE', Number.isFinite(rpe) ? rpe : '—') + m('Vel. loss', loss != null ? `${loss}%` : '—');
+  $('cv-sub').textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · Tracked set';
+  $('cv-tl').innerHTML = m('Load', setLoadKg !== null ? `${setLoadKg} kg` : '—') + m('Reps', `${sv.counted}${sv.short ? `<small>+${sv.short} short</small>` : ''}`)
+    + m('Reported RPE', Number.isFinite(rpe) ? rpe : '—') + m('Latest vs fastest', loss != null ? `${loss}%` : '—');
+  $('cv-metrics').innerHTML = renderCoachMetrics(record);
+  $('cv-detail').scrollTop = 0;
   $('cv-status').textContent = 'Not reviewed'; $('cv-status').classList.remove('on');
   $('cv-loss').textContent = speeds.length ? (Number.isFinite(mpu()) ? 'm/s' : 'relative to rep 1') : 'no speed data';
   $('cv-reviewed').classList.remove('on'); $('cv-reviewed').lastElementChild.textContent = 'Review'; cvFlags(new Set());
@@ -1678,7 +1698,7 @@ function drawCoachChart(t, nShown) {
   $('cv-svg').setAttribute('viewBox', `0 0 ${W} ${H}`);
   const reps = cv.reps, n = Math.max(reps.length, 4);
   const slot = (W - CV_L) / n, bw = Math.min(34, slot * 0.56);
-  const first = (reps.find((x) => Number.isFinite(x.v)) || {}).v;
+  const first = reps.find((x) => x.r.isStandard && Number.isFinite(x.v))?.v;
   const speeds = reps.map((x) => x.v).filter(Number.isFinite);
   const metric = Number.isFinite(mpu());
   const max = speeds.length ? Math.max(...speeds) * 1.15 : 1;
@@ -1690,15 +1710,15 @@ function drawCoachChart(t, nShown) {
     html += `<line x1="${CV_L}" y1="${y}" x2="${W}" y2="${y}" stroke="${k ? '#EEEEF1' : '#C9C9D0'}" stroke-width="1"/>`;
     if (first) html += `<text x="${CV_L - 6}" y="${y + 3.5}" text-anchor="end" font-size="9.5" fill="#8A8A93">${k ? fmtV(v) : '0'}</text>`;
   });
-  if (first) { const y = yOf(first * 0.8); html += `<line x1="${CV_L}" y1="${y}" x2="${W}" y2="${y}" stroke="#C0392B" stroke-width="1" stroke-dasharray="3 3"/><text x="${W - 2}" y="${y - 3}" text-anchor="end" font-size="9" fill="#C0392B">−20%</text>`; }
+  if (speeds.length) { const y = yOf(Math.max(...speeds) * 0.8); html += `<line x1="${CV_L}" y1="${y}" x2="${W}" y2="${y}" stroke="#C0392B" stroke-width="1" stroke-dasharray="3 3"/><text x="${W - 2}" y="${y - 3}" text-anchor="end" font-size="9" fill="#C0392B">−20% vs fastest</text>`; }
   reps.forEach((x, i) => {
     const cx = CV_L + slot * i + slot / 2, show = i < nShown;
     html += `<text x="${cx}" y="${H - 4}" text-anchor="middle" font-size="10" fill="#8A8A93">${x.r.n}</text>`;
     if (!show) return;
     const ok = x.r.result === 'counted', has = Number.isFinite(x.v);
     const y = has ? yOf(x.v) : top + 16;
-    const label = has ? fmtV(x.v) : ok ? '' : x.r.result === 'short' ? 'short' : 'unclear';
-    html += ok
+    const label = has ? fmtV(x.v) : ok ? 'unavailable' : x.r.result === 'short' ? 'short' : 'unclear';
+    html += ok && has
       ? `<rect x="${cx - bw / 2}" y="${y}" width="${bw}" height="${base - y}" rx="2" fill="#2B2F36"/>`
       : `<rect x="${cx - bw / 2 + 0.5}" y="${y}" width="${bw - 1}" height="${base - y}" rx="2" fill="#F4F4F6" stroke="#A9A9B2" stroke-width="1" stroke-dasharray="3 2"/>`;
     html += `<text x="${cx}" y="${y - 4}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${ok ? '#111114' : '#8A8A93'}">${label}</text>`;
@@ -1725,6 +1745,7 @@ $('cv-stage').addEventListener('click', (e) => {
   if (cvv.paused) cvv.play().catch(() => {}); else cvv.pause();
 });
 $('cv-close').onclick = () => { $('cv-wrap').hidden = true; cancelAnimationFrame(cvRAF); cvv.pause(); };
+$('cv-all').onclick = () => $('cv-metrics').scrollIntoView({ behavior: 'smooth', block: 'start' });
 $('cv-comment').onclick = () => {
   if (!cvv.hidden) cvv.pause();
   $('cv-sheet-t').textContent = `Add comment at ${cvTime().toFixed(1)}s`;
@@ -1794,7 +1815,21 @@ const launchLoad = new URLSearchParams(location.search).get('loadKg');
 if (launchLoad !== null && Number.isFinite(+launchLoad) && +launchLoad >= 0) { kg = +launchLoad; $('kg-in').value = launchLoad; }
 $('diameter-field').hidden = !PLATE_ON;
 $('diameter-in').oninput = (e) => { const v = parseFloat(e.target.value); diameterCm = v >= 5 && v <= 100 ? v : null; };
-$('rpe-in').onchange = () => { if (phase === 'done') persistTrackedSet(true); };
+for (const id of ['rpe-in','rir-in','failure-endpoint','failure-verified','maximal-intent','tested-max','epley-supported']) {
+  $(id).onchange = () => {
+    if (phase !== 'done') return;
+    persistTrackedSet(true); renderSummary();
+  };
+}
+const launchParams = new URLSearchParams(location.search);
+$('equipment-in').value=launchParams.get('equipmentKey')||'';
+const launchRir = launchParams.get('typedRir');
+const launchReportedRir = launchParams.get('reportsExplicit')==='1' ? launchParams.get('reportedRir') : launchRir;
+if (launchReportedRir !== null && launchReportedRir!=='' && Number.isFinite(+launchReportedRir) && +launchReportedRir >= 0 && +launchReportedRir <= 10) $('rir-in').value = launchReportedRir;
+const launchReportedRpe = launchParams.get('reportedRpe');
+if (launchReportedRpe !== null && launchReportedRpe!=='' && Number.isFinite(+launchReportedRpe) && +launchReportedRpe>=1 && +launchReportedRpe<=10) $('rpe-in').value=launchReportedRpe;
+if (['technical','momentary'].includes(launchParams.get('rirEndpoint'))) $('failure-endpoint').value = launchParams.get('rirEndpoint');
+$('maximal-intent').checked = ['true','1'].includes(launchParams.get('maximalIntent'));
 if (workoutContext) { $('workout-return').hidden = false; $('again-btn').textContent = 'Return to workout'; }
 $('height-in').oninput = (e) => { const v = parseFloat(e.target.value); heightCm = v >= 120 && v <= 230 ? v : null; writeNum(HEIGHT_KEY, heightCm); };
 const setKg = (v) => { kg = v > 0 ? v : null; writeNum(KG_KEY, kg); $('kg-in').value = kg || ''; };

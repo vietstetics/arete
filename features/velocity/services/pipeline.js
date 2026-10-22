@@ -179,6 +179,8 @@ export function analyseSet({ frames, vw, vh, lift, fps, heightCm = null, massKg 
     const m = repMetrics(fit, row, { D: dt.D, mpu, massKg });
     return {
       ...pose.reps[i], ...row, ...m, isStandard: !!pose.reps[i].isStandard,
+      avgPower: row.velocity === 'ok' && dt.scaled && Number.isFinite(massKg) && massKg > 0 && Number.isFinite(row.distance) && row.T > 0 ? massKg * G * row.distance / row.T : NaN,
+      ...(!dt.scaled ? { nativeMcv: row.mcvOwn, nativeStandardizedMcv: row.mcv, nativeDistance: row.distance, nativePeak: m.pv } : {}),
       ...(!dt.scaled ? { mcv: NaN, mcvOwn: NaN, distance: NaN, pv: NaN, mpv: NaN } : {}),
       romCm: dt.scaled && Number.isFinite(row.distance) ? row.distance * 100 : NaN,
       poseRel: base.rows[i]?.velocity === 'ok' ? base.rows[i].rel : NaN,
@@ -190,6 +192,8 @@ export function analyseSet({ frames, vw, vh, lift, fps, heightCm = null, massKg 
     lift, tracker: t, fps, scaled: dt.scaled, mpu, D: dt.D, Dm: dt.Dm, view, refused, diameterM: t.id === 'pose-baseline' ? null : diameterM,
     standard: pose.standard, armedAt: pose.armedAt, quality,
     calibration: { kind: poseOnly ? 'uncalibrated-pose' : dt.scaled ? 'measured-diameter' : 'relative-weight', estimate: true },
+    nativeUnits: poseOnly ? lift === 'curl' ? 'radians' : 'body-length-percent' : 'plate-radii',
+    massContext: Number.isFinite(massKg) && massKg > 0 ? { systemMassKg: massKg, type: 'Specified system mass; work against gravity assumes concentric endpoints at rest' } : null,
     rows, fatigue: intraSetFatigue(rows.map((r) => ({ ...r, mcv: r.rel }))), samples, fit,
   };
 }
@@ -232,10 +236,11 @@ export function plate3dSet({ t, pose, lift, fps, massKg = null, diameterM = null
     const ok = row.velocity === 'ok';
     return {
       ...rep, ...row, n: rep.n, result: rep.result, isStandard: !!rep.isStandard, poseRep: rep.n,
+      ...(!scaled ? { nativeMcv: row.mcvOwn, nativeStandardizedMcv: row.mcv, nativeDistance: row.distance, nativePeak: row.pv } : {}),
       ...(quality.ok ? {} : { velocity: rep.result === 'counted' ? 'unclear' : 'none', why: 'The plate was not followed cleanly', mcv: NaN, mcvOwn: NaN, rel: NaN, loss: NaN, pv: NaN, mpv: NaN }),
       ...(!scaled ? { mcv: NaN, mcvOwn: NaN, pv: NaN, mpv: NaN, distance: NaN } : {}),
       romCm: ok && quality.ok && scaled ? row.distance * 100 : NaN,
-      avgPower: ok && quality.ok && scaled && Number.isFinite(massKg) && massKg > 0 ? massKg * G * standardized.D / row.T : NaN,
+      avgPower: ok && quality.ok && scaled && Number.isFinite(massKg) && massKg > 0 ? massKg * G * row.distance / row.T : NaN,
       peakPower: NaN, peakForce: NaN, poseMcv: NaN, liveMv: NaN,
       estimate: [estimate, L?.estimate, L?.peakWhy].filter(Boolean).join('; '), badges: { ...badges },
     };
@@ -265,6 +270,8 @@ export function plate3dSet({ t, pose, lift, fps, massKg = null, diameterM = null
   return {
     ...base, rows, measurementRows, view, quality: 1 - quality.lost, D: quality.ok ? standardized.D : NaN, Dm: quality.ok && scaled ? standardized.D : NaN,
     calibration: { kind: scaled ? 'measured-diameter-estimated-camera' : 'relative-plate', diameterM: scaled ? diameterM : null, estimate: true },
+    nativeUnits: 'arbitrary-plate-units',
+    massContext: Number.isFinite(massKg) && massKg > 0 ? { systemMassKg: massKg, type: 'Specified system mass; work against gravity assumes concentric endpoints at rest' } : null,
     fatigue: intraSetFatigue(rows.map((r) => ({ ...r, mcv: r.rel }))),
     samples: heights, fit: m.fit, rec, setQuality: quality,
   };

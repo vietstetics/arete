@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildSetRecord, buildLiveSetRecord, listSetRecords, saveSetRecord, SETS_KEY } from '../services/record.js';
-import { ACTIVE_WORKOUT_KEY, trackerModeFor, prepareWorkoutTracking, parseWorkoutContext, attachTrackedSet } from '../services/workout.js';
+import { ACTIVE_WORKOUT_KEY, trackerModeFor, prepareWorkoutTracking, parseWorkoutContext, attachTrackedSet, canonicalExerciseId, profileForRecord, gatherPredictionHistory, equipmentKeyFor } from '../services/workout.js';
 
 const memory = () => {
   const data = new Map();
@@ -30,12 +30,13 @@ test('live records preserve ROM, timing, mean and peak but exclude short/unclear
   assert.equal(r.counted, 2);
   assert.equal(r.units, 'm/s');
   assert.equal(r.rep1, 0.5);
-  assert.equal(r.lossPct, 20);
+  assert.equal(r.lossPct, 23.2);
   assert.equal(r.D, 0.5);
   assert.equal(r.reps[0].peak, 0.8);
   assert.deepEqual(r.reps[0].rom, { start: 170, finish: 45 });
   assert.equal(r.reps[3].T, 1.25);
-  assert.equal(r.reps[3].rel, 0.8);
+  assert.equal(r.reps[3].rel, 0.768);
+  assert.equal(r.reps[3].standardRel, 0.8);
   for (const i of [1, 2]) {
     assert.equal(r.reps[i].velocity, 'none');
     assert.equal(r.reps[i].mcv, null);
@@ -89,7 +90,7 @@ test('live velocity scale changes distance and speed but leaves seconds and rati
   assert.equal(r.D, 1);
   assert.equal(r.reps[0].peak, 1.6);
   assert.equal(r.reps[0].T, 1);
-  assert.equal(r.reps[3].rel, 0.8);
+  assert.equal(r.reps[3].rel, 0.768);
 });
 
 test('camera setup is exercise specific and unknown exercises never silently become curls', () => {
@@ -158,20 +159,29 @@ test('launch carries exercise source, load and typed RIR with encoded names', ()
   assert.equal(params.get('typedRir'), '2');
   assert.equal(params.get('exerciseName'), 'Chest Press');
   assert.equal(params.get('ex'), 'press');
+  draft.exercises[0].sets[0].reportedEffort={rir:null,rpe:9,enteredAs:'rpe'};
+  const explicit=new URLSearchParams(prepareWorkoutTracking(draft,'e-1','s-1').split('?')[1]);
+  assert.equal(explicit.get('reportsExplicit'),'1');
+  assert.equal(explicit.has('reportedRir'),false,'converted scalar RIR is never promoted to an actual RIR report');
+  assert.equal(explicit.get('reportedRpe'),'9');
+  assert.equal(explicit.get('effortSource'),'rpe');
 });
 
 test('camera effort only replaces logger effort after an explicit edit, including clearing it', () => {
   const storage = memory(), context = launch(storage, workout());
-  const take = { ...record(), typedRir: 3 };
+  const take = { ...record(), typedRir: 3,reportedEffort:{rir:3,rpe:null,enteredAs:'rir',at:1000} };
   assert.equal(attachTrackedSet(storage, context, take).set.rir, 2, 'initial camera result preserves logger effort');
   const changed = attachTrackedSet(storage, context, take, { updateTypedRir: true });
   assert.equal(changed.set.rir, 3);
   assert.equal(changed.set.rpe, 7);
   assert.equal(changed.set.velocity.typedRir, 3);
-  const cleared = attachTrackedSet(storage, context, { ...take, typedRir: null }, { updateTypedRir: true });
+  const cleared = attachTrackedSet(storage, context, { ...take, typedRir: null,reportedEffort:{rir:null,rpe:null,enteredAs:'rir',at:1001} }, { updateTypedRir: true });
   assert.equal(cleared.set.rir, '');
   assert.equal(cleared.set.rpe, '');
   assert.equal(cleared.set.velocity.typedRir, null);
+  const independent=attachTrackedSet(storage,context,{...take,reportedEffort:{rir:3,rpe:9,enteredAs:'rpe',at:1002}},{updateTypedRir:true});
+  assert.equal(independent.set.rir,3);
+  assert.equal(independent.set.rpe,9,'actual reported RPE is not overwritten by a conversion');
 });
 
 test('unavailable/corrupt storage gives a failed handoff and standalone history can recover malformed shape', () => {
@@ -199,4 +209,44 @@ test('coach export keeps attached rep data and retake history through JSON expor
   assert.deepEqual(set.velocity, saved.exercises[0].sets[0].velocity);
   assert.equal(set.velocityHistory[0].id, 'earlier');
   assert.equal(set.rir, 2);
+});
+
+test('prediction profiles retain stable exercise, user and exact equipment identities across sessions', () => {
+  const base={...record(),metric:'mean-concentric-velocity',exercise:'  Bench   Press ',userId:'ATHLETE@example.invalid',equipmentKey:'Barbell · flat bench',rirEndpoint:'technical'};
+  const profile=profileForRecord(base);
+  assert.equal(profile.exerciseId,'bench press');
+  assert.equal(profile.userId,'athlete@example.invalid');
+  assert.equal(profile.equipmentId,'barbell · flat bench');
+  assert.equal(canonicalExerciseId(' Bench Press '),'bench press');
+  assert.equal(profileForRecord({...base,equipmentKey:null}),null,'unknown equipment never borrows the current variation');
+  assert.equal(profileForRecord({...base,metric:null}),null,'legacy velocity convention must be explicit');
+  assert.notEqual(equipmentKeyFor({machine:{id:'press-1',mode:'independent'}}),equipmentKeyFor({machine:{id:'press-1',mode:'bilateral'}}));
+});
+
+test('prediction history merges records without inventing past athlete identity and prefers updated workout reports', () => {
+  const storage=memory(),draft=workout(); draft.userId='athlete@example.invalid'; draft.exercises[0].equipmentKey='Barbell';
+  const context=launch(storage,draft);
+  const take={...record(),metric:'mean-concentric-velocity',userId:draft.userId};
+  saveSetRecord(storage,take);
+  attachTrackedSet(storage,context,take);
+  const stored=JSON.parse(storage.getItem(ACTIVE_WORKOUT_KEY));
+  stored.exercises[0].sets[0].reportedEffort={rir:1,rpe:9,enteredAs:'rir',at:2000};
+  stored.exercises[0].sets[0].failureEndpoint={verified:true,type:'technical',at:2000};
+  storage.setItem(ACTIVE_WORKOUT_KEY,JSON.stringify(stored));
+  const history=gatherPredictionHistory(storage);
+  assert.equal(history.length,1);
+  assert.equal(history[0].reportedEffort.rir,1);
+  assert.equal(history[0].sessionId,'w-1');
+  assert.equal(history[0].exerciseId,'bench press');
+  assert.equal(history[0].equipmentKey,'barbell');
+  assert.equal(history[0].failureEndpoint.type,'technical');
+  const anonymous={...record('anonymous'),userId:null};saveSetRecord(storage,anonymous);
+  assert.equal(gatherPredictionHistory(storage).find(r=>r.id==='anonymous').userId,null);
+});
+
+test('new camera take never assumes a previously verified failure or successful maximum occurred again',()=>{
+  const draft=workout(),set=draft.exercises[0].sets[0];
+  set.failureEndpoint={verified:true,type:'technical'};set.tested1RM={verified:true,loadKg:80};
+  prepareWorkoutTracking(draft,'e-1','s-1');
+  assert.equal(set.failureEndpoint,null);assert.equal(set.tested1RM,null);
 });

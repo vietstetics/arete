@@ -13,4 +13,4 @@ export { viewFromEllipses, gravityFromRoll, PLATE_DIAMETER_M, MAX_OFF_AXIS_DEG }
 export { detectPlates, refineEllipse, fitCenter, lkTranslate, createPlateTracker } from './services/vision/plate.js';
 export { weightSamples } from './services/weight.js';
 export { buildSetRecord, buildLiveSetRecord, listSetRecords, saveSetRecord, SETS_KEY, RECORD_VERSION } from './services/record.js';
-export { trackerModeFor, prepareWorkoutTracking, parseWorkoutContext, attachTrackedSet, ACTIVE_WORKOUT_KEY } from './services/workout.js';
+export { trackerModeFor, prepareWorkoutTracking, parseWorkoutContext, attachTrackedSet, ACTIVE_WORKOUT_KEY, canonicalExerciseId, equipmentKeyFor, predictionContextFor, profileForRecord, gatherPredictionHistory } from './services/workout.js';

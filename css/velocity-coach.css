@@ -1,0 +1,20 @@
+.coach-metrics{color:inherit;font-variant-numeric:tabular-nums;text-align:left;padding:12px 0;line-height:1.45;font-size:12px}
+.coach-metrics h3{font-size:14px;font-weight:650;margin:12px 0 8px;letter-spacing:0;text-transform:none}
+.coach-metrics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.coach-metric{min-width:0;padding:10px;border:1px solid var(--bd,#E6E6EA);border-radius:10px;background:var(--s1,#FAFAFB)}
+.coach-metric-label{display:block;color:var(--t2,#6B6B73);font-size:11px;font-weight:500}
+.coach-metric-value{display:block;font-size:16px;font-weight:650;overflow-wrap:anywhere}
+.coach-metrics-note{font-size:11px;color:var(--t2,#6B6B73);margin:7px 0;overflow-wrap:anywhere}
+.coach-reps-wrap{max-width:100%;overflow-x:auto;margin-top:8px;overscroll-behavior-x:contain}
+.coach-reps-table{border-collapse:collapse;white-space:nowrap;width:100%;font-size:11px}
+.coach-reps-table th,.coach-reps-table td{text-align:right;padding:8px;border-bottom:1px solid var(--bd,#E6E6EA)}
+.coach-reps-table th:first-child,.coach-reps-table td:first-child{text-align:left;position:sticky;left:0;background:var(--bg,#fff)}
+.coach-reps-table th{font-weight:600;color:var(--t2,#6B6B73)}
+.coach-metrics details{border-top:1px solid var(--bd,#E6E6EA);margin-top:12px;padding-top:10px}
+.coach-metrics summary{cursor:pointer;font-size:12px;font-weight:600;min-height:30px}
+.coach-predictions{display:grid;gap:8px;margin-top:10px}
+.coach-prediction{border:1px solid var(--bd,#E6E6EA);border-radius:10px;padding:10px;overflow-wrap:anywhere}
+.coach-prediction h4{margin:0 0 4px;font-size:12px}
+.coach-status{font-size:10px;font-weight:600;color:var(--t2,#6B6B73);display:inline-block;border:1px solid var(--bd,#E6E6EA);padding:2px 6px;border-radius:5px}
+.coach-metrics p{margin:5px 0}
+@media(min-width:650px){.coach-metrics-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
