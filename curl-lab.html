@@ -30,6 +30,12 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%}
 .stage video{object-fit:cover}
 .stage video.mirror{transform:scaleX(-1)}
+#target-canvas{z-index:2;pointer-events:none}
+#target-canvas.selecting{pointer-events:auto;touch-action:none;cursor:crosshair}
+.stage.target-selecting .vp{visibility:hidden;pointer-events:none}
+.stage.target-selecting .status{left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);pointer-events:none}
+.target-help{padding:10px 12px;border-radius:12px;background:var(--wash);font-size:12px;line-height:1.45;margin-top:10px}
+.field select{height:44px;border-radius:12px;border:0;background:var(--wash);padding:0 10px;font:inherit;font-size:14px;color:var(--ink)}
 
 .top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;z-index:3;background:linear-gradient(rgba(14,17,12,.75),rgba(14,17,12,0))}
 .ibtn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.12)}
@@ -203,6 +209,7 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
   <div class="stage" id="stage">
     <video id="video" playsinline muted></video>
     <canvas id="canvas"></canvas>
+    <canvas id="target-canvas" aria-label="Draw a box around the bar or weight"></canvas>
     <div class="top">
       <a class="ibtn" href="workouts.html" aria-label="Back to Training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></a>
       <div class="ttl">Curl standard <em>Prototype</em></div>
@@ -238,6 +245,10 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
         <label class="field">Your height (cm)<input id="height-in" type="number" inputmode="numeric" min="120" max="230" placeholder="e.g. 180"></label>
         <label class="field"><span id="kg-label">Weight on the bar (kg)</span><input id="kg-in" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
       </div>
+      <div id="target-settings" hidden>
+        <label class="field">Weight tracking<select id="tracking-method"><option value="template">Select bar / weight · Marticles (experimental)</option><option value="plate3d">Automatic plate / existing body baseline</option></select></label>
+        <p class="target-help">After starting, draw a tight box around a distinctive bar end or weight detail. Keep the phone fixed and film side-on. This follows the selected point and draws its path; velocity stays relative. Fixed-template tracking can lose a target when its size or appearance changes. <a href="features/velocity/third_party/barbell-path-tracker/UPSTREAM.md" target="_blank" rel="noopener">Marticles · MIT licence</a></p>
+      </div>
       <label class="field">Equipment / setup ID<input id="equipment-in" type="text" maxlength="160" placeholder="Optional, e.g. home bench + straight bar"></label>
       <p class="hint">Use the same setup ID across sessions to build a personal profile. Different machines or exercise variations need separate IDs.</p>
       <label class="field" id="diameter-field" hidden>Known outer plate diameter (cm)<input id="diameter-in" type="number" inputmode="decimal" min="5" max="100" step="0.1" placeholder="Leave blank for relative speed"></label>
@@ -261,6 +272,8 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="meter-l"><span>Start</span><span>Finish</span></div>
       <div class="chips" id="chips" aria-label="Reps"></div>
       <div class="acts">
+        <button class="btn s" id="target-btn" hidden>Select weight</button>
+        <button class="btn s" id="target-resume" hidden>Resume video</button>
         <button class="btn s" id="relock-btn">Re-lock standard</button>
         <button class="btn p" id="end-btn">End set</button>
       </div>
@@ -278,6 +291,12 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="list" id="replist"></div>
       <p class="hint" id="workout-save" role="status"></p>
       <a class="btn s" id="workout-return" href="workouts.html?tab=log" hidden>Return to workout</a>
+      <div id="target-tools" hidden>
+        <p class="hint">Selected-target path: relative, with no assumed physical diameter. BarbellCV runs separately on your computer; its 2D path-speed convention is shown separately from Arete's vertical rep measurements.</p>
+        <div class="acts"><button class="btn s" id="target-export">Save path for BarbellCV</button><button class="btn s" id="barbellcv-import">Import BarbellCV analysis</button></div>
+        <input id="barbellcv-file" type="file" accept=".json,application/json" hidden>
+      </div>
+      <div id="external-analysis"></div>
       <div class="acts">
         <label class="field">Reported RPE<input id="rpe-in" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="Optional"></label>
         <label class="field">Reported RIR<input id="rir-in" type="number" inputmode="decimal" min="0" max="10" step="0.5" placeholder="Optional"></label>
@@ -353,6 +372,9 @@ import { buildLiveSetRecord, saveSetRecord } from './features/velocity/services/
 import { parseWorkoutContext, attachTrackedSet, canonicalExerciseId, gatherPredictionHistory } from './features/velocity/services/workout.js';
 import { coachMetrics, renderCoachMetrics } from './features/velocity/services/coachMetrics.js';
 import { predictionsForSet } from './features/velocity/services/predictions.js';
+import { createTargetSession } from './features/velocity/services/live/targetSession.js';
+import { videoPoint, screenPoint, boxFromPoints } from './features/velocity/services/live/targetSelection.js';
+import { parseBarbellCvAnalysis } from './features/velocity/services/externalAnalysis.js';
 
 // Exercise setups. Curl: elbow angle, judged at the top of each rep.
 // Squat and bench: height (hips above the feet, bar above the shoulders),
@@ -607,11 +629,128 @@ const workoutContext = parseWorkoutContext(location.search);
 // faces, the camera's focal length) for the numbers that are kept. Without
 // a plate in view, speed falls back to the body — an estimate, and labelled.
 const PLATE_ON = !!EX.height && requestedSource !== 'hand' && !/dumbbell|goblet/i.test(requestedName);
+const TARGET_CAPABLE = ['curl','squat','bench'].includes(EXK) && requestedSource !== 'hand';
+const manualTracking = () => TARGET_CAPABLE && !demo && $('tracking-method').value==='template';
+let targetSess=null,targetRes=null,targetFinal=null,targetPlan=null,targetSelecting=false,targetDrag=null,targetCandidate=null,targetPath=[],targetMoved=false,externalAnalysis=null;
+const targetCanvas=$('target-canvas'),targetCtx=targetCanvas.getContext('2d');
+
+function targetSetup() {
+  targetSess=null;targetRes=null;targetFinal=null;targetPlan=null;targetPath=[];targetDrag=null;targetCandidate=null;targetMoved=false;externalAnalysis=null;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  targetSelecting=manualTracking();
+  targetCanvas.classList.toggle('selecting',targetSelecting);
+  $('stage').classList.toggle('target-selecting',targetSelecting);
+  $('target-btn').hidden=!manualTracking();
+  $('target-resume').hidden=true;
+  $('target-btn').textContent='Select weight';
+  if(!manualTracking()){targetDraw();return;}
+  barSource='template';
+  const vw=video.videoWidth,vh=video.videoHeight,s=Math.min(1,480/Math.max(vw,vh));
+  targetPlan={vw,vh,w:Math.round(vw*s),h:Math.round(vh*s)};
+  grabber=grabber||createFrameGrabber();
+  if(source==='file')video.pause();
+  if(source==='camera'){
+    motion=motion||createMotionWatch();const generation=startGeneration;
+    (motionAsk||Promise.resolve(true)).then(ok=>{if(ok&&generation===startGeneration&&phase!=='done'&&phase!=='idle')motion.start();});
+  }
+  setStatus('Hold the weight still; draw a tight box around a distinctive bar end or weight detail.','warn');
+  showSource();targetDraw();
+}
+function targetImage(){const p=targetPlan;return grabber.grab(video,0,0,p.vw,p.vh,p.w,p.h);}
+function targetScreenOptions(){return{vw:targetPlan?.vw||video.videoWidth,vh:targetPlan?.vh||video.videoHeight,mirror:source==='camera'&&facing==='user',fit:'cover'};}
+function targetDraw(){
+  const r=targetCanvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  if(targetCanvas.width!==Math.round(r.width*dpr)||targetCanvas.height!==Math.round(r.height*dpr)){
+    targetCanvas.width=Math.round(r.width*dpr);targetCanvas.height=Math.round(r.height*dpr);
+  }
+  targetCtx.setTransform(dpr,0,0,dpr,0,0);targetCtx.clearRect(0,0,r.width,r.height);
+  if(!targetPlan)return;
+  const options=targetScreenOptions();
+  const map=(p)=>{const v=screenPoint(p,r,options);return v?{x:v.clientX-r.left,y:v.clientY-r.top}:null;};
+  targetCtx.strokeStyle='#58DB3D';targetCtx.lineWidth=2;targetCtx.lineJoin='round';targetCtx.beginPath();
+  let previous=null;
+  for(const f of targetPath){const p=f.ok?map({x:f.cx*targetPlan.vw/targetPlan.w,y:f.cy*targetPlan.vh/targetPlan.h}):null;
+    if(p){if(previous)targetCtx.lineTo(p.x,p.y);else targetCtx.moveTo(p.x,p.y);}previous=p;}
+  targetCtx.stroke();
+  const b=targetCandidate||targetRes?.box&&{x:targetRes.box.x*targetPlan.vw/targetPlan.w,y:targetRes.box.y*targetPlan.vh/targetPlan.h,w:targetRes.box.w*targetPlan.vw/targetPlan.w,h:targetRes.box.h*targetPlan.vh/targetPlan.h};
+  if(!b)return;const a=map({x:b.x,y:b.y}),z=map({x:b.x+b.w,y:b.y+b.h});if(!a||!z)return;
+  targetCtx.strokeStyle=targetRes?.ok||targetSelecting?'#58DB3D':'#E8A33A';targetCtx.setLineDash(targetSelecting?[6,4]:[]);
+  targetCtx.strokeRect(Math.min(a.x,z.x),Math.min(a.y,z.y),Math.abs(z.x-a.x),Math.abs(z.y-a.y));targetCtx.setLineDash([]);
+}
+targetCanvas.addEventListener('pointerdown',e=>{
+  if(!targetSelecting||!targetPlan)return;
+  targetDrag={id:e.pointerId,a:videoPoint(e,targetCanvas.getBoundingClientRect(),targetScreenOptions())};
+  targetCandidate=null;targetCanvas.setPointerCapture(e.pointerId);e.preventDefault();
+});
+targetCanvas.addEventListener('pointermove',e=>{
+  if(!targetDrag||e.pointerId!==targetDrag.id)return;
+  const z=videoPoint(e,targetCanvas.getBoundingClientRect(),targetScreenOptions());
+  targetCandidate=boxFromPoints(targetDrag.a,z,{vw:targetPlan.vw,vh:targetPlan.vh,minSize:1});targetDraw();
+});
+function finishTargetSelection(e){
+  if(!targetDrag||e.pointerId!==targetDrag.id)return;
+  const a=targetDrag.a,z=videoPoint(e,targetCanvas.getBoundingClientRect(),targetScreenOptions());targetDrag=null;
+  if(targetCanvas.hasPointerCapture(e.pointerId))targetCanvas.releasePointerCapture(e.pointerId);
+  const b=boxFromPoints(a,z,{vw:targetPlan.vw,vh:targetPlan.vh,minSize:8});
+  if(!b){setStatus('Draw a larger box around the weight detail.','warn');return;}
+  const selected={x:Math.floor(b.x*targetPlan.w/targetPlan.vw),y:Math.floor(b.y*targetPlan.h/targetPlan.vh),w:Math.round(b.w*targetPlan.w/targetPlan.vw),h:Math.round(b.h*targetPlan.h/targetPlan.vh)};
+  targetSess=createTargetSession();
+  const result=targetSess.init(targetImage(),selected,Number.isFinite(setLastMs)?setLastMs/1000:source==='file'?video.currentTime:performance.now()/1000);
+  targetRes=result;
+  if(!result.ok){targetSess=null;setStatus('Choose a larger, distinctive detail with contrast: '+result.reason,'warn');return;}
+  targetPath=[{t:result.t,ok:true,cx:result.cx,cy:result.cy}];targetSelecting=false;targetCandidate=null;targetCanvas.classList.remove('selecting');
+  $('stage').classList.remove('target-selecting');
+  $('target-btn').textContent='Reselect weight';setStatus('Target selected. Hold still while the rep counter gets ready.','good');
+  targetDraw();if(source==='file')video.play().catch(()=>{$('target-resume').hidden=false;setStatus('Tap Resume video to continue the analysis.','warn');});
+}
+targetCanvas.addEventListener('pointerup',finishTargetSelection);
+targetCanvas.addEventListener('pointercancel',()=>{targetDrag=null;targetCandidate=null;targetDraw();});
+$('target-btn').onclick=()=>{
+  if(counter?.reps.length){setStatus('End this set before selecting a different target.','warn');return;}
+  resetSet();phase='finding';targetSetup();
+};
+$('target-resume').onclick=async()=>{
+  try{await video.play();$('target-resume').hidden=true;}
+  catch(e){setStatus('Video could not resume: '+e.message,'warn');}
+};
+if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{if(targetPlan)targetDraw();}).observe($('stage'));
+else window.addEventListener('resize',()=>{if(targetPlan)targetDraw();});
+function targetStep(t){
+  if(!targetSess||targetSelecting)return;
+  targetRes=targetSess.track(targetImage(),t);
+  if(!targetRes.ignored){targetPath.push({t,ok:!!targetRes.ok,cx:targetRes.cx,cy:targetRes.cy});if(targetPath.length>1500)targetPath.shift();}
+  if(!targetRes.ok)setStatus('Selected weight lost. Keep it visible; start a new set to reselect after counting.','warn');
+  showSource();
+}
+function applyTargetVelocities(){
+  if(!targetSess)return;
+  targetFinal=targetSess.finish();
+  if(targetMoved){targetFinal.quality.cameraMoved=true;targetFinal.quality.accepted=false;}
+  const reps=counter.reps;
+  // Return-style lifts match the bottom they leave; curls match their own
+  // lifting window. No selected-target loss is filled using body motion.
+  let standardized;
+  if(EX.height)standardized=standardizeLifts(reps,targetFinal.metrics.reps);
+  else{
+    const used=new Set();
+    const measurements=reps.map(r=>{
+      const j=targetFinal.metrics.reps.findIndex((L,i)=>!used.has(i)&&L.ok&&L.tStart>=r.startT-0.3&&L.tEnd<=r.topT+0.3);
+      if(j<0)return null;used.add(j);return targetFinal.metrics.reps[j];
+    });
+    standardized=standardizeMeasurements(reps,measurements);
+  }
+  for(const row of standardized.rows){
+    row.rep.velocityWhy=targetMoved?'Phone moved during selected-target tracking':row.why;
+    row.rep.vel=!targetMoved&&row.velocity==='ok'?{mv:row.mcv,pv:row.pv,mpv:NaN,dist:row.distance,D:standardized.D,T:row.T,tStart:row.tStart,tEnd:row.tEnd,src:'marticles-template',estimate:true}:null;
+  }
+}
 let plateSess = null, grabber = null, motion = null, motionAsk = null, plateRes = null, plateFrame = 0, barSource = 'pose', plateFinal = null, plateNote = '';
 let plateOkT = -Infinity, plateRecent = [], platePrior = null, armMs = 0, plateBroke = false, plateMoved = false, plateInvalid = false;
 function plateStart() {
   plateSess = null; plateRes = null; plateFinal = null; plateNote = ''; plateFrame = 0; barSource = 'pose';
   plateOkT = -Infinity; plateRecent = []; platePrior = null; armMs = 0; plateBroke = false; plateMoved = false; plateInvalid = false;
+  targetSetup();
+  if(manualTracking())return;
   if (!PLATE_ON || demo) return;
   const vw = video.videoWidth, vh = video.videoHeight;
   if (!vw || !vh) return;
@@ -693,6 +832,10 @@ function plateReady() {
 }
 function showSource() {
   const el = $('vp-src');
+  if(manualTracking()){
+    el.hidden=false;el.className='vp-src '+(targetRes?.ok?'plate':'est');
+    el.textContent=targetSelecting?'Select the weight':targetRes?.ok?'Selected weight · relative':'Selected weight lost';return;
+  }
   if (!PLATE_ON || demo) { el.hidden = true; return; }
   el.hidden = false;
   if (barSource === 'plate') { el.textContent = plateBroke ? 'Plate lost' : 'Plate · 3D'; el.className = 'vp-src ' + (plateBroke ? 'est' : 'plate'); }
@@ -731,7 +874,7 @@ function applyBodyVelocities() {
   }
 }
 // ?debug=1: the plate session's workings, for checking a set by hand (or from a test).
-if (new URLSearchParams(location.search).has('debug')) window.__plateDebug = () => ({ source: barSource, note: plateNote, quality: plateFinal && plateFinal.quality, reps: plateFinal && plateFinal.metrics && plateFinal.metrics.reps, trace: barTrace.map((q) => [+q.t.toFixed(3), Number.isFinite(q.y) ? +q.y.toFixed(4) : null]), poseReps: counter && counter.reps.map((r) => ({ n: r.n, result: r.result, topT: r.topT, vel: r.vel })) });
+if (new URLSearchParams(location.search).has('debug')) window.__plateDebug = () => ({ source: barSource, targetState:targetSess?.state||'selecting',targetFrames:targetSess?.frames||0,target:targetRes,note: plateNote, quality: plateFinal && plateFinal.quality, reps: plateFinal && plateFinal.metrics && plateFinal.metrics.reps, trace: barTrace.map((q) => [+q.t.toFixed(3), Number.isFinite(q.y) ? +q.y.toFixed(4) : null]), poseReps: counter && counter.reps.map((r) => ({ n: r.n, result: r.result, topT: r.topT, vel: r.vel })) });
 /**
  * After the set: every frame again in 3D with what the whole set showed; the reps' numbers come from that.
  * Unclear reps get no speed. If this pass can't run, the live numbers stay, marked as estimates.
@@ -814,6 +957,7 @@ function drawLive(t) {
   c.stroke();
 }
 function pushBar(t, y) {
+  if(barSource==='template')y=targetRes?.ok?targetRes.y:NaN;
   barTrace.push({ t, y });
   if (barTrace.length > 20000) barTrace.splice(0, 2000);
   if (SPEED) drawLive(t);
@@ -824,6 +968,7 @@ function pushBar(t, y) {
 // reading is refined half a second later, once the bar has reached the top.
 function measureRep(rep, t) {
   if (pendingVel) settleVel(t);
+  if(barSource==='template'){applyTargetVelocities();pendingVel={rep,until:t+0.5};return;}
   if (!EX.height) { rep.rawVel = concentricVelocity(barTrace, rep.startT - 0.15, rep.topT + 0.15); applyBodyVelocities(); return; }
   if (barSource === 'plate') plateRepVel(rep);
   else { rep.rawVel = concentricVelocity(barTrace, rep.topT - 0.2, t); applyBodyVelocities(); }
@@ -831,6 +976,7 @@ function measureRep(rep, t) {
 }
 function settleVel(t) {
   const { rep, until } = pendingVel; pendingVel = null;
+  if(barSource==='template'){applyTargetVelocities();renderPanel();return;}
   if (barSource === 'plate') plateRepVel(rep);
   else { rep.rawVel = concentricVelocity(barTrace, rep.topT - 0.2, Math.min(t, until)); applyBodyVelocities(); }
   renderPanel();
@@ -848,7 +994,7 @@ function renderPanel() {
   const best = timed.length ? Math.max(...timed.map((x) => x.mv)) : NaN;
   const reference = timed.find((x) => x.r.isStandard)?.mv ?? NaN;
   const last = timed[timed.length - 1];
-  const what = barSource === 'plate' ? 'Bar speed · estimate' : EX.press || EX.row || requestedSource === 'hand' ? 'Hand speed · relative' : 'Body speed · relative';
+  const what = barSource==='template'?'Selected weight · relative':barSource === 'plate' ? 'Bar speed · estimate' : EX.press || EX.row || requestedSource === 'hand' ? 'Hand speed · relative' : 'Body speed · relative';
   $('vp-k').textContent = last ? `${what} · rep ${last.r.n}` : what;
   if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
   else {
@@ -937,8 +1083,11 @@ const shortReasons = (r) => [r.shortFinish && 'Didn’t reach your top', r.short
 // Before rep 1: hold still in your start position, then counting starts.
 function settle() { phase = 'settle'; gate.reset(); setStatus(EX.still, 'good'); }
 function arm(msg) {
+  if(manualTracking()&&(!targetSess||!targetRes?.ok)){gate.reset();setStatus('Select and keep the weight visible before starting the set.','warn');return;}
   phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good');
-  if (PLATE_ON) {
+  if(manualTracking()){
+    barSource='template';armMs=performance.now();motion?.mark();showSource();
+  }else if (PLATE_ON) {
     // The source is settled here, for the whole set (metres and body units never mix): the plate if it's
     // being followed well and sits on the bar, otherwise the body (and the plate stops being looked at).
     plateGravity();
@@ -1016,7 +1165,7 @@ async function startCamera() {
     if (generation !== startGeneration) { acquired.getTracks().forEach((t) => t.stop()); return; }
     stopStream(); stream = acquired;
     if (sourceURL) { URL.revokeObjectURL(sourceURL); sourceURL = null; }
-    video.removeAttribute('src'); video.onended = null;
+    video.removeAttribute('src'); video.onended = null;video.onerror=null;
     video.srcObject = stream; video.classList.toggle('mirror', facing === 'user');
     await video.play();
     if (generation !== startGeneration) { stopStream(); return; }
@@ -1044,6 +1193,7 @@ async function startFile(file) {
     sourceURL = URL.createObjectURL(file);
     video.srcObject = null; video.src = sourceURL; video.classList.remove('mirror');
     video.onended = () => endSet();
+    video.onerror=()=>{if(phase!=='idle'&&phase!=='done')endSet();setStatus('The video could not be decoded. Completed measurements were kept; try another video.','warn');};
     await video.play();
     if (generation !== startGeneration) { video.pause(); return; }
     begin();
@@ -1055,7 +1205,7 @@ function begin() {
   if (!EX.pullup) beep(660, 0.04);
   startRecording();
   resetSet(); phase = 'finding'; show('live'); showPanel(SPEED); plateStart(); if (SPEED) renderPanel();
-  setStatus(EX.finding);
+  setStatus(manualTracking()?'Hold the weight still and draw a box around a distinctive detail.':EX.finding);
   cancelAnimationFrame(raf); if (!RVFC) raf = requestAnimationFrame(loop);
   setLastMs = -Infinity; lastVideoT = -1; frameClock.reset();
   if (RVFC) { stopFrames(); if (!demo) rvfcId = video.requestVideoFrameCallback(onVideoFrame); }
@@ -1078,6 +1228,10 @@ function processFrame(tMs) {
   setLastMs = tMs;
   if (tMs + tsShift <= lastTs) tsShift = lastTs + 1 - tMs;
   lastTs = tMs + tsShift;
+  if(manualTracking()){
+    if(targetSelecting||!targetSess){curT=tMs/1000;targetDraw();return;}
+    try{targetStep(tMs/1000);}catch(e){targetRes={ok:false,reason:e.message};setStatus('Target tracking stopped; start a new set to select again.','warn');}
+  }
   let res;
   try { res = landmarker.detectForVideo(video, lastTs); }
   catch (e) { endSet(); setStatus('Tracking stopped. Your completed reps were kept. Try again with better light or another video.', 'warn'); return; }
@@ -1089,6 +1243,7 @@ function processFrame(tMs) {
     catch (err) { console.error('plate tracking stopped:', err); plateSess = null; plateRes = null; if (barSource === 'plate') plateBroke = true; showSource(); }
   }
   frame(res.landmarks || [], tMs / 1000, video.videoWidth, video.videoHeight, res.worldLandmarks || []);
+  if(manualTracking())targetDraw();
 }
 function stopFrames() { if (rvfcId && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(rvfcId); rvfcId = 0; }
 function onVideoFrame(now, md) {
@@ -1326,6 +1481,13 @@ function endSet() {
   if (RVFC) stopFrames();
   if (pendingVel) settleVel(Infinity);
   try { plateFinish(); } catch (err) { console.error('plate finish failed:', err); }
+  if(barSource==='template'){
+    applyTargetVelocities();
+    const moved=motion&&source==='camera'&&armMs?motion.moved(armMs,performance.now()):{moved:false};
+    if(moved.moved&&targetFinal){targetMoved=true;applyTargetVelocities();}
+  }
+  targetSelecting=false;targetCanvas.classList.remove('selecting');
+  $('stage').classList.remove('target-selecting');
   stopStream();
   if (motion) motion.stop();
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -1333,6 +1495,7 @@ function endSet() {
   if (EX.pullup) sfx('end');
   $('legend').hidden = true; // the verdict takes that corner
   renderSummary(); show('done'); setStatus('Set complete', 'good');
+  if(barSource==='template')requestAnimationFrame(targetDraw);
 }
 
 // ── Drawing ──────────────────────────────────────────────
@@ -1505,10 +1668,10 @@ function currentLiveRecord() {
   const record = buildLiveSetRecord({ ...(liveRecordId ? {id:liveRecordId}:{}), at:liveRecordAt,
     reps:counter.reps, standard:counter.standard, lift:EXK, exercise:exerciseName, loadKg:setLoadKg,
     typedRir:reportedRir, reportedEffort:{rir:reportedRir,rpe:reportedRpe,enteredAs:reportedRir!==null?'rir':reportedRpe!==null?'rpe':null,at:Date.now()},
-    source:barSource==='plate'?'plate':'pose-baseline', scaled:Number.isFinite(mpu()), fps,
-    nativeUnits:barSource==='plate'?'nominal-scale-units':EX.height?'body-lengths':EX.row?'arm-lengths':EX.press||requestedSource==='hand'?'pixels':'radians',
-    calibration:{version:'plate-diameter-v1',diameterM:diameterCm?diameterCm/100:null,cameraIntrinsics:'assumed',validated:false},
-    quality:{accepted,estimate:true,note:demo?'Synthetic demonstration; excluded from personal calibration':plateNote || (barSource==='plate'?'Camera geometry is estimated':'Body tracking: relative speed only')},
+    source:barSource==='template'?'marticles-template':barSource==='plate'?'plate':'pose-baseline', scaled:Number.isFinite(mpu()), fps,
+    nativeUnits:barSource==='template'?'selected-target-heights':barSource==='plate'?'nominal-scale-units':EX.height?'body-lengths':EX.row?'arm-lengths':EX.press||requestedSource==='hand'?'pixels':'radians',
+    calibration:barSource==='template'?targetFinal?.calibration||{kind:'uncalibrated-template',validated:false,version:'target-height-v1'}:{version:'plate-diameter-v1',diameterM:diameterCm?diameterCm/100:null,cameraIntrinsics:'assumed',validated:false},
+    quality:barSource==='template'?targetFinal?.quality||{accepted:false,estimate:true,note:'Selected-target relative tracking'}:{accepted,estimate:true,note:demo?'Synthetic demonstration; excluded from personal calibration':plateNote || (barSource==='plate'?'Camera geometry is estimated':'Body tracking: relative speed only')},
   });
   Object.assign(record,{userId:userId?.trim().toLowerCase()||null,exerciseId:canonicalExerciseId(exerciseName),equipmentKey:$('equipment-in').value.trim().toLowerCase()||null,
     sessionId:params.get('sessionId')||workoutContext?.workoutId||('prototype-'+new Date(liveRecordAt).toLocaleDateString('en-CA')),metric:'mean-concentric-velocity',
@@ -1526,6 +1689,11 @@ function currentLiveRecord() {
   record.observations = { clock: source==='file'?'video-media-seconds':'video-frame-seconds-aligned-to-monotonic-clock', frameCount: barTrace.length,
     positionUnits: barSource === 'plate' && diameterCm ? 'estimated-metres' : 'native',
     stride, sampled: stride > 1, points: barTrace.filter((_,i)=>i%stride===0).map((f)=>[+f.t.toFixed(4),Number.isFinite(f.y)?+f.y.toFixed(5):null]) };
+  if(barSource==='template'){
+    record.tracker='marticles-template-v1';
+    record.trackerUpstream={repository:'https://github.com/Marticles/barbell-path-tracker',revision:'501daea5c0666b3564fadbbebb51e6f6ac0b2428',mode:'Template_Matching',license:'MIT'};
+    record.externalAnalyses=externalAnalysis?[externalAnalysis]:[];
+  }
   liveRecordId=record.id;
   const history = demo ? [] : gatherPredictionHistory(localStorage).filter((r)=>r.id!==record.id);
   record.predictions=predictionsForSet(record,history,{userId:record.userId,exerciseId:record.exerciseId,equipmentKey:record.equipmentKey,epleySupported:record.epleySupported});
@@ -1536,7 +1704,7 @@ function currentLiveRecord() {
   return record;
 }
 function persistTrackedSet(updateTypedRir = false) {
-  if (!counter?.reps.length || demo) return;
+  if (!counter || demo || (!counter.reps.length && !(barSource==='template'&&targetFinal?.track?.length))) return;
   const record = currentLiveRecord();
   let saved = false;
   try { saveSetRecord(localStorage, record); saved = true; } catch {}
@@ -1551,7 +1719,32 @@ function renderSummary() {
   $('verdict').hidden = !SPEED; $('kg-next-f').hidden = !SPEED; $('chart-wrap').hidden = SPEED;
   if (SPEED) renderCall(); else renderChart();
   renderRepList();
+  $('target-tools').hidden=barSource!=='template'||!targetFinal?.track?.length;
+  $('external-analysis').innerHTML=''; // shared coach renderer includes any imported comparison
 }
+function downloadJson(data,name){
+  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('target-export').onclick=()=>{
+  if(!targetFinal?.track?.length)return;
+  const record=currentLiveRecord();
+  downloadJson({format:'arete-target-track-v1',recordId:record.id,source:{tracker:'marticles-template-v1'},
+    frame:{width:targetPlan.w,height:targetPlan.h},initialBox:targetFinal.track.find(f=>f.ok)?.box,
+    frames:targetFinal.track.map(f=>({t:f.t,ok:f.ok,cx:Number.isFinite(f.cx)?f.cx:null,cy:Number.isFinite(f.cy)?f.cy:null})),
+    poseReps:counter.reps.map(r=>({n:r.n,result:r.result,isStandard:r.isStandard,startT:r.startT,topT:r.topT,at:r.at})),
+    standard:counter.standard,metadata:{exercise:record.exercise,loadKg:record.loadKg}},`arete-${EXK}-path.json`);
+};
+$('barbellcv-import').onclick=()=>$('barbellcv-file').click();
+$('barbellcv-file').onchange=async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  try{
+    if(file.size>1024*1024)throw new Error('Analysis JSON must be smaller than 1 MB.');
+    externalAnalysis=parseBarbellCvAnalysis(JSON.parse(await file.text()),{recordId:liveRecordId});
+    persistTrackedSet();renderSummary();
+  }catch(error){setStatus('Could not import BarbellCV: '+error.message,'warn');}
+  e.target.value='';
+};
 // Nose height (pull-ups) through the set, with rep 1's bands: top is up.
 function renderChart() {
   const st = counter.standard, svg = $('chart');
@@ -1596,6 +1789,7 @@ $('replist').addEventListener('click', (e) => {
   const r = counter.reps.find((x) => x.n === +b.dataset.n); if (!r || r.isStandard) return;
   counter.override(r.n, r.result === 'counted' ? 'short' : 'counted');
   if (barSource === 'plate' && plateFinal?.ok) applyPlateVelocities(plateFinal.metrics.reps);
+  else if(barSource==='template')applyTargetVelocities();
   else if (barSource !== 'plate') applyBodyVelocities();
   persistTrackedSet();
   renderSummary();
@@ -1790,7 +1984,7 @@ $('coach-btn').onclick = () => openCoach();
 $('start-btn').onclick = () => {
   audioInit();
   // iPhone: motion data needs permission from this tap, before anything is awaited.
-  if (PLATE_ON && !demo && !motionAsk) motionAsk = requestMotionPermission();
+  if ((PLATE_ON||manualTracking()) && !demo && !motionAsk) motionAsk = requestMotionPermission();
   demo ? startDemo() : startCamera();
 };
 $('file-btn').onclick = () => { audioInit(); $('file').click(); };
@@ -1814,6 +2008,9 @@ $('kg-in').value = kg || '';
 const launchLoad = new URLSearchParams(location.search).get('loadKg');
 if (launchLoad !== null && Number.isFinite(+launchLoad) && +launchLoad >= 0) { kg = +launchLoad; $('kg-in').value = launchLoad; }
 $('diameter-field').hidden = !PLATE_ON;
+$('target-settings').hidden=!TARGET_CAPABLE;
+$('tracking-method').onchange=()=>{$('diameter-field').hidden=!PLATE_ON||manualTracking();};
+$('diameter-field').hidden=!PLATE_ON||manualTracking();
 $('diameter-in').oninput = (e) => { const v = parseFloat(e.target.value); diameterCm = v >= 5 && v <= 100 ? v : null; };
 for (const id of ['rpe-in','rir-in','failure-endpoint','failure-verified','maximal-intent','tested-max','epley-supported']) {
   $(id).onchange = () => {

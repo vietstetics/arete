@@ -3,6 +3,12 @@
 Updated 23 October 2026. Continues the recovered tracker in commit `8a44d07`;
 the existing camera, geometry, ROM rules and workout storage remain in use.
 
+24 October update: curl/squat/bench now offer manual selected-target tracking
+adapted from Marticles as the default free-weight mode. Draw the bar/weight
+detail before the hold-still wait. Automatic 3D plate/body mode remains selectable.
+See [barbellcv-integration.md](barbellcv-integration.md) for target lock and the
+separate, explicitly chosen local BarbellCV analysis/export/import workflow.
+
 ## What changed
 
 The coach replay and saved workout views now show a shared metrics panel:

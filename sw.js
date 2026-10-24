@@ -5,7 +5,7 @@
  *  - Never touches /api/ or cross-origin requests (Open Food Facts, fonts…)
  *  Bump VERSION to invalidate old caches on deploy.
  * ==========================================================================*/
-const VERSION = 'arete-v16';
+const VERSION = 'arete-v17';
 
 const CORE = [
   'index.html', 'workouts.html', 'nutrition.html', 'recovery.html',
@@ -47,6 +47,12 @@ const CORE = [
   'features/velocity/services/vision/plate3d.js',
   'css/velocity-coach.css', 'features/velocity/services/coachMetrics.js',
   'features/velocity/services/predictions.js',
+  'features/velocity/services/vision/template.js',
+  'features/velocity/services/live/targetSelection.js',
+  'features/velocity/services/live/targetSession.js',
+  'features/velocity/services/externalAnalysis.js',
+  'features/velocity/third_party/barbell-path-tracker/LICENSE',
+  'features/velocity/third_party/barbell-path-tracker/UPSTREAM.md',
 ];
 
 self.addEventListener('install', (e) => {
