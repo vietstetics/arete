@@ -610,6 +610,9 @@ let LAST_KEY = EXK === 'curl' ? 'arete_curl_lab_last' : `arete_${EXK}_lab_last`;
 const BODY = [[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[24,26],[26,28]];
 const MIN_VIS = 0.55;      // joints below this are treated as unseen
 const CALIB_SECS = 0.8;    // steady, visible body needed before rep 1
+// Squat, bench, deadlift: 0.3 s is enough to lock, then counting starts at once — lifters often start
+// the moment they're set. The rep counter's minimum range keeps an unrack or walkout from counting.
+const CALIB_HEIGHT_SECS = 0.3;
 
 const $ = (id) => document.getElementById(id);
 const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
@@ -621,6 +624,7 @@ let armMode = 'auto', side = null, visSum = { left: 0, right: 0 };
 let counter = null, euro = oneEuro(), center = null;
 let tracker = EX.height ? createHeightTracker(EX.height, { minVis: MIN_VIS }) : null;
 const detector = AUTO ? createLiftDetector() : null;
+let candidates = null; // ?ex=auto: each lift's tracker, calibrating while the lift is recognised
 const pu = EX.pullup ? createPullupTracker({ minVis: MIN_VIS }) : null;
 let gate = createStillGate({ secs: 1, bands: STILL_BANDS[EXK] });
 let armed = false; // pull-ups: hanging still on a locked bar, counting
@@ -700,7 +704,9 @@ function plateSizeHint(p, vw, vh) {
 function plateStep(t, poses) {
   plateRes = null;
   if (!plateSess || EX.auto) return; // until the lift is recognised, where the bar sits isn't known
-  const vw = video.videoWidth, vh = video.videoHeight, before = phase === 'finding' || phase === 'settle';
+  const vw = video.videoWidth, vh = video.videoHeight;
+  // Until rep 1 is in (counting can start at once), a plate lost for a moment is looked for again.
+  const before = phase === 'finding' || phase === 'settle' || (phase === 'ready' && !(counter && counter.reps.length));
   const i = pickPerson(poses, center);
   if (i >= 0) platePrior = barPrior(poses[i], vw, vh);
   if (before) plateGravity();
@@ -718,6 +724,7 @@ function plateStep(t, poses) {
   plateRecent.push({ t, ok: !!plateRes.ok, e: plateRes.e });
   while (plateRecent.length && t - plateRecent[0].t > 0.5) plateRecent.shift();
   if (plateSess.state === 'searching' || (before && t - plateOkT > 0.3)) { plateSess.reset(); showSource(); } // lost it before counting: look again
+  else if (before && phase === 'ready' && barSource === 'pose' && plateReady()) { barSource = 'plate'; barTrace = []; showSource(); } // found just after a quick start
 }
 /**
  * Is the plate being followed the bar's, and followed well, as counting starts? Most of the last half
@@ -985,11 +992,11 @@ function settle() { phase = 'settle'; gate.reset(); setStatus(EX.still, 'good');
 function arm(msg) {
   phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good'); armT = curT;
   if (PLATE_ON) {
-    // The source is settled here, for the whole set (metres and body units never mix): the plate if it's
-    // being followed well and sits on the bar, otherwise the body (and the plate stops being looked at).
+    // The plate if it's being followed well and sits on the bar, otherwise the body for now: a lifter who
+    // starts at once may not have given the plate time to be found, so it's still looked for until rep 1
+    // ends (plateStep switches over then; metres and body units never mix within a rep's numbers).
     plateGravity();
     barSource = plateReady() ? 'plate' : 'pose';
-    if (barSource === 'pose') { plateSess = null; plateRes = null; }
     armMs = performance.now();
     if (motion) motion.mark(); // rotation rates from here to the end of the set (the phone-moved check)
     showSource();
@@ -1012,6 +1019,7 @@ function resetSet() {
   // ?ex=auto: every set is recognised afresh (the next one can be a different lift).
   if (AUTO && !EX.auto) { EXK = 'auto'; EX = EXERCISES.auto; tracker = null; gate = createStillGate({ secs: 1, bands: STILL_BANDS.auto }); LAST_KEY = 'arete_auto_lab_last'; liftUI(); $('auto-note').hidden = true; }
   if (detector) detector.reset();
+  if (AUTO) candidates = Object.fromEntries(['squat', 'bench', 'deadlift'].map((k) => [k, createHeightTracker(k, { minVis: MIN_VIS })]));
   armT = NaN;
   counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter({ ...HEIGHT_DEFAULTS, invert: !!EX.concentricFirst }) : EX.row ? createRepCounter(REACH_DEFAULTS) : createRepCounter();
   if (tracker) tracker.reset();
@@ -1264,8 +1272,8 @@ function heightFrame(p, t, vw, vh) {
     if (c.ok) {
       steadySince = steadySince ?? t;
       const held = t - steadySince;
-      setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
-      if (held >= CALIB_SECS && tracker.lock()) settle();
+      setStatus(held < CALIB_HEIGHT_SECS ? 'Got you…' : 'Ready', 'good');
+      if (held >= CALIB_HEIGHT_SECS && tracker.lock()) arm(EX.rep1);
     } else {
       steadySince = null; tracker.reset();
       setStatus((EX.why && EX.why[c.why]) || WHY[c.why] || EX.finding, 'warn');
@@ -1294,15 +1302,16 @@ function heightFrame(p, t, vw, vh) {
 // ?ex=auto: before anything else, which lift — from how the bar is held at the set-up (sbd.js): on the
 // back (squat), arms up from the bench (bench), hands at the shins (deadlift). Then it's that lift's set.
 function autoFrame(p, t, vw, vh) {
+  for (const k in candidates) if (!candidates[k].calibrate(p, vw, vh).ok) candidates[k].reset();
   const lift = detector.push(t, p, vw, vh);
-  if (lift) { adoptLift(lift); setStatus(`${liftName(lift)} — ${EX.finding.toLowerCase()}`, 'good'); }
+  if (lift) { adoptLift(lift); if (phase === 'finding') setStatus(`${liftName(lift)} — ${EX.finding.toLowerCase()}`, 'good'); }
   else setStatus(EX.finding);
   draw({ p, ok: false }, vw, vh);
 }
 const liftName = (k) => ({ squat: 'Squat', bench: 'Bench press', deadlift: 'Deadlift' })[k] || k;
 function adoptLift(k) {
   EXK = k; EX = EXERCISES[k];
-  tracker = createHeightTracker(EX.height, { minVis: MIN_VIS });
+  tracker = candidates && candidates[k] ? candidates[k] : createHeightTracker(EX.height, { minVis: MIN_VIS });
   gate = createStillGate({ secs: 1, bands: STILL_BANDS[k] });
   counter = createReturnCounter({ ...HEIGHT_DEFAULTS, invert: !!EX.concentricFirst });
   LAST_KEY = `arete_${k}_lab_last`;
@@ -1310,6 +1319,8 @@ function adoptLift(k) {
   liftUI(); showLastStandard();
   const others = ['squat', 'bench', 'deadlift'].filter((x) => x !== k).map((x) => `<a href="${liftURL(x)}">${liftName(x)}</a>`).join(' · ');
   $('auto-note').innerHTML = `Recognised from your set-up: <b>${liftName(k)}</b>. Not right? ${others}`; $('auto-note').hidden = false;
+  // Calibrated while it was being recognised: count from now.
+  if (tracker.lock()) arm(EX.rep1);
 }
 /** This page for one lift, keeping everything else in the address (workout, load, …). */
 function liftURL(k) { const q = new URLSearchParams(location.search); q.set('ex', k); return `curl-lab.html?${q}`; }
@@ -1356,6 +1367,7 @@ function onEvent(ev) {
   }
   const r = ev.rep;
   if (!r) return;
+  if (barSource === 'pose' && plateSess) { plateSess = null; plateRes = null; showSource(); } // rep 1 is in: body it is
   $('relock-btn').disabled = true; // one ROM/velocity reference per set
   if (SPEED) { measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0); renderPanel(); }
   addChip(r);
@@ -1978,7 +1990,9 @@ function startDemo() {
   const frames = [];
   const hold = (a, s) => { for (let i = 0; i < s * fps; i++) frames.push(a); };
   const move = (a0, a1, s) => { const n = Math.round(s * fps); for (let i = 1; i <= n; i++) frames.push(a0 + (a1 - a0) * (1 - Math.cos(Math.PI * i / n)) / 2); };
-  hold(plan[0][0], EX.auto ? 3.4 : 2.4); // (recognise the lift,) calibrate, then hold still before rep 1
+  // (Recognise the lift,) calibrate, then hold still before rep 1; ?quick=1: start almost at once, as many lifters do.
+  const quick = new URLSearchParams(location.search).has('quick');
+  hold(plan[0][0], quick ? (EX.auto ? 0.9 : 0.5) : EX.auto ? 3.4 : 2.4);
   // The lifting part slows down rep by rep, like a real set.
   plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, H ? 1.1 : 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], H ? 0.8 + i * 0.14 : 1.1); });
   hold(plan[0][0], 1.5);

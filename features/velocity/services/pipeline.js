@@ -37,7 +37,7 @@ import { videoIntrinsics, setQuality, DEFAULT_HFOV_DEG } from './live/plateSessi
 import { createLiftDetector, CONCENTRIC_FIRST } from './sbd.js';
 
 // Same values as curl-lab.html, so the harness judges reps the way the app does.
-const MIN_VIS = 0.55, CALIB_SECS = 0.8;
+const MIN_VIS = 0.55, CALIB_SECS = 0.8, CALIB_HEIGHT_SECS = 0.3;
 const STILL_BANDS = { curl: [8], squat: [4], bench: [6], deadlift: [5] };
 
 // weight: what the weight tracker follows. path: 'height' (barbell: vertical
@@ -111,7 +111,9 @@ export function runPose(frames, { lift, vw, vh, heightCm = null }) {
     } else {
       if (phase === 'finding') {
         const c = tracker.calibrate(p, vw, vh);
-        if (c.ok) { steadySince = steadySince ?? t; if (t - steadySince >= CALIB_SECS && tracker.lock()) phase = 'settle'; }
+        // Squat, bench, deadlift: locked in 0.3 s and counted straight away (lifters often start the moment
+        // they're set; the counter's minimum range keeps an unrack or walkout from counting).
+        if (c.ok) { steadySince = steadySince ?? t; if (t - steadySince >= CALIB_HEIGHT_SECS && tracker.lock()) { phase = 'count'; armedAt = t; } }
         else { steadySince = null; tracker.reset(); }
         samples.push({ t, y: NaN });
         continue;

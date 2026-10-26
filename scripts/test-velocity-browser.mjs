@@ -20,7 +20,7 @@ let browser;
 try {
   browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
   const base = `http://127.0.0.1:${server.address().port}`;
-  for (const mode of ['curl', 'squat', 'bench', 'deadlift', 'auto&lift=squat', 'auto&lift=bench', 'auto&lift=deadlift', 'row', 'press', 'tbar', 'pullup']) {
+  for (const mode of ['curl', 'squat', 'bench', 'deadlift', 'auto&lift=squat', 'auto&lift=bench', 'auto&lift=deadlift', 'squat&quick=1', 'bench&quick=1', 'deadlift&quick=1', 'auto&lift=squat&quick=1', 'auto&lift=deadlift&quick=1', 'row', 'press', 'tbar', 'pullup']) {
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
@@ -65,7 +65,7 @@ try {
       if(mode==='curl') await page.screenshot({path:'backups/coach-metrics-smoke.png',fullPage:true});
     }
     if (mode.startsWith('auto')) {
-      const lift = mode.split('lift=')[1], title = await page.title(), note = await page.$eval('#auto-note', (el) => el.hidden ? '' : el.textContent);
+      const lift = mode.split('lift=')[1].split('&')[0], title = await page.title(), note = await page.$eval('#auto-note', (el) => el.hidden ? '' : el.textContent);
       assert.match(title, { squat: /Squat/, bench: /Bench/, deadlift: /Deadlift/ }[lift], `${mode}: recognised as "${title}"`);
       assert.match(note, /Recognised from your set-up/, `${mode}: no recognition note`);
     }

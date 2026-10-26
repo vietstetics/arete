@@ -26,7 +26,7 @@ export function classifyPosture(pose, { vw = 1, vh = 1, minVis = 0.5 } = {}) {
   const P = (i) => (pose && pose[i] && (pose[i].visibility ?? 0) >= minVis ? { x: pose[i].x * vw, y: pose[i].y * vh } : null);
   const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const arms = [[11, 13, 15], [12, 14, 16]].map((ids) => ids.map(P)).filter((a) => a.every(Boolean));
-  if (!arms.length) return { lift: null, why: 'arms' };
+  if (!arms.length) return fromLegs(P, d);
   let r = 0, near = 0, len = 0, wy = 0;
   for (const [S, E, W] of arms) {
     const L = d(S, E) + d(E, W);
@@ -39,10 +39,31 @@ export function classifyPosture(pose, { vw = 1, vh = 1, minVis = 0.5 } = {}) {
   const sh = mid(11, 12), hip = mid(23, 24), knee = mid(25, 26);
   const torso = sh && hip ? Math.abs(hip.y - sh.y) / len : NaN;
   let lift = null;
-  if (r < -0.5 && torso < 0.65) lift = 'bench';
-  else if (Math.abs(r) < 0.45 && near < 0.6 && torso > 0.45) lift = 'squat';
-  else if (r > 0.6 && knee && wy >= knee.y - 0.15 * len) lift = 'deadlift';
+  // Thresholds leave room for a phone low down looking up (a powerlifting favourite), which shortens
+  // what's high in the picture.
+  if (r < -0.45 && torso < 0.7) lift = 'bench';
+  else if (Math.abs(r) < 0.5 && near < 0.7 && torso > 0.35) lift = 'squat';
+  else if (r > 0.55 && knee && wy >= knee.y - 0.25 * len) lift = 'deadlift';
   return { lift, r, near, torso };
+}
+
+/**
+ * No arm in view (filmed low, the plates often hide the hands): the legs and trunk decide. Lying, hips
+ * level with the shoulders: bench. Standing tall: squat (the hands are on the bar on the back, out of
+ * sight). Hips bent well below standing, trunk leaning: deadlift set-up.
+ */
+function fromLegs(P, d) {
+  const legs = [[23, 25, 27], [24, 26, 28]].map((ids) => ids.map(P)).filter((l) => l.every(Boolean));
+  const sh = [P(11), P(12)].filter(Boolean);
+  if (!legs.length || !sh.length) return { lift: null, why: 'arms' };
+  const [H, K, A] = legs[0], S = sh[0], leg = d(H, K) + d(K, A);
+  if (!(leg > 0)) return { lift: null, why: 'arms' };
+  const hipUp = (A.y - H.y) / leg, trunkUp = (H.y - S.y) / leg, trunkOut = Math.abs(S.x - H.x) / leg;
+  let lift = null;
+  if (Math.abs(trunkUp) < 0.2 && trunkOut > 0.35) lift = 'bench';
+  else if (hipUp > 0.85 && trunkUp > 0.45) lift = 'squat';
+  else if (hipUp < 0.75 && trunkUp > 0.1 && trunkOut > 0.25) lift = 'deadlift';
+  return { lift, hipUp, trunkUp, why: 'no-arms' };
 }
 
 /**
@@ -50,7 +71,7 @@ export function classifyPosture(pose, { vw = 1, vh = 1, minVis = 0.5 } = {}) {
  * frames in that window (and `minFrames` of them) name it. Frames that name nothing count against.
  *   const det = createLiftDetector(); det.push(t, pose, vw, vh) → 'squat' | 'bench' | 'deadlift' | null
  */
-export function createLiftDetector({ secs = 0.6, share = 0.8, minFrames = 8, minVis = 0.5 } = {}) {
+export function createLiftDetector({ secs = 0.4, share = 0.8, minFrames = 8, minVis = 0.5 } = {}) {
   let win = [];
   return {
     push(t, pose, vw, vh) {

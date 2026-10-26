@@ -37,17 +37,32 @@ test('the set-up names the lift: hands on the back (squat), arms up (bench), han
   assert.equal(c(benchSide()), 'bench');
   assert.equal(c(deadSetup()), 'deadlift');
   assert.equal(c(standing()), null, 'arms hanging while standing is not a set-up');
-  const noArms = squatSide(); for (const i of [13, 14, 15, 16]) noArms[i].visibility = 0.2;
-  assert.equal(c(noArms), null, 'no lift without seeing the arms');
 });
 
-test('the lift is settled only after the set-up holds for 0.6 s; walking up to the bar settles nothing', () => {
+test('filmed from low down: the plates hide the hands, or the upper body looks short — still recognised', () => {
+  const c = (p) => classifyPosture(p, { vw: VW, vh: VH }).lift;
+  const hideArms = (p) => { for (const i of [13, 14, 15, 16]) p[i].visibility = 0.2; return p; };
+  assert.equal(c(hideArms(squatSide())), 'squat', 'standing tall, hands out of sight: the bar is on the back');
+  assert.equal(c(hideArms(deadSetup())), 'deadlift', 'hips bent, trunk leaning over the bar');
+  assert.equal(c(hideArms(benchSide())), 'bench', 'lying, hips level with the shoulders');
+  // A lens near the floor: everything above the hips foreshortened.
+  const low = squatSide();
+  for (const i of [11, 12, 13, 14, 15, 16]) low[i] = { ...low[i], y: 420 / VH - (420 / VH - low[i].y) * 0.65 };
+  assert.equal(c(low), 'squat');
+  const lowDead = deadSetup();
+  for (const i of [11, 12, 13, 14, 15, 16, 23, 24]) lowDead[i] = { ...lowDead[i], y: 648 / VH - (648 / VH - lowDead[i].y) * 0.8 };
+  assert.equal(c(lowDead), 'deadlift');
+  const none = squatSide(); for (const i of [11, 12, 13, 14, 15, 16]) none[i].visibility = 0.2;
+  assert.equal(c(none), null, 'neither arms nor shoulders: no guess');
+});
+
+test('the lift is settled once the set-up holds for 0.4 s; walking up to the bar settles nothing', () => {
   const det = createLiftDetector();
   let got = null, at = NaN;
   for (let i = 0; i < 30; i++) { const r = det.push(i / 30, standing(), VW, VH); assert.equal(r, null); }
   for (let i = 30; i < 60 && !got; i++) { got = det.push(i / 30, deadSetup(), VW, VH); at = i / 30; }
   assert.equal(got, 'deadlift');
-  assert.ok(at - 1 >= 0.45 && at - 1 <= 0.75, `settled ${(at - 1).toFixed(2)} s into the set-up`);
+  assert.ok(at - 1 >= 0.3 && at - 1 <= 0.5, `settled ${(at - 1).toFixed(2)} s into the set-up`);
   // A flickering frame doesn't stop it; a mixed picture never settles.
   const mixed = createLiftDetector();
   for (let i = 0; i < 60; i++) assert.equal(mixed.push(i / 30, i % 2 ? squatSide() : benchFeet(), VW, VH), null);
