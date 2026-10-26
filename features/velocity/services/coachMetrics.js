@@ -1,6 +1,5 @@
 // Pure presentation over durable records: one convention, one eligibility rule, honest unavailable states.
 // No prediction is inferred here; reported effort and supplied model output have separate displays.
-import { parseBarbellCvAnalysis, renderBarbellCvAnalysis } from './externalAnalysis.js';
 export const COACH_METRICS_VERSION = 'coach-metrics-v1';
 const finite = (v) => Number.isFinite(v);
 const positive = (v) => finite(v) && v > 0;
@@ -111,10 +110,6 @@ export function coachMetrics(record = {}, { predictions = record.predictions } =
 /** Shared HTML for the live summary and workout history; every external string is escaped. */
 export function renderCoachMetrics(record = {}, options = {}) {
   const m = coachMetrics(record, options), s = m.summary;
-  const external = (Array.isArray(record.externalAnalyses) ? record.externalAnalyses.slice(0,1) : []).map(input => {
-    try { return renderBarbellCvAnalysis(parseBarbellCvAnalysis(input,{recordId:record.id})); }
-    catch { return '<p class="coach-metrics-note">Stored external analysis is unavailable or does not match this set.</p>'; }
-  }).join('');
   const metric = (label, value, unit = '', digits = 2, detail = '') => `<div class="coach-metric"><span class="coach-metric-label">${escape(label)}</span><strong class="coach-metric-value">${finite(value) ? `${fmt(value, digits)}${unit ? ` <small>${escape(unit)}</small>` : ''}` : 'Unavailable'}</strong>${detail ? `<span class="coach-metrics-note">${escape(detail)}</span>` : ''}</div>`;
   const physicalReason = m.scaled ? 'Camera estimate; review calibration and tracking quality' : 'Physical scale unavailable';
   const calibration = m.calibration?.validated === true ? 'Physical calibration validated' : m.scaled ? 'Physical scale supplied; camera accuracy remains unvalidated' : 'Relative measurements only; no physical calibration';
@@ -144,5 +139,5 @@ export function renderCoachMetrics(record = {}, options = {}) {
     metric('Actual tested 1RM', number(m.tested1RM?.loadKg), 'kg', 1, m.tested1RM?.verified ? 'User-verified maximal attempt' : 'No verified maximal attempt') +
     `</div><div class="coach-predictions">${prediction('Estimated RIR', m.predictions.rir, 'RIR')}${prediction('Estimated RPE', m.predictions.rpe, 'RPE')}${prediction('Velocity-based estimated 1RM', m.predictions.oneRm, 'kg')}${prediction('Repetition-based estimated 1RM', m.predictions.repetitionOneRm, 'kg')}</div>` +
     `<p class="coach-metrics-note">${escape(m.quality?.note || '')} ${escape(m.calibration?.kind || m.calibration?.method || '')} ${escape(m.failureEndpoint?.verified ? `Verified failure endpoint: ${m.failureEndpoint.type || 'unspecified'}` : 'No verified failure endpoint recorded')}. Measurement ${escape(m.measurementVersion)} · calibration ${escape(m.calibrationVersion)} · prediction ${escape(m.predictions.version || 'unavailable')}.</p>` +
-    `<details><summary>Every rep: measurements, ROM and quality</summary><div class="coach-reps-wrap"><table class="coach-reps-table"><thead><tr><th>Rep</th><th>ROM verdict</th><th>MCV (${escape(m.units)})</th><th>Standard D/T (m/s)</th><th>MPV (m/s)</th><th>Peak (m/s)</th><th>Time (s)</th><th>Distance (m)</th><th>Tracked ROM</th><th>ROM (%)</th><th>Loss vs fastest (%)</th><th>Loss vs original (%)</th><th>Avg power (W)</th><th>Peak power (W)</th><th>Peak force (N)</th><th>Native mean (${escape(m.nativeUnits)}/s)</th><th>Native peak (${escape(m.nativeUnits)}/s)</th><th>Native distance (${escape(m.nativeUnits)})</th><th>Quality / unavailable reason</th></tr></thead><tbody>${rows || '<tr><td colspan="19">No repetitions recorded</td></tr>'}</tbody></table></div></details></section>`+external;
+    `<details><summary>Every rep: measurements, ROM and quality</summary><div class="coach-reps-wrap"><table class="coach-reps-table"><thead><tr><th>Rep</th><th>ROM verdict</th><th>MCV (${escape(m.units)})</th><th>Standard D/T (m/s)</th><th>MPV (m/s)</th><th>Peak (m/s)</th><th>Time (s)</th><th>Distance (m)</th><th>Tracked ROM</th><th>ROM (%)</th><th>Loss vs fastest (%)</th><th>Loss vs original (%)</th><th>Avg power (W)</th><th>Peak power (W)</th><th>Peak force (N)</th><th>Native mean (${escape(m.nativeUnits)}/s)</th><th>Native peak (${escape(m.nativeUnits)}/s)</th><th>Native distance (${escape(m.nativeUnits)})</th><th>Quality / unavailable reason</th></tr></thead><tbody>${rows || '<tr><td colspan="19">No repetitions recorded</td></tr>'}</tbody></table></div></details></section>`;
 }

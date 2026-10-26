@@ -58,7 +58,10 @@ running table per lift and camera angle.
 
 ## The sets
 
-- Squat and bench, separately (they're judged separately).
+- Squat, bench and deadlift, separately (they're judged separately). In the
+  lab page, "Recognise it" picks the lift from the set-up in the video; the
+  live page does the same at `curl-lab.html?ex=auto`. A deadlift is timed
+  from the floor to lockout, and each rep ends back on the floor.
 - About **5 sets per lift across loads**: roughly 40, 60, 75, 85 and 90% of
   your 1RM, 3–5 reps each. That's 30+ reps per lift — enough for the limits of
   agreement to mean something. Include at least one set to a grind (near
@@ -94,6 +97,17 @@ running table per lift and camera angle.
 When all sets are in: the accuracy table per lift and angle, plus "Export
 CSV" — that file has every rep (ours, the device's, the difference) and can be
 sent back for analysis.
+
+### No clear plate? A coloured marker (barbellcv's way)
+
+If the plate's edge is hard to see (black on black, a busy background), put a
+bright, plain-coloured round sticker or tape (green, orange or pink: not the
+plates' colour) on the bar's end cap, measure its diameter, and choose "A
+coloured marker on the bar's end" in the lab. Tap the marker in the find
+step; it's followed by its colour, as barbellcv does, then timed exactly like
+the plate. It is measured in the picture's plane, so film side-on (within
+25°), and the scale comes from a small marker, so expect it to be rougher than
+the plate (its rows are always marked "estimate").
 
 ## How it measures (short)
 
@@ -153,6 +167,30 @@ velocity: 0.029 m/s; range of motion: mean error 1.9%.
 
 (Reps where the plate partly left the picture are refused when the lift's
 start or end wasn't seen; otherwise they're measured from what was.)
+
+## Compared with barbellcv
+
+barbellcv (github.com/tlancon/barbellcv) tracks a coloured marker and computes
+speed as each frame's movement over the time between frames, averaged over the
+frames where the bar rises more than 1 cm per frame; peak is the fastest
+single frame. Its own accuracy page was never written. Its method was
+re-implemented from that description (none of its code is in Arete — it is
+GPLv3) and run on the same simulated side-on bar paths as Arete's timing
+(60 sets, 231 reps of squat, bench and deadlift, 0.5 px of tracking noise,
+frames timed as each was processed, as barbellcv does):
+
+| Mean velocity vs truth | barbellcv method | Arete |
+|---|---|---|
+| At 30 and 60 fps: bias / RMS | +0.18 / 0.20 m/s | −0.001 / 0.015 m/s |
+| Reps missed | 67 of 231 | 0 |
+| At 30 fps only: bias / RMS | +0.12 / 0.13 m/s | — |
+| Peak velocity RMS | 0.33 m/s | 0.025 m/s |
+
+It reads high because the slow start and end of each lift fall under its
+1 cm-per-frame threshold and are left out (at 60 fps the threshold is 0.6 m/s,
+so slow reps are missed), and because noise in every frame-to-frame step only
+adds speed. So Arete keeps its own measurement; what it takes from barbellcv
+is the marker tracking above, as a fallback with Arete's timing.
 
 ## Known sources of error, and their size
 

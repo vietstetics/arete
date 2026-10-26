@@ -250,11 +250,9 @@ export function findRim(img, det, { rays = 72, K = null, up = null, maxTilt } = 
   // Circle-likeness is only compared with gravity known (without it, a pitched phone's real plate "tilts").
   const tiltOf = (f) => (K && up && tiltReliable(f) ? plateTiltDeg(f, K, up) : NaN);
   let out = pick, outTilt = tiltOf(pick);
-  const refits = [];
   for (const g of colourModes(inners)) {
     const flat = new Array(rays).fill(g);
     const f2 = fitRim(img, pick, { rays, wide: true, wideWin: 0.16, iters: 4, ref: flat, tol: RIM_COLOUR_STRICT });
-    refits.push({ g, f2 });
     if (!f2.ok || f2.inliers < 0.5 * rays) continue;
     if (K && tiltReliable(f2) && plateTiltDeg(f2, K, upT) > limit) continue;
     const tilt = tiltOf(f2);
@@ -269,7 +267,6 @@ export function findRim(img, det, { rays = 72, K = null, up = null, maxTilt } = 
     const better = tiltDiff < -1 || (tiltDiff <= 1 && (narrower || (asNarrow && f2.a > out.a * 1.01)));
     if (better) { out = f2; outTilt = tilt; }
   }
-  if (typeof globalThis.__rimDebug === 'function') globalThis.__rimDebug({ fits, clean, same, pick, out, refits, modes: colourModes(inners), outTilt, pickTilt: tiltOf(pick) });
   return { ...out, ref: rimColour(out, rays) };
 }
 

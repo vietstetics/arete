@@ -5,7 +5,7 @@
  *  - Never touches /api/ or cross-origin requests (Open Food Facts, fonts…)
  *  Bump VERSION to invalidate old caches on deploy.
  * ==========================================================================*/
-const VERSION = 'arete-v17';
+const VERSION = 'arete-v18';
 
 const CORE = [
   'index.html', 'workouts.html', 'nutrition.html', 'recovery.html',
@@ -39,7 +39,7 @@ const CORE = [
   'features/velocity/services/weight.js', 'features/velocity/services/compare.js',
   'features/velocity/services/bar3d.js', 'features/velocity/demo/synth.js',
   'features/velocity/services/live/plateSession.js', 'features/velocity/services/live/frameGrabber.js',
-  'features/velocity/services/live/motion.js', 'features/velocity/services/live/repVelocity.js',
+  'features/velocity/services/live/motion.js', 'features/velocity/services/sbd.js', 'features/velocity/services/vision/marker.js',
   'features/velocity/services/live/frameClock.js',
   'features/velocity/services/vision/image.js', 'features/velocity/services/vision/geometry.js',
   'features/velocity/services/vision/ellipse.js', 'features/velocity/services/vision/plate.js',
@@ -47,12 +47,6 @@ const CORE = [
   'features/velocity/services/vision/plate3d.js',
   'css/velocity-coach.css', 'features/velocity/services/coachMetrics.js',
   'features/velocity/services/predictions.js',
-  'features/velocity/services/vision/template.js',
-  'features/velocity/services/live/targetSelection.js',
-  'features/velocity/services/live/targetSession.js',
-  'features/velocity/services/externalAnalysis.js',
-  'features/velocity/third_party/barbell-path-tracker/LICENSE',
-  'features/velocity/third_party/barbell-path-tracker/UPSTREAM.md',
 ];
 
 self.addEventListener('install', (e) => {

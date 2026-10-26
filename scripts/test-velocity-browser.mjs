@@ -20,7 +20,7 @@ let browser;
 try {
   browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
   const base = `http://127.0.0.1:${server.address().port}`;
-  for (const mode of ['curl', 'squat', 'bench', 'row', 'press', 'tbar', 'pullup']) {
+  for (const mode of ['curl', 'squat', 'bench', 'deadlift', 'auto&lift=squat', 'auto&lift=bench', 'auto&lift=deadlift', 'row', 'press', 'tbar', 'pullup']) {
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
@@ -42,9 +42,9 @@ try {
       summary: document.getElementById('verdict').textContent }));
     assert.equal(errors.length, 0, `${mode}: ${errors.join('; ')}`);
     assert.equal(result.counted, mode === 'pullup' ? 4 : 5, `${mode}: ${JSON.stringify(result)}`);
-    assert.ok(result.reps.filter((r) => r.result !== 'counted').every((r) => !r.vel), `${mode}: invalid rep has speed`);
+    assert.ok(result.reps.filter((r) => r.result === 'unclear').every((r) => !r.vel), `${mode}: unclear rep has speed`);
     if (mode !== 'pullup') {
-      assert.ok(!/\d+\.\d+\s*m\/s/.test(result.summary), `${mode}: body demo claims absolute speed`);
+      assert.ok(!/\d+\.\d+\s*m\/s/.test(result.summary), `${mode}: body demo without a height claims absolute speed`);
       await page.$eval('#kg-next', (el) => { el.value='100'; el.dispatchEvent(new Event('input')); });
       await page.$eval('#rir-in', (el) => { el.value='2'; el.dispatchEvent(new Event('change')); });
       await page.$eval('#rpe-in', (el) => { el.value='7'; el.dispatchEvent(new Event('change')); });
@@ -64,6 +64,11 @@ try {
       assert.equal(cards['Actual tested 1RM'],'Unavailable');
       if(mode==='curl') await page.screenshot({path:'backups/coach-metrics-smoke.png',fullPage:true});
     }
+    if (mode.startsWith('auto')) {
+      const lift = mode.split('lift=')[1], title = await page.title(), note = await page.$eval('#auto-note', (el) => el.hidden ? '' : el.textContent);
+      assert.match(title, { squat: /Squat/, bench: /Bench/, deadlift: /Deadlift/ }[lift], `${mode}: recognised as "${title}"`);
+      assert.match(note, /Recognised from your set-up/, `${mode}: no recognition note`);
+    }
     console.log(`${mode}: ${result.counted} counted, ${result.short}; no UI errors`);
     await page.close();
   }
@@ -81,10 +86,16 @@ try {
   assert.equal(result.rows.filter((r) => r.result === 'counted').length, 5);
   assert.equal(result.scaled, true, 'synthetic demo uses explicitly known 45cm plate');
   await lab.select('#tracker', 'plate3d');
-  await lab.select('#report-mode', 'measurement');
-  await lab.select('#report-mode', 'standard');
+  // barbellcv's way of following the bar: a coloured marker, its diameter measured (no 45 cm default).
+  await lab.select('#tracker', 'marker');
+  assert.equal(await lab.$eval('#diam-l', (el) => el.textContent), 'Marker diameter (cm)');
+  assert.equal(await lab.$eval('#diam', (el) => el.value), '');
+  await lab.select('#tracker', 'plate3d');
+  assert.equal(await lab.$eval('#diam', (el) => el.value), '45');
+  await lab.select('#lift', 'auto');
+  assert.ok((await lab.$$eval('#tracker option', (o) => o.map((x) => x.value))).includes('marker'));
   assert.equal(errors.length, 0, errors.join('; '));
-  console.log('Offline lab: 5 synthetic reps; report-mode switching; no UI errors');
+  console.log('Offline lab: 5 synthetic reps; no UI errors');
   await lab.close();
 } finally {
   await browser?.close();

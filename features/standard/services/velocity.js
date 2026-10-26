@@ -16,6 +16,7 @@ export const BODY = {
   shoulderAboveAnkle: 0.818 - 0.039, // shoulder height − ankle height: the bar on your back, standing
   arm: 0.186 + 0.146,                // upper arm + forearm: shoulder → wrist
   curlRadius: 0.146 + 0.108 / 2,     // forearm + half the hand: elbow → dumbbell
+  leg: 0.245 + 0.246,                // thigh + shank: hip → knee → ankle (the deadlift's body unit)
 };
 
 /**
@@ -42,6 +43,7 @@ export function metresPerUnit(lift, { heightM, scale, standShoulderPx, armPx } =
   if (!Number.isFinite(heightM) || !(heightM > 0)) return NaN;
   if (lift === 'curl') return BODY.curlRadius * heightM;
   if (!Number.isFinite(scale) || !(scale > 0)) return NaN;
+  if (lift === 'deadlift') return BODY.leg * heightM; // the hands' height is already in leg lengths
   const length = lift === 'squat' ? standShoulderPx : lift === 'bench' ? armPx : NaN;
   const fraction = lift === 'squat' ? BODY.shoulderAboveAnkle : BODY.arm;
   const mpu = Number.isFinite(length) && length > 0 ? (scale * fraction * heightM) / length : NaN;

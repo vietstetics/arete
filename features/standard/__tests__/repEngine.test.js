@@ -232,3 +232,76 @@ test('midpoint uses whichever side is visible', () => {
   const m = midpoint(p, [23, 24], 100, 100);
   assert.equal(m.n, 1); assert.ok(Math.abs(m.x - 46) < 1e-9);
 });
+
+// ── Deadlift: concentric first, from the floor ──────────────────────────
+// Hand height at 30 fps: set up at `floor`, then per rep pull to `lockout`,
+// hold, and lower back to `down` (default: the floor).
+function deadliftTrace(reps, { floor = 30, fps = 30, noise = 0, seed = 5 } = {}) {
+  let s = seed; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647 - 0.5) * 2;
+  const out = []; let t = 0, v = floor;
+  const hold = (secs) => { for (let i = 0; i < secs * fps; i++) { out.push({ t, a: v + noise * rnd(), ok: true }); t += 1 / fps; } };
+  const move = (to, secs) => { const v0 = v, n = Math.round(secs * fps); for (let i = 1; i <= n; i++) { v = v0 + (to - v0) * (1 - Math.cos((Math.PI * i) / n)) / 2; out.push({ t, a: v + noise * rnd(), ok: true }); t += 1 / fps; } };
+  hold(1);
+  for (const r of reps) { move(r.lockout ?? 88, r.up ?? 1); hold(0.4); move(r.down ?? floor, r.lower ?? 0.9); hold(r.rest ?? 0.5); }
+  return out;
+}
+const runDeadlift = (trace) => { const rc = createReturnCounter({ ...HEIGHT_DEFAULTS, invert: true }); const events = []; for (const f of trace) { const e = rc.push(f.t, f.a, f.ok); if (e) events.push({ ...e, t: f.t, v: f.a }); } return { rc, events }; };
+
+test('deadlift: rep 1 locks the floor and lockout; each rep counts back on the floor, in height units', () => {
+  const { rc, events } = runDeadlift(deadliftTrace(Array(4).fill({}), { noise: 1 }));
+  assert.equal(events[0].type, 'standard');
+  assert.ok(Math.abs(events[0].standard.start - 30) < 2 && Math.abs(events[0].standard.finish - 88) < 2, JSON.stringify(events[0].standard));
+  assert.ok(Math.abs(rc.standard.start - 30) < 2 && Math.abs(rc.standard.finish - 88) < 2);
+  assert.deepEqual(results(rc), Array(4).fill('counted'));
+  for (const e of events) assert.ok(e.v < 45, `counted at ${e.v.toFixed(1)}: should be back near the floor`);
+  for (const r of rc.reps) { assert.ok(r.top > 85, `lockout ${r.top.toFixed(1)}`); assert.ok(r.bottom < 33, `floor ${r.bottom.toFixed(1)}`); }
+  // The rep's moment is its lockout (the lifting part comes before it).
+  const tr = deadliftTrace(Array(4).fill({}));
+  const lock = tr.findIndex((f) => f.a > 87.9);
+  assert.ok(Math.abs(rc.reps[0].topT - tr[lock].t) < 0.5);
+});
+
+test('deadlift: a pull short of lockout is short (missed the finish); not setting it down is short (missed the start)', () => {
+  const { rc } = runDeadlift(deadliftTrace([{}, { lockout: 70 }, {}, { down: 55 }, {}]));
+  assert.deepEqual(results(rc), ['counted', 'short', 'counted', 'short', 'counted']);
+  assert.equal(rc.reps[1].shortFinish, true); assert.equal(rc.reps[1].shortStart, false);
+  assert.equal(rc.reps[3].shortStart, true);
+});
+
+test('deadlift: a pull still held at lockout when the set ends is not counted (a rep ends back on the floor)', () => {
+  const trace = deadliftTrace([{}, {}]);
+  const end = trace[trace.length - 1].t;
+  for (let i = 1; i <= 45; i++) trace.push({ t: end + i / 30, a: 30 + (58 * Math.min(i, 30)) / 30, ok: true }); // pulls and stays up
+  const { rc } = runDeadlift(trace);
+  assert.equal(rc.reps.length, 2);
+});
+
+// Side view of a deadlift: hips back over bent knees at the set-up, standing at lockout.
+function deadPose(k) {
+  const p = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0.1 }));
+  const at = (x, y) => ({ x: x / 1280, y: y / 720, visibility: 0.95 });
+  const L = 122, A = { x: 640, y: 648 }, rad = (d) => (d * Math.PI) / 180;
+  const shin = rad(20 * (1 - k)), thigh = rad(25 + 65 * k), torso = rad(35 + 55 * k);
+  const K = { x: A.x + L * Math.sin(shin), y: A.y - L * Math.cos(shin) };
+  const H = { x: K.x - L * Math.cos(thigh), y: K.y - L * Math.sin(thigh) };
+  const S = { x: H.x + 173 * Math.cos(torso), y: H.y - 173 * Math.sin(torso) };
+  const W = { x: S.x, y: S.y + 202 };
+  Object.assign(p, { 11: at(S.x, S.y), 12: at(S.x - 4, S.y + 2), 15: at(W.x, W.y), 16: at(W.x - 4, W.y + 2), 23: at(H.x, H.y), 24: at(H.x - 4, H.y + 2),
+    25: at(K.x, K.y), 26: at(K.x - 4, K.y + 2), 27: at(A.x, A.y), 28: at(A.x - 4, A.y + 2) });
+  return { p, handUp: A.y - W.y };
+}
+
+test('deadlift height: calibrated bent over the bar; the hands are read in leg lengths whatever the posture', () => {
+  const tr = createHeightTracker('deadlift');
+  for (let i = 0; i < 6; i++) assert.equal(tr.calibrate(deadPose(0).p, 1280, 720).ok, true);
+  assert.equal(tr.lock(), true);
+  for (const k of [0, 0.5, 1]) {
+    const { p, handUp } = deadPose(k), m = tr.measure(p, 1280, 720);
+    assert.ok(m.ok);
+    assert.ok(Math.abs(m.value - (handUp / 244) * 100) < 1.5, `k ${k}: ${m.value.toFixed(1)} vs ${((handUp / 244) * 100).toFixed(1)}`);
+    assert.ok(Math.abs(m.bar - m.value / 100) < 1e-9);
+  }
+  assert.ok(Math.abs(tr.calValue - (deadPose(0).handUp / 244) * 100) < 1.5);
+  const noHands = deadPose(0).p; noHands[15].visibility = 0; noHands[16].visibility = 0;
+  assert.deepEqual(createHeightTracker('deadlift').calibrate(noHands, 1280, 720), { ok: false, why: 'hands' });
+});

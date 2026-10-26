@@ -110,7 +110,7 @@ input[type=range]{width:100%;accent-color:var(--ink);min-height:44px}
   <!-- 2. Video -->
   <section class="card" aria-labelledby="h-video">
     <h2 id="h-video">2. Video</h2>
-    <p class="note">Keep the phone still and upright, with the whole near plate in view all set. The 3D tracker estimates viewing angle; the older 2D tracker accepts up to 25° off side-on. Record the reference transducer on the same set. Arete uses actual video timestamps; slow playback gives analysis more time to process each frame.</p>
+    <p class="note">Film from 2–3 m, 20–40° off side-on, phone still and upright, the whole near plate in view all set (the 3D tracker reads any angle the whole plate is seen from; the older 2D one only up to 25° off side-on). Record the transducer on the same set, clipped to the bar at the end the phone films. Arete reads every frame at its real timestamp, so the clip plays slowly while it’s analysed.</p>
     <div class="grid">
       <label class="field">Recorded at<select id="rec-fps"><option value="0">Same as the file</option><option value="60">60 fps</option><option value="120">120 fps (slow-mo)</option><option value="240">240 fps (slow-mo)</option></select></label>
       <label class="field">Analysis speed<select id="rate"><option value="0.25">¼ speed</option><option value="0.5">½ speed</option><option value="0.1">⅒ speed (slow-mo files)</option></select></label>
@@ -147,12 +147,11 @@ input[type=range]{width:100%;accent-color:var(--ink);min-height:44px}
   <!-- 3. Arete's numbers -->
   <section class="card" id="ours" hidden aria-labelledby="h-ours">
     <h2 id="h-ours">3. Arete’s numbers</h2>
-    <label class="field" id="report-mode-field" style="margin-top:12px">Results to inspect<select id="report-mode"><option value="standard">Counted reps: standard distance / time</option><option value="measurement">Validation only: every plate lift, own distance / time</option></select></label>
     <div id="ours-verdict"></div>
     <p class="note" id="ours-note"></p>
     <div class="stats" id="ours-stats"></div>
     <div class="scroll"><table class="tbl" id="ours-tbl"></table></div>
-    <p class="cap" style="margin-top:12px">Counted reps use the first valid standard’s fixed distance / each rep’s time. Validation mode includes every measured plate lift and uses its own distance / time; those measurements do not count as workout reps. Camera measurements are estimates pending validation on real lifting videos.</p>
+    <p class="cap" style="margin-top:12px">3D plate: each lift’s own distance over its own time, from leaving the bottom to stopping at the top (as a transducer times it); every lift gets one unless the plate wasn’t seen where it started or ended. Older trackers: D / T, D from rep 1, counted reps only. Values the camera saw too sparsely or noisily are marked “estimate”.</p>
     <div class="acts"><button class="btn s" id="save-set">Save this set</button></div>
   </section>
 
@@ -196,7 +195,9 @@ input[type=range]{width:100%;accent-color:var(--ink);min-height:44px}
 </div>
 
 <script type="module">
-import { analyseSet, LIFTS, estimateFps, trackerFor, trackerChoices } from './features/velocity/services/pipeline.js';
+import { analyseSet, LIFTS, estimateFps, trackerFor, trackerChoices, recogniseLift } from './features/velocity/services/pipeline.js';
+import { classifyPosture, countBarReps } from './features/velocity/services/sbd.js';
+import { sampleColour, findMarker, createMarkerTracker } from './features/velocity/services/vision/marker.js';
 import { parseReference, compareSet, passes, accuracyTable, toCsv, REFERENCES, TARGET_PCT, TRANSDUCER, transducerLevel } from './features/velocity/services/compare.js';
 import { createPlateSession, findPlate, DEFAULT_HFOV_DEG } from './features/velocity/services/live/plateSession.js';
 import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
@@ -231,28 +232,39 @@ const store = (s) => { try { localStorage.setItem(STORE, JSON.stringify(s)); } c
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 // ── Settings ─────────────────────────────────────────────
-$('lift').innerHTML = Object.entries(LIFTS).map(([k, l]) => `<option value="${k}">${l.label}</option>`).join('');
+$('lift').innerHTML = Object.entries(LIFTS).map(([k, l]) => `<option value="${k}">${l.label}</option>`).join('') + '<option value="auto">Recognise it: squat, bench or deadlift</option>';
+// "Recognise it": the lift comes from the lifter's set-up in the video (sbd.js), a squat until it's known.
+let autoLift = null, autoFor = null;
+const liftKey = () => ($('lift').value === 'auto' ? autoLift || 'squat' : $('lift').value);
 $('ref-src').innerHTML = REFERENCES.map((r) => `<option>${r}</option>`).join('');
 const trackerId = () => $('tracker').value;
-const isWeight = () => trackerId() === 'plate3d' || trackerId() === 'plate' || trackerId() === 'dumbbell';
+const isWeight = () => trackerId() === 'plate3d' || trackerId() === 'plate' || trackerId() === 'dumbbell' || trackerId() === 'marker';
+// What the diameter field measures: the plate (45 cm unless changed), a dumbbell's head or a marker (measure it).
+function diamField() {
+  const kind = trackerId() === 'marker' ? 'marker' : LIFTS[liftKey()].weight === 'dumbbell' ? 'dumbbell' : 'plate';
+  if ($('diam').dataset.kind === kind) return;
+  $('diam').dataset.kind = kind;
+  $('diam-l').textContent = { marker: 'Marker diameter (cm)', dumbbell: 'Dumbbell head diameter (cm)', plate: 'Plate diameter (cm)' }[kind];
+  $('diam').value = kind === 'plate' ? PLATE_DIAMETER_M * 100 : '';
+  $('diam').placeholder = kind === 'plate' ? '45' : 'Measure it';
+}
 function liftChanged() {
-  const k = $('lift').value;
+  if ($('lift').value === 'auto') { autoLift = null; autoFor = null; }
+  const k = liftKey();
   $('tracker').innerHTML = trackerChoices(k).map((t) => `<option value="${t.id}">${esc(t.label)}</option>`).join('');
   $('mass-mode').value = LIFTS[k].defaultMass;
-  const dumbbell = LIFTS[k].weight === 'dumbbell';
-  $('diam-l').textContent = dumbbell ? 'Dumbbell head diameter (cm)' : 'Plate diameter (cm)';
-  $('diam').value = '';
-  $('diam').placeholder = dumbbell ? 'Measure it' : 'Measured diameter, e.g. 45';
   trackerChanged();
 }
 function trackerChanged() {
-  const t = trackerFor($('lift').value, trackerId());
+  const t = trackerFor(liftKey(), trackerId());
   $('diam-f').hidden = !isWeight();
-  $('report-mode-field').hidden = t.id !== 'plate3d';
+  diamField();
   $('source-note').innerHTML = t.id === 'pose-baseline'
-    ? `Measured from <b>body pose</b> (${esc(LIFTS[$('lift').value].point)}), not the weight. Results stay relative: entered height does not establish a measured physical scale.`
+    ? `Measured from <b>body pose</b> (${esc(LIFTS[liftKey()].point)}), not the weight. Use it to compare against the weight tracker on the same set.`
+    : t.id === 'marker'
+    ? 'Velocity is measured at <b>a coloured marker on the bar’s end</b> (tape or a round sticker on the sleeve’s end cap), followed by its colour as barbellcv tracks the bar, then timed the way Arete times every lift. Film side-on (within 25°). Its diameter sets the scale; a small marker gives a rougher scale than a 45 cm plate.'
     : t.id === 'plate3d'
-    ? 'Velocity is measured at <b>the plate, in 3D</b>: Arete follows its outer edge and estimates its position from the plate outline and assumed camera geometry. Enter its measured diameter for estimated m/s; without it, only time and relative speed are available.'
+    ? 'Velocity is measured at <b>the plate, in 3D</b> — the same measurement the app makes live: Arete follows the plate’s outer edge every frame and works out where the plate is in space, from any angle the whole plate can be seen. Its diameter sets the scale; the lift is timed from leaving the bottom to stopping at the top, as a transducer times it.'
     : `Velocity is measured at <b>the weight</b>: Arete follows the ${t.id === 'plate' ? 'plate (bar end)' : 'dumbbell head'} in the video. Its diameter sets the scale and its shape gives the camera angle${t.id === 'dumbbell' ? '. Enter the head’s diameter for m/s; without it you get relative speed only' : ''}.`;
   if (track) runAnalysis();
 }
@@ -289,6 +301,17 @@ function grab(video, pw, ph) {
   c.drawImage(video, 0, 0, pw, ph);
   return fromRGBA(c.getImageData(0, 0, pw, ph).data, pw, ph);
 }
+let rgbaCanvas = null;
+/** A full-resolution colour crop of the frame covering { x0, y0, x1, y1 } (video pixels), for the marker. */
+function grabRGBA(video, win) {
+  const ox = Math.max(0, Math.floor(win.x0)), oy = Math.max(0, Math.floor(win.y0));
+  const w = Math.max(1, Math.min(video.videoWidth, Math.ceil(win.x1)) - ox), h = Math.max(1, Math.min(video.videoHeight, Math.ceil(win.y1)) - oy);
+  rgbaCanvas = rgbaCanvas || document.createElement('canvas');
+  if (rgbaCanvas.width !== w || rgbaCanvas.height !== h) { rgbaCanvas.width = w; rgbaCanvas.height = h; }
+  const c = rgbaCanvas.getContext('2d', { willReadFrequently: true });
+  c.drawImage(video, ox, oy, w, h, 0, 0, w, h);
+  return { w, h, data: c.getImageData(0, 0, w, h).data, ox, oy };
+}
 const seek = (video, t) => new Promise((resolve, reject) => {
   if (!video.seeking && video.readyState >= 2 && Math.abs(video.currentTime - t) < 1e-5) { resolve(); return; }
   const finish = (error) => { clearTimeout(timer); video.onseeked = null; video.onerror = null; error ? reject(error) : resolve(); };
@@ -322,18 +345,21 @@ async function startFind(video) {
   const { pw, ph } = procSize(video.videoWidth, video.videoHeight), cv = $('find-cv');
   cv.width = pw; cv.height = ph;
   $('find').hidden = false; $('find-t').max = Math.max(0, video.duration - 0.05).toFixed(2); $('find-t').value = 0;
-  const weightName = trackerId() === 'dumbbell' ? 'dumbbell head' : 'plate';
+  const marker = trackerId() === 'marker', weightName = trackerId() === 'dumbbell' ? 'dumbbell head' : marker ? 'coloured marker on the bar’s end' : 'plate';
   $('find-title').textContent = `Find the ${weightName}.`;
-  $('find-help').textContent = `Arete outlined what it thinks is the ${weightName}. If it’s wrong, tap the middle of it. If it isn’t clear in this frame, move the slider.`;
+  $('find-help').textContent = marker ? 'Tap the middle of the coloured marker. If it isn’t clear in this frame, move the slider.' : `Arete outlined what it thinks is the ${weightName}. If it’s wrong, tap the middle of it. If it isn’t clear in this frame, move the slider.`;
   const radii = { rMin: Math.round(0.025 * Math.max(pw, ph)), rMax: Math.round(0.2 * Math.max(pw, ph)) };
   let img = null, prior = null;
   async function show(t) {
     await seek(video, t);
     img = grab(video, pw, ph);
     const ps = poses(video), i = pickPerson(ps, null);
-    const pts = i >= 0 ? LIFTS[$('lift').value].prior.map((k) => ps[i][k]).filter((l) => l.visibility >= 0.5) : [];
+    // Recognising the lift: this frame's set-up says where the bar is until the whole video has been read.
+    if (i >= 0 && $('lift').value === 'auto') { const c = classifyPosture(ps[i], { vw: pw, vh: ph }); if (c.lift) autoLift = c.lift; }
+    const pts = i >= 0 ? LIFTS[liftKey()].prior.map((k) => ps[i][k]).filter((l) => l.visibility >= 0.5) : [];
     prior = pts.length ? { x: (pts.reduce((s, l) => s + l.x, 0) / pts.length) * pw, y: (pts.reduce((s, l) => s + l.y, 0) / pts.length) * ph } : null;
-    if (trackerId() === 'plate3d') { const e = findPlate(img, { ...radii, prior }); findPick = e ? { t, ellipse: e } : null; }
+    if (marker) findPick = null; // picked by a tap: its colour is the marker's
+    else if (trackerId() === 'plate3d') { const e = findPlate(img, { ...radii, prior }); findPick = e ? { t, ellipse: e } : null; }
     else { const c = detectPlates(img, { ...radii, prior }); findPick = c.length ? { t, ellipse: c[0] } : null; }
     drawFind(img);
   }
@@ -346,12 +372,21 @@ async function startFind(video) {
       ctx.strokeStyle = '#58DB3D'; ctx.lineWidth = Math.max(2, pw / 200);
       ctx.beginPath(); ctx.ellipse(e.cx, e.cy, e.a, e.b, e.phi, 0, Math.PI * 2); ctx.stroke();
       $('find-msg').textContent = `Outlined in green. ${Math.round(2 * e.a)} px across, ${Math.round((Math.acos(Math.min(1, e.b / e.a)) * 180) / Math.PI)}° from side-on.`;
-    } else $('find-msg').textContent = 'Couldn’t find it here. Tap the middle of it, or move the slider.';
+    } else $('find-msg').textContent = marker ? 'Tap the middle of the coloured marker.' : 'Couldn’t find it here. Tap the middle of it, or move the slider.';
     $('find-go').disabled = !findPick;
   }
   cv.onclick = (ev) => {
     if (!img) return;
     const r = cv.getBoundingClientRect(), x = ((ev.clientX - r.left) / r.width) * pw, y = ((ev.clientY - r.top) / r.height) * ph;
+    if (marker) {
+      // The marker's colour where it was tapped, and its blob around there, at the video's full resolution.
+      const k = video.videoWidth / pw, X = x * k, Y = y * k, crop = grabRGBA(video, { x0: X - 80, y0: Y - 80, x1: X + 80, y1: Y + 80 });
+      const colour = sampleColour(crop, X, Y), m = colour ? findMarker(crop, colour, { near: { x: X, y: Y } }) : { ok: false };
+      findPick = m.ok && Math.hypot(m.cx - X, m.cy - Y) < Math.max(12, 2 * m.r) ? { t: +$('find-t').value, colour, marker: m, ellipse: { cx: m.cx / k, cy: m.cy / k, a: m.r / k, b: m.r / k, phi: 0 } } : null;
+      drawFind(img);
+      if (!findPick) $('find-msg').textContent = colour ? 'No marker of that colour there. Tap its middle.' : 'That spot has no clear colour. Tap the middle of the coloured marker.';
+      return;
+    }
     const c = detectPlates(img, { ...radii, prior: { x, y } }).filter((e) => Math.hypot(e.cx - x, e.cy - y) < e.a);
     findPick = c.length ? { t: +$('find-t').value, ellipse: c[0] } : null;
     drawFind(img);
@@ -370,7 +405,8 @@ async function readVideo(video, { pw, ph, plate }) {
   const vw = video.videoWidth, vh = video.videoHeight, frames = [], plateFrames = [], tr = createPlateTracker();
   // The 3D tracker (the app's own): locked onto the picked outline (full-frame pixels), followed over the whole
   // picture (offline: never lose the plate to a walk-out), each frame grabbed so the plate is ~100 px across.
-  const three = !!plate && trackerId() === 'plate3d';
+  const three = !!plate && trackerId() === 'plate3d', marker = !!plate && trackerId() === 'marker';
+  const mt = marker ? createMarkerTracker(plate.colour) : null, markerFrames = [], crop = (win) => grabRGBA(video, win);
   const sess = three ? createPlateSession({ vw, vh, radiusM: (num('diam') || PLATE_DIAMETER_M * 100) / 200 }) : null, grabber = three ? createFrameGrabber() : null;
   const pickFull = three ? (() => { const k = vw / pw, e = plate.ellipse; return { cx: (e.cx + 0.5) * k - 0.5, cy: (e.cy + 0.5) * k - 0.5, a: e.a * k, b: e.b * k, phi: e.phi }; })() : null;
   let lockTries = 0;
@@ -409,6 +445,12 @@ async function readVideo(video, { pw, ph, plate }) {
             } else pr = { t: md.mediaTime, ok: false };
           } else pr = { t: md.mediaTime, ok: false };
           plateFrames.push(pr);
+        } else if (marker) {
+          if (md.mediaTime + 1e-3 >= plate.t) {
+            const m = mt.last ? mt.track(crop, md.mediaTime) : mt.init(crop, plate.marker.cx, plate.marker.cy, md.mediaTime);
+            pr = { t: md.mediaTime, ok: !!m.ok, cx: m.cx, cy: m.cy, r: m.r };
+          } else pr = { t: md.mediaTime, ok: false };
+          markerFrames.push(pr);
         } else if (plate) {
           if (md.mediaTime + 1e-3 >= plate.t) {
             const img = grab(video, pw, ph);
@@ -423,7 +465,7 @@ async function readVideo(video, { pw, ph, plate }) {
           } else pr = { t: md.mediaTime, ok: false };
           plateFrames.push(pr);
         }
-        drawPass(i >= 0 ? ps[i] : null, vw, vh, pr && pr.ok ? (three ? { ...pr.e, pw: vw, ph: vh } : { ...tr.ellipse, cx: pr.cx, cy: pr.cy, pw, ph }) : null);
+        drawPass(i >= 0 ? ps[i] : null, vw, vh, pr && pr.ok ? (three ? { ...pr.e, pw: vw, ph: vh } : marker ? { cx: pr.cx, cy: pr.cy, a: pr.r, b: pr.r, phi: 0, pw: vw, ph: vh } : { ...tr.ellipse, cx: pr.cx, cy: pr.cy, pw, ph }) : null);
         const p = Math.min(1, md.mediaTime / (video.duration || 1));
         $('prog').style.width = `${(p * 100).toFixed(1)}%`; $('busy-txt').textContent = `Reading frames… ${Math.round(p * 100)}%`;
       }
@@ -438,7 +480,8 @@ async function readVideo(video, { pw, ph, plate }) {
   });
   $('busy').hidden = true;
   return { vw, vh, frames, dropped, fileFps: estimateFps(frames.map((f) => f.t)),
-    plate: plate && !three ? { pw, ph, initT: plate.t, frames: plateFrames } : null,
+    plate: plate && !three && !marker ? { pw, ph, initT: plate.t, frames: plateFrames } : null,
+    marker: marker ? { initT: plate.t, colour: plate.colour, frames: markerFrames } : null,
     plate3d: three ? { vw, vh, hfovDeg: DEFAULT_HFOV_DEG, initT: plate.t, frames: sess.trackFrames } : null };
 }
 
@@ -465,31 +508,32 @@ function runAnalysis() {
   const frames = scale === 1 ? track.frames : track.frames.map((f) => ({ t: f.t * scale, poses: f.poses }));
   const plateTrack = track.plate ? track.plate.frames.map((f) => ({ t: f.t * scale, ok: f.ok, cx: f.cx, cy: f.cy, shape: f.shape ? { a: f.shape[0], b: f.shape[1], phi: f.shape[2] } : null })) : null;
   const plate3d = track.plate3d ? { ...track.plate3d, frames: track.plate3d.frames.map((f) => ({ ...f, t: f.t * scale })) } : null;
-  if (isWeight() && !(trackerId() === 'plate3d' ? plate3d : plateTrack)) {
+  const markerTrack = track.marker ? track.marker.frames.map((f) => ({ ...f, t: f.t * scale })) : null;
+  if (isWeight() && !({ plate3d, marker: markerTrack }[trackerId()] ?? plateTrack)) {
     result = null; $('ours').hidden = false; $('ref').hidden = true; $('cmp').hidden = true;
     $('ours-verdict').innerHTML = '<div class="verdict info"><b>The weight wasn’t tracked this way for this video</b>Choose the video again to find and track it with this tracker, or measure with the body-pose baseline.</div>';
     $('ours-note').textContent = ''; $('ours-stats').innerHTML = ''; $('ours-tbl').innerHTML = ''; $('save-set').disabled = true;
     return;
   }
   const diam = num('diam');
-  result = analyseSet({ frames, vw: track.vw, vh: track.vh, lift: $('lift').value, fps: captureFps(), heightCm: num('height'), massKg: massKg(),
-    tracker: trackerId(), plateTrack, plate3d, diameterM: diam ? diam / 100 : 0 });
+  if ($('lift').value === 'auto' && autoFor !== track) {
+    const rl = recogniseLift(frames, { vw: track.vw, vh: track.vh });
+    autoFor = track;
+    // Squat, bench and deadlift share their trackers; only the lifted mass's default differs.
+    if (rl.lift) { if (rl.lift !== autoLift) $('mass-mode').value = LIFTS[rl.lift].defaultMass; autoLift = rl.lift; }
+  }
+  result = analyseSet({ frames, vw: track.vw, vh: track.vh, lift: liftKey(), fps: captureFps(), heightCm: num('height'), massKg: massKg(),
+    tracker: trackerId(), plateTrack, plate3d, markerTrack, diameterM: diam ? diam / 100 : 0 });
   comparison = null; $('cmp').hidden = true;
   renderOurs(); $('ours').hidden = false; $('ref').hidden = false;
 }
 
 const BADGE = { reliable: '', fair: '<span class="tag warn">fair</span>', estimate: '<span class="tag warn">estimate</span>' };
-const measurementMode = () => result?.tracker.id === 'plate3d' && $('report-mode').value === 'measurement';
-const reportRows = () => measurementMode() ? result.measurementRows : result.rows;
-$('report-mode').onchange = () => {
-  if (!result) return;
-  renderOurs();
-  if (comparison) { comparison.c = compareSet(reportRows(), comparison.ref, { scaled: result.scaled }); renderComparison(); }
-};
 function renderOurs() {
-  const r = result, rows = reportRows(), fps = captureFps(), counted = r.rows.filter((x) => x.result === 'counted').length, timed = rows.filter((x) => x.velocity === 'ok').length;
+  const r = result, fps = captureFps(), counted = r.rows.filter((x) => x.result === 'counted').length, timed = r.rows.filter((x) => x.velocity === 'ok').length;
   $('frames-note').hidden = false;
-  $('frames-note').innerHTML = `${track.frames.length.toLocaleString()} frames · ${f1(track.fileFps)} fps in the file${fps !== track.fileFps ? ` · analysed as ${fps} fps` : ''} · ${track.dropped ? `<b>${track.dropped} skipped</b> (try a slower analysis speed)` : 'none skipped'}.`;
+  $('frames-note').innerHTML = `${track.frames.length.toLocaleString()} frames · ${f1(track.fileFps)} fps in the file${fps !== track.fileFps ? ` · analysed as ${fps} fps` : ''} · ${track.dropped ? `<b>${track.dropped} skipped</b> (try a slower analysis speed)` : 'none skipped'}.` +
+    ($('lift').value === 'auto' ? ` Lift: <b>${autoLift ? `${LIFTS[autoLift].label}, recognised from the set-up` : 'not recognised from the set-up — analysed as a squat; choose the lift above'}</b>.` : '');
   const view = r.view;
   $('ours-verdict').innerHTML = r.refused ? `<div class="verdict bad"><b>No velocity for this set</b>${esc(r.refused)}.${view && view.threeD ? '' : ' Film closer to side-on (within 25°).'}</div>`
     : view && view.threeD && !view.ok ? '<div class="verdict warn"><b>The plate wasn’t followed cleanly</b>Its outline didn’t behave like one plate on a level bar all set (or was lost too often), so these speeds are estimates. Film with the whole plate in view, nothing passing in front of it.</div>'
@@ -498,14 +542,16 @@ function renderOurs() {
     ? ` In 3D: camera ${Math.round(view.offAxisDeg)}° from side-on · the plate’s facing held steady to ${f1(view.spreadDeg)}° · ${Math.round(view.lost * 100)}% of frames without the plate · “up” taken from the plate (a video carries no gravity: the phone is assumed not rolled about the bar’s own axis).`
     : view ? ` Scale: ${view.scaled ? `${f1(view.mPerPx * 1000)} mm per pixel (tracked at ${track.plate.pw}×${track.plate.ph})` : 'none (no diameter): relative speed only'} · camera ${Math.round(view.offAxisDeg)}° from side-on${view.ok ? (view.offAxisDeg >= 5 ? ', corrected' : '') : ''}.` : '';
   $('ours-note').innerHTML = `Measured at: <b>${esc(r.tracker.label)}</b>.${viewTxt}` + (r.scaled ? '' : ' <b>Speeds are relative (rep 1 = 100%), not m/s.</b>') +
-    (fps < 120 && !(view && view.threeD) ? ` At ${Math.round(fps)} fps, derivative measurements are estimates; physical speed also requires a measured scale.` : '') +
-    (view && view.threeD ? ' The field of view and vertical direction are inferred; all absolute readings are estimates. ' + (measurementMode() ? '<b>Validation mode:</b> each row is a measured lift, including setup or rejected reps. Saving a set uses counted standard reps only.' : 'Only counted reps receive standardized velocities. A missing measurement of the original standard leaves D unknown for the set.') : '');
+    (fps < 120 && !(view && view.threeD) ? ` At ${Math.round(fps)} fps, peak and propulsive velocity are estimates (reliable from 120 fps).` : '') +
+    (view && view.threeD ? ' Each row is one lift of the bar, in order (as a transducer lists them); “Result” is the pose counter’s verdict on that rep.' : '');
   const stat = (k, v, u = '') => `<div class="stat"><div class="k">${k}</div><div class="v">${v}${u ? `<small>${u}</small>` : ''}</div></div>`;
-  $('ours-stats').innerHTML = stat(measurementMode() ? 'Plate lifts found' : 'Reps found', rows.length) + stat('Counted reps', counted) + stat('Standard distance (D)', r.scaled ? f1(r.Dm * 100) : '–', r.scaled ? 'cm' : '') +
-    stat('Tracked', `${Math.round(r.quality * 100)}%`) + stat('With a velocity', timed) + stat('Intra-set fatigue', Number.isFinite(r.fatigue) ? `${(r.fatigue * 100).toFixed(0)}%` : '–');
+  $('ours-stats').innerHTML = stat('Reps found', r.rows.length) + stat('Counted', counted) + stat('Rep-1 distance (D)', r.scaled ? f1(r.Dm * 100) : '–', r.scaled ? 'cm' : '') +
+    stat('Tracked', `${Math.round(r.quality * 100)}%`) + stat('With a velocity', timed) + stat('Intra-set fatigue', Number.isFinite(r.fatigue) ? `${(r.fatigue * 100).toFixed(0)}%` : '–') +
+    // The bar's own count (low-pass filtered height, one swing per half rep), whatever the pose made of it.
+    (r.scaled && r.view ? stat('Bar-path reps', countBarReps(r.samples, { lift: r.lift }).reps.length) : '');
   const u = r.scaled ? 'm/s' : '%';
-  $('ours-tbl').innerHTML = `<thead><tr><th>${measurementMode() ? 'Lift' : 'Rep'}</th><th>Pose verdict</th><th>T (s)</th><th>${measurementMode() ? 'Own-distance vel.' : 'Standard D/T'} (${u})</th><th>${measurementMode() ? 'vs first lift' : 'vs standard'}</th><th>Propulsive</th><th>Peak vel.</th><th>Avg power</th></tr></thead><tbody>` +
-    rows.map((x) => {
+  $('ours-tbl').innerHTML = `<thead><tr><th>Rep</th><th>Result</th><th>T (s)</th><th>Mean vel. (${u})</th><th>vs rep 1</th><th>Propulsive</th><th>Peak vel.</th><th>Avg power</th></tr></thead><tbody>` +
+    r.rows.map((x) => {
       const ok = x.velocity === 'ok';
       const mv = ok ? (r.scaled ? f2(x.mcv) : `${Math.round(x.rel * 100)}`) + (x.estimate ? ` <span class="tag warn" title="${esc(x.estimate)}">estimate</span>` : '') : `<span class="cap">${esc(x.why)}</span>`;
       return `<tr><td>${x.n}</td><td><span class="tag ${x.result === 'counted' ? 'ok' : x.result === 'short' ? 'bad' : ''}">${x.result}</span></td>
@@ -519,7 +565,7 @@ function renderOurs() {
 // ── Velocity per rep, stored per set ─────────────────────
 $('save-set').onclick = () => {
   if (!result) return;
-  const lift = $('lift').value;
+  const lift = liftKey();
   saveSetRecord(localStorage, buildSetRecord(result, { lift, exercise: LIFTS[lift].exercise, loadKg: num('load'), typedRir: $('rir').value === '' ? null : parseFloat($('rir').value) }));
   renderSets(); $('save-set').disabled = true; $('save-set').textContent = 'Saved';
 };
@@ -546,14 +592,14 @@ $('compare').onclick = () => {
   const ref = parseReference($('ref-text').value);
   const el = $('cmp');
   if (!ref.length) { el.hidden = false; $('cmp-verdict').innerHTML = '<div class="verdict info"><b>No reference numbers found</b>Type one mean velocity per line, for example 0.62.</div>'; $('cmp-stats').innerHTML = ''; $('cmp-tbl').innerHTML = ''; $('cmp-metrics').innerHTML = ''; $('save').disabled = true; return; }
-  comparison = { ref, c: compareSet(reportRows(), ref, { scaled: result.scaled }) };
+  comparison = { ref, c: compareSet(result.rows, ref, { scaled: result.scaled }) };
   renderComparison(); el.hidden = false;
 };
 
 function renderComparison() {
   const { c } = comparison, mv = c.mv, scaled = result.scaled;
   const verdict = !scaled
-    ? `<div class="verdict info"><b>No m/s to compare</b>${isWeight() ? 'Enter the measured diameter in step 1 to compare estimated physical velocity.' : 'Body-pose tracking has no measured physical scale, so entered height does not enable m/s.'} Velocity loss (below) needs no scale.</div>`
+    ? `<div class="verdict info"><b>No m/s to compare</b>${isWeight() ? 'Enter the diameter in step 1' : 'Add your height in step 1'} to compare mean velocity. Velocity loss (below) needs no scale.</div>`
     : mv.n === 0 ? `<div class="verdict info"><b>Nothing to compare yet</b>No rep has both an Arete velocity and a reference value.</div>`
     : `<div class="verdict ${passes(mv) ? 'ok' : 'bad'}"><b>${passes(mv) ? 'Within target' : 'Outside target'}: ${mv.mape.toFixed(1)}% mean error on mean velocity</b>Target ≤ ${TARGET_PCT}%. Average difference ${pct(mv.biasPct)} (${mv.bias >= 0 ? '+' : ''}${mv.bias.toFixed(3)} m/s), worst rep ${mv.maxPct.toFixed(1)}%.</div>`;
   const detect = c.detected === c.refReps ? '' : `<div class="verdict warn"><b>Rep count differs: Arete found ${c.detected}, the reference ${c.refReps}</b>Reps are matched in order, so check the table below.</div>`;
@@ -578,7 +624,7 @@ function renderComparison() {
   // Other metrics, where the reference has them; plus the alternatives on the same set.
   const alt = (k) => compareSet(result.rows.map((r) => ({ ...r, velocity: Number.isFinite(r[k]) ? 'ok' : 'none', mcv: r[k] })), comparison.ref, { scaled: true }).mv;
   const line = (label, a, note = '') => (a && a.n ? `<tr><td>${label}${note ? ` <span class="cap">${note}</span>` : ''}</td><td>${a.n}</td><td>${a.mape.toFixed(1)}%</td><td>${pct(a.biasPct)}</td><td>${a.maxPct.toFixed(1)}%</td></tr>` : '');
-  const rows = line(measurementMode() ? 'Plate measurement (own distance / T)' : 'Mean velocity (D / T)', c.mv) + (!measurementMode() ? line('Mean velocity, own distance (d / T)', c.mvOwn, 'comparison only') : '') +
+  const rows = line('Mean velocity (D / T)', c.mv) + line('Mean velocity, own distance (d / T)', c.mvOwn, 'optional rule') +
     line('Peak velocity', c.pv, result.rows[0]?.badges.pv === 'reliable' ? '' : 'estimate at this frame rate') + line('Range of motion', c.rom) + line('Average power', c.power) +
     (isWeight() ? line('Body-pose baseline', alt('poseMcv'), 'same set, for comparison') : '') + line('Today’s live panel method', alt('liveMv'), 'for comparison');
   $('cmp-metrics').innerHTML = rows ? `<thead><tr><th>Metric</th><th>Reps</th><th>Mean error</th><th>Average diff.</th><th>Worst</th></tr></thead><tbody>${rows}</tbody>` : '';
@@ -590,8 +636,8 @@ $('save').onclick = () => {
   const { c } = comparison;
   const sessions = load();
   sessions.push({
-    at: Date.now(), lift: LIFTS[$('lift').value].label, angle: $('angle').value, distance: num('dist'), reference: $('ref-src').value,
-    tracker: result.tracker.id === 'plate3d' ? (measurementMode() ? 'plate3d-measurement' : 'plate3d-standard') : result.tracker.id, fps: captureFps(), loadKg: num('load'), heightCm: num('height'), offAxisDeg: result.view ? result.view.offAxisDeg : null,
+    at: Date.now(), lift: LIFTS[liftKey()].label, angle: $('angle').value, distance: num('dist'), reference: $('ref-src').value,
+    tracker: result.tracker.id, fps: captureFps(), loadKg: num('load'), heightCm: num('height'), offAxisDeg: result.view ? result.view.offAxisDeg : null,
     pairs: c.reps.filter((x) => x.mv).map((x) => x.mv), detected: c.detected, refReps: c.refReps,
     reps: c.reps.map((x) => ({ i: x.i, result: x.ours ? x.ours.result : 'missing', oursMv: x.ours && x.ours.velocity === 'ok' ? x.ours.mcv : NaN, refMv: x.ref ? x.ref.mv : NaN,
       oursLoss: x.loss ? x.loss.ours : NaN, refLoss: x.loss ? x.loss.ref : NaN, oursPv: x.ours ? x.ours.pv : NaN, refPv: x.ref ? x.ref.pv : NaN, oursRom: x.ours ? x.ours.romCm : NaN, refRom: x.ref ? x.ref.romCm : NaN })),
@@ -601,7 +647,7 @@ $('save').onclick = () => {
 };
 
 // ── Accuracy table ───────────────────────────────────────
-const TRACKER_LABEL = { plate3d: 'plate (3D, legacy)', 'plate3d-measurement': 'plate (3D, own distance)', 'plate3d-standard': 'plate (3D, standard D/T)', plate: 'plate (2D)', dumbbell: 'dumbbell head', 'pose-baseline': 'pose baseline', 'pose-hand': 'hand' };
+const TRACKER_LABEL = { plate3d: 'plate (3D)', plate: 'plate (2D)', dumbbell: 'dumbbell head', 'pose-baseline': 'pose baseline', 'pose-hand': 'hand' };
 function renderAccuracy() {
   const sessions = load(), t = accuracyTable(sessions);
   $('acc-count').textContent = sessions.length ? `${sessions.length} set${sessions.length === 1 ? '' : 's'}` : '';
@@ -646,7 +692,8 @@ $('save-track').onclick = () => {
   download('arete-tracks.json', JSON.stringify({ v: 2, vw: track.vw, vh: track.vh, fileFps: track.fileFps, dropped: track.dropped,
     frames: track.frames.map((f) => ({ t: r4(f.t), p: f.poses.map((p) => p.map((l) => [r4(l.x), r4(l.y), r4(l.visibility)])) })),
     plate: track.plate ? { ...track.plate, frames: track.plate.frames.map((f) => ({ t: r4(f.t), ok: f.ok, cx: r4(f.cx), cy: r4(f.cy), shape: f.shape ? f.shape.map(r4) : null })) } : null,
-    plate3d: track.plate3d ? { ...track.plate3d, frames: track.plate3d.frames.map((f) => (f.ok && f.e ? { t: r4(f.t), e: [f.e.cx, f.e.cy, f.e.a, f.e.b, f.e.phi].map(r4), fit: r4(f.fit) } : { t: r4(f.t) })) } : null }), 'application/json');
+    plate3d: track.plate3d ? { ...track.plate3d, frames: track.plate3d.frames.map((f) => (f.ok && f.e ? { t: r4(f.t), e: [f.e.cx, f.e.cy, f.e.a, f.e.b, f.e.phi].map(r4), fit: r4(f.fit) } : { t: r4(f.t) })) } : null,
+    marker: track.marker ? { ...track.marker, frames: track.marker.frames.map((f) => (f.ok ? { t: r4(f.t), m: [r4(f.cx), r4(f.cy), r4(f.r)] } : { t: r4(f.t) })) } : null }), 'application/json');
 };
 $('load-track').onclick = () => $('track-file').click();
 $('track-file').onchange = async (e) => {
@@ -655,8 +702,10 @@ $('track-file').onchange = async (e) => {
   try {
     const j = JSON.parse(await f.text());
     track = { vw: j.vw, vh: j.vh, fileFps: j.fileFps, dropped: j.dropped || 0, frames: j.frames.map((fr) => ({ t: fr.t, poses: fr.p.map((p) => p.map(([x, y, visibility]) => ({ x, y, visibility }))) })), plate: j.plate || null,
-      plate3d: j.plate3d ? { ...j.plate3d, frames: j.plate3d.frames.map((f) => (f.e ? { t: f.t, ok: true, e: { cx: f.e[0], cy: f.e[1], a: f.e[2], b: f.e[3], phi: f.e[4] }, fit: f.fit ?? NaN } : { t: f.t, ok: false })) } : null };
+      plate3d: j.plate3d ? { ...j.plate3d, frames: j.plate3d.frames.map((f) => (f.e ? { t: f.t, ok: true, e: { cx: f.e[0], cy: f.e[1], a: f.e[2], b: f.e[3], phi: f.e[4] }, fit: f.fit ?? NaN } : { t: f.t, ok: false })) } : null,
+      marker: j.marker ? { ...j.marker, frames: j.marker.frames.map((f) => (f.m ? { t: f.t, ok: true, cx: f.m[0], cy: f.m[1], r: f.m[2] } : { t: f.t, ok: false })) } : null };
     if (track.plate3d && trackerId() !== 'plate3d' && !track.plate) { $('tracker').value = 'plate3d'; trackerChanged(); }
+    else if (track.marker && trackerId() !== 'marker' && !track.plate && !track.plate3d) { $('tracker').value = 'marker'; trackerChanged(); }
     $('save-track').disabled = false; runAnalysis();
   } catch { $('frames-note').hidden = false; $('frames-note').textContent = 'That file isn’t a track file saved from this page.'; }
 };

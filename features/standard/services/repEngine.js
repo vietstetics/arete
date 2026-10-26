@@ -160,9 +160,14 @@ export function createRepCounter(opts = {}) {
  *                (rep.shortSwing).
  *   emitFinish — return { type: 'finish' } the moment a rep reaches the
  *                standard's Finish, before the rep is over.
+ *   invert     — the lift comes first (deadlift: up from the floor and back
+ *                down). The counter runs on the height upside down; every
+ *                value it gives back (bottom, top, the standard) is the
+ *                height itself. Start = the floor, Finish = lockout.
  */
 export function createReturnCounter(opts = {}) {
   const o = { ...DEFAULTS, ...opts };
+  const sg = o.invert ? -1 : 1;
   let standard = null;
   let reps = [];
   // 'top' = at lockout (tracking how high it gets), 'down' = descending
@@ -195,7 +200,7 @@ export function createReturnCounter(opts = {}) {
   function complete(lockout, t, v, turnedDown) {
     const unclear = repFrames > 0 && (repLow / repFrames > o.unclearShare || gap > o.maxGap);
     const sway = swayRange();
-    const base = { n: reps.length + 1, bottom: lockout, top: trough, topT: troughT, sway, shortSwing: false };
+    const base = { n: reps.length + 1, bottom: sg * lockout, top: sg * trough, topT: troughT, sway, shortSwing: false };
     let event;
     if (!standard) {
       if (unclear) {
@@ -209,7 +214,7 @@ export function createReturnCounter(opts = {}) {
       } else {
         standard = { start: startTop, finish: trough, sway };
         const rep = { ...base, result: 'counted', shortStart: false, shortFinish: false, isStandard: true };
-        reps.push(rep); event = { type: 'standard', standard: { ...standard, tol: tol() }, rep };
+        reps.push(rep); event = { type: 'standard', standard: outward(), rep };
       }
     } else {
       const shortStart = lockout < standard.start - tol();
@@ -224,9 +229,12 @@ export function createReturnCounter(opts = {}) {
     return event;
   }
 
-  function push(t, value, confident = true, sway = null) {
+  const outward = () => ({ ...standard, start: sg * standard.start, finish: sg * standard.finish, tol: tol() });
+
+  function push(t, raw, confident = true, sway = null) {
     if (!Number.isFinite(t) || t <= lastT) return null;
     lastT = t;
+    const value = sg * raw;
     const good = confident && Number.isFinite(value);
     if (!started) { lastConfT = t; started = true; }
     const inRep = phase !== 'top';
@@ -239,7 +247,7 @@ export function createReturnCounter(opts = {}) {
     if (peak === null) { peak = value; return null; }
 
     if (phase === 'top') {
-      if (value > peak) { peak = value; if (finishing && peak > finishing.bottom) finishing.bottom = peak; }
+      if (value > peak) { peak = value; if (finishing && peak > sg * finishing.bottom) finishing.bottom = sg * peak; }
       else if (value < peak - H()) beginDescent(peak, value, t);
       return null;
     }
@@ -270,7 +278,7 @@ export function createReturnCounter(opts = {}) {
     push,
     relock() { standard = null; },
     override(n, result) { const r = reps.find((x) => x.n === n); if (r) r.result = result; return r; },
-    get standard() { return standard ? { ...standard, tol: tol() } : null; },
+    get standard() { return standard ? outward() : null; },
     get reps() { return reps.slice(); },
     summary() {
       return {
@@ -324,10 +332,15 @@ export function armVisibility(pose, side) {
 // Squat values are % of standing hip height: ~100 standing, ~50 at parallel.
 // Bench values are 100 + bar height above the shoulders in % of the body
 // length (shoulder width, or torso length when filmed side-on).
+// Deadlift values are the hands' height above the feet in % of leg length
+// (thigh + shin, the same in any posture): ~25–35 with the bar on the floor,
+// ~85–95 at lockout. The set-up is bent over the bar, so nothing is measured
+// standing.
 
 export const HEIGHT_LIFTS = {
   squat: { point: [23, 24], ref: [27, 28], offset: 0 },
   bench: { point: [15, 16], ref: [11, 12], offset: 100 },
+  deadlift: { point: [15, 16], ref: [27, 28], offset: 0 },
 };
 
 const LEGS = [[23, 25, 27], [24, 26, 28]];
@@ -346,7 +359,7 @@ export function midpoint(pose, idx, vw, vh, minVis = 0.55) {
 const median = (xs) => { const s = xs.slice().sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
 /**
- * Height tracker for 'squat' or 'bench'.
+ * Height tracker for 'squat', 'bench' or 'deadlift'.
  *   calibrate(pose, vw, vh) → { ok, why }  (call on steady frames before rep 1)
  *   lock() → true once enough frames were collected
  *   measure(pose, vw, vh)  → { ok, value, point }
@@ -363,6 +376,16 @@ export function createHeightTracker(kind, { minVis = 0.55, refFollow = 0.05, min
   const mid = (pose, idx, vw, vh) => midpoint(pose, idx, vw, vh, minVis);
 
   function bodyLength(pose, vw, vh) {
+    if (kind === 'deadlift') {
+      const feet = mid(pose, spec.ref, vw, vh);
+      if (!feet) return { why: 'feet' };
+      const px = (i) => ({ x: pose[i].x * vw, y: pose[i].y * vh });
+      const legs = LEGS.filter((l) => l.every((i) => (pose[i].visibility ?? 0) >= minVis))
+        .map(([h, k, a]) => Math.hypot(px(h).x - px(k).x, px(h).y - px(k).y) + Math.hypot(px(k).x - px(a).x, px(k).y - px(a).y));
+      if (!legs.length) return { why: 'hips' };
+      if (!mid(pose, spec.point, vw, vh)) return { why: 'hands' };
+      return { len: Math.max(...legs), ref: feet.y };
+    }
     if (kind === 'squat') {
       const hip = mid(pose, spec.point, vw, vh), feet = mid(pose, spec.ref, vw, vh);
       if (!feet) return { why: 'feet' };
@@ -411,9 +434,10 @@ export function createHeightTracker(kind, { minVis = 0.55, refFollow = 0.05, min
       if (r) refY += refFollow * (r.y - refY); // follows the feet / shoulders slowly, never the moving body
       const point = mid(pose, spec.point, vw, vh);
       // Bar height in body units: shoulders above the feet (squat), hands
-      // above the shoulders (bench).
+      // above the shoulders (bench), hands above the feet (deadlift).
       let bar = NaN;
       if (kind === 'squat') { const sh = mid(pose, [11, 12], vw, vh); if (sh) bar = (refY - sh.y) / scale; }
+      else if (kind === 'deadlift') { if (point) bar = (refY - point.y) / scale; }
       else if (point) {
         bar = (refY - point.y) / scale;
         for (const [a, b] of [[11, 15], [12, 16]]) {
@@ -429,7 +453,7 @@ export function createHeightTracker(kind, { minVis = 0.55, refFollow = 0.05, min
     lineY(value) { return refY - ((value - spec.offset) * scale) / 100; },
     reset() { lens = []; refs = []; vals = []; scale = 0; refY = null; calValue = NaN; shoulders = []; standShoulderPx = 0; armLens = []; },
     get locked() { return scale > 0; },
-    /** Pixels per body unit (locked before rep 1). */
+    /** Pixels per body unit (locked before rep 1): leg length for the deadlift. */
     get scale() { return scale; },
     /** Squat: standing shoulder height above the feet, in pixels. */
     get standShoulderPx() { return standShoulderPx; },

@@ -64,6 +64,7 @@ export function trackerModeFor(exercise = {}) {
   const name = String(exercise.name || '').trim().toLowerCase();
   if (/^(?:barbell |back |front |goblet )?squat$/.test(name)) return 'squat';
   if (/^(?:barbell |dumbbell |incline |decline |flat )*bench press$/.test(name)) return 'bench';
+  if (/^(?:barbell |conventional |sumo )?deadlift$/.test(name)) return 'deadlift';
   if (/^(?:pull[ -]?ups?|chin[ -]?ups?)$/.test(name)) return 'pullup';
   if (/\bcurl\b/.test(name) && !/\bleg\b/.test(name)) return 'curl';
   if (/^(?:machine )?chest press$/.test(name)) return 'press';

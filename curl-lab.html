@@ -30,12 +30,6 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%}
 .stage video{object-fit:cover}
 .stage video.mirror{transform:scaleX(-1)}
-#target-canvas{z-index:2;pointer-events:none}
-#target-canvas.selecting{pointer-events:auto;touch-action:none;cursor:crosshair}
-.stage.target-selecting .vp{visibility:hidden;pointer-events:none}
-.stage.target-selecting .status{left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);pointer-events:none}
-.target-help{padding:10px 12px;border-radius:12px;background:var(--wash);font-size:12px;line-height:1.45;margin-top:10px}
-.field select{height:44px;border-radius:12px;border:0;background:var(--wash);padding:0 10px;font:inherit;font-size:14px;color:var(--ink)}
 
 .top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;z-index:3;background:linear-gradient(rgba(14,17,12,.75),rgba(14,17,12,0))}
 .ibtn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.12)}
@@ -209,7 +203,6 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
   <div class="stage" id="stage">
     <video id="video" playsinline muted></video>
     <canvas id="canvas"></canvas>
-    <canvas id="target-canvas" aria-label="Draw a box around the bar or weight"></canvas>
     <div class="top">
       <a class="ibtn" href="workouts.html" aria-label="Back to Training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></a>
       <div class="ttl">Curl standard <em>Prototype</em></div>
@@ -245,14 +238,10 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
         <label class="field">Your height (cm)<input id="height-in" type="number" inputmode="numeric" min="120" max="230" placeholder="e.g. 180"></label>
         <label class="field"><span id="kg-label">Weight on the bar (kg)</span><input id="kg-in" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Optional"></label>
       </div>
-      <div id="target-settings" hidden>
-        <label class="field">Weight tracking<select id="tracking-method"><option value="template">Select bar / weight · Marticles (experimental)</option><option value="plate3d">Automatic plate / existing body baseline</option></select></label>
-        <p class="target-help">After starting, draw a tight box around a distinctive bar end or weight detail. Keep the phone fixed and film side-on. This follows the selected point and draws its path; velocity stays relative. Fixed-template tracking can lose a target when its size or appearance changes. <a href="features/velocity/third_party/barbell-path-tracker/UPSTREAM.md" target="_blank" rel="noopener">Marticles · MIT licence</a></p>
-      </div>
       <label class="field">Equipment / setup ID<input id="equipment-in" type="text" maxlength="160" placeholder="Optional, e.g. home bench + straight bar"></label>
       <p class="hint">Use the same setup ID across sessions to build a personal profile. Different machines or exercise variations need separate IDs.</p>
-      <label class="field" id="diameter-field" hidden>Known outer plate diameter (cm)<input id="diameter-in" type="number" inputmode="decimal" min="5" max="100" step="0.1" placeholder="Leave blank for relative speed"></label>
-      <p class="hint" id="fields-hint">Body tracking shows relative speed. A known plate diameter enables estimated m/s; camera geometry still needs real-world validation. The weight lets you compare sets at the same load.</p>
+      <label class="field" id="diameter-field" hidden>Outer plate diameter (cm)<input id="diameter-in" type="number" inputmode="decimal" min="5" max="100" step="0.1" placeholder="45"></label>
+      <p class="hint" id="fields-hint">With a plate in view, bar speed is measured from the plate in m/s (a standard 45 cm plate unless you enter another size). Without one, your height turns camera movement into m/s. The weight lets you compare sets at the same load.</p>
       <section class="guide" id="guide" aria-labelledby="guide-h"></section>
       <p class="hint">Gym clutter in the background is fine. Video is processed on your phone and never uploaded.</p>
       <div class="acts">
@@ -272,8 +261,6 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="meter-l"><span>Start</span><span>Finish</span></div>
       <div class="chips" id="chips" aria-label="Reps"></div>
       <div class="acts">
-        <button class="btn s" id="target-btn" hidden>Select weight</button>
-        <button class="btn s" id="target-resume" hidden>Resume video</button>
         <button class="btn s" id="relock-btn">Re-lock standard</button>
         <button class="btn p" id="end-btn">End set</button>
       </div>
@@ -289,14 +276,9 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
       <div class="chart" id="chart-wrap" hidden><svg id="chart" viewBox="0 0 320 150" role="img" aria-label="Nose height through the set"></svg></div>
       <p class="hint">Tap a rep to change its result if the camera got it wrong.</p>
       <div class="list" id="replist"></div>
+      <p class="hint" id="auto-note" hidden></p>
       <p class="hint" id="workout-save" role="status"></p>
       <a class="btn s" id="workout-return" href="workouts.html?tab=log" hidden>Return to workout</a>
-      <div id="target-tools" hidden>
-        <p class="hint">Selected-target path: relative, with no assumed physical diameter. BarbellCV runs separately on your computer; its 2D path-speed convention is shown separately from Arete's vertical rep measurements.</p>
-        <div class="acts"><button class="btn s" id="target-export">Save path for BarbellCV</button><button class="btn s" id="barbellcv-import">Import BarbellCV analysis</button></div>
-        <input id="barbellcv-file" type="file" accept=".json,application/json" hidden>
-      </div>
-      <div id="external-analysis"></div>
       <div class="acts">
         <label class="field">Reported RPE<input id="rpe-in" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="Optional"></label>
         <label class="field">Reported RIR<input id="rir-in" type="number" inputmode="decimal" min="0" max="10" step="0.5" placeholder="Optional"></label>
@@ -361,27 +343,25 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 <link rel="stylesheet" href="css/velocity-coach.css">
 <script type="module">
 import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, armExtension, REACH_DEFAULTS, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
-import { concentricVelocity, lossBand } from './features/standard/services/velocity.js';
+import { concentricVelocity, metresPerUnit, lossBand, BODY as PROPORTIONS } from './features/standard/services/velocity.js';
 import { createPlateSession } from './features/velocity/services/live/plateSession.js';
 import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
 import { requestMotionPermission, createMotionWatch } from './features/velocity/services/live/motion.js';
 import { barMetrics } from './features/velocity/services/bar3d.js';
-import { standardizeLifts, standardizeMeasurements } from './features/velocity/services/live/repVelocity.js';
+import { createLiftDetector, countBarReps } from './features/velocity/services/sbd.js';
 import { createFrameClock } from './features/velocity/services/live/frameClock.js';
 import { buildLiveSetRecord, saveSetRecord } from './features/velocity/services/record.js';
 import { parseWorkoutContext, attachTrackedSet, canonicalExerciseId, gatherPredictionHistory } from './features/velocity/services/workout.js';
 import { coachMetrics, renderCoachMetrics } from './features/velocity/services/coachMetrics.js';
 import { predictionsForSet } from './features/velocity/services/predictions.js';
-import { createTargetSession } from './features/velocity/services/live/targetSession.js';
-import { videoPoint, screenPoint, boxFromPoints } from './features/velocity/services/live/targetSelection.js';
-import { parseBarbellCvAnalysis } from './features/velocity/services/externalAnalysis.js';
 
 // Exercise setups. Curl: elbow angle, judged at the top of each rep.
 // Squat and bench: height (hips above the feet, bar above the shoulders),
 // judged when you are back up, so the rep counts as you stand or lock out.
 // Pull-ups: nose height below a bar line locked at the hands; judged when
 // you are back in your hang, against rep 1's hang, top and swing.
-// ?ex=squat / ?ex=bench / ?ex=pullup pick the lift.
+// ?ex=squat / ?ex=bench / ?ex=deadlift / ?ex=pullup pick the lift; ?ex=auto
+// recognises squat, bench or deadlift from the set-up.
 const EXERCISES = {
   curl: { title: 'Curl standard', name: 'Bicep curl · one arm', part: 'arm', measure: 'elbow angle', start: 'stretch', finish: 'top',
     joints: { left: [11, 13, 15], right: [12, 14, 16] },
@@ -415,6 +395,25 @@ const EXERCISES = {
     fmt: (v) => `${Math.round(v - 100)}`,
     note: 'Bar height above your shoulders, relative to your build.',
     demo: { plan: [[205, 118], [205, 120], [205, 117], [205, 150], [205, 118], [175, 118], [205, 119]] } },
+  // Concentric first: from the floor to lockout and back. Tracked at the hands (they hold the bar), in leg lengths.
+  deadlift: { height: 'deadlift', concentricFirst: true, title: 'Deadlift standard', name: 'Deadlift · range standard', part: 'hands', measure: 'hand height', start: 'floor', finish: 'lockout',
+    limbs: [[23, 25, 27], [24, 26, 28], [11, 13, 15], [12, 14, 16]],
+    setup: 'Phone at hip height, 3–4 m away, head to feet in frame',
+    intro: 'Your <b>first rep sets the standard</b>: the bar on the floor at the start and how tall you stand at lockout. Every rep after must lock out as tall and go back down to the floor to count. Slowing down is fine.',
+    rep1: 'Rep 1 sets the standard — pull to lockout, stand tall, back to the floor',
+    finding: 'Set up at the bar where the phone sees you head to toe',
+    still: 'Hold your set-up still — then pull',
+    lost: 'Can’t see your hands clearly',
+    why: { hands: 'Can’t see your hands — keep your side nearest the phone in view' },
+    fmt: (v) => `${Math.round(v)}%`,
+    note: 'Hand height as a % of your leg length.',
+    demo: { plan: [[30, 88], [30, 87], [30, 89], [30, 70], [30, 88], [48, 88], [30, 88]] } },
+  // ?ex=auto, until the set-up has said which lift it is (then EX is that lift's entry).
+  auto: { auto: true, title: 'Squat · bench · deadlift', name: 'Squat, bench or deadlift · recognised', part: 'body', measure: '', start: 'start', finish: 'finish',
+    setup: 'Phone 3–4 m away, about 45° to the side, head to feet and the near plate in view',
+    intro: 'Get set for your lift. Arete <b>recognises a squat, bench or deadlift from your set-up</b> — the bar on your back, arms up from the bench, or hands on the bar at your shins — then counts it as that lift: your <b>first rep sets the standard</b>, and every rep after must match it.',
+    finding: 'Get set for your lift — recognising squat, bench or deadlift',
+    fmt: (v) => `${Math.round(v)}` },
   row: { row: true, title: 'T-bar row', name: 'T-bar row · hands', part: 'hands', measure: 'arm reach', start: 'hang', finish: 'top',
     setup: 'Phone 2–3 m away, side-on or at an angle',
     intro: 'Tracked at your <b>hands</b> only, from any angle. Your <b>first rep sets the standard</b>: how long your arms hang and how high you pull. Every rep after must reach both to count. Speed is live in the top-right corner.',
@@ -457,14 +456,15 @@ const EXERCISES = {
     note: 'Nose height below the bar, in % of your upper arm (below 0 = above the bar).' },
 };
 const EXQ = new URLSearchParams(location.search).get('ex');
-const EXK = EXERCISES[EXQ] ? EXQ : 'curl';
-const EX = EXERCISES[EXK];
+const AUTO = EXQ === 'auto';
+let EXK = EXERCISES[EXQ] ? EXQ : 'curl';
+let EX = EXERCISES[EXK];
 const requestedSource = new URLSearchParams(location.search).get('velocitySource');
 const requestedName = new URLSearchParams(location.search).get('exerciseName') || '';
 const ARMS = EX.joints;
 const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
 // How still you must hold before rep 1 (setting up must never count as a rep).
-const STILL_BANDS = { curl: [8], squat: [4], bench: [6], press: [8], row: [6], pullup: [5, 0.06, 0.06] };
+const STILL_BANDS = { curl: [8], squat: [4], bench: [6], deadlift: [5], auto: [5], press: [8], row: [6], pullup: [5, 0.06, 0.06] };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // What to fix when the tracker can't lock on (squat and bench).
@@ -554,6 +554,24 @@ GUIDES.press = {
   ],
   note: 'Keep shoulder, elbow and wrist in frame the whole set. Add your height for speed in m/s.',
 };
+GUIDES.deadlift = {
+  svg: GUIDES.squat.svg,
+  items: [
+    ['best', 1, 'At 45°, in front or behind', '3–4 m away. Sees your hands, hips and feet, and the face of a plate: bar speed is measured from the plate itself, in 3D.'],
+    ['ok', 2, 'Side-on', 'Counts reps and measures the plate too. Straight in front or behind, the plates are edge-on, so speed comes from your body (an estimate).'],
+    ['avoid', 3, 'Closer than about 2.5 m', 'Your feet and the whole plate have to stay in frame from the floor to lockout.'],
+  ],
+  note: '<b>Height:</b> lens at hip height (about 1 m), portrait. Prop the phone up rather than holding it. A standard 45 cm plate (bumper or 20 kg) gives the scale.',
+};
+GUIDES.auto = {
+  svg: GUIDES.squat.svg,
+  items: [
+    ['best', 1, 'At 45°, 3–4 m away', 'Squat and deadlift: in front or behind, lens at hip height. Bench: past your feet. The near plate shows its face, so bar speed is measured from the plate, in 3D.'],
+    ['ok', 2, 'Side-on', 'Counts reps and measures the plate too.'],
+    ['avoid', 3, 'Closer than about 2.5 m', 'Your feet, your hands and the whole plate have to stay in frame for the whole set.'],
+  ],
+  note: 'Get set and hold still for a moment: the lift is recognised from how you hold the bar — on your back (squat), arms up from the bench (bench), or hands at your shins (deadlift). Prop the phone up rather than holding it.',
+};
 GUIDES.tbar = {
   svg: GUIDES.curl.svg,
   items: [
@@ -588,7 +606,7 @@ function renderGuide() {
 
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
-const LAST_KEY = EXK === 'curl' ? 'arete_curl_lab_last' : `arete_${EXK}_lab_last`;
+let LAST_KEY = EXK === 'curl' ? 'arete_curl_lab_last' : `arete_${EXK}_lab_last`;
 const BODY = [[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[24,26],[26,28]];
 const MIN_VIS = 0.55;      // joints below this are treated as unseen
 const CALIB_SECS = 0.8;    // steady, visible body needed before rep 1
@@ -601,9 +619,10 @@ const armVisibility = (p, s) => ARMS[s].reduce((t, i) => t + (p[i].visibility ??
 let landmarker = null, stream = null, facing = EX.facing || 'user', source = 'camera';
 let armMode = 'auto', side = null, visSum = { left: 0, right: 0 };
 let counter = null, euro = oneEuro(), center = null;
-const tracker = EX.height ? createHeightTracker(EX.height, { minVis: MIN_VIS }) : null;
+let tracker = EX.height ? createHeightTracker(EX.height, { minVis: MIN_VIS }) : null;
+const detector = AUTO ? createLiftDetector() : null;
 const pu = EX.pullup ? createPullupTracker({ minVis: MIN_VIS }) : null;
-const gate = createStillGate({ secs: 1, bands: STILL_BANDS[EXK] });
+let gate = createStillGate({ secs: 1, bands: STILL_BANDS[EXK] });
 let armed = false; // pull-ups: hanging still on a locked bar, counting
 let phase = 'idle'; // idle → finding → settle → ready → live → done
 let steadySince = null, lostSince = null, trace = [], lastVideoT = -1, raf = 0;
@@ -628,129 +647,12 @@ const workoutContext = parseWorkoutContext(location.search);
 // worked out again with everything the set showed (which way the plate
 // faces, the camera's focal length) for the numbers that are kept. Without
 // a plate in view, speed falls back to the body — an estimate, and labelled.
-const PLATE_ON = !!EX.height && requestedSource !== 'hand' && !/dumbbell|goblet/i.test(requestedName);
-const TARGET_CAPABLE = ['curl','squat','bench'].includes(EXK) && requestedSource !== 'hand';
-const manualTracking = () => TARGET_CAPABLE && !demo && $('tracking-method').value==='template';
-let targetSess=null,targetRes=null,targetFinal=null,targetPlan=null,targetSelecting=false,targetDrag=null,targetCandidate=null,targetPath=[],targetMoved=false,externalAnalysis=null;
-const targetCanvas=$('target-canvas'),targetCtx=targetCanvas.getContext('2d');
-
-function targetSetup() {
-  targetSess=null;targetRes=null;targetFinal=null;targetPlan=null;targetPath=[];targetDrag=null;targetCandidate=null;targetMoved=false;externalAnalysis=null;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  targetSelecting=manualTracking();
-  targetCanvas.classList.toggle('selecting',targetSelecting);
-  $('stage').classList.toggle('target-selecting',targetSelecting);
-  $('target-btn').hidden=!manualTracking();
-  $('target-resume').hidden=true;
-  $('target-btn').textContent='Select weight';
-  if(!manualTracking()){targetDraw();return;}
-  barSource='template';
-  const vw=video.videoWidth,vh=video.videoHeight,s=Math.min(1,480/Math.max(vw,vh));
-  targetPlan={vw,vh,w:Math.round(vw*s),h:Math.round(vh*s)};
-  grabber=grabber||createFrameGrabber();
-  if(source==='file')video.pause();
-  if(source==='camera'){
-    motion=motion||createMotionWatch();const generation=startGeneration;
-    (motionAsk||Promise.resolve(true)).then(ok=>{if(ok&&generation===startGeneration&&phase!=='done'&&phase!=='idle')motion.start();});
-  }
-  setStatus('Hold the weight still; draw a tight box around a distinctive bar end or weight detail.','warn');
-  showSource();targetDraw();
-}
-function targetImage(){const p=targetPlan;return grabber.grab(video,0,0,p.vw,p.vh,p.w,p.h);}
-function targetScreenOptions(){return{vw:targetPlan?.vw||video.videoWidth,vh:targetPlan?.vh||video.videoHeight,mirror:source==='camera'&&facing==='user',fit:'cover'};}
-function targetDraw(){
-  const r=targetCanvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-  if(targetCanvas.width!==Math.round(r.width*dpr)||targetCanvas.height!==Math.round(r.height*dpr)){
-    targetCanvas.width=Math.round(r.width*dpr);targetCanvas.height=Math.round(r.height*dpr);
-  }
-  targetCtx.setTransform(dpr,0,0,dpr,0,0);targetCtx.clearRect(0,0,r.width,r.height);
-  if(!targetPlan)return;
-  const options=targetScreenOptions();
-  const map=(p)=>{const v=screenPoint(p,r,options);return v?{x:v.clientX-r.left,y:v.clientY-r.top}:null;};
-  targetCtx.strokeStyle='#58DB3D';targetCtx.lineWidth=2;targetCtx.lineJoin='round';targetCtx.beginPath();
-  let previous=null;
-  for(const f of targetPath){const p=f.ok?map({x:f.cx*targetPlan.vw/targetPlan.w,y:f.cy*targetPlan.vh/targetPlan.h}):null;
-    if(p){if(previous)targetCtx.lineTo(p.x,p.y);else targetCtx.moveTo(p.x,p.y);}previous=p;}
-  targetCtx.stroke();
-  const b=targetCandidate||targetRes?.box&&{x:targetRes.box.x*targetPlan.vw/targetPlan.w,y:targetRes.box.y*targetPlan.vh/targetPlan.h,w:targetRes.box.w*targetPlan.vw/targetPlan.w,h:targetRes.box.h*targetPlan.vh/targetPlan.h};
-  if(!b)return;const a=map({x:b.x,y:b.y}),z=map({x:b.x+b.w,y:b.y+b.h});if(!a||!z)return;
-  targetCtx.strokeStyle=targetRes?.ok||targetSelecting?'#58DB3D':'#E8A33A';targetCtx.setLineDash(targetSelecting?[6,4]:[]);
-  targetCtx.strokeRect(Math.min(a.x,z.x),Math.min(a.y,z.y),Math.abs(z.x-a.x),Math.abs(z.y-a.y));targetCtx.setLineDash([]);
-}
-targetCanvas.addEventListener('pointerdown',e=>{
-  if(!targetSelecting||!targetPlan)return;
-  targetDrag={id:e.pointerId,a:videoPoint(e,targetCanvas.getBoundingClientRect(),targetScreenOptions())};
-  targetCandidate=null;targetCanvas.setPointerCapture(e.pointerId);e.preventDefault();
-});
-targetCanvas.addEventListener('pointermove',e=>{
-  if(!targetDrag||e.pointerId!==targetDrag.id)return;
-  const z=videoPoint(e,targetCanvas.getBoundingClientRect(),targetScreenOptions());
-  targetCandidate=boxFromPoints(targetDrag.a,z,{vw:targetPlan.vw,vh:targetPlan.vh,minSize:1});targetDraw();
-});
-function finishTargetSelection(e){
-  if(!targetDrag||e.pointerId!==targetDrag.id)return;
-  const a=targetDrag.a,z=videoPoint(e,targetCanvas.getBoundingClientRect(),targetScreenOptions());targetDrag=null;
-  if(targetCanvas.hasPointerCapture(e.pointerId))targetCanvas.releasePointerCapture(e.pointerId);
-  const b=boxFromPoints(a,z,{vw:targetPlan.vw,vh:targetPlan.vh,minSize:8});
-  if(!b){setStatus('Draw a larger box around the weight detail.','warn');return;}
-  const selected={x:Math.floor(b.x*targetPlan.w/targetPlan.vw),y:Math.floor(b.y*targetPlan.h/targetPlan.vh),w:Math.round(b.w*targetPlan.w/targetPlan.vw),h:Math.round(b.h*targetPlan.h/targetPlan.vh)};
-  targetSess=createTargetSession();
-  const result=targetSess.init(targetImage(),selected,Number.isFinite(setLastMs)?setLastMs/1000:source==='file'?video.currentTime:performance.now()/1000);
-  targetRes=result;
-  if(!result.ok){targetSess=null;setStatus('Choose a larger, distinctive detail with contrast: '+result.reason,'warn');return;}
-  targetPath=[{t:result.t,ok:true,cx:result.cx,cy:result.cy}];targetSelecting=false;targetCandidate=null;targetCanvas.classList.remove('selecting');
-  $('stage').classList.remove('target-selecting');
-  $('target-btn').textContent='Reselect weight';setStatus('Target selected. Hold still while the rep counter gets ready.','good');
-  targetDraw();if(source==='file')video.play().catch(()=>{$('target-resume').hidden=false;setStatus('Tap Resume video to continue the analysis.','warn');});
-}
-targetCanvas.addEventListener('pointerup',finishTargetSelection);
-targetCanvas.addEventListener('pointercancel',()=>{targetDrag=null;targetCandidate=null;targetDraw();});
-$('target-btn').onclick=()=>{
-  if(counter?.reps.length){setStatus('End this set before selecting a different target.','warn');return;}
-  resetSet();phase='finding';targetSetup();
-};
-$('target-resume').onclick=async()=>{
-  try{await video.play();$('target-resume').hidden=true;}
-  catch(e){setStatus('Video could not resume: '+e.message,'warn');}
-};
-if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{if(targetPlan)targetDraw();}).observe($('stage'));
-else window.addEventListener('resize',()=>{if(targetPlan)targetDraw();});
-function targetStep(t){
-  if(!targetSess||targetSelecting)return;
-  targetRes=targetSess.track(targetImage(),t);
-  if(!targetRes.ignored){targetPath.push({t,ok:!!targetRes.ok,cx:targetRes.cx,cy:targetRes.cy});if(targetPath.length>1500)targetPath.shift();}
-  if(!targetRes.ok)setStatus('Selected weight lost. Keep it visible; start a new set to reselect after counting.','warn');
-  showSource();
-}
-function applyTargetVelocities(){
-  if(!targetSess)return;
-  targetFinal=targetSess.finish();
-  if(targetMoved){targetFinal.quality.cameraMoved=true;targetFinal.quality.accepted=false;}
-  const reps=counter.reps;
-  // Return-style lifts match the bottom they leave; curls match their own
-  // lifting window. No selected-target loss is filled using body motion.
-  let standardized;
-  if(EX.height)standardized=standardizeLifts(reps,targetFinal.metrics.reps);
-  else{
-    const used=new Set();
-    const measurements=reps.map(r=>{
-      const j=targetFinal.metrics.reps.findIndex((L,i)=>!used.has(i)&&L.ok&&L.tStart>=r.startT-0.3&&L.tEnd<=r.topT+0.3);
-      if(j<0)return null;used.add(j);return targetFinal.metrics.reps[j];
-    });
-    standardized=standardizeMeasurements(reps,measurements);
-  }
-  for(const row of standardized.rows){
-    row.rep.velocityWhy=targetMoved?'Phone moved during selected-target tracking':row.why;
-    row.rep.vel=!targetMoved&&row.velocity==='ok'?{mv:row.mcv,pv:row.pv,mpv:NaN,dist:row.distance,D:standardized.D,T:row.T,tStart:row.tStart,tEnd:row.tEnd,src:'marticles-template',estimate:true}:null;
-  }
-}
+const PLATE_ON = (AUTO || !!EX.height) && requestedSource !== 'hand' && !/dumbbell|goblet/i.test(requestedName);
 let plateSess = null, grabber = null, motion = null, motionAsk = null, plateRes = null, plateFrame = 0, barSource = 'pose', plateFinal = null, plateNote = '';
-let plateOkT = -Infinity, plateRecent = [], platePrior = null, armMs = 0, plateBroke = false, plateMoved = false, plateInvalid = false;
+let plateOkT = -Infinity, plateRecent = [], platePrior = null, armMs = 0, armT = NaN, plateBroke = false, plateMoved = false, plateInvalid = false;
 function plateStart() {
   plateSess = null; plateRes = null; plateFinal = null; plateNote = ''; plateFrame = 0; barSource = 'pose';
   plateOkT = -Infinity; plateRecent = []; platePrior = null; armMs = 0; plateBroke = false; plateMoved = false; plateInvalid = false;
-  targetSetup();
-  if(manualTracking())return;
   if (!PLATE_ON || demo) return;
   const vw = video.videoWidth, vh = video.videoHeight;
   if (!vw || !vh) return;
@@ -769,10 +671,10 @@ function plateGravity() {
   const u = motion.up({ facing });
   if (u) plateSess.setUp(u);
 }
-/** Where the bar should be, from the pose: across the shoulders (squat), in the hands (bench). */
+/** Where the bar should be, from the pose: across the shoulders (squat), in the hands (bench, deadlift). */
 function barPrior(p, vw, vh) {
   if (!p) return null;
-  const [a, b] = EX.height === 'bench' ? [15, 16] : [11, 12];
+  const [a, b] = EX.height === 'squat' ? [11, 12] : [15, 16];
   return { x: ((p[a].x + p[b].x) / 2) * vw, y: ((p[a].y + p[b].y) / 2) * vh };
 }
 /**
@@ -797,7 +699,7 @@ function plateSizeHint(p, vw, vh) {
  */
 function plateStep(t, poses) {
   plateRes = null;
-  if (!plateSess) return;
+  if (!plateSess || EX.auto) return; // until the lift is recognised, where the bar sits isn't known
   const vw = video.videoWidth, vh = video.videoHeight, before = phase === 'finding' || phase === 'settle';
   const i = pickPerson(poses, center);
   if (i >= 0) platePrior = barPrior(poses[i], vw, vh);
@@ -832,10 +734,6 @@ function plateReady() {
 }
 function showSource() {
   const el = $('vp-src');
-  if(manualTracking()){
-    el.hidden=false;el.className='vp-src '+(targetRes?.ok?'plate':'est');
-    el.textContent=targetSelecting?'Select the weight':targetRes?.ok?'Selected weight · relative':'Selected weight lost';return;
-  }
   if (!PLATE_ON || demo) { el.hidden = true; return; }
   el.hidden = false;
   if (barSource === 'plate') { el.textContent = plateBroke ? 'Plate lost' : 'Plate · 3D'; el.className = 'vp-src ' + (plateBroke ? 'est' : 'plate'); }
@@ -844,37 +742,28 @@ function showSource() {
 }
 /**
  * A rep's speed from the plate trace: the lift that rises out of this rep's bottom — the first lift that ends
- * after the rep's deepest point (topT), before the next rep's bottom. The deepest point
+ * after the rep's deepest point (topT) and starts within 4 s of it (a pause at the bottom). The deepest point
  * can be anywhere in such a pause, so it isn't matched to the lift's start; nor to its top, which for the
  * set's last lift can be seconds later (nothing after it confirms it).
+ * A deadlift's topT is its lockout, after the lift: the last lift that left the floor before it, and whose
+ * rise ended no more than 3 s before it (the lockout can be held).
  */
 function plateRepVel(rep, metrics) {
-  applyPlateVelocities(metrics || barMetrics(barTrace).reps);
-  return rep.vel;
+  const cf = !!EX.concentricFirst;
+  const reps = metrics || barMetrics(barTrace.filter((q) => q.t >= rep.topT - (cf ? 6 : 3) && q.t <= rep.topT + (cf ? 3 : 6))).reps;
+  const L = cf
+    ? reps.filter((x) => (x.ok ? x.tStart : x.tBottom) < rep.topT + 0.25 && rep.topT - (x.ok ? x.tEnd : x.tTop) < 3).pop()
+    : reps.find((x) => (x.ok ? x.tEnd : x.tTop) > rep.topT && (x.ok ? x.tStart : x.tBottom) - rep.topT < 4);
+  if (!L || !L.ok) return null;
+  return { mv: L.mcv, pv: L.pv, mpv: L.mpv, dist: L.distance, T: L.T, tStart: L.tStart, tEnd: L.tEnd, avgPower: setLoadKg > 0 ? (setLoadKg * 9.81 * L.distance) / L.T : NaN,
+    src: 'plate', ...(L.estimate ? { estimate: true } : {}) };
 }
-function applyPlateVelocities(lifts, moved = plateMoved) {
-  plateMoved = moved;
-  const result = standardizeLifts(counter.reps, lifts);
-  for (const row of result.rows) {
-    row.rep.velocityWhy = moved ? 'Phone moved during the set' : plateInvalid ? 'The plate could not be followed consistently' : row.why;
-    row.rep.vel = !moved && !plateInvalid && row.velocity === 'ok' ? { mv: row.mcv, pv: row.pv, mpv: row.mpv,
-      dist: row.distance, D: result.D, T: row.T, tStart:row.tStart, tEnd:row.tEnd,
-      avgPower:diameterCm && setLoadKg>0?setLoadKg*9.81*row.distance/row.T:NaN,
-      rel: row.rel, loss: row.loss, src: 'plate', estimate: true } : null;
-  }
-}
-function applyBodyVelocities() {
-  const reps = counter.reps;
-  const result = standardizeMeasurements(reps, reps.map((r) => r.rawVel
-    ? { T: r.rawVel.dur, distance: r.rawVel.range, pv: r.rawVel.pv } : null));
-  for (const row of result.rows) {
-    row.rep.velocityWhy = row.why;
-    row.rep.vel = row.velocity === 'ok' ? { mv: row.mcv, pv: row.pv, dist: row.distance,
-      D: result.D, T: row.T, rel: row.rel, loss: row.loss, src: 'pose-baseline', estimate: true } : null;
-  }
+// A body-tracked rep's speed, with the displacement and time the saved set record reads (its mean × its time).
+function bodyVel(cv) {
+  return cv && { ...cv, dist: cv.mv * cv.dur, T: cv.dur };
 }
 // ?debug=1: the plate session's workings, for checking a set by hand (or from a test).
-if (new URLSearchParams(location.search).has('debug')) window.__plateDebug = () => ({ source: barSource, targetState:targetSess?.state||'selecting',targetFrames:targetSess?.frames||0,target:targetRes,note: plateNote, quality: plateFinal && plateFinal.quality, reps: plateFinal && plateFinal.metrics && plateFinal.metrics.reps, trace: barTrace.map((q) => [+q.t.toFixed(3), Number.isFinite(q.y) ? +q.y.toFixed(4) : null]), poseReps: counter && counter.reps.map((r) => ({ n: r.n, result: r.result, topT: r.topT, vel: r.vel })) });
+if (new URLSearchParams(location.search).has('debug')) window.__plateDebug = () => ({ source: barSource, note: plateNote, quality: plateFinal && plateFinal.quality, reps: plateFinal && plateFinal.metrics && plateFinal.metrics.reps, trace: barTrace.map((q) => [+q.t.toFixed(3), Number.isFinite(q.y) ? +q.y.toFixed(4) : null]), poseReps: counter && counter.reps.map((r) => ({ n: r.n, result: r.result, topT: r.topT, vel: r.vel })) });
 /**
  * After the set: every frame again in 3D with what the whole set showed; the reps' numbers come from that.
  * Unclear reps get no speed. If this pass can't run, the live numbers stay, marked as estimates.
@@ -882,7 +771,7 @@ if (new URLSearchParams(location.search).has('debug')) window.__plateDebug = () 
 function plateFinish() {
   if (barSource !== 'plate') return;
   const keepLive = (note) => {
-    for (const r of counter.reps) { if (r.result !== 'counted') r.vel = null; else if (r.vel) r.vel.estimate = true; }
+    for (const r of counter.reps) { if (r.result === 'unclear') r.vel = null; else if (r.vel) r.vel.estimate = true; }
     plateNote = note;
   };
   if (!plateSess) { keepLive('Plate tracking stopped partway through the set — speeds are estimates, and reps after that have none'); return; }
@@ -895,19 +784,25 @@ function plateFinish() {
   // (so the taps on Start and End don't count). Camera frame times share the motion sensors' clock.
   const lifts = fin.metrics.reps, lastTop = lifts.length ? lifts[lifts.length - 1].tTop : NaN;
   const moved = motion && source === 'camera' && armMs && Number.isFinite(lastTop) ? motion.moved(armMs, (lastTop + 0.3) * 1000) : { moved: false };
+  plateMoved = !!moved.moved;
   const noGravity = fin.rec && !String(fin.rec.upFrom).startsWith('sensors');
   for (const r of counter.reps) {
-    r.vel = null;
+    if (r.result === 'unclear') { r.vel = null; continue; }
+    r.vel = plateRepVel(r, lifts);
+    if (r.vel && (!fin.quality.ok || fin.quality.slow || !fin.quality.clear || moved.moved)) r.vel.estimate = true;
   }
-  applyPlateVelocities(lifts, moved.moved);
   // Sensors were running but nothing covers the lift: whether the phone stayed still can't be told.
   const unchecked = motion && source === 'camera' && motion.count > 0 && moved.known === false;
-  plateNote = !fin.quality.ok ? 'Plate tracking was unsteady — velocities are unavailable'
+  plateNote = !fin.quality.ok ? 'Plate tracking was unsteady — speeds are estimates'
     : !fin.quality.clear ? 'The plate’s edge was only partly clear — speeds are estimates (film 20–40° off side-on, the whole plate against a plain background)'
-    : moved.moved ? 'The phone moved during the set — velocities are unavailable'
+    : moved.moved ? 'The phone moved during the set — speeds may be off'
     : fin.quality.slow ? `The phone only managed ${Math.round(fin.quality.rate)} frames a second — speeds are estimates (close other apps; 30 or more is needed)`
     : noGravity && source === 'camera' ? 'Bar speed measured from the plate, in 3D (no motion sensors: the phone was taken as upright)'
     : unchecked ? 'Bar speed measured from the plate, in 3D (whether the phone stayed still couldn’t be checked)' : '';
+  // The bar's own count (sbd.js: its height low-pass filtered, one swing each way per rep) from counting's
+  // start, whatever the body count made of the set.
+  const bar = countBarReps((fin.heights || []).filter((q) => !(q.t < armT - 0.5)), { lift: EXK }), seen = counter.reps.length;
+  if (bar.reps.length !== seen) plateNote = [plateNote, `The bar moved through ${bar.reps.length} rep${bar.reps.length === 1 ? '' : 's'}; the body count saw ${seen}`].filter(Boolean).join('. ');
 }
 const readNum = (k) => { try { const v = parseFloat(localStorage.getItem(k)); return v > 0 ? v : null; } catch { return null; } };
 const writeNum = (k, v) => { try { v > 0 ? localStorage.setItem(k, String(v)) : localStorage.removeItem(k); } catch {} };
@@ -915,9 +810,15 @@ let heightCm = readNum(HEIGHT_KEY), kg = readNum(KG_KEY);
 const loadHistory = () => { try { const h = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); return Array.isArray(h) ? h : []; } catch { return []; } };
 let armLens = [];
 function mpu() {
-  // Anthropometric proportions and an assumed camera view are not a physical
-  // calibration of the measured point. Body paths stay relative.
-  return barSource === 'plate' && diameterCm ? 1 : NaN;
+  if (barSource === 'plate') return 1; // the plate is measured in metres
+  if (EX.row) return heightCm ? (PROPORTIONS.arm * heightCm) / 100 : NaN; // the row is measured in arm lengths
+  if (EX.press) {
+    // Straight-arm length in pixels (90th percentile: the arm is straight at every lockout) ↔ shoulder→wrist length from your height.
+    if (!heightCm || armLens.length < 10) return NaN;
+    const s = armLens.slice().sort((x, y) => x - y);
+    return (PROPORTIONS.arm * heightCm) / 100 / s[Math.round(0.9 * (s.length - 1))];
+  }
+  return metresPerUnit(EXK, { heightM: heightCm ? heightCm / 100 : 0, scale: tracker?.scale, standShoulderPx: tracker?.standShoulderPx, armPx: tracker?.armPx });
 }
 // Live speed: least-squares slope of the last 0.15 s of positions, + = lifting.
 let liveHist = [];
@@ -941,7 +842,7 @@ function drawLive(t) {
   liveHist.push({ t, v });
   while (liveHist.length && t - liveHist[0].t > 5) liveHist.shift();
   $('vp-now').textContent = Number.isFinite(v) && metres ? Math.max(0, v).toFixed(2) : '–';
-  $('vp-now-u').textContent = metres ? 'm/s · estimate' : 'relative tracking';
+  $('vp-now-u').textContent = metres ? 'm/s' : 'add height for m/s';
   const cv = $('vp-live'), dpr = window.devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
   if (!W || !H) return;
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
@@ -957,7 +858,6 @@ function drawLive(t) {
   c.stroke();
 }
 function pushBar(t, y) {
-  if(barSource==='template')y=targetRes?.ok?targetRes.y:NaN;
   barTrace.push({ t, y });
   if (barTrace.length > 20000) barTrace.splice(0, 2000);
   if (SPEED) drawLive(t);
@@ -968,40 +868,35 @@ function pushBar(t, y) {
 // reading is refined half a second later, once the bar has reached the top.
 function measureRep(rep, t) {
   if (pendingVel) settleVel(t);
-  if(barSource==='template'){applyTargetVelocities();pendingVel={rep,until:t+0.5};return;}
-  if (!EX.height) { rep.rawVel = concentricVelocity(barTrace, rep.startT - 0.15, rep.topT + 0.15); applyBodyVelocities(); return; }
-  if (barSource === 'plate') plateRepVel(rep);
-  else { rep.rawVel = concentricVelocity(barTrace, rep.topT - 0.2, t); applyBodyVelocities(); }
+  if (!EX.height) { rep.vel = bodyVel(concentricVelocity(barTrace, rep.startT - 0.15, rep.topT + 0.15)); return; }
+  rep.vel = barSource === 'plate' ? plateRepVel(rep) : bodyVel(concentricVelocity(barTrace, rep.topT - 0.2, t));
   pendingVel = { rep, until: t + 0.5 };
 }
 function settleVel(t) {
   const { rep, until } = pendingVel; pendingVel = null;
-  if(barSource==='template'){applyTargetVelocities();renderPanel();return;}
-  if (barSource === 'plate') plateRepVel(rep);
-  else { rep.rawVel = concentricVelocity(barTrace, rep.topT - 0.2, Math.min(t, until)); applyBodyVelocities(); }
+  rep.vel = (barSource === 'plate' ? plateRepVel(rep) : bodyVel(concentricVelocity(barTrace, rep.topT - 0.2, Math.min(t, until)))) || rep.vel;
   renderPanel();
 }
 // Speeds of every rep in display units: m/s when your height is known,
 // otherwise the native unit (only shown relative to your best rep).
 function repSpeeds() {
   const k = mpu(), metres = Number.isFinite(k);
-  return { metres, list: (counter ? counter.reps : []).map((r) => ({ r, mv: speedOf(r) })) };
+  return { metres, list: (counter ? counter.reps : []).map((r) => ({ r, mv: r.vel ? r.vel.mv * (metres ? k : 1) : NaN })) };
 }
 const fmtV = (v, metres) => (metres ? `${v.toFixed(2)} m/s` : '');
-function renderPanel() {
+function renderPanel(verdict) {
   const { metres, list } = repSpeeds();
   const timed = list.filter((x) => Number.isFinite(x.mv) && x.r.result !== 'unclear');
-  const best = timed.length ? Math.max(...timed.map((x) => x.mv)) : NaN;
-  const reference = timed.find((x) => x.r.isStandard)?.mv ?? NaN;
+  const best = timed.length ? Math.max(...timed.slice(0, 3).map((x) => x.mv)) : NaN;
   const last = timed[timed.length - 1];
-  const what = barSource==='template'?'Selected weight · relative':barSource === 'plate' ? 'Bar speed · estimate' : EX.press || EX.row || requestedSource === 'hand' ? 'Hand speed · relative' : 'Body speed · relative';
+  const what = EX.press || EX.row ? 'Hand speed' : 'Bar speed';
   $('vp-k').textContent = last ? `${what} · rep ${last.r.n}` : what;
   if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
   else {
     const loss = (best - last.mv) / best;
-    $('vp-v').textContent = metres ? last.mv.toFixed(2) : `${Math.round((last.mv / reference) * 100)}%`;
-    $('vp-u').textContent = metres ? 'm/s · est.' : 'of rep 1';
-    $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'Fastest rep' : `−${Math.round(loss * 100)}% vs fastest`;
+    $('vp-v').textContent = metres ? last.mv.toFixed(2) : `${Math.round((last.mv / best) * 100)}%`;
+    $('vp-u').textContent = metres ? 'm/s' : 'of best';
+    $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'Fastest yet' : `−${Math.round(loss * 100)}% vs best`;
     $('vp-loss').className = 'vp-loss ' + (timed.length < 2 ? '' : lossBand(loss));
   }
   const top = Number.isFinite(best) ? Math.max(best, ...timed.map((x) => x.mv)) * 1.1 : 1;
@@ -1010,8 +905,13 @@ function renderPanel() {
     const h = Math.max(4, (x.mv / top) * 100);
     return `<i class="${lossBand((best - x.mv) / best)}${x.r.result === 'short' ? ' short' : ''}" style="height:${h.toFixed(1)}%"></i>`;
   }).join('') + (Number.isFinite(best) ? `<div class="vp-line" style="bottom:${((best * 0.8) / top * 100).toFixed(1)}%"><span>−20%</span></div>` : '');
-  $('vp-verdict').hidden = true;
+  const vEl = $('vp-verdict');
+  vEl.hidden = !verdict;
+  if (verdict) { vEl.className = 'vp-verdict ' + verdict.kind; vEl.innerHTML = `${VERDICT[verdict.kind]}${verdict.brokeDown ? '<small>Range broke down</small>' : Number.isFinite(verdict.rir) ? `<small>${repsLeft(verdict.rir)}</small>` : ''}`; }
 }
+const VERDICT = { add: 'Add weight', keep: 'Keep weight, +1 rep', hold: 'Stay at this weight', none: 'Not enough reps' };
+const repsDown = (rir) => Math.max(1, Math.floor(rir));
+const repsLeft = (rir) => (rir >= 5 ? '5+ reps left' : rir < 0.5 ? 'At failure' : `~${repsDown(rir)} rep${repsDown(rir) === 1 ? '' : 's'} left`);
 function showPanel(on) { $('vp').hidden = !on; $('stage').classList.toggle('has-vp', on); }
 
 // ── Feedback ─────────────────────────────────────────────
@@ -1083,11 +983,8 @@ const shortReasons = (r) => [r.shortFinish && 'Didn’t reach your top', r.short
 // Before rep 1: hold still in your start position, then counting starts.
 function settle() { phase = 'settle'; gate.reset(); setStatus(EX.still, 'good'); }
 function arm(msg) {
-  if(manualTracking()&&(!targetSess||!targetRes?.ok)){gate.reset();setStatus('Select and keep the weight visible before starting the set.','warn');return;}
-  phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good');
-  if(manualTracking()){
-    barSource='template';armMs=performance.now();motion?.mark();showSource();
-  }else if (PLATE_ON) {
+  phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good'); armT = curT;
+  if (PLATE_ON) {
     // The source is settled here, for the whole set (metres and body units never mix): the plate if it's
     // being followed well and sits on the bar, otherwise the body (and the plate stops being looked at).
     plateGravity();
@@ -1112,7 +1009,11 @@ function resetSet() {
   setLoadKg = kg;
   $('workout-save').textContent = '';
   $('relock-btn').disabled = false;
-  counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter(HEIGHT_DEFAULTS) : EX.row ? createRepCounter(REACH_DEFAULTS) : createRepCounter();
+  // ?ex=auto: every set is recognised afresh (the next one can be a different lift).
+  if (AUTO && !EX.auto) { EXK = 'auto'; EX = EXERCISES.auto; tracker = null; gate = createStillGate({ secs: 1, bands: STILL_BANDS.auto }); LAST_KEY = 'arete_auto_lab_last'; liftUI(); $('auto-note').hidden = true; }
+  if (detector) detector.reset();
+  armT = NaN;
+  counter = EX.pullup ? createReturnCounter(PULLUP_DEFAULTS) : EX.height ? createReturnCounter({ ...HEIGHT_DEFAULTS, invert: !!EX.concentricFirst }) : EX.row ? createRepCounter(REACH_DEFAULTS) : createRepCounter();
   if (tracker) tracker.reset();
   if (pu) pu.reset();
   gate.reset(); armed = false;
@@ -1165,7 +1066,7 @@ async function startCamera() {
     if (generation !== startGeneration) { acquired.getTracks().forEach((t) => t.stop()); return; }
     stopStream(); stream = acquired;
     if (sourceURL) { URL.revokeObjectURL(sourceURL); sourceURL = null; }
-    video.removeAttribute('src'); video.onended = null;video.onerror=null;
+    video.removeAttribute('src'); video.onended = null;
     video.srcObject = stream; video.classList.toggle('mirror', facing === 'user');
     await video.play();
     if (generation !== startGeneration) { stopStream(); return; }
@@ -1193,7 +1094,6 @@ async function startFile(file) {
     sourceURL = URL.createObjectURL(file);
     video.srcObject = null; video.src = sourceURL; video.classList.remove('mirror');
     video.onended = () => endSet();
-    video.onerror=()=>{if(phase!=='idle'&&phase!=='done')endSet();setStatus('The video could not be decoded. Completed measurements were kept; try another video.','warn');};
     await video.play();
     if (generation !== startGeneration) { video.pause(); return; }
     begin();
@@ -1205,7 +1105,7 @@ function begin() {
   if (!EX.pullup) beep(660, 0.04);
   startRecording();
   resetSet(); phase = 'finding'; show('live'); showPanel(SPEED); plateStart(); if (SPEED) renderPanel();
-  setStatus(manualTracking()?'Hold the weight still and draw a box around a distinctive detail.':EX.finding);
+  setStatus(EX.finding);
   cancelAnimationFrame(raf); if (!RVFC) raf = requestAnimationFrame(loop);
   setLastMs = -Infinity; lastVideoT = -1; frameClock.reset();
   if (RVFC) { stopFrames(); if (!demo) rvfcId = video.requestVideoFrameCallback(onVideoFrame); }
@@ -1228,10 +1128,6 @@ function processFrame(tMs) {
   setLastMs = tMs;
   if (tMs + tsShift <= lastTs) tsShift = lastTs + 1 - tMs;
   lastTs = tMs + tsShift;
-  if(manualTracking()){
-    if(targetSelecting||!targetSess){curT=tMs/1000;targetDraw();return;}
-    try{targetStep(tMs/1000);}catch(e){targetRes={ok:false,reason:e.message};setStatus('Target tracking stopped; start a new set to select again.','warn');}
-  }
   let res;
   try { res = landmarker.detectForVideo(video, lastTs); }
   catch (e) { endSet(); setStatus('Tracking stopped. Your completed reps were kept. Try again with better light or another video.', 'warn'); return; }
@@ -1243,7 +1139,6 @@ function processFrame(tMs) {
     catch (err) { console.error('plate tracking stopped:', err); plateSess = null; plateRes = null; if (barSource === 'plate') plateBroke = true; showSource(); }
   }
   frame(res.landmarks || [], tMs / 1000, video.videoWidth, video.videoHeight, res.worldLandmarks || []);
-  if(manualTracking())targetDraw();
 }
 function stopFrames() { if (rvfcId && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(rvfcId); rvfcId = 0; }
 function onVideoFrame(now, md) {
@@ -1284,6 +1179,7 @@ function frame(poses, t, vw, vh, worlds = []) {
   center = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
   if (EX.pullup) { pullupFrame(p, t, vw, vh); return; }
   if (EX.row) { rowFrame(p, t, vw, vh, worlds[idx] || null); return; }
+  if (EX.auto) { autoFrame(p, t, vw, vh); return; }
   if (EX.height) { heightFrame(p, t, vw, vh); return; }
 
   // Work out which arm faces the camera (the one it sees best).
@@ -1372,7 +1268,7 @@ function heightFrame(p, t, vw, vh) {
       if (held >= CALIB_SECS && tracker.lock()) settle();
     } else {
       steadySince = null; tracker.reset();
-      setStatus(WHY[c.why] || EX.finding, 'warn');
+      setStatus((EX.why && EX.why[c.why]) || WHY[c.why] || EX.finding, 'warn');
     }
     draw({ p, ok: c.ok }, vw, vh);
     return;
@@ -1394,6 +1290,29 @@ function heightFrame(p, t, vw, vh) {
   updateMeter();
   draw({ p, ok: m.ok, a, point: m.point }, vw, vh);
 }
+
+// ?ex=auto: before anything else, which lift — from how the bar is held at the set-up (sbd.js): on the
+// back (squat), arms up from the bench (bench), hands at the shins (deadlift). Then it's that lift's set.
+function autoFrame(p, t, vw, vh) {
+  const lift = detector.push(t, p, vw, vh);
+  if (lift) { adoptLift(lift); setStatus(`${liftName(lift)} — ${EX.finding.toLowerCase()}`, 'good'); }
+  else setStatus(EX.finding);
+  draw({ p, ok: false }, vw, vh);
+}
+const liftName = (k) => ({ squat: 'Squat', bench: 'Bench press', deadlift: 'Deadlift' })[k] || k;
+function adoptLift(k) {
+  EXK = k; EX = EXERCISES[k];
+  tracker = createHeightTracker(EX.height, { minVis: MIN_VIS });
+  gate = createStillGate({ secs: 1, bands: STILL_BANDS[k] });
+  counter = createReturnCounter({ ...HEIGHT_DEFAULTS, invert: !!EX.concentricFirst });
+  LAST_KEY = `arete_${k}_lab_last`;
+  steadySince = null;
+  liftUI(); showLastStandard();
+  const others = ['squat', 'bench', 'deadlift'].filter((x) => x !== k).map((x) => `<a href="${liftURL(x)}">${liftName(x)}</a>`).join(' · ');
+  $('auto-note').innerHTML = `Recognised from your set-up: <b>${liftName(k)}</b>. Not right? ${others}`; $('auto-note').hidden = false;
+}
+/** This page for one lift, keeping everything else in the address (workout, load, …). */
+function liftURL(k) { const q = new URLSearchParams(location.search); q.set('ex', k); return `curl-lab.html?${q}`; }
 
 // Pull-ups: lock the bar line at the hands, wait for a still hang, then count.
 // If the hands leave the bar, counting pauses until they hold it still again.
@@ -1467,8 +1386,9 @@ function updateMeter() {
   else if (Number.isFinite(current)) {
     if (EX.pullup) pct = (110 - current) / 130;
     else if (EX.row) pct = (95 - current) / 60;
-    else if (!EX.height) pct = (175 - current) / 135;
-    else { const top = tracker.calValue, low = EX.height === 'squat' ? 50 : 100; pct = Number.isFinite(top) && top > low ? (top - current) / (top - low) : 0; }
+    else if (!EX.height && !EX.auto) pct = (175 - current) / 135;
+    else if (EX.concentricFirst) { const floor = tracker.calValue; pct = Number.isFinite(floor) && floor < 90 ? (current - floor) / (90 - floor) : 0; }
+    else if (EX.height) { const top = tracker.calValue, low = EX.height === 'squat' ? 50 : 100; pct = Number.isFinite(top) && top > low ? (top - current) / (top - low) : 0; }
   }
   $('meter').style.width = (Math.max(0, Math.min(1, pct)) * 100).toFixed(1) + '%';
 }
@@ -1481,13 +1401,6 @@ function endSet() {
   if (RVFC) stopFrames();
   if (pendingVel) settleVel(Infinity);
   try { plateFinish(); } catch (err) { console.error('plate finish failed:', err); }
-  if(barSource==='template'){
-    applyTargetVelocities();
-    const moved=motion&&source==='camera'&&armMs?motion.moved(armMs,performance.now()):{moved:false};
-    if(moved.moved&&targetFinal){targetMoved=true;applyTargetVelocities();}
-  }
-  targetSelecting=false;targetCanvas.classList.remove('selecting');
-  $('stage').classList.remove('target-selecting');
   stopStream();
   if (motion) motion.stop();
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -1495,7 +1408,6 @@ function endSet() {
   if (EX.pullup) sfx('end');
   $('legend').hidden = true; // the verdict takes that corner
   renderSummary(); show('done'); setStatus('Set complete', 'good');
-  if(barSource==='template')requestAnimationFrame(targetDraw);
 }
 
 // ── Drawing ──────────────────────────────────────────────
@@ -1525,6 +1437,7 @@ function draw(d, vw, vh) {
     if ((d.p[a].visibility ?? 0) < 0.5 || (d.p[b].visibility ?? 0) < 0.5) continue;
     const A = lm(a), B = lm(b); ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
   }
+  if (EX.auto) return;
   if (EX.height) { drawHeight(d, m, lm, sc, oy, cw, dpr); return; }
 
   const S = m(d.S), E = m(d.E), W = m(d.W);
@@ -1655,7 +1568,7 @@ function currentLiveRecord() {
   const params = new URLSearchParams(location.search);
   const typed = (id, lo, hi) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= lo && v <= hi ? v : null; };
   const reportedRir = typed('rir-in', 0, 10), reportedRpe = typed('rpe-in', 1, 10);
-  const defaults = { curl: ['Dumbbell Curl', 'Dumbbell'], squat: ['Back Squat', 'Barbell'], bench: ['Bench Press', 'Barbell'], row: ['T-bar Row', 'T-bar'], press: ['Chest Press', 'Machine'], tbar: ['T-bar Row', 'T-bar'], pullup: ['Pull-up', 'Bodyweight'] };
+  const defaults = { curl: ['Dumbbell Curl', 'Dumbbell'], squat: ['Back Squat', 'Barbell'], bench: ['Bench Press', 'Barbell'], deadlift: ['Deadlift', 'Barbell'], auto: ['Barbell lift', 'Barbell'], row: ['T-bar Row', 'T-bar'], press: ['Chest Press', 'Machine'], tbar: ['T-bar Row', 'T-bar'], pullup: ['Pull-up', 'Bodyweight'] };
   const [name, equipment] = defaults[EXK];
   const exerciseName = params.get('exerciseName') || name;
   let userId = params.get('userId') || null;
@@ -1668,10 +1581,10 @@ function currentLiveRecord() {
   const record = buildLiveSetRecord({ ...(liveRecordId ? {id:liveRecordId}:{}), at:liveRecordAt,
     reps:counter.reps, standard:counter.standard, lift:EXK, exercise:exerciseName, loadKg:setLoadKg,
     typedRir:reportedRir, reportedEffort:{rir:reportedRir,rpe:reportedRpe,enteredAs:reportedRir!==null?'rir':reportedRpe!==null?'rpe':null,at:Date.now()},
-    source:barSource==='template'?'marticles-template':barSource==='plate'?'plate':'pose-baseline', scaled:Number.isFinite(mpu()), fps,
-    nativeUnits:barSource==='template'?'selected-target-heights':barSource==='plate'?'nominal-scale-units':EX.height?'body-lengths':EX.row?'arm-lengths':EX.press||requestedSource==='hand'?'pixels':'radians',
-    calibration:barSource==='template'?targetFinal?.calibration||{kind:'uncalibrated-template',validated:false,version:'target-height-v1'}:{version:'plate-diameter-v1',diameterM:diameterCm?diameterCm/100:null,cameraIntrinsics:'assumed',validated:false},
-    quality:barSource==='template'?targetFinal?.quality||{accepted:false,estimate:true,note:'Selected-target relative tracking'}:{accepted,estimate:true,note:demo?'Synthetic demonstration; excluded from personal calibration':plateNote || (barSource==='plate'?'Camera geometry is estimated':'Body tracking: relative speed only')},
+    source:barSource==='plate'?'plate':'pose-baseline', scaled:Number.isFinite(mpu()), velocityScale:Number.isFinite(mpu())?mpu():1, fps,
+    nativeUnits:barSource==='plate'?'metres':EX.height?'body-lengths':EX.row?'arm-lengths':EX.press||requestedSource==='hand'?'pixels':'radians',
+    calibration:barSource==='plate'?{version:'plate-diameter-v1',diameterM:(diameterCm||45)/100,cameraIntrinsics:'assumed',validated:false}:{version:'height-proportions-v1',heightCm:heightCm||null,validated:false},
+    quality:{accepted,estimate:true,note:demo?'Synthetic demonstration; excluded from personal calibration':plateNote || (barSource==='plate'?'Bar speed measured from the plate, in 3D':Number.isFinite(mpu())?'Speed from your body, scaled by your height (an estimate)':'Body tracking: relative speed only')},
   });
   Object.assign(record,{userId:userId?.trim().toLowerCase()||null,exerciseId:canonicalExerciseId(exerciseName),equipmentKey:$('equipment-in').value.trim().toLowerCase()||null,
     sessionId:params.get('sessionId')||workoutContext?.workoutId||('prototype-'+new Date(liveRecordAt).toLocaleDateString('en-CA')),metric:'mean-concentric-velocity',
@@ -1687,13 +1600,8 @@ function currentLiveRecord() {
   // export when measurement debugging needs every frame.
   const stride = Math.max(1, Math.ceil(barTrace.length / 240));
   record.observations = { clock: source==='file'?'video-media-seconds':'video-frame-seconds-aligned-to-monotonic-clock', frameCount: barTrace.length,
-    positionUnits: barSource === 'plate' && diameterCm ? 'estimated-metres' : 'native',
+    positionUnits: barSource === 'plate' ? 'metres' : 'native',
     stride, sampled: stride > 1, points: barTrace.filter((_,i)=>i%stride===0).map((f)=>[+f.t.toFixed(4),Number.isFinite(f.y)?+f.y.toFixed(5):null]) };
-  if(barSource==='template'){
-    record.tracker='marticles-template-v1';
-    record.trackerUpstream={repository:'https://github.com/Marticles/barbell-path-tracker',revision:'501daea5c0666b3564fadbbebb51e6f6ac0b2428',mode:'Template_Matching',license:'MIT'};
-    record.externalAnalyses=externalAnalysis?[externalAnalysis]:[];
-  }
   liveRecordId=record.id;
   const history = demo ? [] : gatherPredictionHistory(localStorage).filter((r)=>r.id!==record.id);
   record.predictions=predictionsForSet(record,history,{userId:record.userId,exerciseId:record.exerciseId,equipmentKey:record.equipmentKey,epleySupported:record.epleySupported});
@@ -1704,7 +1612,7 @@ function currentLiveRecord() {
   return record;
 }
 function persistTrackedSet(updateTypedRir = false) {
-  if (!counter || demo || (!counter.reps.length && !(barSource==='template'&&targetFinal?.track?.length))) return;
+  if (!counter?.reps.length || demo) return;
   const record = currentLiveRecord();
   let saved = false;
   try { saveSetRecord(localStorage, record); saved = true; } catch {}
@@ -1719,32 +1627,7 @@ function renderSummary() {
   $('verdict').hidden = !SPEED; $('kg-next-f').hidden = !SPEED; $('chart-wrap').hidden = SPEED;
   if (SPEED) renderCall(); else renderChart();
   renderRepList();
-  $('target-tools').hidden=barSource!=='template'||!targetFinal?.track?.length;
-  $('external-analysis').innerHTML=''; // shared coach renderer includes any imported comparison
 }
-function downloadJson(data,name){
-  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
-$('target-export').onclick=()=>{
-  if(!targetFinal?.track?.length)return;
-  const record=currentLiveRecord();
-  downloadJson({format:'arete-target-track-v1',recordId:record.id,source:{tracker:'marticles-template-v1'},
-    frame:{width:targetPlan.w,height:targetPlan.h},initialBox:targetFinal.track.find(f=>f.ok)?.box,
-    frames:targetFinal.track.map(f=>({t:f.t,ok:f.ok,cx:Number.isFinite(f.cx)?f.cx:null,cy:Number.isFinite(f.cy)?f.cy:null})),
-    poseReps:counter.reps.map(r=>({n:r.n,result:r.result,isStandard:r.isStandard,startT:r.startT,topT:r.topT,at:r.at})),
-    standard:counter.standard,metadata:{exercise:record.exercise,loadKg:record.loadKg}},`arete-${EXK}-path.json`);
-};
-$('barbellcv-import').onclick=()=>$('barbellcv-file').click();
-$('barbellcv-file').onchange=async e=>{
-  const file=e.target.files?.[0];if(!file)return;
-  try{
-    if(file.size>1024*1024)throw new Error('Analysis JSON must be smaller than 1 MB.');
-    externalAnalysis=parseBarbellCvAnalysis(JSON.parse(await file.text()),{recordId:liveRecordId});
-    persistTrackedSet();renderSummary();
-  }catch(error){setStatus('Could not import BarbellCV: '+error.message,'warn');}
-  e.target.value='';
-};
 // Nose height (pull-ups) through the set, with rep 1's bands: top is up.
 function renderChart() {
   const st = counter.standard, svg = $('chart');
@@ -1777,20 +1660,17 @@ function renderRepList() {
       <b>${r.n}</b><small>${SPEED && r.result !== 'unclear' && Number.isFinite(speedOf(r)) ? `${speedText(r)} · ` : ''}${range(r)}${r.isStandard ? ' · standard' : EX.pullup ? (r.result === 'short' ? ` · ${shortReasons(r).toLowerCase()}` : '') : r.shortStart && r.shortFinish ? ` · missed ${EX.start} and ${EX.finish}` : r.shortFinish ? ` · missed the ${EX.finish}` : r.shortStart ? ` · missed the ${EX.start}` : ''}</small>
       <span class="tag ${r.result}">${r.result === 'counted' ? 'Counted' : r.result === 'short' ? 'Short' : 'Unclear'}</span></button>`).join('') || '<p class="hint">No reps detected.</p>';
 }
-function speedOf(r) { return r.result === 'counted' && r.vel?.T > 0 && Number.isFinite(r.vel.dist) ? r.vel.dist / r.vel.T : NaN; }
+function speedOf(r) { const k = mpu(); return r.vel ? r.vel.mv * (Number.isFinite(k) ? k : 1) : NaN; }
 function speedText(r) {
   const k = mpu();
-  if (Number.isFinite(k)) return `≈${speedOf(r).toFixed(2)} m/s mean${Number.isFinite(r.vel.pv) ? ` · ≈${(r.vel.pv * k).toFixed(2)} peak` : ''}`;
-  const first = speedOf(counter.reps.find((x) => x.isStandard) || {});
-  return first > 0 ? `${Math.round((speedOf(r) / first) * 100)}% of rep 1` : '';
+  if (Number.isFinite(k)) return `${r.vel.estimate ? '≈' : ''}${(r.vel.mv * k).toFixed(2)} m/s`;
+  const all = (counter.reps || []).filter((x) => x.vel && x.result !== 'unclear').slice(0, 3).map((x) => x.vel.mv);
+  return all.length ? `${Math.round((r.vel.mv / Math.max(...all)) * 100)}% speed` : '';
 }
 $('replist').addEventListener('click', (e) => {
   const b = e.target.closest('.rep'); if (!b) return;
   const r = counter.reps.find((x) => x.n === +b.dataset.n); if (!r || r.isStandard) return;
   counter.override(r.n, r.result === 'counted' ? 'short' : 'counted');
-  if (barSource === 'plate' && plateFinal?.ok) applyPlateVelocities(plateFinal.metrics.reps);
-  else if(barSource==='template')applyTargetVelocities();
-  else if (barSource !== 'plate') applyBodyVelocities();
   persistTrackedSet();
   renderSummary();
 });
@@ -1984,7 +1864,7 @@ $('coach-btn').onclick = () => openCoach();
 $('start-btn').onclick = () => {
   audioInit();
   // iPhone: motion data needs permission from this tap, before anything is awaited.
-  if ((PLATE_ON||manualTracking()) && !demo && !motionAsk) motionAsk = requestMotionPermission();
+  if (PLATE_ON && !demo && !motionAsk) motionAsk = requestMotionPermission();
   demo ? startDemo() : startCamera();
 };
 $('file-btn').onclick = () => { audioInit(); $('file').click(); };
@@ -2008,9 +1888,6 @@ $('kg-in').value = kg || '';
 const launchLoad = new URLSearchParams(location.search).get('loadKg');
 if (launchLoad !== null && Number.isFinite(+launchLoad) && +launchLoad >= 0) { kg = +launchLoad; $('kg-in').value = launchLoad; }
 $('diameter-field').hidden = !PLATE_ON;
-$('target-settings').hidden=!TARGET_CAPABLE;
-$('tracking-method').onchange=()=>{$('diameter-field').hidden=!PLATE_ON||manualTracking();};
-$('diameter-field').hidden=!PLATE_ON||manualTracking();
 $('diameter-in').oninput = (e) => { const v = parseFloat(e.target.value); diameterCm = v >= 5 && v <= 100 ? v : null; };
 for (const id of ['rpe-in','rir-in','failure-endpoint','failure-verified','maximal-intent','tested-max','epley-supported']) {
   $(id).onchange = () => {
@@ -2057,12 +1934,22 @@ window.addEventListener('pagehide', () => {
   if (sourceURL) URL.revokeObjectURL(sourceURL);
   if (recURL && recBlob) URL.revokeObjectURL(recURL);
 });
-document.title = 'Arete — ' + EX.title;
-document.querySelector('.ttl').firstChild.textContent = (EX.short || EX.title) + ' ';
-$('pre-h').textContent = EX.name;
-$('intro').innerHTML = EX.intro;
-// Squat and bench use both sides of the body, so there's no arm or leg to pick.
-$('arm-btn').hidden = !!EX.height || !!EX.pullup || !!EX.row;
+function liftUI() {
+  document.title = 'Arete — ' + EX.title;
+  document.querySelector('.ttl').firstChild.textContent = (EX.short || EX.title) + ' ';
+  $('pre-h').textContent = EX.name;
+  $('intro').innerHTML = EX.intro + (EX.auto ? `<br><small>Or choose it: ${['squat', 'bench', 'deadlift'].map((x) => `<a href="${liftURL(x)}">${liftName(x)}</a>`).join(' · ')}</small>` : '');
+  // Squat, bench and deadlift use both sides of the body, so there's no arm or leg to pick.
+  $('arm-btn').hidden = !!EX.height || !!EX.pullup || !!EX.row || !!EX.auto;
+  if (EX.height || EX.auto) {
+    const [a, b] = document.querySelectorAll('#legend span');
+    a.lastChild.textContent = cap(EX.start); b.lastChild.textContent = cap(EX.finish);
+    const [m1, m2] = document.querySelectorAll('.meter-l span');
+    m1.textContent = cap(EX.start); m2.textContent = cap(EX.finish);
+  }
+  renderGuide();
+}
+liftUI();
 if (EX.row) {
   const [a, b] = document.querySelectorAll('#legend span'); a.lastChild.textContent = 'Hang'; b.lastChild.textContent = 'Top';
   const [m1, m2] = document.querySelectorAll('.meter-l span'); m1.textContent = 'Hang'; m2.textContent = 'Top';
@@ -2075,37 +1962,31 @@ if (EX.pullup) {
   $('min-btn').onclick = () => { minimal = !minimal; writeFlag(MIN_KEY, minimal); renderToggles(); };
   $('snd-btn').onclick = () => { soundOn = !soundOn; writeFlag(SND_KEY, soundOn); renderToggles(); if (soundOn) { audioInit(); sfx('tick'); } };
 }
-if (EX.height) {
-  const [a, b] = document.querySelectorAll('#legend span');
-  a.lastChild.textContent = cap(EX.start); b.lastChild.textContent = cap(EX.finish);
-  const [m1, m2] = document.querySelectorAll('.meter-l span');
-  m1.textContent = cap(EX.start); m2.textContent = cap(EX.finish);
-}
 $('arm-btn').textContent = cap(EX.part) + ': Auto';
-renderGuide();
 setStatus(EX.setup);
 showLastStandard();
 
 // ── Demo (?demo=1): a simulated lifter through the same pipeline ────────
+const DEMO_LIFT = ['squat', 'bench', 'deadlift'].includes(new URLSearchParams(location.search).get('lift')) ? new URLSearchParams(location.search).get('lift') : 'squat';
 function startDemo() {
   if (EX.pullup) return startPullupDemo();
   source = 'camera'; begin();
-  const fps = 30, vw = 1280, vh = 720;
+  const fps = 30, vw = 1280, vh = 720, H = !!(EX.height || EX.auto);
   // Per rep [start, finish]: rep 1 sets the standard, rep 4 misses the
   // finish, rep 6 doesn't return to the start.
-  const plan = EX.demo.plan;
+  const plan = (EX.auto ? EXERCISES[DEMO_LIFT] : EX).demo.plan;
   const frames = [];
   const hold = (a, s) => { for (let i = 0; i < s * fps; i++) frames.push(a); };
   const move = (a0, a1, s) => { const n = Math.round(s * fps); for (let i = 1; i <= n; i++) frames.push(a0 + (a1 - a0) * (1 - Math.cos(Math.PI * i / n)) / 2); };
-  hold(plan[0][0], 2.4); // calibrate, then hold still before rep 1
+  hold(plan[0][0], EX.auto ? 3.4 : 2.4); // (recognise the lift,) calibrate, then hold still before rep 1
   // The lifting part slows down rep by rep, like a real set.
-  plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, EX.height ? 1.1 : 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], EX.height ? 0.8 + i * 0.14 : 1.1); });
+  plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, H ? 1.1 : 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], H ? 0.8 + i * 0.14 : 1.1); });
   hold(plan[0][0], 1.5);
   let i = 0;
   const tick = () => {
     if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
     if (EX.row) { const d = demoRow(frames[i]); frame([d.p], i / fps, vw, vh, [d.w]); i++; setTimeout(tick, 1000 / fps); return; }
-    frame([EX.height ? demoBody(frames[i], vw, vh) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
+    frame([H ? demoBody(frames[i], vw, vh, EX.height || DEMO_LIFT) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
     setTimeout(tick, 1000 / fps);
   };
   tick();
@@ -2188,14 +2069,32 @@ function demoArm(deg, vw, vh) {
   p[ia] = { ...sh, visibility: 0.97 }; p[ib] = { ...el, visibility: 0.97 }; p[ic] = { ...wr, visibility: 0.96 };
   return p;
 }
-// Squat seen from behind (feet planted, hips drop); bench seen from the feet
-// (shoulders fixed, hands travel). `v` is the height the tracker should read.
-function demoBody(v, vw, vh) {
+// Squat seen from behind (feet planted, hips drop, hands on the bar beside the
+// shoulders); bench seen from the feet (shoulders fixed, hands travel);
+// deadlift side-on (legs and back straighten from the set-up, arms hang).
+// `v` is the height the tracker should read.
+function demoBody(v, vw, vh, kind = EX.height) {
   const p = blank(), at = (x, y) => ({ x, y, visibility: 0.95 });
-  if (EX.height === 'squat') {
+  if (kind === 'squat') {
     const ankle = 0.9, hip = ankle - (0.34 * v) / 100, knee = (hip + ankle) / 2, bend = (100 - v) / 100;
-    Object.assign(p, { 11: at(0.46, hip - 0.24), 12: at(0.54, hip - 0.24), 23: at(0.47, hip), 24: at(0.53, hip),
-      25: at(0.45 - bend * 0.06, knee), 26: at(0.55 + bend * 0.06, knee), 27: at(0.46, ankle), 28: at(0.54, ankle) });
+    Object.assign(p, { 11: at(0.46, hip - 0.24), 12: at(0.54, hip - 0.24), 13: at(0.42, hip - 0.12), 14: at(0.58, hip - 0.12), 15: at(0.41, hip - 0.245), 16: at(0.59, hip - 0.245),
+      23: at(0.47, hip), 24: at(0.53, hip), 25: at(0.45 - bend * 0.06, knee), 26: at(0.55 + bend * 0.06, knee), 27: at(0.46, ankle), 28: at(0.54, ankle) });
+  } else if (kind === 'deadlift') {
+    // In pixels of the 1280×720 demo picture: shin and thigh 122, torso 173, arm 202; k 0 = set-up, 1 = lockout.
+    const L = 122, A = { x: 640, y: 648 }, rad = (d) => (d * Math.PI) / 180;
+    const body = (k) => {
+      const shin = rad(20 * (1 - k)), thigh = rad(25 + 65 * k), torso = rad(35 + 55 * k);
+      const K = { x: A.x + L * Math.sin(shin), y: A.y - L * Math.cos(shin) };
+      const Hp = { x: K.x - L * Math.cos(thigh), y: K.y - L * Math.sin(thigh) };
+      const S = { x: Hp.x + 173 * Math.cos(torso), y: Hp.y - 173 * Math.sin(torso) };
+      return { K, Hp, S, W: { x: S.x, y: S.y + 202 } };
+    };
+    // The posture with the hands at height v (% of leg length above the ankles).
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 30; i++) { const k = (lo + hi) / 2; if (((A.y - body(k).W.y) / (2 * L)) * 100 < v) lo = k; else hi = k; }
+    const { K, Hp, S, W } = body((lo + hi) / 2), px = (P, dx = 0, dy = 0) => at((P.x + dx) / vw, (P.y + dy) / vh);
+    Object.assign(p, { 11: px(S), 12: px(S, -4), 13: px(S, 0, 101), 14: px(S, -4, 101), 15: px(W), 16: px(W, -4),
+      23: px(Hp), 24: px(Hp, -4), 25: px(K), 26: px(K, -4), 27: px(A), 28: px(A, -4) });
   } else {
     const sh = 0.62, width = 0.16 * vw, wrist = sh - ((v - 100) / 100) * width / vh;
     Object.assign(p, { 11: at(0.42, sh), 12: at(0.58, sh), 23: at(0.45, 0.78), 24: at(0.55, 0.78),

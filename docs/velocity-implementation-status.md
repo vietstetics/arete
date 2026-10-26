@@ -32,19 +32,23 @@ results through the existing workout storage, and verify mathematics and UI.
 - Live processing uses captured frame timestamps when supplied, otherwise
   media timestamps anchored once to the sensor clock. Processing delays do
   not become frame durations. The model gets its separate monotonic clock.
-- A counted original standard supplies fixed displacement D; each later
-  counted rep uses D/T. Short/unclear reps receive no speed, and an unseen
-  original reference is never replaced by a later rep. Pauses have no fixed
-  time cutoff. Each plate lift can match at most one pose rep.
-- The offline lab separates counted D/T workout results from own-distance
-  plate measurements used to compare against a transducer. Saving a workout
-  result never counts those validation-only measurements as reps.
+- Bar speed is measured as a velocity transducer measures it: each lift's own
+  distance over its own time, from leaving the bottom to stopping at the top
+  (bar3d.js). Short reps keep their measured speed (the pose judges them
+  short); unclear reps get none, with the reason. A lift the camera didn't see
+  is never filled in from another. Each plate lift matches at most one pose
+  rep (a deadlift's at its lockout).
+- The offline lab lists every lift of the bar in order with the pose's verdict
+  beside it, so its rows line up with a transducer's rep list.
 - Missing data, unobserved boundaries, bad timestamp sequences, invalid
   geometry and nonfinite arithmetic fail closed. Mean, peak, timing, ROM,
   ratios and reasons remain available in stored records where measured.
-- Body tracking remains relative even with entered height. A known, entered
-  plate diameter enables estimated m/s; assumed camera geometry is recorded
-  and labelled. Without known diameter, only relative results are shown.
+- The plate gives m/s directly (a standard 45 cm plate unless another size is
+  entered). Without a plate in view, speed comes from the body scaled by the
+  lifter's height, labelled as an estimate; without a height it is relative.
+- Squat, bench and deadlift can be recognised from the set-up (`?ex=auto`,
+  sbd.js), and the bar's own rep count (its height low-pass filtered) is
+  checked against the body count at the end of a set.
 - Camera errors, repeated startup, asynchronous cancellation, backgrounding,
   frame callback cleanup, object URLs, motion listeners, recorder callbacks
   and wake locks are handled. Video buffering is capped at roughly 96 MiB.

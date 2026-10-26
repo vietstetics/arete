@@ -14,11 +14,3 @@ sandbox.html
 
 # Local data backups (never deployed)
 backups/
-
-# Local upstream checkout; pinned source and MIT notice are retained in features/velocity/third_party.
-/vendor/barbell-path-tracker/
-/vendor/barbellcv/
-
-# Local Python analysis caches
-__pycache__/
-*.pyc
