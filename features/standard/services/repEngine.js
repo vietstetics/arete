@@ -279,6 +279,16 @@ export function createReturnCounter(opts = {}) {
     relock() { standard = null; },
     override(n, result) { const r = reps.find((x) => x.n === n); if (r) r.result = result; return r; },
     get standard() { return standard ? outward() : null; },
+    /** Take a rep back out (it wasn't one: the bar never moved). The next rep sets the standard if this did. */
+    discard(n) {
+      const i = reps.findIndex((x) => x.n === n);
+      if (i < 0) return null;
+      const [r] = reps.splice(i, 1);
+      reps.forEach((x, k) => { x.n = k + 1; });
+      if (r.isStandard) standard = null;
+      if (finishing === r) finishing = null;
+      return r;
+    },
     get reps() { return reps.slice(); },
     summary() {
       return {

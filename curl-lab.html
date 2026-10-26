@@ -347,7 +347,7 @@ import { concentricVelocity, metresPerUnit, lossBand, BODY as PROPORTIONS } from
 import { createPlateSession } from './features/velocity/services/live/plateSession.js';
 import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
 import { requestMotionPermission, createMotionWatch } from './features/velocity/services/live/motion.js';
-import { barMetrics } from './features/velocity/services/bar3d.js';
+import { barMetrics, barStill } from './features/velocity/services/bar3d.js';
 import { createLiftDetector, countBarReps } from './features/velocity/services/sbd.js';
 import { createFrameClock } from './features/velocity/services/live/frameClock.js';
 import { buildLiveSetRecord, saveSetRecord } from './features/velocity/services/record.js';
@@ -769,6 +769,8 @@ function plateRepVel(rep, metrics) {
 function bodyVel(cv) {
   return cv && { ...cv, dist: cv.mv * cv.dur, T: cv.dur };
 }
+/** When a rep's bar must have moved: a deadlift up to its lockout; squat and bench from the bottom back up. */
+const stillWindow = (r, end) => (EX.concentricFirst ? [r.topT - 1.5, r.topT + 0.3] : [r.topT, Math.max(end ?? r.topT + 2, r.topT + 0.5)]);
 // ?debug=1: the plate session's workings, for checking a set by hand (or from a test).
 if (new URLSearchParams(location.search).has('debug')) window.__plateDebug = () => ({ source: barSource, note: plateNote, quality: plateFinal && plateFinal.quality, reps: plateFinal && plateFinal.metrics && plateFinal.metrics.reps, trace: barTrace.map((q) => [+q.t.toFixed(3), Number.isFinite(q.y) ? +q.y.toFixed(4) : null]), poseReps: counter && counter.reps.map((r) => ({ n: r.n, result: r.result, topT: r.topT, vel: r.vel })) });
 /**
@@ -792,6 +794,10 @@ function plateFinish() {
   const lifts = fin.metrics.reps, lastTop = lifts.length ? lifts[lifts.length - 1].tTop : NaN;
   const moved = motion && source === 'camera' && armMs && Number.isFinite(lastTop) ? motion.moved(armMs, (lastTop + 0.3) * 1000) : { moved: false };
   plateMoved = !!moved.moved;
+  // With every frame worked out again: any rep the bar didn't move through (it was dropped or dumped, and
+  // only the body came back up) is taken out.
+  for (const r of counter.reps.slice()) if (barStill(fin.heights || [], ...stillWindow(r, r.at))) counter.discard(r.n);
+  $('chips').innerHTML = ''; counter.reps.forEach(addChip); updateCounts();
   const noGravity = fin.rec && !String(fin.rec.upFrom).startsWith('sensors');
   for (const r of counter.reps) {
     if (r.result === 'unclear') { r.vel = null; continue; }
@@ -1368,6 +1374,11 @@ function onEvent(ev) {
   const r = ev.rep;
   if (!r) return;
   if (barSource === 'pose' && plateSess) { plateSess = null; plateRes = null; showSource(); } // rep 1 is in: body it is
+  // The body came back up but the bar never moved (standing up after dropping or dumping it): not a rep.
+  if (barSource === 'plate' && EX.height && barStill(barTrace, ...stillWindow(r, curT))) {
+    counter.discard(r.n); updateCounts(); setStatus('Not a rep — the bar didn’t move', 'warn');
+    return;
+  }
   $('relock-btn').disabled = true; // one ROM/velocity reference per set
   if (SPEED) { measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0); renderPanel(); }
   addChip(r);

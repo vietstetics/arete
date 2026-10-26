@@ -32,7 +32,7 @@ import { PLATE_DIAMETER_M, MAX_OFF_AXIS_DEG } from './vision/geometry.js';
 import { setVelocities, intraSetFatigue } from './timing.js';
 import { repMetrics, confidence } from './metrics.js';
 import { reconstruct3D, heightsFromTrack } from './vision/plate3d.js';
-import { barMetrics, G } from './bar3d.js';
+import { barMetrics, barStill, G } from './bar3d.js';
 import { videoIntrinsics, setQuality, DEFAULT_HFOV_DEG } from './live/plateSession.js';
 import { createLiftDetector, CONCENTRIC_FIRST } from './sbd.js';
 
@@ -242,7 +242,7 @@ export function plate3dSet({ t, pose, lift, fps, massKg = null, diameterM = PLAT
   const heights = heightsFromTrack(rec.frames, rec.up);
   const m = barMetrics(heights);
   const quality = setQuality(frames, rec);
-  const { rows, first, okLifts } = liftRows(m, pose, lift, { massKg, reliable: quality.ok && quality.clear, unseen: 'Plate not seen rising through this rep' });
+  const { rows, first, okLifts } = liftRows(m, pose, lift, { massKg, reliable: quality.ok && quality.clear, unseen: 'Plate not seen rising through this rep', samples: heights });
   const v = okLifts.map((L) => L.mcv);
   const view = {
     threeD: true, scaled: true, ok: quality.ok, clear: quality.clear, rimFit: quality.rimFit, offAxisDeg: quality.offAxisDeg, tiltDeg: quality.tiltDeg, spreadDeg: quality.spreadDeg,
@@ -270,7 +270,7 @@ function unclearRow(pr, why) {
  * verdict on its rep, then the pose reps no lift was seen for (unclear, why `unseen`), all in time order.
  * reliable: whether the tracking as a whole was good enough for 'reliable' badges.
  */
-function liftRows(m, pose, lift, { massKg = null, reliable = false, unseen }) {
+function liftRows(m, pose, lift, { massKg = null, reliable = false, unseen, samples = [] }) {
   // Each lift's rep: the pose rep whose deepest point falls after the previous lift's top and up to this one's
   // (its deepest point can be anywhere in a pause at the bottom, so it isn't matched to the lift's start).
   // A deadlift's rep is marked at its lockout instead: the pose rep whose lockout falls after this lift
@@ -304,7 +304,11 @@ function liftRows(m, pose, lift, { massKg = null, reliable = false, unseen }) {
   // with a reference's rep list; then everything in time order.
   const claimed = new Set(rows.map((x) => x.poseRep).filter((n) => n !== null));
   for (const pr of pose.reps) {
-    if (!claimed.has(pr.n)) rows.push(unclearRow(pr, unseen));
+    if (claimed.has(pr.n)) continue;
+    // The body came back up but the bar never moved (dropped or dumped first): not a rep at all.
+    const next = pose.reps.find((x) => x.topT > pr.topT);
+    if (barStill(samples, ...(CONCENTRIC_FIRST[lift] ? [pr.topT - 1.5, pr.topT + 0.3] : [pr.topT, next ? next.topT - 0.3 : pr.topT + 2]))) continue;
+    rows.push(unclearRow(pr, unseen));
   }
   const timeOf = (x) => x.at ?? x.tStart ?? NaN;
   rows.forEach((x, i) => { if (x.at === undefined) x.at = Number.isFinite(x.tStart) ? x.tStart : m.reps[i] ? m.reps[i].tBottom : NaN; });
@@ -329,7 +333,7 @@ export function markerSet({ t, pose, lift, fps, massKg = null, diameterM = null,
   const ws = weightSamples(track.map((f) => ({ t: f.t, ok: f.ok, cx: f.cx, cy: f.cy, shape: f.ok ? { a: f.r, b: f.r, phi: 0 } : null })), { diameterM, mode: 'height' });
   if (!ws.view) return refuse('The marker was never found in the video');
   const m = barMetrics(ws.samples);
-  const { rows, first, okLifts } = liftRows(m, pose, lift, { massKg, reliable: false, unseen: 'Marker not seen rising through this rep' });
+  const { rows, first, okLifts } = liftRows(m, pose, lift, { massKg, reliable: false, unseen: 'Marker not seen rising through this rep', samples: ws.samples });
   const v = okLifts.map((L) => L.mcv);
   return {
     ...base, rows, view: { ...ws.view, marker: true }, quality: track.filter((f) => f.ok).length / track.length, D: first ? first.distance : NaN, Dm: first ? first.distance : NaN,

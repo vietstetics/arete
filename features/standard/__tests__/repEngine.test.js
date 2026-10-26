@@ -305,3 +305,13 @@ test('deadlift height: calibrated bent over the bar; the hands are read in leg l
   const noHands = deadPose(0).p; noHands[15].visibility = 0; noHands[16].visibility = 0;
   assert.deepEqual(createHeightTracker('deadlift').calibrate(noHands, 1280, 720), { ok: false, why: 'hands' });
 });
+
+test('a rep taken back out (the bar never moved) leaves the count and, if it was rep 1, the standard', () => {
+  const { rc } = runReturn(squatTrace([{ depth: 52 }, { depth: 52 }, { depth: 52 }]));
+  rc.discard(2);
+  assert.deepEqual(rc.reps.map((r) => r.n), [1, 2]);
+  assert.equal(rc.summary().counted, 2);
+  rc.discard(1);
+  assert.equal(rc.standard, null);
+  assert.equal(rc.discard(9), null);
+});

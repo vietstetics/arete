@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyPosture, createLiftDetector, lowPass, countBarReps, moveFits } from '../services/sbd.js';
 import { liftTrajectory } from '../demo/scene3d.js';
+import { barMetrics, barStill } from '../services/bar3d.js';
 
 // ── Poses: picture coordinates in pixels (y down), turned into 0–1 landmarks ──
 const VW = 1280, VH = 720;
@@ -141,4 +142,32 @@ test('a partial rep still moved the bar (it counts here; the pose judges it shor
   assert.equal(countBarReps(late, { lift: 'deadlift' }).reps.length, 1);
   assert.equal(countBarReps([], { lift: 'squat' }).reps.length, 0);
   assert.equal(countBarReps([{ t: 0, y: 0 }, { t: 0, y: 1 }, { t: 1, y: 0 }, { t: 2, y: 1 }]).reps.length, 0, 'out-of-order time is refused');
+});
+
+test('a bar dropped from lockout and bouncing off the floor is not another rep', () => {
+  const traj = liftTrajectory({ reps: [{ T: 0.9, D: 0.55 }, { T: 1.0, D: 0.55 }], startsAtBottom: true, ecc: 1, tail: 0.1 });
+  const end = traj.duration, floor = -0.55;
+  // After the last rep: pulled to lockout, then let go. Free fall onto the floor, a 15 cm bounce, settle.
+  const tDrop = end + 0.5, fall = Math.sqrt((2 * 0.55) / 9.81), up = Math.sqrt((2 * 0.15) / 9.81);
+  const height = (t) => {
+    if (t < end) return traj.height(t);
+    if (t < end + 1.0) return floor + 0.55 * Math.min(1, (t - end) / 0.4) ** 2 * (3 - 2 * Math.min(1, (t - end) / 0.4)); // pull to lockout
+    const u = t - end - 1.0;
+    if (u < fall) return 0 - 0.5 * 9.81 * u * u;
+    if (u < fall + 2 * up) { const w = u - fall; return floor + 9.81 * up * w - 0.5 * 9.81 * w * w; }
+    return floor;
+  };
+  const samples = filmed({ duration: tDrop + 2.5, height }, { fps: 60, noiseM: 0.001 });
+  const r = countBarReps(samples, { lift: 'deadlift' });
+  assert.equal(r.reps.length, 3, `three pulls, no bounce: ${r.reps.map((x) => x.rom.toFixed(2))}`);
+  const m = barMetrics(samples);
+  assert.ok(m.reps.every((L) => L.tBottom < end + 1.1), 'the bounce is not a lift');
+  assert.equal(m.reps.length, 3);
+});
+
+test('dumping a squat on the pins: the bar stays put while the body stands up', () => {
+  const pins = Array.from({ length: 60 }, (_, i) => ({ t: 10 + i / 30, y: -0.5 + 0.001 * Math.sin(i) }));
+  assert.equal(barStill(pins, 10.2, 11.8), true);
+  assert.equal(barStill(pins.map((p, i) => ({ ...p, y: i > 30 ? p.y + 0.3 : p.y })), 10.2, 11.8), false, 'a real rep moves it');
+  assert.equal(barStill(pins.map((p, i) => ({ ...p, y: i % 3 ? NaN : p.y })), 10.2, 11.8), false, 'barely seen: no verdict');
 });

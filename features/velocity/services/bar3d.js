@@ -339,12 +339,38 @@ export const MIN_THRESHOLD_SNR = 2;
  *   estimate — a reason the numbers are only estimates ('' if none): too few frames, too noisy
  * A rep that isn't ok has why: no numbers (never a guess).
  */
+/** Faster than this into a bottom (m/s, over its last 0.2 s), the bar was dropped or slammed down, not lowered. */
+export const SMASH_SPEED = 2.0;
+const heightAt = (pts, t) => {
+  let best = null;
+  for (const p of pts) if (Number.isFinite(p.y) && (!best || Math.abs(p.t - t) < Math.abs(best.t - t))) best = p;
+  return best && Math.abs(best.t - t) < 0.06 ? best.y : NaN;
+};
+/**
+ * Was the bar dropped or slammed into the bottom at time t (heights in metres)? Then what comes straight
+ * after is its bounce off the floor, the pins or the hooks, not a lift.
+ */
+export function droppedInto(samples, t) {
+  const a = heightAt(samples, t - 0.2), b = heightAt(samples, t);
+  return Number.isFinite(a) && Number.isFinite(b) && (a - b) / 0.2 > SMASH_SPEED;
+}
+/**
+ * Did the bar stay put over [t0, t1] (moved less than minMove, seen in at least minSeen of the frames)?
+ * A body "rep" while it did (standing up after dropping or dumping the bar) isn't one.
+ */
+export function barStill(samples, t0, t1, { minMove = 0.08, minSeen = 0.6 } = {}) {
+  const inWin = samples.filter((p) => p.t >= t0 && p.t <= t1), ys = inWin.map((p) => p.y).filter(Number.isFinite);
+  if (inWin.length < 5 || ys.length < minSeen * inWin.length) return false;
+  return Math.max(...ys) - Math.min(...ys) < minMove;
+}
+
 export function barMetrics(samplesIn, { minRom = 0.12, half, maxGap = MAX_GAP, maxEdgeGap = MAX_EDGE_GAP, threshold = LIFT_THRESHOLD, tail = tailK } = {}) {
   const samples = despike(samplesIn);
   const h = half || smoothingHalf(samples);
   const edgeLimit = Math.max(maxEdgeGap, EDGE_GAP_FRAMES * medianSpacing(samples));
   const fit = savitzkyGolay(samples, { half: h, minPts: 5, maxHalf: 0.25 });
-  const lifts = findLifts(fit, { minRom });
+  // A bounce after the bar was dropped or slammed down is not a lift.
+  const lifts = findLifts(fit, { minRom }).filter((L) => !droppedInto(samples, L.tBottom));
   const reps = [];
   for (const L of lifts) {
     const no = (why) => reps.push({ tBottom: L.tBottom, tTop: L.tTop, ok: false, why });

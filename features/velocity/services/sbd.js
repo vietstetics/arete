@@ -1,3 +1,5 @@
+import { droppedInto } from './bar3d.js';
+
 // Squat, bench or deadlift: which lift, and how many reps, from the camera.
 // Pure logic: no camera, no DOM.
 //
@@ -159,7 +161,7 @@ export function swings(ys, minSwing) {
  * reps across them marked `gap`.
  * Returns { reps: [{ n, tBottom, tTop, yBottom, yTop, rom, gap }], firstMove: 'down' | 'up' | null, fs }.
  */
-export function countBarReps(samples, { lift = 'squat', minRom = 0.12, cutoffHz = 1.5, maxGap = 0.5 } = {}) {
+export function countBarReps(samples, { lift = 'squat', minRom = 0.12, cutoffHz = 1.5, maxGap = 0.5, metres = true } = {}) {
   const pts = (samples || []).filter((s) => s && Number.isFinite(s.t) && Number.isFinite(s.y));
   for (let i = 1; i < pts.length; i++) if (!(pts[i].t > pts[i - 1].t)) return { reps: [], firstMove: null, fs: NaN };
   if (pts.length < 4) return { reps: [], firstMove: null, fs: NaN };
@@ -180,16 +182,18 @@ export function countBarReps(samples, { lift = 'squat', minRom = 0.12, cutoffHz 
   const crossesGap = (i0, i1) => { for (let i = Math.min(i0, i1); i <= Math.max(i0, i1); i++) if (gapAt[i]) return true; return false; };
   const reps = [];
   const concentricFirst = !!CONCENTRIC_FIRST[lift];
+  // The bottom the bar was dropped or slammed into (heights in metres): its bounce is not a rep.
+  const smashed = (i) => metres && droppedInto(pts, ts[i]);
   piv.forEach((p, k) => {
     if (concentricFirst) {
       // A top lifted to from a bottom just before it.
       const b = piv[k - 1];
-      if (p.type !== 'top' || !b) return;
+      if (p.type !== 'top' || !b || smashed(b.i)) return;
       reps.push({ n: reps.length + 1, tBottom: ts[b.i], tTop: ts[p.i], yBottom: f[b.i], yTop: f[p.i], rom: f[p.i] - f[b.i], gap: crossesGap(b.i, p.i) });
     } else {
       // A bottom the bar rose out of (the top after it; the trace's end if it stopped rising there).
       const top = piv[k + 1];
-      if (p.type !== 'bottom' || !top) return;
+      if (p.type !== 'bottom' || !top || smashed(p.i)) return;
       reps.push({ n: reps.length + 1, tBottom: ts[p.i], tTop: ts[top.i], yBottom: f[p.i], yTop: f[top.i], rom: f[top.i] - f[p.i], gap: crossesGap(p.i, top.i) });
     }
   });
