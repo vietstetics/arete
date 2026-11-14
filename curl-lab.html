@@ -766,6 +766,16 @@ function plateRepVel(rep, metrics) {
   return { mv: L.mcv, pv: L.pv, mpv: L.mpv, dist: L.distance, T: L.T, tStart: L.tStart, tEnd: L.tEnd, avgPower: setLoadKg > 0 ? (setLoadKg * 9.81 * L.distance) / L.T : NaN,
     src: 'plate', ...(L.estimate ? { estimate: true } : {}) };
 }
+/**
+ * Where a rep's lift is, for the body's speed: squat and bench rise out of the bottom (topT) until now;
+ * a deadlift's moment is its lockout, so its lift ends there — from the previous rep's lockout (or 4 s
+ * before) to just after this one.
+ */
+function liftWindow(rep, t) {
+  if (!EX.concentricFirst) return [rep.topT - 0.2, t];
+  const prev = counter.reps.filter((x) => x.topT < rep.topT).pop();
+  return [Math.max(rep.topT - 4, prev ? prev.topT + 0.3 : -Infinity), rep.topT + 0.3];
+}
 // A body-tracked rep's speed, with the displacement and time the saved set record reads (its mean × its time).
 function bodyVel(cv) {
   return cv && { ...cv, dist: cv.mv * cv.dur, T: cv.dur };
@@ -883,12 +893,12 @@ function pushBar(t, y) {
 function measureRep(rep, t) {
   if (pendingVel) settleVel(t);
   if (!EX.height) { rep.vel = bodyVel(concentricVelocity(barTrace, rep.startT - 0.15, rep.topT + 0.15)); return; }
-  rep.vel = barSource === 'plate' ? plateRepVel(rep) : bodyVel(concentricVelocity(barTrace, rep.topT - 0.2, t));
+  rep.vel = barSource === 'plate' ? plateRepVel(rep) : bodyVel(concentricVelocity(barTrace, ...liftWindow(rep, t)));
   pendingVel = { rep, until: t + 0.5 };
 }
 function settleVel(t) {
   const { rep, until } = pendingVel; pendingVel = null;
-  rep.vel = (barSource === 'plate' ? plateRepVel(rep) : bodyVel(concentricVelocity(barTrace, rep.topT - 0.2, Math.min(t, until)))) || rep.vel;
+  rep.vel = (barSource === 'plate' ? plateRepVel(rep) : bodyVel(concentricVelocity(barTrace, ...liftWindow(rep, Math.min(t, until))))) || rep.vel;
   renderPanel();
 }
 // Speeds of every rep in display units: m/s when your height is known,
@@ -1998,7 +2008,9 @@ function startDemo() {
   const fps = 30, vw = 1280, vh = 720, H = !!(EX.height || EX.auto);
   // Per rep [start, finish]: rep 1 sets the standard, rep 4 misses the
   // finish, rep 6 doesn't return to the start.
-  const plan = (EX.auto ? EXERCISES[DEMO_LIFT] : EX).demo.plan;
+  // ?reps=N: only the first N reps (short sets).
+  const nReps = parseInt(new URLSearchParams(location.search).get('reps'), 10);
+  const plan = (EX.auto ? EXERCISES[DEMO_LIFT] : EX).demo.plan.slice(0, nReps > 0 ? nReps : undefined);
   const frames = [];
   const hold = (a, s) => { for (let i = 0; i < s * fps; i++) frames.push(a); };
   const move = (a0, a1, s) => { const n = Math.round(s * fps); for (let i = 1; i <= n; i++) frames.push(a0 + (a1 - a0) * (1 - Math.cos(Math.PI * i / n)) / 2); };
