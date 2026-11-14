@@ -196,9 +196,41 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .cv-sheet .row2{display:flex;gap:8px}
 .cv-sheet .row2 button{flex:1;min-height:40px;border-radius:8px;font-weight:600;font-size:13px}
 @media (min-width:700px){.cv{left:50%;right:auto;width:440px;transform:translateX(-50%);box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}}
+/* Clean (the default): the picture and two quiet numbers. Nothing drawn on the video; no meters, chips,
+   legends or flashes; the rep count and the last rep's speed on frosted glass, in system type. */
+body.clean #canvas,body.clean .legend,body.clean .flash,body.clean .reason,body.clean .stage:not(.pu) .bigc,body.clean .ttl em,
+body.clean #arm-btn,body.clean #min-btn,body.clean .vp-k,body.clean .vp-src,body.clean .vp-loss,body.clean .vp-now,
+body.clean .vp-live,body.clean .vp-bars,body.clean .vp-verdict,body.clean #live .meter,body.clean #live .meter-l,
+body.clean #live .chips,body.clean #live .sub,body.clean #relock-btn{display:none!important}
+body.clean .ttl{font-weight:600;font-size:15px;letter-spacing:-.01em}
+body.clean .status{top:auto;bottom:16px;left:16px;right:16px;transform:none;width:fit-content;max-width:calc(100% - 32px);margin:0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:8px 14px;font-size:13px;font-weight:500;letter-spacing:-.01em;background:rgba(0,0,0,.32);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6)}
+body.clean .status:empty{display:none}
+body.clean .stage.has-vp .status{left:16px;right:16px;max-width:calc(100% - 32px);text-align:center}
+body.clean .vp{width:auto;min-width:96px;padding:12px 16px;border-radius:20px;background:rgba(0,0,0,.28);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:none}
+body.clean .vp .vp-n b{font-size:34px;font-weight:600;letter-spacing:-.03em}
+body.clean .vp .vp-n span{font-size:13px;font-weight:500;opacity:.7}
+body.clean #live .row{justify-content:space-between;align-items:center}
+body.clean #live .count b{font-weight:600;letter-spacing:-.04em}
+body.clean #live .count span{font-weight:500}
+.vp-dial,.vp-sub{display:none}
+body.clean .vp{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;padding:12px}
+body.clean .vp-dial{display:grid;place-items:center;width:104px;height:104px;position:relative}
+body.clean .vp-ring{position:absolute;inset:0;width:104px;height:104px;transform:rotate(-90deg)}
+.vp-ring circle{fill:none;stroke-width:7;stroke-linecap:round}
+.vp-ring .trk{stroke:rgba(255,255,255,.14)}
+.vp-ring .arc{stroke:#30D158;stroke-dasharray:289.03;stroke-dashoffset:289.03;transition:stroke-dashoffset .65s cubic-bezier(.34,1.56,.64,1),stroke .4s ease}
+.vp-ring .arc.work{stroke:#FF9F0A}.vp-ring .arc.grind{stroke:#FF453A}
+body.clean .vp .vp-n{flex-direction:column;align-items:center;gap:0;margin:0}
+body.clean .vp .vp-n b{font-size:28px}
+body.clean .vp .vp-n span{font-size:11px}
+body.clean .vp-sub{display:block;font-size:11.5px;font-weight:500;letter-spacing:-.01em;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums;white-space:nowrap}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+.pop{animation:pop .35s cubic-bezier(.34,1.56,.64,1)}
+#n-count{display:inline-block;transform-origin:left bottom}
+@media (prefers-reduced-motion:reduce){.vp-ring .arc{transition:none}.pop{animation:none}}
 </style>
 </head>
-<body>
+<body class="clean">
 <div class="app">
   <div class="stage" id="stage">
     <video id="video" playsinline muted></video>
@@ -215,7 +247,11 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
     <aside class="vp" id="vp" hidden aria-label="Bar speed per rep">
       <div class="vp-k" id="vp-k">Bar speed</div>
       <div class="vp-src" id="vp-src" hidden></div>
-      <div class="vp-n"><b id="vp-v">–</b><span id="vp-u"></span></div>
+      <div class="vp-dial">
+        <svg class="vp-ring" viewBox="0 0 104 104" aria-hidden="true"><circle class="trk" cx="52" cy="52" r="46"/><circle class="arc" id="vp-arc" cx="52" cy="52" r="46"/></svg>
+        <div class="vp-n"><b id="vp-v">–</b><span id="vp-u"></span></div>
+      </div>
+      <div class="vp-sub" id="vp-sub"></div>
       <div class="vp-loss" id="vp-loss">Shows after each rep</div>
       <div class="vp-now"><span>Live</span><span><b id="vp-now">–</b> <span id="vp-now-u"></span></span></div>
       <canvas class="vp-live" id="vp-live" aria-hidden="true"></canvas>
@@ -914,11 +950,12 @@ function renderPanel(verdict) {
   const best = timed.length ? Math.max(...timed.slice(0, 3).map((x) => x.mv)) : NaN;
   const last = timed[timed.length - 1];
   const what = EX.press || EX.row ? 'Hand speed' : 'Bar speed';
+  ringPanel(last, best, timed.length, metres);
   $('vp-k').textContent = last ? `${what} · rep ${last.r.n}` : what;
   if (!last) { $('vp-v').textContent = '–'; $('vp-u').textContent = ''; $('vp-loss').textContent = 'Shows after each rep'; $('vp-loss').className = 'vp-loss'; }
   else {
     const loss = (best - last.mv) / best;
-    $('vp-v').textContent = metres ? last.mv.toFixed(2) : `${Math.round((last.mv / best) * 100)}%`;
+    rollNumber($('vp-v'), metres ? last.mv : (last.mv / best) * 100, metres ? (v) => v.toFixed(2) : (v) => `${Math.round(v)}%`);
     $('vp-u').textContent = metres ? 'm/s' : 'of best';
     $('vp-loss').textContent = timed.length < 2 ? 'Your baseline' : loss <= 0.005 ? 'Fastest yet' : `−${Math.round(loss * 100)}% vs best`;
     $('vp-loss').className = 'vp-loss ' + (timed.length < 2 ? '' : lossBand(loss));
@@ -936,6 +973,31 @@ function renderPanel(verdict) {
 const VERDICT = { add: 'Add weight', keep: 'Keep weight, +1 rep', hold: 'Stay at this weight', none: 'Not enough reps' };
 const repsDown = (rir) => Math.max(1, Math.floor(rir));
 const repsLeft = (rir) => (rir >= 5 ? '5+ reps left' : rir < 0.5 ? 'At failure' : `~${repsDown(rir)} rep${repsDown(rir) === 1 ? '' : 's'} left`);
+// The ring round the speed: this rep against the fastest so far, coloured by how much slower it is
+// (the summary's bands: under 20% green, under 40% amber, then red). A rep without a speed empties it.
+const RING_C = 2 * Math.PI * 46;
+function ringPanel(last, best, n, metres) {
+  const arc = $('vp-arc'), sub = $('vp-sub');
+  if (!last || !(best > 0)) { arc.style.strokeDashoffset = RING_C; arc.setAttribute('class', 'arc'); sub.textContent = ''; return; }
+  const fast = Math.max(best, last.mv), loss = Math.max(0, (fast - last.mv) / fast);
+  arc.style.strokeDashoffset = RING_C * (1 - Math.min(1, last.mv / fast));
+  arc.setAttribute('class', 'arc ' + (n < 2 ? 'fresh' : lossBand(loss)));
+  sub.textContent = `Rep ${last.r.n} · ${n < 2 ? 'baseline' : loss <= 0.005 ? 'fastest' : `−${Math.round(loss * 100)}%`}`;
+}
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+/** Rolls a number on screen from what it shows now to `to` (ease-out, 0.4 s). */
+function rollNumber(el, to, fmt) {
+  const from = el.dataset.v === undefined ? NaN : +el.dataset.v;
+  el.dataset.v = to;
+  if (!Number.isFinite(from) || reducedMotion()) { el.textContent = fmt(to); return; }
+  const t0 = performance.now(), step = (now) => {
+    const u = Math.min(1, (now - t0) / 400), k = 1 - (1 - u) ** 3;
+    if (+el.dataset.v !== to) return; // a newer value took over
+    el.textContent = fmt(from + (to - from) * k);
+    if (u < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
 function showPanel(on) { $('vp').hidden = !on; $('stage').classList.toggle('has-vp', on); }
 
 // ── Feedback ─────────────────────────────────────────────
@@ -949,6 +1011,13 @@ function beep(freq, dur = 0.09) {
   } catch {}
 }
 const buzz = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+/** A rep's tap: one light tap when it counts, two when it's short. The app's own haptics where there are some. */
+function haptic(kind) {
+  const H = window.Capacitor?.Plugins?.Haptics;
+  if (!H) { buzz(kind === 'short' ? [18, 70, 18] : 14); return; }
+  const tap = () => H.impact({ style: 'LIGHT' }).catch(() => {});
+  tap(); if (kind === 'short') setTimeout(tap, 110);
+}
 function setStatus(text, tone = '') { const s = $('status'); s.textContent = text; s.className = 'status' + (tone ? ' ' + tone : ''); }
 
 // ── Pull-up sounds ───────────────────────────────────────
@@ -1049,7 +1118,9 @@ function resetSet() {
 }
 function updateCounts() {
   const s = counter ? counter.summary() : { counted: 0, short: 0, unclear: 0 };
-  $('n-count').textContent = s.counted; $('n-short').textContent = `${s.short} short`; $('n-unclear').textContent = `${s.unclear} unclear`;
+  const nc = $('n-count');
+  if (+nc.textContent < s.counted && !reducedMotion()) { nc.classList.remove('pop'); void nc.offsetWidth; nc.classList.add('pop'); }
+  nc.textContent = s.counted; $('n-short').textContent = `${s.short} short`; $('n-unclear').textContent = `${s.unclear} unclear`;
   $('bigc-n').textContent = s.counted;
   $('bigc-s').textContent = s.short ? `${s.short} short` : 'reps'; $('bigc-s').className = s.short ? 's' : '';
 }
@@ -1398,8 +1469,8 @@ function onEvent(ev) {
     else if (r.result === 'short') { const why = shortReasons(r); sfx('short'); buzz([200, 100, 200]); flash('bad', why); setStatus(`Short — ${why}`, 'warn'); }
     else { sfx('unclear'); setStatus(`Unclear rep — the camera lost your ${EX.part}`, 'warn'); }
   } else if (ev.type === 'rep') {
-    if (r.result === 'counted') { beep(988); buzz(25); setStatus(`Rep ${counter.summary().counted}`, 'good'); }
-    else if (r.result === 'short') { beep(330, 0.14); buzz([60, 40, 60]); setStatus(r.shortFinish && r.shortStart ? `Short — missed the ${EX.start} and the ${EX.finish}` : r.shortFinish ? `Short — missed the ${EX.finish}` : `Short — missed the ${EX.start}`, 'warn'); }
+    if (r.result === 'counted') { beep(988); haptic('counted'); setStatus(`Rep ${counter.summary().counted}`, 'good'); }
+    else if (r.result === 'short') { beep(330, 0.14); haptic('short'); setStatus(r.shortFinish && r.shortStart ? `Short — missed the ${EX.start} and the ${EX.finish}` : r.shortFinish ? `Short — missed the ${EX.finish}` : `Short — missed the ${EX.start}`, 'warn'); }
     else setStatus(`Unclear rep — the camera lost your ${EX.part}`, 'warn');
   }
   updateCounts();
