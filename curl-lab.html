@@ -1112,7 +1112,7 @@ async function startFile(file) {
     await playVideo(video);
     if (generation !== startGeneration) { video.pause(); return; }
     begin();
-  } catch (e) { setStatus('Couldn’t analyse this video: ' + (e.message || e), 'warn'); }
+  } catch (e) { setStatus(e && e.name === 'NotAllowedError' ? 'The phone blocked the video — tap Start again' : 'Couldn’t analyse this video: ' + (e.message || e), 'warn'); }
   finally { starting = false; }
 }
 
