@@ -198,6 +198,7 @@ input[type=range]{width:100%;accent-color:var(--ink);min-height:44px}
 import { analyseSet, LIFTS, estimateFps, trackerFor, trackerChoices, recogniseLift } from './features/velocity/services/pipeline.js';
 import { classifyPosture, countBarReps } from './features/velocity/services/sbd.js';
 import { sampleColour, findMarker, createMarkerTracker } from './features/velocity/services/vision/marker.js';
+import { playVideo } from './features/velocity/services/live/playVideo.js';
 import { parseReference, compareSet, passes, accuracyTable, toCsv, REFERENCES, TARGET_PCT, TRANSDUCER, transducerLevel } from './features/velocity/services/compare.js';
 import { createPlateSession, findPlate, DEFAULT_HFOV_DEG } from './features/velocity/services/live/plateSession.js';
 import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
@@ -476,7 +477,7 @@ async function readVideo(video, { pw, ph, plate }) {
     callbackId = video.requestVideoFrameCallback(onFrame);
     video.onended = () => finish();
     video.onerror = () => finish(new Error('Video decoding failed'));
-    video.play().catch(finish);
+    playVideo(video, { label: 'Tap to start reading the video' }).catch(finish);
   });
   $('busy').hidden = true;
   return { vw, vh, frames, dropped, fileFps: estimateFps(frames.map((f) => f.t)),

@@ -348,6 +348,7 @@ import { createPlateSession } from './features/velocity/services/live/plateSessi
 import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
 import { requestMotionPermission, createMotionWatch } from './features/velocity/services/live/motion.js';
 import { barMetrics, barStill } from './features/velocity/services/bar3d.js';
+import { playVideo } from './features/velocity/services/live/playVideo.js';
 import { createLiftDetector, countBarReps } from './features/velocity/services/sbd.js';
 import { createFrameClock } from './features/velocity/services/live/frameClock.js';
 import { buildLiveSetRecord, saveSetRecord } from './features/velocity/services/record.js';
@@ -1082,7 +1083,7 @@ async function startCamera() {
     if (sourceURL) { URL.revokeObjectURL(sourceURL); sourceURL = null; }
     video.removeAttribute('src'); video.onended = null;
     video.srcObject = stream; video.classList.toggle('mirror', facing === 'user');
-    await video.play();
+    await playVideo(video);
     if (generation !== startGeneration) { stopStream(); return; }
     try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
     if (generation !== startGeneration) { stopStream(); if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } return; }
@@ -1108,7 +1109,7 @@ async function startFile(file) {
     sourceURL = URL.createObjectURL(file);
     video.srcObject = null; video.src = sourceURL; video.classList.remove('mirror');
     video.onended = () => endSet();
-    await video.play();
+    await playVideo(video);
     if (generation !== startGeneration) { video.pause(); return; }
     begin();
   } catch (e) { setStatus('Couldn’t analyse this video: ' + (e.message || e), 'warn'); }
@@ -1761,7 +1762,7 @@ function openCoach(tries = 0) {
   cvv.hidden = !hasVideo; $('cv-ph').hidden = hasVideo;
   if (hasVideo) {
     cvv.src = recURL; cvv.classList.toggle('mirror', source === 'camera' && facing === 'user');
-    cvv.currentTime = 0; cvv.play().catch(() => {});
+    cvv.currentTime = 0; playVideo(cvv, { label: 'Tap to play the set' }).catch(() => {});
   } else {
     $('cv-ph').textContent = demo ? 'Demo set — no camera video. The chart and rep counter still play back in time.' : 'No video was recorded on this device. The chart and rep counter still play back in time.';
     cvClock0 = performance.now();
