@@ -44,7 +44,7 @@ try {
     localStorage.setItem('jarvis_workouts', '[]');
     localStorage.setItem('jarvis_active_workout', JSON.stringify({ id: 'smoke-w', name: 'Camera smoke', startedAt: Date.now(), notes: 'keep notes', exercises: [
       { id: 'smoke-e', name: 'Bench Press', sets: [{ id: 'smoke-s', type: 'working', weight: 80, reps: '', rir: 2, completed: false }] },
-      { id: 'unsupported-e', name: 'Deadlift', sets: [{ id: 'unsupported-s', type: 'working', weight: '', reps: '', completed: false }] },
+      { id: 'unsupported-e', name: 'Romanian Deadlift', sets: [{ id: 'unsupported-s', type: 'working', weight: '', reps: '', completed: false }] },
     ] }));
   });
   await page.reload({ waitUntil: 'networkidle0' });

@@ -411,7 +411,6 @@ input,select,textarea{font-family:inherit}
     <button class="wtab on" role="tab" data-tab="log"      onclick="setTab('log')">Today</button>
     <button class="wtab"    role="tab" data-tab="plan"     onclick="setTab('plan')">Plan</button>
     <button class="wtab"    role="tab" data-tab="history"  onclick="setTab('history')">History</button>
-    <button class="wtab"    role="tab" data-tab="machines" onclick="setTab('machines')">Machines</button>
   </div>
 
   <div id="view-log"></div>
@@ -419,7 +418,7 @@ input,select,textarea{font-family:inherit}
   <div id="view-plan" style="display:none">
     <div id="plan-overview"></div>
     <details class="pl-box" id="pl-programs">
-      <summary><span><b>Weekday programs</b><small>One workout per weekday. Start a day, edit its exercises, or import one from a video.</small></span></summary>
+      <summary><span><b>Workouts by weekday</b><small>The workout for each day of the week. Today’s appears on the Today tab.</small></span></summary>
       <div id="view-programs" class="pl-body">
       <div class="pl-acts">
         <button class="btn btn-s btn-sm" onclick="createProgram()">＋ New program</button>
@@ -439,13 +438,17 @@ input,select,textarea{font-family:inherit}
   </div>
 
     </details>
+    <div class="pl-box pl-link" role="button" tabindex="0" onclick="setTab('machines')" onkeydown="if(event.key==='Enter')setTab('machines')"><summary><span><b>Gym machines</b><small>Look up a machine: how it loads and which muscles it works.</small></span></summary></div>
     <details class="pl-box" id="pl-coaching">
       <summary><span><b>Coaching</b><small>Share your training with a coach, or follow the people you coach.</small></span></summary>
       <div id="view-coaching" class="pl-body"></div>
     </details>
   </div>
   <div id="view-history" style="display:none"></div>
-  <div id="view-machines" style="display:none"></div>
+  <div id="view-machines" style="display:none">
+    <button class="td-text" style="margin:0 0 10px;padding:6px 2px;font-weight:600" onclick="setTab('plan')">‹ Plan</button>
+    <div id="mb-host"></div>
+  </div>
   <input type="file" id="coach-file" accept=".json,application/json" style="display:none" onchange="coachFilePicked(this)">
   <input type="file" id="phy-file" accept="image/*" style="display:none" onchange="phyPick(this)">
 </div>
@@ -605,7 +608,9 @@ function setTab(t){
   if(t==='programs'||t==='coaching'){ section=t; t='plan'; }
   if(!TABS.includes(t)) t='log';
   tab=t;
-  document.querySelectorAll('.wtab').forEach(b=>{ const on=b.dataset.tab===t; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+  // The machine database opens from Plan, so Plan stays highlighted while it's showing.
+  const lit = t==='machines' ? 'plan' : t;
+  document.querySelectorAll('.wtab').forEach(b=>{ const on=b.dataset.tab===lit; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
   TABS.forEach(v=>{ document.getElementById('view-'+v).style.display = t===v?'':'none'; });
   if(t==='log') renderLog(); else document.querySelector('.pg').classList.remove('in-workout');
   if(t==='plan') renderPlanTab(section);
@@ -739,7 +744,7 @@ function renderToday(host){
     main = `<section class="card td-hero">
       <div class="td-eye">Today · ${esc(sugg.prog.name)}</div>
       <h3 class="td-h">${esc(sugg.day.name)}</h3>
-      <div class="td-sub">${esc(dateLabel)}</div>
+      <div class="td-sub">${esc(dateLabel)} · from your weekly workouts <button class="td-text" style="display:inline;padding:0;margin:0;font-weight:600" onclick="setTab('programs')">Edit</button></div>
       ${exs.length?`<ul class="tp-ex">${exs.map(x=>`<li><span>${esc(x.name)}</span><span>${esc((x.targetSets||3)+' × '+(x.targetReps||''))}</span></li>`).join('')}</ul>`:''}
       <button class="btn btn-p td-cta" onclick="startProgramWorkout('${sugg.prog.id}',${sugg.di})">${TD_ICON.play} Start workout</button>
     </section>`;
@@ -751,7 +756,7 @@ function renderToday(host){
       <button class="btn btn-p td-cta" onclick="startWorkout()">${TD_ICON.plus} Start workout</button>
     </section>`;
   }
-  const setup = planOn ? '' : `<section class="card td-setup">
+  const setup = planOn || sugg ? '' : `<section class="card td-setup">
       <div class="td-setup-b"><b>Train to a weekly plan</b><span>Choose a split and your days once. Arete puts the right session here every day and tracks your week.</span></div>
       <button class="btn btn-s btn-sm" onclick="openPlanSetup()">${wizDraft?'Continue setup':'Set up plan'}</button>
     </section>`;
@@ -766,7 +771,7 @@ function renderToday(host){
   host.innerHTML = `<div class="td">
     ${main}
     ${setup}
-    <div class="td-sec">${main ? 'Other ways to train' : 'Start something'}</div>
+    <div class="td-sec">${main ? 'Or start something else' : 'Start something'}</div>
     <div class="card td-list">${rows.join('')}</div>
     ${tpls.length>3 ? `<button class="td-more" onclick="_allRoutines=!_allRoutines;renderLog()">${_allRoutines?'Show fewer routines':'Show all '+tpls.length+' routines'}</button>` : ''}
     ${upcoming.length ? `<div class="td-sec">Scheduled</div><div class="card">${upcoming.map(upRow).join('')}</div>` : ''}
@@ -2298,7 +2303,7 @@ function hrow(w){
   return `<div class="hrow" onclick="openSession('${w.id}')" title="See this session">
     <div class="hdate"><div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString(undefined,{month:'short'})}</div></div>
     <div class="hname"><div class="n">${esc(w.name)}</div><div class="s">${w.exercises.length} exercises · ${sets} sets${muscles?' · '+esc(muscles):''}</div></div>
-    <button class="icon-btn" title="Delete" onclick="event.stopPropagation();delWorkout('${w.id}')" style="color:var(--re)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+    <button class="icon-btn" title="Delete" onclick="event.stopPropagation();delWorkout('${w.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
   </div>`;
 }
 function delWorkout(id){ if(!confirm('Delete this logged workout?')) return; F.storageAdapter.deleteWorkout(id); renderHistory(); }
@@ -2373,7 +2378,7 @@ function showMachine(exId){
 // Machines tab: browse all machines; "Add to workout" goes to the open session.
 let _mbMounted=false;
 function renderMachines(){
-  const host=document.getElementById('view-machines');
+  const host=document.getElementById('mb-host');
   if(!_mui){ host.innerHTML='<div class="card"><div class="empty"><p style="font-size:12.5px">Loading the machine database…</p></div></div>'; return; }
   if(_mbMounted) return;
   _mbMounted=true;
