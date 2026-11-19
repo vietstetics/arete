@@ -564,6 +564,7 @@ input,select,textarea{font-family:inherit}
 
 <script src="js/fitness.js"></script>
 <script src="js/workoutcard.js"></script>
+<script src="js/focuslock.js"></script>
 <script>
 const F = window.Fitness;
 F.seedMockData();
@@ -598,7 +599,12 @@ function newActive(name){
   return { id:'w-'+F.uid(), name:name||'New Workout', startedAt:Date.now(), userId:trainingUserId(), exercises:[], notes:'' };
 }
 function trainingUserId(){ try{ const session=window.Auth?.localSession?.(); return session?.user?.id || session?.id || session?.email || null; }catch{ return null; } }
-function saveActive(){ wj(K_ACTIVE, active); }
+function saveActive(){ wj(K_ACTIVE, active); syncLock(); }
+// Lock-in (iPhone app): the picked apps stay blocked while a workout is open (js/focuslock.js).
+function syncLock(){ if(window.FocusLock) FocusLock.sync(active); }
+function unlockEarly(){ if(!active) return; active.unlockedEarly=Date.now(); saveActive(); renderLog(); toast('Apps unlocked for this workout'); }
+function renderLockIn(){ if(window.FocusLock) FocusLock.render(document.getElementById('lockin'), unlockEarly); }
+if(window.FocusLock){ FocusLock.onChange(()=>renderLockIn()); syncLock(); }
 
 let tab = 'log';
 const TABS=['log','plan','history','machines'];
@@ -813,6 +819,7 @@ function renderWorkout(host){
         <button class="btn btn-p wk-finish" onclick="finishWorkout()">Finish</button>
         <div class="wk-progress" role="progressbar" aria-label="Sets done" aria-valuemin="0" aria-valuemax="${working}" aria-valuenow="${workingDone}"><i style="width:${pct}%"></i></div>
       </div>
+      <div id="lockin"></div>
       <div id="ex-wrap">${active.exercises.map(renderExercise).join('')||'<div class="empty" style="padding:28px 24px 8px"><h3>No exercises yet</h3><p style="font-size:12.5px">Add your first one to start logging sets.</p></div>'}</div>
       <div class="lg-add"><button class="btn btn-s" onclick="openEx()">＋ Add exercise</button></div>
       <div class="lg-foot">
@@ -847,6 +854,7 @@ function renderWorkout(host){
   </div>`;
 
   renderTargets(t);
+  renderLockIn();
   ensureBody();
 }
 
@@ -1006,7 +1014,7 @@ function delPlanned(id){ F.storageAdapter.deleteWorkout(id); renderLog(); }
 
 // ── workout actions ──
 function startWorkout(name){ if(!keepDraftOk()) return; active = newActive(name); saveActive(); renderLog(); }
-function discardWorkout(){ if(!confirm('Discard this workout? Nothing from it will be logged.')) return; active=null; localStorage.removeItem(K_ACTIVE); renderLog(); }
+function discardWorkout(){ if(!confirm('Discard this workout? Nothing from it will be logged.')) return; active=null; localStorage.removeItem(K_ACTIVE); syncLock(); renderLog(); }
 
 // The picker also serves the plan setup: pass a callback to receive the name.
 let _exPick = null;
@@ -1404,7 +1412,7 @@ function finishWorkout(){
   F.storageAdapter.saveWorkout(active);
   const t=targetMuscles(active);
   const wasPlanned=!!active.scheduledFor;
-  active=null; localStorage.removeItem(K_ACTIVE);
+  active=null; localStorage.removeItem(K_ACTIVE); syncLock();
   let msg=`Logged! ${t.pri.size} muscle groups now recovering`;
   const T=window.Training;
   if(wasPlanned && T){
@@ -2311,7 +2319,7 @@ function hrow(w){
   const muscles=[...new Set([...t.pri].map(shortMuscle))].slice(0,5).join(' · ');
   return `<div class="hrow" onclick="openSession('${w.id}')" title="See this session">
     <div class="hdate"><div class="d">${d.getDate()}</div><div class="m">${d.toLocaleDateString(undefined,{month:'short'})}</div></div>
-    <div class="hname"><div class="n">${esc(w.name)}</div><div class="s">${w.exercises.length} exercises · ${sets} sets${muscles?' · '+esc(muscles):''}</div></div>
+    <div class="hname"><div class="n">${esc(w.name)}</div><div class="s">${w.exercises.length} exercises · ${sets} sets${muscles?' · '+esc(muscles):''}${w.unlockedEarly?' · Unlocked early':''}</div></div>
     ${window.WorkoutCard?`<button class="icon-btn" title="Download workout card" aria-label="Download workout card for ${esc(w.name)}" onclick="event.stopPropagation();WorkoutCard.open(completed().find(x=>x.id==='${w.id}'))"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>`:''}
     <button class="icon-btn" title="Delete" onclick="event.stopPropagation();delWorkout('${w.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
   </div>`;

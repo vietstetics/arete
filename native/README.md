@@ -338,3 +338,35 @@ Testing needs a real iPhone (the simulator has no meaningful Health data).
 
 Health Connect requires Android 9+ (app) and the Health Connect app installed
 (built into Android 14+). Google Fit APIs are NOT used.
+
+# Lock-in mode: block social apps during a workout (iOS only)
+
+Every workout blocks the apps the user picked (Instagram, TikTok, YouTube, Snapchat, …) with Apple's
+Screen Time shield until the workout is finished or discarded. A 5-second "Hold to unlock" on the
+workout screen ends the block early, and the workout records that. On the web and Android nothing is
+blocked and the workout runs as normal.
+
+Code: `native/ios/FocusLockPlugin.swift` (Capacitor plugin `FocusLock`), `js/focuslock.js` (bridge and
+the decision), wired in `workouts.html`.
+
+## Turn it on (Mac + Xcode)
+1. Copy `native/ios/FocusLockPlugin.swift` into `ios/App/App/` and add it to the App target.
+2. Xcode › App target › Signing & Capabilities › **+ Capability › Family Controls**. This adds
+   `com.apple.developer.family-controls` to `App.entitlements`.
+3. Set the App target's **iOS Deployment Target to 16.0** or later.
+4. `npx cap sync ios`, then run on a **real iPhone**: the Simulator can't show Screen Time shields.
+
+## Apple approval (before TestFlight / App Store)
+Development builds work as soon as the capability is added. Distribution builds need Apple to grant
+the Family Controls entitlement: request it at
+https://developer.apple.com/contact/request/family-controls-distribution. Ask early: it can take days
+to weeks.
+
+## Test
+1. Start a workout. The first time, Arete explains lock-in, iOS asks for Screen Time permission, then
+   Apple's picker opens: tick Instagram, TikTok, YouTube and Snapchat, then tap Done.
+2. Open Instagram: you see the "Restricted" shield.
+3. Finish the workout: Instagram opens again.
+4. Start another workout and hold "Hold to unlock" for 5 s: the apps open again, and History shows
+   "Unlocked early" for that workout.
+5. Force-quit Arete mid-workout: the apps stay blocked. Reopen Arete and finish: they unblock.
