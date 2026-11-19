@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Arete — iPhone preview</title>
+<!--
+  The app as an iPhone shows it, on a laptop: any page of the site inside a phone-sized frame, at the
+  phone's real width. Same site, so the same login and data. Not part of the app (not linked from it,
+  not in the phone build). Layout preview only: this is the laptop's browser, not iOS Safari.
+-->
+<style>
+:root{--bg:#EEF0F3;--ink:#16181D;--ink2:#6B7079;--line:#D8DBE0;--card:#fff}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.bar{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;background:rgba(255,255,255,.8);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6);border-bottom:1px solid var(--line)}
+.bar b{font-weight:600;margin-right:6px;white-space:nowrap}
+select,input,button{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px 10px;height:32px}
+input{flex:1;min-width:180px}
+button{cursor:pointer;white-space:nowrap}
+button:hover,select:hover{border-color:#B9BDC4}
+label.tg{display:flex;align-items:center;gap:6px;color:var(--ink2);white-space:nowrap}
+label.tg input{flex:none;min-width:0;height:auto}
+.stagewrap{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:flex-start;overflow:hidden}
+.phone{position:relative;transform-origin:top center;background:#0B0B0D;border-radius:var(--rb);padding:var(--bezel);box-shadow:0 0 0 2px #2A2B30,0 30px 60px rgba(0,0,0,.25)}
+.screen{position:relative;display:flex;flex-direction:column;overflow:hidden;background:#fff;border-radius:var(--rs);width:var(--w);height:var(--h)}
+.screen.land{flex-direction:row}
+.status{flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 34px;font-weight:600;font-size:16px;color:#000;background:#fff}
+.island{position:absolute;z-index:3;background:#000;border-radius:20px}
+.home{flex:none;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;background:#fff}
+.home i{display:block;width:134px;height:5px;border-radius:3px;background:#111}
+.side{flex:none;background:#fff}
+iframe{flex:1;border:0;display:block;min-width:0;min-height:0;background:#fff}
+.note{position:fixed;bottom:10px;left:0;right:0;text-align:center;color:var(--ink2);font-size:12px;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="bar" id="bar">
+  <b>iPhone preview</b>
+  <select id="page" aria-label="Page"></select>
+  <input id="addr" aria-label="Address" spellcheck="false" placeholder="workouts.html?tab=plan">
+  <select id="device" aria-label="Device"></select>
+  <button id="rotate" title="Portrait / landscape">Rotate</button>
+  <button id="reload">Reload</button>
+  <button id="newtab">Open in tab</button>
+  <label class="tg"><input type="checkbox" id="safe" checked> Notch &amp; home bar</label>
+</div>
+<div class="stagewrap" id="stagewrap">
+  <div class="phone" id="phone">
+    <div class="screen" id="screen"></div>
+  </div>
+</div>
+<p class="note">A layout preview in this browser, not iOS Safari. Sign in in a normal tab first (Google sign-in won't run in a frame).</p>
+<script>
+// Phones by their CSS size, and where iOS keeps clear of the Dynamic Island / notch and home bar.
+const DEVICES = {
+  'iphone16': { name: 'iPhone 16 / 15 Pro', w: 393, h: 852, top: 59, bottom: 34, island: true },
+  'iphone16promax': { name: 'iPhone 16 Pro Max', w: 440, h: 956, top: 62, bottom: 34, island: true },
+  'iphonese': { name: 'iPhone SE', w: 375, h: 667, top: 20, bottom: 0, island: false },
+};
+const PAGES = [
+  ['Home', 'index.html'], ['Training', 'workouts.html'], ['Training · Plan', 'workouts.html?tab=plan'],
+  ['Training · History', 'workouts.html?tab=history'], ['Food', 'nutrition.html'],
+  ['Camera · squat, bench or deadlift', 'curl-lab.html?ex=auto'], ['Camera · squat', 'curl-lab.html?ex=squat'],
+  ['Camera · bench', 'curl-lab.html?ex=bench'], ['Camera · deadlift', 'curl-lab.html?ex=deadlift'],
+  ['Camera · demo set', 'curl-lab.html?ex=squat&demo=1'], ['Velocity lab', 'velocity-lab.html'],
+  ['Exercises', 'exercises.html'], ['Sleep', 'sleep.html'], ['Steps', 'steps.html'], ['Recovery', 'recovery.html'],
+  ['Analytics', 'analytics.html'], ['Habits', 'habits.html'], ['Goals', 'goals.html'], ['Tasks', 'tasks.html'],
+  ['Finance', 'finance.html'], ['Settings', 'settings.html'], ['Connections', 'connections.html'], ['Sign in', 'login.html'],
+];
+const $ = (id) => document.getElementById(id);
+const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+let device = DEVICES[store.get('iphone-preview-device')] ? store.get('iphone-preview-device') : 'iphone16';
+let land = store.get('iphone-preview-land') === '1';
+let frame = null;
+
+$('page').innerHTML = PAGES.map(([t, u]) => `<option value="${u}">${t}</option>`).join('') + '<option value="">Other (address box)</option>';
+$('device').innerHTML = Object.entries(DEVICES).map(([k, d]) => `<option value="${k}">${d.name}</option>`).join('');
+$('device').value = device;
+$('safe').checked = store.get('iphone-preview-safe') !== '0';
+
+// The page shown inside the phone, kept in this page's address (#/workouts.html?tab=plan) so a refresh
+// or a shared link opens the same screen.
+const fromHash = () => { const h = decodeURIComponent(location.hash.replace(/^#\/?/, '')); return h || 'index.html'; };
+const clean = (u) => String(u || '').trim().replace(/^https?:\/\/[^/]+\//, '').replace(/^\/+/, '') || 'index.html';
+
+function build() {
+  const d = DEVICES[device], safe = $('safe').checked;
+  const W = land ? d.h : d.w, H = land ? d.w : d.h;
+  const bezel = 12, phone = $('phone'), screen = $('screen');
+  phone.style.setProperty('--w', W + 'px'); phone.style.setProperty('--h', H + 'px');
+  phone.style.setProperty('--bezel', bezel + 'px');
+  phone.style.setProperty('--rs', d.island ? '55px' : '6px'); phone.style.setProperty('--rb', d.island ? '67px' : '18px');
+  const src = frame ? frame.getAttribute('src') : fromHash();
+  screen.className = 'screen' + (land ? ' land' : '');
+  // iOS keeps content clear of the island / notch and the home bar; a page in a frame can't know they're
+  // there, so they're drawn around it (portrait: status bar above, home bar below; landscape: both sides).
+  const parts = [];
+  if (safe && !land && d.top) parts.push(`<div class="status" style="height:${d.top}px"><span>9:41</span><span>●●● ▮</span></div>`);
+  if (safe && land && d.island) parts.push(`<div class="side" style="width:${d.top}px"></div>`);
+  parts.push(`<iframe id="app" title="App preview" allow="camera; microphone; autoplay; fullscreen; accelerometer; gyroscope"></iframe>`);
+  if (safe && land && d.island) parts.push(`<div class="side" style="width:${d.top}px"></div>`);
+  if (safe && !land && d.bottom) parts.push(`<div class="home" style="height:${d.bottom}px"><i></i></div>`);
+  if (safe && d.island) parts.push(land
+    ? `<div class="island" style="left:11px;top:${(H - 126) / 2}px;width:37px;height:126px"></div>`
+    : `<div class="island" style="top:11px;left:${(W - 126) / 2}px;width:126px;height:37px"></div>`);
+  screen.innerHTML = parts.join('');
+  frame = $('app');
+  frame.addEventListener('load', mirror);
+  frame.setAttribute('src', src);
+  fit();
+}
+
+// Scale the whole phone down to fit the window; the app inside keeps its real width.
+function fit() {
+  const bar = $('bar').getBoundingClientRect().height, wrap = $('stagewrap'), phone = $('phone');
+  wrap.style.top = bar + 16 + 'px';
+  const availH = innerHeight - bar - 48, availW = innerWidth - 32;
+  const s = Math.min(1, availH / phone.offsetHeight, availW / phone.offsetWidth);
+  phone.style.transform = `scale(${s})`;
+  wrap.style.height = Math.ceil(phone.offsetHeight * s) + 'px';
+}
+
+// Where the app went inside the phone (links, tabs): into the address box and this page's address.
+function mirror() {
+  let u = '';
+  try { const l = frame.contentWindow.location; u = clean(l.pathname + l.search + l.hash); } catch { return; }
+  $('addr').value = u;
+  $('page').value = PAGES.some(([, p]) => p === u) ? u : '';
+  history.replaceState(null, '', '#/' + u);
+  // Follow later in-page changes too (tabs that rewrite the address without a reload).
+  try { frame.contentWindow.addEventListener('popstate', mirror); frame.contentWindow.addEventListener('hashchange', mirror); } catch {}
+}
+function go(u) { u = clean(u); frame.setAttribute('src', u); $('addr').value = u; history.replaceState(null, '', '#/' + u); }
+
+$('page').onchange = (e) => { if (e.target.value) go(e.target.value); else $('addr').focus(); };
+$('addr').onkeydown = (e) => { if (e.key === 'Enter') go(e.target.value); };
+$('device').onchange = (e) => { device = e.target.value; store.set('iphone-preview-device', device); build(); };
+$('rotate').onclick = () => { land = !land; store.set('iphone-preview-land', land ? '1' : '0'); build(); };
+$('safe').onchange = (e) => { store.set('iphone-preview-safe', e.target.checked ? '1' : '0'); build(); };
+$('reload').onclick = () => { try { frame.contentWindow.location.reload(); } catch { go($('addr').value); } };
+$('newtab').onclick = () => open(clean($('addr').value), '_blank');
+addEventListener('resize', fit);
+addEventListener('hashchange', () => { const u = fromHash(); if (u !== $('addr').value) go(u); });
+
+$('addr').value = fromHash();
+$('page').value = PAGES.some(([, p]) => p === fromHash()) ? fromHash() : '';
+build();
+</script>
+</body>
+</html>
