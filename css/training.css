@@ -393,3 +393,6 @@ button.ex-name:hover { color: var(--gr); }
 .pl-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .pl-note { font-size: 13px; color: var(--t2); margin: 0 0 12px; line-height: 1.5; }
 @media (max-width: 767px) { .pl-body { padding: 2px 12px 14px; } }
+
+/* Today: the finished workout's card button */
+.td-done .btn svg { width: 15px; height: 15px; margin-right: 6px; vertical-align: -2px; }

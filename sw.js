@@ -5,7 +5,7 @@
  *  - Never touches /api/ or cross-origin requests (Open Food Facts, fonts…)
  *  Bump VERSION to invalidate old caches on deploy.
  * ==========================================================================*/
-const VERSION = 'arete-v20';
+const VERSION = 'arete-v21';
 
 const CORE = [
   'index.html', 'workouts.html', 'nutrition.html', 'recovery.html',
@@ -14,7 +14,7 @@ const CORE = [
   'finance.html', 'goals.html', 'settings.html', 'login.html',
   'css/theme.css', 'css/touch.css', 'css/training.css',
   'js/auth.js', 'js/authguard.js', 'js/fitness.js', 'js/habits.js',
-  'js/mobilenav.js', 'js/consistency.js', 'js/wearables.js', 'js/energy.js',
+  'js/mobilenav.js', 'js/workoutcard.js', 'arete-logo.png', 'js/consistency.js', 'js/wearables.js', 'js/energy.js',
   'features/training/index.js', 'features/training/services/schedule.js',
   'features/training/services/consistency.js', 'features/training/repositories/planStore.js',
   'features/training/data/starters.js', 'features/training/ui/planWizard.js', 'features/training/ui/planHome.js',
