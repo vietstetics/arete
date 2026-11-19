@@ -510,7 +510,7 @@ export function createStillGate({ secs = 1, bands = [5] } = {}) {
 // both wrists hold still near the top of the picture for `lockSecs`, a bar
 // line is locked at their average height, and the upper-arm and torso
 // lengths are measured over that same moment (medians, so heavily smoothed).
-// None of it changes until the hands move more than 10% of an arm's length,
+// None of it changes until the hands move well past the model's jitter (with the head down in the hang),
 // so lines drawn from it stay perfectly still while the body moves.
 //   height = (nose y − bar y) / upper-arm length × 100
 // About +110 in a dead hang, below 0 once the nose is over the bar: it falls
@@ -521,8 +521,11 @@ export function createStillGate({ secs = 1, bands = [5] } = {}) {
 
 export const PULLUP_DEFAULTS = { minRange: 20, hysteresis: 10, tolFloor: 3, tolPct: 0.03, swayTol: 0.1, emitFinish: true };
 
-export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct = 0.06, topShare = 0.55, relockPct = 0.1, wristFollow = 0.15, noseFollow = 0.6 } = {}) {
-  let win = [], bar = null, wristY = null, noseY = null;
+export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct = 0.12, topShare = 0.55, relockPct = 0.3, wristFollow = 0.15, noseFollow = 0.6, agree = 0.7, recentSecs = 0.6, checkBelow = 90, maxSpeed = 10, jumpSecs = 0.25 } = {}) {
+  let win = [], bar = null, wristY = null, noseY = null, recent = [], noseT = null, jumpT = null, headOff = null;
+  // What's followed up and down: the nose, or — filmed from behind, where the face can't be seen — the
+  // shoulders. Chosen when the bar locks and kept for the set (rep 1's standard is in the same terms).
+  const point = (f) => (bar && bar.src === 'shoulders' ? f.sh : f.nose);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
@@ -534,7 +537,8 @@ export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct =
     const arm = [[11, 13, 15], [12, 14, 16]].filter((j) => j.every(seen)).map(([s, e, w]) => dist(P(s), P(e)) + dist(P(e), P(w)));
     const sh = mid(11, 12), hip = mid(23, 24);
     return {
-      wrists: seen(15) && seen(16) ? mid(15, 16) : null,
+      // One hand at the bar is enough (an angle, the frame's edge or something in the way can hide the other).
+      wrists: mid(15, 16),
       nose: seen(0) ? P(0) : null,
       sh, hip,
       ua: ua.length ? mean(ua) : NaN,
@@ -543,17 +547,30 @@ export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct =
     };
   }
 
-  function measure(f) {
-    if (f.nose) noseY = noseY == null ? f.nose.y : noseY + noseFollow * (f.nose.y - noseY);
-    const ok = !!f.nose;
+  function measure(f, t) {
+    // Something in the way (a fan, a pillar, another person) or the head at the picture's edge can pull the
+    // model's head point far off. A jump faster than a body moves (maxSpeed upper arms a second) is ignored;
+    // if it stays there (jumpSecs) it's real and is followed.
+    const step = noseT == null ? Infinity : maxSpeed * bar.upperArm * Math.max(t - noseT, 1 / 30);
+    const fits = (q) => q && (noseY == null || Math.abs(q.y - noseY) <= step);
+    let pt = point(f);
+    let snap = false;
+    if (pt && !fits(pt)) { if (jumpT == null) jumpT = t; if (t - jumpT < jumpSecs) pt = null; }
+    if (pt) { snap = jumpT != null; jumpT = null; } // a jump that held: follow it at once
+    // The head and shoulders move together: while both are clear, how far the head sits above the shoulders
+    // is learned, and when the head isn't (hidden, junk) it's placed that far above the shoulders.
+    if (bar.src === 'nose' && pt && f.sh) headOff = headOff == null ? pt.y - f.sh.y : headOff + 0.1 * (pt.y - f.sh.y - headOff);
+    if (!pt && bar.src === 'nose' && headOff != null && f.sh) { const q = { x: f.sh.x, y: f.sh.y + headOff }; if (fits(q)) pt = q; }
+    if (pt) { noseY = noseY == null || snap ? pt.y : noseY + noseFollow * (pt.y - noseY); noseT = t; }
+    const ok = !!pt;
     const value = ok ? ((noseY - bar.y) / bar.upperArm) * 100 : NaN;
     const sway = Number.isFinite(bar.torso) && Number.isFinite(f.torso) ? [(f.hip.x - bar.x) / bar.torso, f.torso / bar.torso] : null;
-    return { barLocked: true, justLocked: false, ok, value, sway, nose: f.nose ? { x: f.nose.x, y: noseY } : null };
+    return { barLocked: true, justLocked: false, ok, value, sway, nose: pt ? { x: pt.x, y: noseY } : null, src: bar.src };
   }
 
   /**
    * One frame. Returns { barLocked, justLocked, justUnlocked, ok, value, sway, nose, why }.
-   * `why` (bar not locked) is 'hands' (can't see both), 'reach' (hands not
+   * `why` (bar not locked) is 'hands' (can't see either), 'reach' (hands not
    * up at the bar), 'steady' (hands still moving) or 'moved' (they left the bar).
    */
   function track(pose, vw, vh, t) {
@@ -565,20 +582,35 @@ export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct =
       while (win.length && t - win[0].t > lockSecs + 0.2) win.shift();
       const arms = win.map((w) => w.arm).filter(Number.isFinite);
       const limit = steadyPct * (arms.length ? median(arms) : 0.3 * vh);
-      const ys = win.map((w) => w.wrists.y), xs = win.map((w) => w.wrists.x);
-      if (Math.max(...ys) - Math.min(...ys) > limit || Math.max(...xs) - Math.min(...xs) > limit) { win = [win[win.length - 1]]; return { barLocked: false, why: 'steady' }; }
+      // Hands still: most of the window's readings (agree) within the limit of their median. The pose model's
+      // wrists can jump a lot on single frames (hands at the frame's edge, behind the head, half hidden), so
+      // one wild frame mustn't stop the bar locking — and the bar is the median, not swayed by it.
+      const ys0 = win.map((w) => w.wrists.y), xs0 = win.map((w) => w.wrists.x), my = median(ys0), mx = median(xs0);
+      const inl = win.filter((w) => Math.abs(w.wrists.y - my) <= limit && Math.abs(w.wrists.x - mx) <= limit);
+      if (inl.length < agree * win.length) { win = win.slice(-Math.ceil(win.length / 2)); return { barLocked: false, why: 'steady' }; }
+      const ys = inl.map((w) => w.wrists.y), xs = inl.map((w) => w.wrists.x);
       const uas = win.map((w) => w.ua).filter(Number.isFinite);
       if (t - win[0].t < lockSecs || !uas.length || !arms.length) return { barLocked: false, why: 'steady' };
       const torsos = win.map((w) => w.torso).filter(Number.isFinite);
-      bar = { y: mean(ys), x: mean(xs), upperArm: median(uas), arm: median(arms), torso: torsos.length ? median(torsos) : NaN };
-      wristY = bar.y; noseY = null; win = [];
-      return { ...measure(f), justLocked: true };
+      const faceSeen = win.filter((w) => w.nose).length / win.length;
+      bar = { y: median(ys), x: median(xs), upperArm: median(uas), arm: median(arms), torso: torsos.length ? median(torsos) : NaN, src: faceSeen >= 0.6 ? 'nose' : 'shoulders' };
+      wristY = bar.y; noseY = null; noseT = null; jumpT = null; headOff = null; win = []; recent = [];
+      return { ...measure(f, t), justLocked: true };
     }
-    if (f.wrists) {
+    const m = measure(f, t);
+    // Near the top of a rep the hands are often behind the head or out of the picture (filmed from behind or
+    // at an angle), so the model's wrists there mean nothing: the hands are only checked with the head down
+    // in the hang (or lost) — which is also where anyone letting go of the bar ends up.
+    const low = !Number.isFinite(m.value) || m.value >= checkBelow;
+    if (!low) recent = [];
+    if (f.wrists && low) {
       wristY += wristFollow * (f.wrists.y - wristY);
-      if (Math.abs(wristY - bar.y) > relockPct * bar.arm) { bar = null; win = []; return { barLocked: false, justUnlocked: true, why: 'moved' }; }
+      // The hands left the bar: the median of the last recentSecs of readings moved (one wild frame can't).
+      recent.push({ t, y: f.wrists.y });
+      while (recent.length && t - recent[0].t > recentSecs) recent.shift();
+      if (recent.length >= 4 && Math.abs(median(recent.map((q) => q.y)) - bar.y) > relockPct * bar.arm) { bar = null; win = []; recent = []; return { barLocked: false, justUnlocked: true, why: 'moved' }; }
     }
-    return measure(f);
+    return m;
   }
 
   return {
@@ -587,7 +619,7 @@ export function createPullupTracker({ minVis = 0.55, lockSecs = 0.5, steadyPct =
     lineY(value) { return bar ? bar.y + (value * bar.upperArm) / 100 : NaN; },
     get bar() { return bar ? { ...bar } : null; },
     get locked() { return !!bar; },
-    reset() { win = []; bar = null; wristY = null; noseY = null; },
+    reset() { win = []; bar = null; wristY = null; noseY = null; recent = []; noseT = null; jumpT = null; headOff = null; },
   };
 }
 

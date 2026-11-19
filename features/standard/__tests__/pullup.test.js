@@ -165,7 +165,7 @@ test('tracker: the whole body moves, the bar line and Start / Finish lines never
   assert.ok(Array.isArray(last.sway) && Math.abs(last.sway[1] - 1) < 0.2);
 });
 
-test('tracker: hands moving more than 10% of the arm re-lock the bar; small slips do not', () => {
+test('tracker: hands moving well past the arm jitter re-lock the bar; small slips do not', () => {
   const tr = createPullupTracker();
   let t = 0, r;
   for (let i = 0; i < 25; i++) { tr.track(hangPose({ v: 110 }), VW, VH, t); t += 1 / 30; }
@@ -173,11 +173,11 @@ test('tracker: hands moving more than 10% of the arm re-lock the bar; small slip
   for (let i = 0; i < 30; i++) { r = tr.track(hangPose({ v: 110, wristDrop: 0.06 * arm }), VW, VH, t); t += 1 / 30; }
   assert.equal(tr.locked, true, 'a 6% slip keeps the bar');
   let unlocked = false;
-  for (let i = 0; i < 30 && !unlocked; i++) { r = tr.track(hangPose({ v: 110, wristDrop: 0.2 * arm }), VW, VH, t); unlocked = !!r.justUnlocked; t += 1 / 30; }
+  for (let i = 0; i < 30 && !unlocked; i++) { r = tr.track(hangPose({ v: 110, wristDrop: 0.4 * arm }), VW, VH, t); unlocked = !!r.justUnlocked; t += 1 / 30; }
   assert.ok(unlocked);
-  for (let i = 0; i < 25; i++) { tr.track(hangPose({ v: 110, wristDrop: 0.2 * arm }), VW, VH, t); t += 1 / 30; }
+  for (let i = 0; i < 25; i++) { tr.track(hangPose({ v: 110, wristDrop: 0.4 * arm }), VW, VH, t); t += 1 / 30; }
   assert.equal(tr.locked, true);
-  assert.ok(Math.abs(tr.bar.y - (190 + 0.2 * arm)) < 1e-6);
+  assert.ok(Math.abs(tr.bar.y - (190 + 0.4 * arm)) < 1e-6);
 });
 
 test('tracker: hands below the shoulders are not a bar', () => {

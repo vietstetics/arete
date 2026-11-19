@@ -497,14 +497,14 @@ const EXERCISES = {
     fmt: (v) => `${Math.round(v)}°`,
     demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[165, 75], [164, 76], [165, 74], [165, 105], [163, 76], [135, 75], [165, 77]] } },
   pullup: { pullup: true, speed: false, facing: 'environment', title: 'Pull-up standard', short: 'Pull-ups', name: 'Pull-up · strict standard', part: 'arms', measure: 'nose height', start: 'hang', finish: 'top',
-    setup: 'Rear camera, portrait, 2–3 m in front of the bar',
+    setup: 'Rear camera, portrait, 2–3 m in front of the bar (or behind, at an angle)',
     intro: 'Your <b>first rep sets the standard</b>, whatever it is: how low you hang, how high your nose gets and how much you swing. Every rep after must match all three to count. Slowing down is fine.',
     rep1: 'Rep 1 sets the standard — pull from your hang, lower back down',
     finding: 'Hang from the bar — finding you',
     still: 'Hang still — then pull',
-    lost: 'Can’t see your face clearly',
+    lost: 'Can’t see your head or shoulders clearly',
     fmt: (v) => `${Math.round(v)}`,
-    note: 'Nose height below the bar, in % of your upper arm (below 0 = above the bar).' },
+    note: 'Nose height below the bar (shoulders when filmed from behind), in % of your upper arm (below 0 = above the bar).' },
 };
 const EXQ = new URLSearchParams(location.search).get('ex');
 const AUTO = EXQ === 'auto';
@@ -515,7 +515,7 @@ const requestedName = new URLSearchParams(location.search).get('exerciseName') |
 const ARMS = EX.joints;
 const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
 // How still you must hold before rep 1 (setting up must never count as a rep).
-const STILL_BANDS = { curl: [8], lateral: [8], squat: [4], bench: [6], deadlift: [5], auto: [5], press: [8], row: [6], pullup: [5, 0.06, 0.06] };
+const STILL_BANDS = { curl: [8], lateral: [8], squat: [4], bench: [6], deadlift: [5], auto: [5], press: [8], row: [6], pullup: [15, 0.1, 0.15] };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // What to fix when the tracker can't lock on (squat and bench).
@@ -528,7 +528,7 @@ const WHY = {
 };
 // Pull-ups: what's stopping the bar line from locking.
 const WHY_PU = {
-  hands: 'Show both hands — both arms in frame',
+  hands: 'Show your hands at the bar',
   reach: 'Grab the bar with both hands',
   steady: 'Hold the bar — keep your hands still',
   moved: 'Your hands moved — hold the bar still to re-lock',
@@ -640,19 +640,20 @@ GUIDES.tbar = {
   note: 'Keep shoulder, elbow and wrist in frame the whole set, from arms long to the handle at your chest.',
 };
 GUIDES.pullup = {
-  svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone straight in front of the bar, or up to 30 degrees to one side">
+  svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone straight in front of the bar, up to 30 degrees to one side, or behind at an angle">
     <circle cx="150" cy="84" r="50" fill="none" stroke="#C0403A" stroke-width="1.5" stroke-dasharray="3 4" opacity=".7"/>
     <line x1="80" y1="70" x2="220" y2="70" stroke="#171B12" stroke-width="4" stroke-linecap="round"/>
     <circle cx="118" cy="70" r="5" fill="#8B957F"/><circle cx="182" cy="70" r="5" fill="#8B957F"/>
     <ellipse cx="150" cy="84" rx="26" ry="11" fill="#D9DED3"/><circle cx="150" cy="84" r="9" fill="#8B957F"/>
     <text x="226" y="66" font-size="10" fill="#8B957F">bar</text>
     ${marker(150, 206, 'best', 1, [150, 96])}${marker(236, 192, 'ok', 2, [160, 94])}
-    ${marker(282, 120, 'avoid', 3, [200, 92])}${marker(186, 124, 'avoid', 4)}</svg>`,
+    ${marker(70, 20, 'ok', 3, [128, 62])}${marker(282, 120, 'avoid', 4, [200, 92])}${marker(186, 124, 'avoid', 5)}</svg>`,
   items: [
     ['best', 1, 'In front of the bar, facing you', '2–3 m away. Both arms, your face and your hips stay in view.'],
     ['ok', 2, 'In front, up to 30° to one side', 'If something blocks the straight-on view.'],
-    ['avoid', 3, 'Side-on', 'One arm hides the other, and the bar and your swing can’t be read.'],
-    ['avoid', 4, 'Closer than about 2 m', 'Your hands must stay in frame at the top and your hips at the bottom.'],
+    ['ok', 3, 'Behind you, at an angle', 'Works with one hand in view; your head is followed from your shoulders when it’s hidden.'],
+    ['avoid', 4, 'Side-on', 'One arm hides the other, and the bar and your swing can’t be read.'],
+    ['avoid', 5, 'Closer than about 2 m', 'Your hands must stay in frame at the top and your hips at the bottom.'],
   ],
   note: '<b>Rear camera, portrait.</b> Lens at about head height when you stand, tilted up a little so the bar sits near the top of the picture with your hips still in frame. Prop the phone up rather than holding it. The view fills the screen, so a screen recording shows everything.',
 };
@@ -686,7 +687,7 @@ let tracker = EX.height ? createHeightTracker(EX.height, { minVis: MIN_VIS }) : 
 const detector = AUTO ? createLiftDetector() : null;
 let candidates = null; // ?ex=auto: each lift's tracker, calibrating while the lift is recognised
 const pu = EX.pullup ? createPullupTracker({ minVis: MIN_VIS }) : null;
-let gate = createStillGate({ secs: 1, bands: STILL_BANDS[EXK] });
+let gate = createStillGate({ secs: EX.pullup ? 0.3 : 1, bands: STILL_BANDS[EXK] }); // pull-ups: a short still hang (people start pulling almost at once)
 let armed = false; // pull-ups: hanging still on a locked bar, counting
 let phase = 'idle'; // idle → finding → settle → ready → live → done
 let steadySince = null, lostSince = null, trace = [], lastVideoT = -1, raf = 0;
@@ -2138,7 +2139,7 @@ function startPullupDemo() {
   const to = (secs, target, swing = 0) => { const a = { ...s }; add(Math.round(secs * fps), (k, u) => ({ ...Object.fromEntries(Object.entries(target).map(([key, v]) => [key, a[key] + (v - a[key]) * k])), hipX: swing * Math.sin(2 * Math.PI * u), torso: 1 - (swing ? 0.6 * swing * Math.abs(Math.sin(2 * Math.PI * u)) : 0) })); };
   hold(0.6);                       // standing under the bar, arms down
   to(0.4, { v: 110, hand: 1 });   // jump up and grab
-  hold(0.6);                       // the bar locks once the hands are still
+  hold(0.25);                      // the bar locks once the hands are still (during the settle)
   to(0.4, { v: 72 }); to(0.4, { v: 110 }); // a settling pull: setup, not rep 1
   hold(1.4);                       // still hang: counting starts
   for (const [top, hang, swing] of [[-20, 110, 0], [-19, 110, 0], [8, 110, 0], [-20, 82, 0], [-20, 110, 0], [-20, 110, 0.12], [-21, 110, 0]]) {
