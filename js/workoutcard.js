@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
- *  Workout card — a finished workout as a shareable PNG (1080 px wide).
+ *  Workout card — a finished workout as a shareable PNG, Story size
+ *  (1080 × 1920): every exercise fitted in, in a grid of compact tiles.
  *  Read-only: it draws what was saved and changes nothing. Every exercise in
  *  order, every logged set as saved (weight with its unit, left/right for
  *  unilateral exercises, reps, RIR; "—" where nothing was entered). Drawn on
@@ -62,67 +63,112 @@
     if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
   }
   const font = (weight, size) => `${weight} ${size}px ${FONT}`;
-  // Columns of a set row (x of each column's left edge, inside a section).
-  const COLS = { set: 0, weight: 120, reps: 640, rir: 820 };
 
-  /** Lays the card out (dry: heights only) or draws it. Returns the total height. */
-  function layout(ctx, d, logo, draw) {
-    const inner = W - 2 * PAD, sec = inner - 2 * 40;
-    let y = PAD;
-    // Banner: the logo, then WORKOUT SUMMARY, the workout's name, the date and a one-line count.
-    const bh0 = y;
-    y += 56;
-    const logoH = 132, logoW = logo ? (logo.naturalWidth / logo.naturalHeight) * logoH : 0;
-    if (draw && logo) ctx.drawImage(logo, PAD + 48, y, logoW, logoH);
-    if (draw && !logo) { ctx.font = font(800, 72); ctx.fillStyle = INK; ctx.fillText('ARETE', PAD + 48, y + 96); }
-    y += logoH + 44;
-    ctx.font = font(700, 26);
-    if (draw) { ctx.fillStyle = GREEN; ctx.letterSpacing = '4px'; ctx.fillText('WORKOUT SUMMARY', PAD + 48, y); ctx.letterSpacing = '0px'; }
-    y += 22;
-    ctx.font = font(800, 68);
-    const nameLines = wrap(ctx, d.name, inner - 96);
-    for (const l of nameLines) { y += 76; if (draw) { ctx.fillStyle = INK; ctx.fillText(l, PAD + 48, y); } }
-    y += 60; ctx.font = font(500, 32);
-    if (draw) { ctx.fillStyle = INK2; ctx.fillText(d.date, PAD + 48, y); }
-    y += 48; ctx.font = font(600, 28);
-    if (draw) {
-      const ex = d.exercises.length;
-      ctx.fillStyle = INK; ctx.fillText(`${ex} exercise${ex === 1 ? '' : 's'}  ·  ${d.setCount} working set${d.setCount === 1 ? '' : 's'}`, PAD + 48, y);
+  // ── The compact card: Story size (1080 × 1920), every exercise in a grid of tiles ──
+  const CARD_H = 1920, GAP = 18, FOOT = 84;
+
+  /** The banner: logo, WORKOUT SUMMARY, the workout's name (up to two lines), date · counts. Returns its bottom. */
+  function header(ctx, d, logo, draw) {
+    const inner = W - 2 * PAD, x = PAD + 44;
+    let y = PAD, top = y;
+    y += 40;
+    const logoH = 96, logoW = logo ? (logo.naturalWidth / logo.naturalHeight) * logoH : 0;
+    if (draw && logo) ctx.drawImage(logo, x, y, logoW, logoH);
+    if (draw && !logo) { ctx.font = font(800, 56); ctx.fillStyle = INK; ctx.fillText('ARETE', x, y + 72); }
+    y += logoH + 40;
+    ctx.font = font(700, 22);
+    if (draw) { ctx.fillStyle = GREEN; ctx.letterSpacing = '4px'; ctx.fillText('WORKOUT SUMMARY', x, y); ctx.letterSpacing = '0px'; }
+    // The name at the largest size (60 down to 36 px) that fits two lines.
+    let size = 60, lines;
+    for (; size >= 36; size -= 4) { ctx.font = font(800, size); lines = wrap(ctx, d.name, inner - 88); if (lines.length <= 2) break; }
+    for (const l of lines) { y += size * 1.12; if (draw) { ctx.fillStyle = INK; ctx.fillText(l, x, y); } }
+    y += 46; ctx.font = font(500, 28);
+    const ex = d.exercises.length, line = `${d.date}  ·  ${ex} exercise${ex === 1 ? '' : 's'}  ·  ${d.setCount} set${d.setCount === 1 ? '' : 's'}`;
+    if (draw) { ctx.fillStyle = INK2; ctx.fillText(line, x, y); }
+    y += 40;
+    if (draw) { ctx.save(); ctx.globalCompositeOperation = 'destination-over'; roundRect(ctx, PAD, top, inner, y - top, 36, CARD, LINE); ctx.restore(); }
+    return y;
+  }
+
+  /**
+   * One exercise's tile at text scale k and width tw: its name, then one line per set — the set, the
+   * weight, × reps and RIR. Returns its height (drawn at x, y when draw), or null if a set's line doesn't
+   * fit the width at this size (then a smaller size or fewer columns is tried).
+   */
+  function tile(ctx, ex, k, tw, x, y, draw) {
+    const pad = 22 * k, inW = tw - 2 * pad, nameF = 26 * k, rowF = 24 * k, rowH = 34 * k, labW = 40 * k;
+    ctx.font = font(600, rowF);
+    for (const st of ex.sets) {
+      const need = labW + ctx.measureText(st.weight).width + 18 * k + ctx.measureText('× ' + st.reps).width + 22 * k + ctx.measureText('RIR ' + st.rir).width;
+      if (need > inW) return null;
     }
-    y += 52;
-    if (draw) { const h = y - bh0; ctx.save(); ctx.globalCompositeOperation = 'destination-over'; roundRect(ctx, PAD, bh0, inner, h, 40, CARD, LINE); ctx.restore(); }
-    y += 28;
-    // One section per exercise: its name, then SET / WEIGHT / REPS / RIR and a row per set.
-    for (const ex of d.exercises) {
-      const top = y, x0 = PAD + 40;
-      y += 54; ctx.font = font(800, 34);
-      for (const l of wrap(ctx, ex.name.toUpperCase(), sec)) { if (draw) { ctx.fillStyle = INK; ctx.fillText(l, x0, y); } y += 44; }
-      y += 6; ctx.font = font(700, 22);
+    ctx.font = font(800, nameF);
+    const names = wrap(ctx, ex.name.toUpperCase(), inW);
+    let yy = y + pad;
+    for (const l of names) { yy += nameF * 1.15; if (draw) { ctx.fillStyle = INK; ctx.fillText(l, x + pad, yy); } }
+    yy += 8 * k;
+    for (const st of ex.sets) {
+      yy += rowH;
       if (draw) {
-        ctx.fillStyle = INK2; ctx.letterSpacing = '2px';
-        for (const [k, t] of [['set', 'SET'], ['weight', 'WEIGHT'], ['reps', 'REPS'], ['rir', 'RIR']]) ctx.fillText(t, x0 + COLS[k], y);
-        ctx.letterSpacing = '0px';
+        ctx.font = font(700, rowF); ctx.fillStyle = st.warm ? INK2 : GREEN; ctx.fillText(st.label, x + pad, yy);
+        ctx.font = font(600, rowF); ctx.fillStyle = INK; ctx.fillText(st.weight, x + pad + labW, yy);
+        ctx.textAlign = 'right';
+        const rir = 'RIR ' + st.rir, rirW = ctx.measureText(rir).width;
+        ctx.fillStyle = INK2; ctx.fillText(rir, x + tw - pad, yy);
+        ctx.fillStyle = INK; ctx.fillText('× ' + st.reps, x + tw - pad - rirW - 22 * k, yy);
+        ctx.textAlign = 'left';
       }
-      y += 22;
-      for (const s of ex.sets) {
-        if (draw) { ctx.fillStyle = LINE; ctx.fillRect(x0, y, sec, 2); }
-        y += 56; ctx.font = font(600, 34);
-        if (draw) {
-          ctx.fillStyle = s.warm ? INK2 : GREEN; ctx.fillText(s.label, x0 + COLS.set, y);
-          ctx.fillStyle = INK; ctx.font = font(600, s.weight.length > 18 ? 28 : 34);
-          ctx.fillText(s.weight, x0 + COLS.weight, y);
-          ctx.font = font(600, 34); ctx.fillText(s.reps, x0 + COLS.reps, y); ctx.fillText(s.rir, x0 + COLS.rir, y);
-        }
-        y += 24;
-      }
-      y += 18;
-      if (draw) { ctx.save(); ctx.globalCompositeOperation = 'destination-over'; roundRect(ctx, PAD, top, inner, y - top, 32, CARD, LINE); ctx.restore(); }
-      y += 24;
     }
-    if (!d.exercises.length) { y += 40; ctx.font = font(500, 30); if (draw) { ctx.fillStyle = INK2; ctx.fillText('No sets were logged.', PAD + 40, y); } y += 40; }
-    y += 8; ctx.font = font(600, 24);
-    if (draw) { ctx.fillStyle = INK2; ctx.textAlign = 'center'; ctx.fillText('Tracked with ARETE', W / 2, y + 20); ctx.textAlign = 'left'; }
-    return y + 20 + PAD;
+    yy += pad;
+    if (draw) { ctx.save(); ctx.globalCompositeOperation = 'destination-over'; roundRect(ctx, x, y, tw, yy - y, 26 * k, CARD, LINE); ctx.restore(); }
+    return yy - y;
+  }
+
+  /**
+   * The largest text (and then the fewest columns) at which every exercise fits the card, in order, down
+   * each column then across. Nothing is ever left out: if even the smallest size won't fit, the card grows
+   * taller instead.
+   */
+  function plan(ctx, d, top) {
+    const inner = W - 2 * PAD, avail = CARD_H - top - GAP - FOOT;
+    const place = (k, cols, limit) => {
+      const tw = (inner - (cols - 1) * GAP) / cols, cols_ = [[]];
+      let h = 0;
+      for (const ex of d.exercises) {
+        const th = tile(ctx, ex, k, tw, 0, 0, false);
+        if (th === null) return null;
+        if (h > 0 && h + th > limit) { if (cols_.length === cols) return null; cols_.push([]); h = 0; }
+        cols_[cols_.length - 1].push({ ex, th }); h += th + GAP;
+      }
+      return { k, cols, tw, cols_, height: Math.max(...cols_.map((c) => c.reduce((s2, t) => s2 + t.th + GAP, 0))) };
+    };
+    // Then the columns evened out: the shortest column height that still takes everything, in order.
+    const balanced = (k, cols) => {
+      let lo = 0, hi = avail, best = place(k, cols, avail);
+      for (let i = 0; i < 18; i++) { const mid = (lo + hi) / 2, p = place(k, cols, mid); if (p) { best = p; hi = mid; } else lo = mid; }
+      return best;
+    };
+    for (let k = 2.4; k >= 0.6 - 1e-9; k -= 0.05) for (let cols = 1; cols <= 3; cols++) if (place(k, cols, avail)) return { ...balanced(k, cols), H: CARD_H };
+    // A very long workout: two columns at a small readable size, as tall as it takes.
+    const total = d.exercises.reduce((s2, ex) => s2 + (tile(ctx, ex, 0.6, (inner - GAP) / 2, 0, 0, false) ?? 0) + GAP, 0);
+    const p = place(0.6, 2, total / 2 + 400) || place(0.6, 3, total);
+    return { ...p, H: Math.ceil(top + GAP + p.height + FOOT) };
+  }
+
+  /** Lays the whole card out and draws it. Returns its height. */
+  function layout(ctx, d, logo, draw, pl) {
+    const top = header(ctx, d, logo, draw);
+    if (!pl) pl = d.exercises.length ? plan(ctx, d, top) : { cols_: [], H: CARD_H };
+    if (draw) {
+      pl.cols_.forEach((col, c) => {
+        let y = top + GAP;
+        const x = PAD + c * (pl.tw + GAP);
+        for (const t of col) { tile(ctx, t.ex, pl.k, pl.tw, x, y, true); y += t.th + GAP; }
+      });
+      if (!d.exercises.length) { ctx.font = font(500, 30); ctx.fillStyle = INK2; ctx.fillText('No sets were logged.', PAD + 44, top + 80); }
+      ctx.font = font(600, 24); ctx.fillStyle = INK2; ctx.textAlign = 'center'; ctx.fillText('Tracked with ARETE', W / 2, pl.H - FOOT / 2 + 8); ctx.textAlign = 'left';
+    }
+    return pl;
   }
 
   let logoP = null;
@@ -131,16 +177,16 @@
     return logoP;
   }
 
-  /** The card as a canvas (1080 px wide, as tall as the workout needs). */
+  /** The card as a canvas: 1080 × 1920 (taller only for a workout too long to fit at a readable size). */
   async function render(w) {
     const d = cardData(w), logo = await loadLogo();
     const c = document.createElement('canvas'), ctx = c.getContext('2d');
     c.width = W; c.height = 10;
-    const H = Math.ceil(layout(ctx, d, logo, false));
+    const pl = layout(ctx, d, logo, false), H = pl.H;
     c.height = H;
     ctx.textBaseline = 'alphabetic';
-    // Sections are drawn text first, their cards behind (destination-over), so the page colour goes last.
-    layout(ctx, d, logo, true);
+    // Text first, the cards behind it (destination-over), the page colour last.
+    layout(ctx, d, logo, true, pl);
     ctx.save(); ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H); ctx.restore();
     return { canvas: c, data: d };
   }
