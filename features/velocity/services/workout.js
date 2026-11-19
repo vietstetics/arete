@@ -68,6 +68,7 @@ export function trackerModeFor(exercise = {}) {
   if (/^(?:pull[ -]?ups?|chin[ -]?ups?)$/.test(name)) return 'pullup';
   if (/\bcurl\b/.test(name) && !/\bleg\b/.test(name)) return 'curl';
   if (/^(?:machine )?chest press$/.test(name)) return 'press';
+  if (/^(?:dumbbell |cable |seated )?lateral raises?$/.test(name)) return 'lateral';
   if (/^(?:seated )?cable row$|^(?:seated )?machine row$|^t[ -]?bar row$/.test(name)) return 'row';
   return null;
 }

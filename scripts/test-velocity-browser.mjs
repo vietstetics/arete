@@ -20,7 +20,7 @@ let browser;
 try {
   browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
   const base = `http://127.0.0.1:${server.address().port}`;
-  for (const mode of ['curl', 'squat', 'bench', 'deadlift', 'auto&lift=squat', 'auto&lift=bench', 'auto&lift=deadlift', 'squat&quick=1', 'bench&quick=1', 'deadlift&quick=1', 'auto&lift=squat&quick=1', 'auto&lift=deadlift&quick=1', 'row', 'press', 'tbar', 'pullup']) {
+  for (const mode of ['curl', 'squat', 'bench', 'deadlift', 'auto&lift=squat', 'auto&lift=bench', 'auto&lift=deadlift', 'squat&quick=1', 'bench&quick=1', 'deadlift&quick=1', 'auto&lift=squat&quick=1', 'auto&lift=deadlift&quick=1', 'row', 'press', 'lateral', 'tbar', 'pullup']) {
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));

@@ -202,6 +202,8 @@ body.clean #canvas,body.clean .legend,body.clean .flash,body.clean .reason,body.
 body.clean #arm-btn,body.clean #min-btn,body.clean .vp-k,body.clean .vp-src,body.clean .vp-loss,body.clean .vp-now,
 body.clean .vp-live,body.clean .vp-bars,body.clean .vp-verdict,body.clean #live .meter,body.clean #live .meter-l,
 body.clean #live .chips,body.clean #live .sub,body.clean #relock-btn{display:none!important}
+/* The demo has no video: its drawn lifter is the picture, so it stays. */
+body.clean.demo #canvas{display:block!important}
 body.clean .ttl{font-weight:600;font-size:15px;letter-spacing:-.01em}
 body.clean .status{top:auto;bottom:16px;left:16px;right:16px;transform:none;width:fit-content;max-width:calc(100% - 32px);margin:0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:8px 14px;font-size:13px;font-weight:500;letter-spacing:-.01em;background:rgba(0,0,0,.32);backdrop-filter:blur(20px) saturate(1.6);-webkit-backdrop-filter:blur(20px) saturate(1.6)}
 body.clean .status:empty{display:none}
@@ -472,6 +474,18 @@ const EXERCISES = {
     show: 'Show the whole arm — shoulder, elbow and wrist',
     fmt: (v) => `${Math.round(180 - v)}°`, // the signal is 180° − elbow angle (falls as you press); shown as the elbow angle
     demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[112, 14], [111, 15], [112, 15], [112, 40], [110, 15], [85, 14], [112, 16]] } },
+  // The angle at the shoulder between the body and the upper arm (hip–shoulder–elbow). The signal is
+  // 180° − that angle (falls as you raise), so the counter reads it like a curl.
+  lateral: { lateral: true, title: 'Lateral raise standard', short: 'Lateral raises', name: 'Lateral raise · range standard', part: 'arm', measure: 'arm angle', start: 'arms down', finish: 'top',
+    joints: { left: [23, 11, 13], right: [24, 12, 14] },
+    setup: 'Facing the phone, lens at chest height, 2–3 m away',
+    intro: 'Your <b>first rep sets the standard</b>: how low your arms start and how high you raise them. Every rep after must come down as far and reach the same height to count. Slowing down is fine.',
+    rep1: 'Rep 1 sets the standard — arms down, raise to the side, lower',
+    finding: 'Face the phone — finding you',
+    still: 'Hold still with your arms down — then raise',
+    show: 'Show your hips, shoulders and elbows',
+    fmt: (v) => `${Math.round(180 - v)}°`,
+    demo: { plan: [[170, 92], [169, 91], [170, 93], [170, 122], [168, 92], [142, 92], [170, 91]] } },
   tbar: { title: 'T-bar row standard', short: 'T-bar rows', name: 'T-bar row · range standard', part: 'arm', measure: 'elbow angle', start: 'arms long', finish: 'chest',
     joints: { left: [11, 13, 15], right: [12, 14, 16] },
     setup: 'Side-on, phone at hip height, 2–3 m away',
@@ -501,7 +515,7 @@ const requestedName = new URLSearchParams(location.search).get('exerciseName') |
 const ARMS = EX.joints;
 const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
 // How still you must hold before rep 1 (setting up must never count as a rep).
-const STILL_BANDS = { curl: [8], squat: [4], bench: [6], deadlift: [5], auto: [5], press: [8], row: [6], pullup: [5, 0.06, 0.06] };
+const STILL_BANDS = { curl: [8], lateral: [8], squat: [4], bench: [6], deadlift: [5], auto: [5], press: [8], row: [6], pullup: [5, 0.06, 0.06] };
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // What to fix when the tracker can't lock on (squat and bench).
@@ -609,6 +623,14 @@ GUIDES.auto = {
   ],
   note: 'Get set and hold still for a moment: the lift is recognised from how you hold the bar — on your back (squat), arms up from the bench (bench), or hands at your shins (deadlift). Prop the phone up rather than holding it.',
 };
+GUIDES.lateral = {
+  svg: GUIDES.curl.svg,
+  items: [
+    ['best', 1, 'In front of you, facing the phone', '2–3 m away, lens at chest height. Your arms rise across the picture, so their angle reads cleanly. The arm the camera sees best is tracked.'],
+    ['avoid', 2, 'Side-on', 'The arm rises towards or away from the lens, so its angle can’t be read.'],
+  ],
+  note: 'Keep your hips, shoulders and elbows in frame the whole set, arms down to the top. Add your height for hand speed in m/s.',
+};
 GUIDES.tbar = {
   svg: GUIDES.curl.svg,
   items: [
@@ -654,6 +676,7 @@ const CALIB_HEIGHT_SECS = 0.3;
 const $ = (id) => document.getElementById(id);
 const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
 const demo = new URLSearchParams(location.search).has('demo');
+if (demo) document.body.classList.add('demo');
 const armVisibility = (p, s) => ARMS[s].reduce((t, i) => t + (p[i].visibility ?? 0), 0) / 3;
 
 let landmarker = null, stream = null, facing = EX.facing || 'user', source = 'camera';
@@ -872,6 +895,7 @@ let armLens = [];
 function mpu() {
   if (barSource === 'plate') return 1; // the plate is measured in metres
   if (EX.row) return heightCm ? (PROPORTIONS.arm * heightCm) / 100 : NaN; // the row is measured in arm lengths
+  if (EX.lateral) return heightCm ? (PROPORTIONS.arm * heightCm) / 100 : NaN; // radians of raise × arm length = the hand's arc
   if (EX.press) {
     // Straight-arm length in pixels (90th percentile: the arm is straight at every lockout) ↔ shoulder→wrist length from your height.
     if (!heightCm || armLens.length < 10) return NaN;
@@ -1287,7 +1311,7 @@ function frame(poses, t, vw, vh, worlds = []) {
   const px = (i) => ({ x: p[i].x * vw, y: p[i].y * vh, v: p[i].visibility ?? 0 });
   const S = px(si), E = px(ei), W = px(wi);
   const ok = Math.min(S.v, E.v, W.v) >= MIN_VIS;
-  const rawA = ok ? (EX.press ? 180 - jointAngle(S, E, W) : jointAngle(S, E, W)) : NaN;
+  const rawA = ok ? (EX.press || EX.lateral ? 180 - jointAngle(S, E, W) : jointAngle(S, E, W)) : NaN;
   const a = ok ? euro.filter(rawA, t) : NaN;
   if (EX.press && ok) { armLens.push(Math.hypot(W.x - S.x, W.y - S.y)); if (armLens.length > 3000) armLens.shift(); }
   current = a;
@@ -1491,6 +1515,7 @@ function updateMeter() {
   else if (Number.isFinite(current)) {
     if (EX.pullup) pct = (110 - current) / 130;
     else if (EX.row) pct = (95 - current) / 60;
+    else if (EX.lateral) pct = (170 - current) / 80;
     else if (!EX.height && !EX.auto) pct = (175 - current) / 135;
     else if (EX.concentricFirst) { const floor = tracker.calValue; pct = Number.isFinite(floor) && floor < 90 ? (current - floor) / (90 - floor) : 0; }
     else if (EX.height) { const top = tracker.calValue, low = EX.height === 'squat' ? 50 : 100; pct = Number.isFinite(top) && top > low ? (top - current) / (top - low) : 0; }
@@ -1673,7 +1698,7 @@ function currentLiveRecord() {
   const params = new URLSearchParams(location.search);
   const typed = (id, lo, hi) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= lo && v <= hi ? v : null; };
   const reportedRir = typed('rir-in', 0, 10), reportedRpe = typed('rpe-in', 1, 10);
-  const defaults = { curl: ['Dumbbell Curl', 'Dumbbell'], squat: ['Back Squat', 'Barbell'], bench: ['Bench Press', 'Barbell'], deadlift: ['Deadlift', 'Barbell'], auto: ['Barbell lift', 'Barbell'], row: ['T-bar Row', 'T-bar'], press: ['Chest Press', 'Machine'], tbar: ['T-bar Row', 'T-bar'], pullup: ['Pull-up', 'Bodyweight'] };
+  const defaults = { curl: ['Dumbbell Curl', 'Dumbbell'], squat: ['Back Squat', 'Barbell'], bench: ['Bench Press', 'Barbell'], lateral: ['Lateral Raise', 'Dumbbell'], deadlift: ['Deadlift', 'Barbell'], auto: ['Barbell lift', 'Barbell'], row: ['T-bar Row', 'T-bar'], press: ['Chest Press', 'Machine'], tbar: ['T-bar Row', 'T-bar'], pullup: ['Pull-up', 'Bodyweight'] };
   const [name, equipment] = defaults[EXK];
   const exerciseName = params.get('exerciseName') || name;
   let userId = params.get('userId') || null;
@@ -2095,7 +2120,7 @@ function startDemo() {
   const tick = () => {
     if (phase === 'done' || i >= frames.length) { if (phase !== 'done') endSet(); return; }
     if (EX.row) { const d = demoRow(frames[i]); frame([d.p], i / fps, vw, vh, [d.w]); i++; setTimeout(tick, 1000 / fps); return; }
-    frame([H ? demoBody(frames[i], vw, vh, EX.height || DEMO_LIFT) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
+    frame([H ? demoBody(frames[i], vw, vh, EX.height || DEMO_LIFT) : EX.lateral ? demoLateral(frames[i], vw, vh) : demoArm(EX.press ? 180 - frames[i] : frames[i], vw, vh)], i / fps, vw, vh); i++;
     setTimeout(tick, 1000 / fps);
   };
   tick();
@@ -2169,6 +2194,19 @@ function demoRow(v) {
   return { p, w };
 }
 const blank = () => Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.6, visibility: 0.1 }));
+// Lateral raise from the front: both arms straight, raised to the side. `v` is the signal (180° − the
+// angle between body and upper arm).
+function demoLateral(v, vw, vh) {
+  const p = blank(), at = (x, y) => ({ x: x / vw, y: y / vh, visibility: 0.95 }), up = ((180 - v) * Math.PI) / 180;
+  const S = [{ x: 590, y: 250 }, { x: 690, y: 250 }], Hp = [{ x: 605, y: 470 }, { x: 675, y: 470 }];
+  Object.assign(p, { 0: at(640, 175), 11: at(S[0].x, S[0].y), 12: at(S[1].x, S[1].y), 23: at(Hp[0].x, Hp[0].y), 24: at(Hp[1].x, Hp[1].y),
+    25: at(605, 590), 26: at(675, 590), 27: at(605, 690), 28: at(675, 690) });
+  [[-1, 11, 13, 15], [1, 12, 14, 16]].forEach(([sd, si, ei, wi], k) => {
+    const dx = sd * Math.sin(up), dy = Math.cos(up); // straight down at 0, out to the side at 90°
+    p[ei] = at(S[k].x + dx * 130, S[k].y + dy * 130); p[wi] = at(S[k].x + dx * 250, S[k].y + dy * 250);
+  });
+  return p;
+}
 function demoArm(deg, vw, vh) {
   const sh = EX.demo.a, el = EX.demo.b, [ia, ib, ic] = ARMS.left;
   const ang = Math.atan2((sh.y - el.y) * vh, (sh.x - el.x) * vw) - (deg * Math.PI) / 180;
