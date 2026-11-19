@@ -168,14 +168,14 @@ export function createPlateSession({ vw, vh, hfovDeg = DEFAULT_HFOV_DEG, radiusM
      * detect() had found it. wholeFrame: follow it over the whole picture, not just round its path (offline,
      * where speed matters less than never losing it — a walk-out, a lifter stepping in after the pick).
      */
-    lockOn(e, { wholeFrame = false } = {}) {
+    lockOn(e, { wholeFrame = false, confirmed = false } = {}) {
       if (!validEllipse(e)) return { ok: false, reason: 'Invalid plate outline' };
       const s = Math.min(1, targetPlatePx / (2 * e.a)), pxPerM = e.a / radiusM;
       const x0 = wholeFrame ? 0 : Math.max(0, Math.floor(e.cx - 1.9 * e.a)), x1 = wholeFrame ? vw : Math.min(vw, Math.ceil(e.cx + 1.9 * e.a));
       const y0 = wholeFrame ? 0 : Math.max(0, Math.floor(e.cy - 1.3 * e.a - travelM * pxPerM)), y1 = wholeFrame ? vh : Math.min(vh, Math.ceil(e.cy + 1.3 * e.a + travelM * pxPerM));
       roi = { x0, y0, w: x1 - x0, h: y1 - y0, s };
       Kroi = { fx: K.fx * s, fy: K.fy * s, cx: (K.cx - x0 + 0.5) * s - 0.5, cy: (K.cy - y0 + 0.5) * s - 0.5, w: Math.round(roi.w * s), h: Math.round(roi.h * s) };
-      pending = { cx: e.cx, cy: e.cy, a: e.a, b: e.b, phi: e.phi }; state = 'locking'; track.length = 0; nLive = null; c0 = null;
+      pending = { cx: e.cx, cy: e.cy, a: e.a, b: e.b, phi: e.phi, confirmed }; state = 'locking'; track.length = 0; nLive = null; c0 = null;
       return { ok: true };
     },
     /** Every frame's outline so far: [{ t, ok, e (full frame) }] — what the lab saves and analyses. */
@@ -191,7 +191,8 @@ export function createPlateSession({ vw, vh, hfovDeg = DEFAULT_HFOV_DEG, radiusM
       if (state === 'searching') return { ok: false, t, reason: 'no plate yet' };
       if (!img || img.w !== Kroi.w || img.h !== Kroi.h || img.data?.length !== img.w * img.h) return { ok: false, t, reason: 'Invalid tracking frame' };
       if (state === 'locking') {
-        tracker = createRimTracker({ K: Kroi, up, R: radiusM });
+        // An outline someone confirmed is the plate's own size, within 20% (the rim search stays near it).
+        tracker = createRimTracker({ K: Kroi, up, R: radiusM, ...(pending.confirmed ? { maxScale: 1.2 } : {}) });
         const r = tracker.init(img, toRoi(pending), t);
         if (!r.ok) { state = 'searching'; roi = null; Kroi = null; tracker = null; pending = null; return { ok: false, t, reason: r.reason || 'plate edge not found' }; }
         state = 'tracking';
@@ -200,7 +201,7 @@ export function createPlateSession({ vw, vh, hfovDeg = DEFAULT_HFOV_DEG, radiusM
         return { ok: true, t, e, h: liveHeight(e) };
       }
       const r = tracker.track(img, t);
-      if (!r.ok) { track.push({ t, ok: false }); return { ok: false, t, reason: r.reason }; }
+      if (!r.ok) { track.push({ t, ok: false }); return { ok: false, t, reason: r.reason, rms: r.rms, inliers: r.inliers }; }
       const e = toFull(r.e);
       track.push({ t, ok: true, e, fit: r.inliers / 72 });
       return { ok: true, t, e, h: liveHeight(e) };

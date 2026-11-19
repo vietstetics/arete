@@ -201,6 +201,7 @@ import { sampleColour, findMarker, createMarkerTracker } from './features/veloci
 import { playVideo } from './features/velocity/services/live/playVideo.js';
 import { parseReference, compareSet, passes, accuracyTable, toCsv, REFERENCES, TARGET_PCT, TRANSDUCER, transducerLevel } from './features/velocity/services/compare.js';
 import { createPlateSession, findPlate, DEFAULT_HFOV_DEG } from './features/velocity/services/live/plateSession.js';
+import { findRim } from './features/velocity/services/vision/plate3d.js';
 import { createFrameGrabber } from './features/velocity/services/live/frameGrabber.js';
 import { buildSetRecord, listSetRecords, saveSetRecord, SETS_KEY } from './features/velocity/services/record.js';
 import { fromRGBA } from './features/velocity/services/vision/image.js';
@@ -394,7 +395,14 @@ async function startFind(video) {
       if (!findPick) $('find-msg').textContent = colour ? 'No marker of that colour there. Tap its middle.' : 'That spot has no clear colour. Tap the middle of the coloured marker.';
       return;
     }
-    const c = detectPlates(img, { ...radii, prior: { x, y } }).filter((e) => Math.hypot(e.cx - x, e.cy - y) < e.a);
+    let c = detectPlates(img, { ...radii, prior: { x, y } }).filter((e) => Math.hypot(e.cx - x, e.cy - y) < e.a);
+    // Nothing found round the tap (a dark plate on a dark floor, a busy gym): look for the rim itself from the
+    // tap outwards, at a few sizes, and keep the cleanest outline the tap is inside.
+    if (!c.length) {
+      const fits = [0.05, 0.08, 0.12, 0.17].map((k) => findRim(img, { cx: x, cy: y, a: k * Math.max(pw, ph), b: k * Math.max(pw, ph), phi: 0 }))
+        .filter((f) => f.ok && Math.hypot(f.cx - x, f.cy - y) < 0.5 * f.b);
+      if (fits.length) c = [fits.reduce((p, q) => (q.inliers / Math.max(0.3, q.rms) > p.inliers / Math.max(0.3, p.rms) ? q : p))];
+    }
     findPick = c.length ? { t: +$('find-t').value, ellipse: c[0] } : null;
     drawFind(img);
   };
@@ -444,7 +452,7 @@ async function readVideo(video, { pw, ph, plate }) {
         if (three) {
           if (md.mediaTime + 1e-3 >= plate.t) {
             // (Re)lock onto the pick until the rim is found (the first frames may be blurred); a handful of tries.
-            if (sess.state === 'searching' && lockTries < 15) { sess.lockOn(pickFull, { wholeFrame: true }); lockTries++; }
+            if (sess.state === 'searching' && lockTries < 15) { sess.lockOn(pickFull, { wholeFrame: true, confirmed: true }); lockTries++; }
             const pl = sess.roiPlan();
             if (pl) {
               const res = sess.track(grabber.grab(video, pl.sx, pl.sy, pl.sw, pl.sh, pl.ow, pl.oh), md.mediaTime);

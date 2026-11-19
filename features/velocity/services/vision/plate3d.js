@@ -160,6 +160,38 @@ export function fitRim(img, e0, { rays = 72, wide = true, iters = 3, minGrad = 4
 }
 
 /**
+ * The plate's centre from part of its rim, with its size and shape held from the frames before. With a
+ * third to a half of the rim seen (the bar's sleeve, the stack behind and a dark floor hide the rest) a free
+ * ellipse fit isn't trustworthy, but two numbers — the centre — are, provided the seen points go round the
+ * plate (no blind arc over half of it). Gauss–Newton on the distances along the rays; far points dropped.
+ * Returns { ok, cx, cy, a, b, phi, rms, inliers, gap (rays in the largest unseen arc), held: true }.
+ */
+export function fitCentre(pts, e, { rays = 72, iters = 4 } = {}) {
+  let c = { cx: e.cx, cy: e.cy, a: e.a, b: e.b, phi: e.phi }, use = pts;
+  const inTol = Math.max(1, 0.02 * e.a), h = 0.5;
+  for (let it = 0; it < iters; it++) {
+    let a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0;
+    for (const p of use) {
+      const d = ellipseDistance(c, p);
+      const jx = (ellipseDistance({ ...c, cx: c.cx + h }, p) - d) / h, jy = (ellipseDistance({ ...c, cy: c.cy + h }, p) - d) / h;
+      a11 += jx * jx; a12 += jx * jy; a22 += jy * jy; b1 -= jx * d; b2 -= jy * d;
+    }
+    const det = a11 * a22 - a12 * a12;
+    if (!(det > 1e-9)) return { ok: false };
+    c = { ...c, cx: c.cx + (a22 * b1 - a12 * b2) / det, cy: c.cy + (a11 * b2 - a12 * b1) / det };
+    use = pts.filter((p) => Math.abs(ellipseDistance(c, p)) <= 3 * inTol);
+    if (use.length < 5) return { ok: false };
+  }
+  const inl = pts.filter((p) => Math.abs(ellipseDistance(c, p)) <= inTol);
+  if (!inl.length) return { ok: false };
+  const rms = Math.sqrt(inl.reduce((s2, p) => s2 + ellipseDistance(c, p) ** 2, 0) / inl.length);
+  const ks = [...new Set(inl.map((p) => p.k))].sort((x, y) => x - y);
+  let gap = rays - ks[ks.length - 1] + ks[0];
+  for (let i = 1; i < ks.length; i++) gap = Math.max(gap, ks[i] - ks[i - 1]);
+  return { ok: true, ...c, rms, inliers: inl.length, gap, pts: inl, held: true };
+}
+
+/**
  * The plate's outer face edge near a rough detection. A plate seen at an
  * angle shows several clean, concentric ellipses: rings inside the face (a
  * lettering band, a raised lip, the edge of the rim zone, the hub), the
@@ -179,7 +211,7 @@ export function fitRim(img, e0, { rays = 72, wide = true, iters = 3, minGrad = 4
  * plate on a level bar could make (MAX_TILT_DEG); without gravity, only a far
  * worse one is ruled out (MAX_TILT_NO_UP_DEG).
  */
-export function findRim(img, det, { rays = 72, K = null, up = null, maxTilt } = {}) {
+export function findRim(img, det, { rays = 72, K = null, up = null, maxTilt, maxScale = Infinity } = {}) {
   // Without gravity the picture's up stands in, loosely: a phone pitched 20° makes a real plate "tilt" that much.
   const upT = up || [0, -1, 0], limit = maxTilt ?? (up ? MAX_TILT_DEG : MAX_TILT_NO_UP_DEG);
   // A plate's vertical diameter is never foreshortened: its outline's long axis lies along the picture's up there.
@@ -193,14 +225,16 @@ export function findRim(img, det, { rays = 72, K = null, up = null, maxTilt } = 
     fits.push(f);
   };
   const shapes = [{ ba: det.b / det.a, phi: det.phi }, ...RIM_ASPECTS.map((ba) => ({ ba, phi: phiUp }))];
-  for (const k of RIM_SIZES) for (const sh of shapes) tryFit({ cx: det.cx, cy: det.cy, a: det.a * k, b: det.a * k * sh.ba, phi: sh.phi });
+  // maxScale: an outline someone confirmed (the lab's find step) is the plate, give or take: the search
+  // doesn't climb past it to a platform's or a background's edge.
+  for (const k of RIM_SIZES.filter((x) => x <= maxScale)) for (const sh of shapes) tryFit({ cx: det.cx, cy: det.cy, a: det.a * k, b: det.a * k * sh.ba, phi: sh.phi });
   if (!fits.length) return { ok: false };
   const quality = (f) => (f.inliers / rays) / Math.max(0.3, f.rms);
   // Again from the centres of the cleanest fits (a ring found off a poor detection has the plate's centre and
   // shape), sizes stepping out past the face.
   const seeds = fits.slice().sort((x, y) => quality(y) - quality(x))
     .filter((f, i, all) => all.findIndex((g) => Math.hypot(g.cx - f.cx, g.cy - f.cy) < 0.1 * f.a) === i).slice(0, 3);
-  for (const sd of seeds) for (const k of [1, 1.1, 1.2, 1.32, 1.45]) tryFit({ cx: sd.cx, cy: sd.cy, a: sd.a * k, b: sd.b * k, phi: sd.phi });
+  for (const sd of seeds) for (const k of [1, 1.1, 1.2, 1.32, 1.45]) if (sd.a * k <= det.a * maxScale * 1.02) tryFit({ cx: sd.cx, cy: sd.cy, a: sd.a * k, b: sd.b * k, phi: sd.phi });
   const select = () => {
     const bestQ = Math.max(...fits.map(quality)), bestInl = Math.max(...fits.map((f) => f.inliers));
     const clean = fits.filter((f) => quality(f) >= 0.4 * bestQ && f.inliers >= Math.max(0.5 * rays, 0.75 * bestInl));
@@ -360,7 +394,7 @@ export const MAX_BAR_SPEED = 3;
  * R: the plate's radius (m) — only to turn MAX_BAR_SPEED into pixels.
  * Result: { ok, t, e: { cx, cy, a, b, phi } (px), rms, inliers, reason? }.
  */
-export function createRimTracker({ rays = 72, maxRms = 1.5, jumpTol = 0.3, sizeTol = 0.06, K = null, up = null, R = PLATE_RADIUS_M } = {}) {
+export function createRimTracker({ rays = 72, maxRms = 1.5, jumpTol = 0.3, sizeTol = 0.06, K = null, up = null, R = PLATE_RADIUS_M, maxScale = Infinity } = {}) {
   const upv = () => up || [0, -1, 0], tiltLimit = () => (up ? MAX_TILT_DEG + 4 : MAX_TILT_NO_UP_DEG);
   let prev = null, e = null, lastT = 0, v2 = { x: 0, y: 0 }, ref = null;
   /** How far (px) the plate can have moved in dt seconds: the usual frame-to-frame slack plus the bar's top speed. */
@@ -382,7 +416,7 @@ export function createRimTracker({ rays = 72, maxRms = 1.5, jumpTol = 0.3, sizeT
     /** Gravity arrived (or was refined) after the tracker started. */
     setUp(u) { up = u || null; },
     init(img, det, t) {
-      const f = findRim(img, det, { rays, K, up });
+      const f = findRim(img, det, { rays, K, up, maxScale });
       if (!f.ok) return { ok: false, t, reason: 'plate edge not found' };
       ref = f.ref || null;
       e = { cx: f.cx, cy: f.cy, a: f.a, b: f.b, phi: f.phi }; prev = img; lastT = t; v2 = { x: 0, y: 0 };
@@ -411,13 +445,22 @@ export function createRimTracker({ rays = 72, maxRms = 1.5, jumpTol = 0.3, sizeT
       };
       let f = fitRim(img, pred, { rays, wide: !flow.ok, ref, tol });
       let why = problem(f, true);
+      // Only part of the rim seen this frame (under half): the centre from it, size and shape held — if the
+      // seen part goes round the plate and fits tightly. Marked held (its fit share stays low, so the set's
+      // numbers are estimates).
+      if (why === 'rim fit poor' || why === 'rim not found') {
+        const pts = rimPoints(img, pred, { rays, win: Math.max(1.5, 0.04 * e.a), minGrad: 4, ref, tol });
+        const g = pts.length >= 0.3 * rays ? fitCentre(pts, pred, { rays }) : { ok: false };
+        if (g.ok && g.inliers >= 0.3 * rays && g.rms <= 1 && g.gap <= rays / 2 && Math.hypot(g.cx - pred.cx, g.cy - pred.cy) <= jumpTol * e.a) { f = g; why = ''; }
+      }
       // Lost it (a fast move after skipped frames, say): look for a plate of the same size in the crop,
       // nearest where it should be, and keep it only if its rim matches the plate's colour strictly.
       if (why) { const g = reacquire(img, pred, reach(dt)); if (g && !problem(g, false)) { f = g; why = ''; } }
-      if (why) return { ok: false, t, reason: why, rms: f && f.rms };
+      if (why) return { ok: false, t, reason: why, rms: f && f.rms, inliers: f && f.inliers };
       v2 = { x: 0.5 * v2.x + (0.5 * (f.cx - e.cx)) / dt, y: 0.5 * v2.y + (0.5 * (f.cy - e.cy)) / dt };
       e = { cx: f.cx, cy: f.cy, a: f.a, b: f.b, phi: f.phi };
       prev = img; lastT = t;
+      if (f.held) return { ok: true, t, e: { ...e }, rms: f.rms, inliers: f.inliers, held: true };
       ref = rimColour({ ...f, pts: (f.pts || []).filter((q) => ref && Number.isFinite(ref[q.k]) && Math.abs(q.inner - ref[q.k]) <= RIM_COLOUR_STRICT) }, rays, ref, 0.1) || ref; // follow slow lighting changes, from strictly matching edges only
       return { ok: true, t, e: { ...e }, rms: f.rms, inliers: f.inliers };
     },
