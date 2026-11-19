@@ -313,11 +313,17 @@ function grabRGBA(video, win) {
   c.drawImage(video, ox, oy, w, h, 0, 0, w, h);
   return { w, h, data: c.getImageData(0, 0, w, h).data, ox, oy };
 }
+// Always really seeks, even to where the video already is: a freshly loaded video draws black until a frame
+// has been shown, so a "nothing to do" shortcut handed the plate finder a black picture. Resolves once the
+// frame is presented (requestVideoFrameCallback), not just decoded.
 const seek = (video, t) => new Promise((resolve, reject) => {
-  if (!video.seeking && video.readyState >= 2 && Math.abs(video.currentTime - t) < 1e-5) { resolve(); return; }
   const finish = (error) => { clearTimeout(timer); video.onseeked = null; video.onerror = null; error ? reject(error) : resolve(); };
   const timer = setTimeout(() => finish(new Error('Video seek timed out')), 15000);
-  video.onseeked = () => finish();
+  video.onseeked = () => {
+    if (!video.requestVideoFrameCallback) { finish(); return; }
+    const safety = setTimeout(() => finish(), 250); // a paused video may not present again if the frame didn't change
+    video.requestVideoFrameCallback(() => { clearTimeout(safety); finish(); });
+  };
   video.onerror = () => finish(new Error('Video decoding failed'));
   try { video.currentTime = t; } catch (error) { finish(error); }
 });
