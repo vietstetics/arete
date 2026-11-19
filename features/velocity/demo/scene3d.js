@@ -234,14 +234,16 @@ function hitPlate(ox, oy, oz, dx, dy, dz, px, py, pz, a, e1, e2, L, body) {
  *   noise: sensor noise (grey levels, sd); seed
  *   occluders: [{ x0, y0, x1, y1, v }] static things in front of the plate (rack uprights), in pixels
  *   barAxis: bar direction (default +X); barTiltDeg: bar not quite level
+ *   backgroundImage: grey levels (w × h) to use instead of the generated background (the plate detector's
+ *     training data renders on flat black and white to cut the plate out exactly)
  */
-export function makeScene({ w = 640, h = 360, hfovDeg = 66, place = {}, lens = { k1: 0, k2: 0 }, traj, exposure = 1 / 120, readout = 0.016, noise = 3, seed = 1, occluders = [], barTiltDeg = 0, samples = 2, bodyShade = 95 } = {}) {
+export function makeScene({ w = 640, h = 360, hfovDeg = 66, place = {}, lens = { k1: 0, k2: 0 }, traj, exposure = 1 / 120, readout = 0.016, noise = 3, seed = 1, occluders = [], barTiltDeg = 0, samples = 2, bodyShade = 95, backgroundImage = null } = {}) {
   const midY = traj.reps.length ? -0.5 * Math.max(...traj.reps.map((r) => r.D)) : 0;
   const o = traj.pos(0);
   const target = place.target || [o[0], o[1] + midY, o[2]];
   const pose = placeCamera({ ...place, target });
   const K = intrinsicsFromFov(w, h, hfovDeg);
-  const bg = background(w, h, seed + 2);
+  const bg = backgroundImage || background(w, h, seed + 2);
   const tilt = (barTiltDeg * Math.PI) / 180, a = unit([Math.cos(tilt), Math.sin(tilt), 0]);
   const e1 = unit(cross(a, [0, 0, 1])), e2 = cross(a, e1); // plate texture orientation (fixed: plates don't spin in this model)
   const light = unit([0.4, 0.8, 0.4]);

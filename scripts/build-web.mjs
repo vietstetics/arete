@@ -4,7 +4,7 @@
 import { cp, rm, mkdir, readdir } from 'node:fs/promises';
 
 const OUT = 'www';
-const COPY_DIRS = new Set(['js', 'features', 'css']);
+const COPY_DIRS = new Set(['js', 'features', 'css', 'models']); // models: the plate detector
 const ASSET_EXT = /\.(html|css|png|jpe?g|svg|ico|webmanifest)$/i;
 const SKIP = new Set(['node_modules', 'www', 'native', 'scripts', '.git', '.vercel', '.claude', 'ios', 'android']);
 const SKIP_FILES = new Set(['package.json', 'package-lock.json', 'vercel.json', 'capacitor.config.ts', 'iphone.html']); // iphone.html: the laptop preview, not part of the app
