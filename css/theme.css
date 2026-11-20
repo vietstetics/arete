@@ -1,5 +1,5 @@
 /* ============================================================================
- *  Arete — clean theme (Cal AI-inspired direction, 2026-10).
+ *  Arete — clean theme (Apple-style palette, 2026-11).
  *  Loaded AFTER each page's inline <style>, so these :root tokens override
  *  the per-page ones. Pages style everything through these variables, so
  *  this file restyles the whole app without touching page markup.
@@ -13,51 +13,55 @@
  *  sandbox.html, curl-lab.html (camera prototype keeps its own look).
  * ==========================================================================*/
 :root {
+  /* Apple-style palette (2026-11): iOS grouped background, white cards, one green accent.
+   * Two greens: bright --ac fills shapes (bars, rings, ticks); deeper --gr carries text and
+   * button fills so white text on it and green text on white stay readable (>= 4.5:1). */
   /* canvas + surfaces */
-  --bg:  #F6F6F8;
-  --s1:  rgba(17,17,20,0.025);
-  --s2:  rgba(17,17,20,0.045);
-  --s3:  rgba(17,17,20,0.065);
-  --s4:  rgba(17,17,20,0.09);
-  --bd:  rgba(17,17,20,0.05);
-  --bd2: rgba(17,17,20,0.12);
-  --gm:  rgba(17,17,20,0.04);
+  --bg:  #F2F2F7;
+  --s1:  rgba(60,60,67,0.03);
+  --s2:  rgba(60,60,67,0.06);
+  --s3:  rgba(60,60,67,0.09);
+  --s4:  rgba(60,60,67,0.12);
+  --bd:  rgba(60,60,67,0.10);
+  --bd2: rgba(60,60,67,0.18);
+  --gm:  rgba(60,60,67,0.05);
 
   /* ink */
-  --t1:  #111114;
-  --t2:  #6B6B73;
-  --t3:  #A1A1A9;
+  --t1:  #1C1C1E;
+  --t2:  #6E6E73;
+  --t3:  #8E8E93;
 
-  /* meaning colours: --gr reads (text/icons), --lime fills (now ink) */
-  --gr:   #22A355;
-  --grd:  #E7F6ED;
-  --lime: #111114;
-  --lime2:#2C2C31;
+  /* accent: Apple green */
+  --ac:   #34C759;
+  --gr:   #1E7F36;
+  --grd:  rgba(52,199,89,0.13);
+  --lime: #34C759;
+  --lime2:#2DB24F;
 
-  /* semantic accents (Cal AI macro palette) */
-  --ye:  #D9922E;
-  --yed: rgba(217,146,46,0.12);
-  --or:  #E0743C;
-  --ord: rgba(224,116,60,0.12);
-  --orf: #E0954A;
-  --re:  #E5484D;
-  --red: rgba(229,72,77,0.10);
+  /* meaning colours: warning orange, destructive red (text-safe shade) */
+  --ye:  #C76A00;
+  --yed: rgba(255,149,0,0.13);
+  --or:  #FF9500;
+  --ord: rgba(255,149,0,0.13);
+  --orf: #FF9F0A;
+  --re:  #D70015;
+  --red: rgba(255,59,48,0.10);
 
   /* the old violet accent folds into ink */
-  --vi:  #111114;
-  --vid: rgba(17,17,20,0.06);
+  --vi:  #1C1C1E;
+  --vid: rgba(60,60,67,0.07);
 
-  /* shape + elevation */
-  --r:    24px;
-  --r-sm: 16px;
-  --r-lg: 30px;
-  --sh0: 0 1px 2px rgba(17,17,20,.03), 0 8px 24px rgba(17,17,20,.05);
-  --sh1: 0 2px 6px rgba(17,17,20,.04), 0 14px 36px rgba(17,17,20,.08);
-  --sh2: 0 20px 56px rgba(17,17,20,.14), 0 2px 8px rgba(17,17,20,.05);
+  /* shape + elevation: Apple cards barely lift off the page */
+  --r:    22px;
+  --r-sm: 14px;
+  --r-lg: 28px;
+  --sh0: 0 1px 2px rgba(0,0,0,.03), 0 4px 14px rgba(0,0,0,.04);
+  --sh1: 0 2px 6px rgba(0,0,0,.04), 0 12px 30px rgba(0,0,0,.07);
+  --sh2: 0 20px 56px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.05);
 }
 
 /* Canvas: near-white with a faint grey wash at the top. */
-body { background: linear-gradient(180deg, #EFEFF2 0, #F7F7F9 280px, #F8F8FA 100%) !important; color: var(--t1); }
+body { background: #F2F2F7 !important; color: var(--t1); }
 .app, .main { background: transparent; }
 
 /* Cards: white, borderless, soft shadow, large radius. */
@@ -71,29 +75,29 @@ body { background: linear-gradient(180deg, #EFEFF2 0, #F7F7F9 280px, #F8F8FA 100
 
 /* Primary buttons: solid ink, white text, pill-ish. */
 .btn-p, .btn-gr {
-  background: #111114;
+  background: var(--gr);
   color: #FFFFFF;
-  box-shadow: 0 6px 16px -6px rgba(17,17,20,.35);
+  box-shadow: 0 6px 16px -6px rgba(30,127,54,.45);
 }
-.btn-p:hover, .btn-gr:hover { background: #2C2C31; }
+.btn-p:hover, .btn-gr:hover { background: #186A2D; }
 .btn-s { background: #FFFFFF; border-color: rgba(17,17,20,.12); }
 
-/* Progress fills: ink, like Cal AI's rings. */
-.bar > i { background: #111114; }
-.lime-fill { background: #111114 !important; }
+/* Progress fills: Apple green. */
+.bar > i { background: var(--ac); }
+.lime-fill { background: var(--ac) !important; }
 
 /* Segmented controls and tab pills: raised white pill on soft grey. */
 .wtabs, .vtabs, .cons-src, .src, .tw-toggle { background: rgba(17,17,20,.05); }
 
 /* Mobile back bar: frosted white. */
 .mob-back {
-  background: rgba(248,248,250,.88);
+  background: rgba(242,242,247,.86);
   border-bottom: 1px solid rgba(17,17,20,.06);
   color: var(--t1);
 }
 
 /* Heat maps: keep green = trained (meaning colour). */
-.cons, .heat { --h1:#D7F0DF; --h2:#9FDDB4; --h3:#4CC27A; --h4:#22A355; }
+.cons, .heat { --h1:#D6F5DE; --h2:#9BE3AE; --h3:#5AD27C; --h4:#34C759; }
 
 /* Collapsible dashboard cards: the title pushes the summary, link and chevron
  * to the right in both states (the summary is hidden when a card is open). */
