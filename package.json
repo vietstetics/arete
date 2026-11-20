@@ -19,6 +19,7 @@
     "build:machines": "node scripts/build-machine-db.mjs",
     "build:muscles": "node scripts/build-muscle-db.mjs",
     "test:standard": "node --test \"features/standard/__tests__/*.test.js\"",
+    "recognise": "node scripts/recognise-videos.mjs",
     "test:velocity": "node --test \"features/velocity/__tests__/*.test.js\""
   },
   "dependencies": {
