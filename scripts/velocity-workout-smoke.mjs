@@ -49,9 +49,9 @@ try {
   });
   await page.reload({ waitUntil: 'networkidle0' });
   console.log('Checking camera launch...');
-  await page.waitForSelector('.velocity-row button');
-  assert.equal(await page.$$eval('.velocity-row button', (buttons) => buttons.length), 1, 'only supported exercise receives a camera launch');
-  await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.click('.velocity-row button')]);
+  await page.waitForSelector('.tr-cam');
+  assert.equal(await page.$$eval('.tr-cam', (buttons) => buttons.length), 1, 'only supported exercise receives a camera launch');
+  await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.click('.tr-cam')]);
   const launched = new URL(page.url());
   console.log('Camera launch ready; simulating record handoff...');
   assert.equal(launched.pathname, '/curl-lab.html');

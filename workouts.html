@@ -377,6 +377,7 @@ input,select,textarea{font-family:inherit}
 <link rel="stylesheet" href="css/training.css">
 <link rel="stylesheet" href="css/velocity-coach.css">
 <link rel="stylesheet" href="css/machines.css">
+<link rel="stylesheet" href="css/train.css">
 <link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
@@ -403,7 +404,7 @@ input,select,textarea{font-family:inherit}
 <div class="pg">
   <div class="ph">
     <div>
-      <div class="ph-title">Training</div>
+      <h1 class="ph-title">Train</h1>
     </div>
   </div>
 
@@ -737,10 +738,12 @@ function renderToday(host){
   if(draft){
     const ws = draft.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type!=='warmup').length,0);
     const wd = draft.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.type!=='warmup' && s.completed).length,0);
-    main = `<section class="card td-hero">
+    main = `<section class="card td-hero tr-hero">
       <div class="td-eye">Workout in progress</div>
       <h3 class="td-h">${esc(draft.name)}</h3>
-      <div class="td-sub">${wd} of ${ws} sets done${draft.scheduledFor?' · planned for '+esc(fmtDay(draft.scheduledFor)):''}</div>
+      ${draft.scheduledFor?`<div class="td-sub">Planned for ${esc(fmtDay(draft.scheduledFor))}</div>`:''}
+      <div class="tr-stats"><div><b>${wd}</b><span>sets done</span></div><div><b>${Math.max(0,ws-wd)}</b><span>remaining</span></div><div><b>${esc(fmtDur(Date.now()-draft.startedAt))}</b><span>since start</span></div></div>
+      <div class="tr-prog" role="progressbar" aria-label="Sets done" aria-valuemin="0" aria-valuemax="${ws}" aria-valuenow="${wd}"><i style="width:${ws?Math.round(wd/ws*100):0}%"></i></div>
       <button class="btn btn-p td-cta" onclick="resumeWorkout()">${TD_ICON.play} Resume workout</button>
       <button class="td-text danger" onclick="discardWorkout()">Discard this workout</button>
     </section>`;
@@ -785,6 +788,7 @@ function renderToday(host){
   host.innerHTML = `<div class="td">
     ${doneCard}
     ${main}
+    ${trainingStatsHtml()}
     ${setup}
     <div class="td-sec">${main ? 'Or start something else' : 'Start something'}</div>
     <div class="card td-list">${rows.join('')}</div>
@@ -794,45 +798,132 @@ function renderToday(host){
   if(planOn) mountPlanHome(!!draft);
 }
 
-// The session in progress: one sticky bar (name, progress, Finish), the
-// exercises, then quiet secondary actions.
+// ── Guided workout helpers ───────────────────────────────────────
+// The next thing to do is always one set: the first not yet done, in workout order.
+const _exOpen = new Set();          // exercises whose settings are expanded
+let _focusNext = false, _durTick = null;
+const workSets = (ex) => ex.sets.filter((s) => s.type !== 'warmup');
+function nextUp(){ for(const ex of (active?active.exercises:[])){ const s=ex.sets.find(x=>!x.completed); if(s) return { ex, s }; } return null; }
+function setNo(ex,s){ return s.type==='warmup' ? 'W' : workSets(ex).indexOf(s)+1; }
+function fmtDur(ms){ const m=Math.max(0,Math.floor(ms/60000)); return m<60 ? m+' min' : Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min'; }
+// kg × reps of completed working sets — real logged numbers only.
+function sessVolume(w){ let v=0; (w.exercises||[]).forEach(e=>(e.sets||[]).forEach(s=>{ if(s.type==='warmup'||!s.completed) return; const kg=parseFloat(s.weight), r=parseFloat(s.reps); if(kg>0&&r>0) v+=kg*r; })); return v; }
+// Finished sessions, without the sample data seeded for first-time users.
+function realHistory(){ return completed().filter(w=>!String(w.id).startsWith('mock-')); }
+function fmtKg(v){ return v>=10000 ? (v/1000).toFixed(1)+'k' : Math.round(v).toLocaleString(); }
+// Last session's matching set for set s (the grey hints in the inputs).
+function prevFor(ex,s,last){ if(s.type==='warmup'||!last||last.elsewhere) return null; const wi=workSets(ex).indexOf(s); return last.sets[Math.min(Math.max(wi,0), last.sets.length-1)]||null; }
+function setHint(ex,s){
+  const p=prevFor(ex,s,lastPerf(ex.name, ex.machine&&ex.machine.id));
+  if(p && (p.weight!==''||p.reps!=='')) return `Last time ${p.weight!==''?esc(p.weight)+' kg':''}${p.weight!==''&&p.reps!==''?' × ':''}${p.reps!==''?esc(p.reps)+' reps':''}`;
+  if(s.type!=='warmup' && ex.targetReps) return `Target ${esc(ex.targetReps)} reps${ex.targetRir!=null&&ex.targetRir!==''?' · '+esc(ex.targetRir)+' RIR':''}`;
+  return s.type==='warmup' ? 'Warm-up' : 'Enter weight and reps';
+}
+function tickDur(){ const el=document.getElementById('wk-dur'); if(!el||!active){ clearInterval(_durTick); _durTick=null; return; } el.textContent=fmtDur(Date.now()-active.startedAt); }
+function goToSet(sid){ const el=document.getElementById('set-'+sid); if(!el) return; el.scrollIntoView({ behavior:'smooth', block:'center' }); const i=el.querySelector('input'); if(i && i.value==='') setTimeout(()=>i.focus({ preventScroll:true }), 350); }
+function toggleExSettings(id){ _exOpen.has(id) ? _exOpen.delete(id) : _exOpen.add(id); renderLog(); }
+const K_REST_AUTO='arete_rest_auto';
+function restAuto(){ return localStorage.getItem(K_REST_AUTO)!=='0'; }
+function toggleRestAuto(){ localStorage.setItem(K_REST_AUTO, restAuto()?'0':'1'); if(!restAuto()) stopRest(); renderLog(); toast('Rest timer '+(restAuto()?'on':'off')); }
+// Log set: empty fields take last session's numbers (the grey hints), then the set is done.
+function logSet(eid,sid){
+  const ex=findEx(eid), s=ex&&ex.sets.find(x=>x.id===sid); if(!s||s.completed) return;
+  const p=prevFor(ex,s,lastPerf(ex.name, ex.machine&&ex.machine.id));
+  if(!ex.unilateral && (s.weight===''||s.weight==null) && p && p.weight!=='') setField(eid,sid,'weight',String(p.weight));
+  if((s.reps===''||s.reps==null) && p && p.reps!=='') setField(eid,sid,'reps',String(p.reps));
+  if(s.reps===''||s.reps==null){ toast('Enter your reps first'); const i=document.querySelector('#set-'+sid+' [data-f="reps"]'); if(i) i.focus(); return; }
+  toggleDone(eid,sid);
+}
+
+// Weekly consistency and session volume, from logged workouts only (no sample data).
+function trainingStatsHtml(){
+  const hist=realHistory();
+  if(!hist.length) return `<section class="card ts ts-empty"><div class="ts-h">Your training</div>
+    <p>Finish your first workout and your weekly consistency and volume trend show up here, from what you log.</p></section>`;
+  const wkStart=(t)=>{ const x=new Date(t); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x.getTime(); };
+  const weeks=[]; const cur=new Date(wkStart(Date.now()));
+  for(let i=7;i>=0;i--){ const d=new Date(cur); d.setDate(d.getDate()-7*i); weeks.push({ t:d.getTime(), n:0 }); }
+  hist.forEach(w=>{ const b=weeks.find(x=>x.t===wkStart(w.completedAt)); if(b) b.n++; });
+  const maxN=Math.max(1,...weeks.map(w=>w.n)), thisWk=weeks[7].n;
+  const active8=weeks.filter(w=>w.n>0).length;
+  const sess=hist.slice(0,6).map(w=>({ v:sessVolume(w), name:w.name, t:w.completedAt })).reverse();
+  const vs=sess.filter(x=>x.v>0), maxV=Math.max(1,...vs.map(x=>x.v));
+  const lastV=vs[vs.length-1], prevV=vs[vs.length-2];
+  const chg=lastV&&prevV ? Math.round((lastV.v-prevV.v)/prevV.v*100) : null;
+  const bars=(items,val,max,label)=>items.map((x,i)=>`<div class="ts-c${i===items.length-1?' on':''}" title="${esc(label(x))}"><i style="height:${val(x)?Math.max(6,Math.round(val(x)/max*100)):0}%"></i></div>`).join('');
+  return `<section class="card ts">
+    <div class="ts-grid">
+      <div class="ts-k" role="img" aria-label="Workouts per week, last 8 weeks">
+        <div class="ts-l">This week</div>
+        <div class="ts-v">${thisWk}<small> workout${thisWk===1?'':'s'}</small></div>
+        <div class="ts-bars">${bars(weeks,w=>w.n,maxN,w=>`Week of ${new Date(w.t).toLocaleDateString(undefined,{month:'short',day:'numeric'})}: ${w.n} workout${w.n===1?'':'s'}`)}</div>
+        <div class="ts-f">Trained ${active8} of the last 8 weeks</div>
+      </div>
+      <div class="ts-k" role="img" aria-label="Volume of your last ${vs.length} sessions">
+        <div class="ts-l">Session volume</div>
+        ${lastV?`<div class="ts-v">${fmtKg(lastV.v)}<small> kg</small></div>
+        <div class="ts-bars">${bars(vs,x=>x.v,maxV,x=>`${x.name} · ${F.fmtDate(x.t)}: ${Math.round(x.v)} kg`)}</div>
+        <div class="ts-f">${chg==null?'Last session · log another to compare':`<b class="${chg>=0?'up':'down'}">${chg>0?'+':''}${chg}%</b> vs the session before`}</div>`
+        :`<div class="ts-f" style="margin-top:8px">Log weight and reps to see volume.</div>`}
+      </div>
+    </div>
+  </section>`;
+}
+
+// The session in progress: a summary bar (name, time, sets, Finish), what to do
+// next, one card per exercise, then quiet secondary actions.
 function renderWorkout(host){
   _hist = completed();
   const t = targetMuscles(active);
-  const working = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.type==='working').length,0);
-  const workingDone = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.type==='working' && s.completed).length,0);
-  const doneSets    = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.completed).length,0);
-  const workingSets = working;
+  const all = active.exercises.flatMap(workSets);
+  const working = all.length, workingDone = all.filter(s=>s.completed).length;
+  const doneSets = active.exercises.reduce((n,ex)=>n+ex.sets.filter(s=>s.completed).length,0);
   const pct = working ? Math.round(workingDone/working*100) : 0;
+  const nx = nextUp();
+  const vol = sessVolume(active);
+  const prevSame = realHistory().find(w=>w.id!==active.id && ((w.routineId&&w.routineId===active.routineId) || w.name===active.name));
+  const prevVol = prevSame ? sessVolume(prevSame) : 0;
   const notes = active.notes || _notesOpen
     ? `<textarea class="notes-in" id="wk-notes" placeholder="Session notes…" oninput="active.notes=this.value;saveActive()">${esc(active.notes||'')}</textarea>`
     : `<button class="lg-link" onclick="_notesOpen=true;renderLog();document.getElementById('wk-notes').focus()">＋ Add a note</button>`;
 
   host.innerHTML = `
   <div class="log-grid">
-    <div class="card lg">
-      <div class="wk-bar">
-        <div class="wk-bar-main">
-          <input class="wk-name" id="wk-name" value="${esc(active.name)}" oninput="active.name=this.value;saveActive()" placeholder="Workout name" aria-label="Workout name">
-          <div class="wk-sub"><b>${workingDone}</b> of ${working} sets done</div>
+    <div class="lg2">
+      <section class="card wk-bar">
+        <div class="wk-top">
+          <div class="wk-bar-main">
+            <input class="wk-name" id="wk-name" value="${esc(active.name)}" oninput="active.name=this.value;saveActive()" placeholder="Workout name" aria-label="Workout name">
+            <div class="wk-sub"><span id="wk-dur">${fmtDur(Date.now()-active.startedAt)}</span> · <b>${workingDone}</b> of ${working} sets${working?` · ${working-workingDone} left`:''}</div>
+          </div>
+          <button class="btn wk-finish" onclick="finishWorkout()">Finish</button>
         </div>
-        <button class="btn btn-p wk-finish" onclick="finishWorkout()">Finish</button>
         <div class="wk-progress" role="progressbar" aria-label="Sets done" aria-valuemin="0" aria-valuemax="${working}" aria-valuenow="${workingDone}"><i style="width:${pct}%"></i></div>
-      </div>
+      </section>
       <div id="lockin"></div>
-      <div id="ex-wrap">${active.exercises.map(renderExercise).join('')||'<div class="empty" style="padding:28px 24px 8px"><h3>No exercises yet</h3><p style="font-size:12.5px">Add your first one to start logging sets.</p></div>'}</div>
-      <div class="lg-add"><button class="btn btn-s" onclick="openEx()">＋ Add exercise</button></div>
-      <div class="lg-foot">
+      ${upNextHtml(nx)}
+      <div id="ex-wrap">${active.exercises.map(ex=>renderExercise(ex,nx)).join('')||'<section class="card tr-empty"><h3>No exercises yet</h3><p>Add your first exercise to start logging sets.</p></section>'}</div>
+      <button class="btn tr-add" onclick="openEx()">＋ Add exercise</button>
+      <section class="card lg-foot">
         ${notes}
         <div class="lg-acts">
+          <button class="lg-link" onclick="toggleRestAuto()">Rest timer: ${restAuto()?'On':'Off'}</button>
           <button class="lg-link" onclick="saveTemplate()">Save as routine</button>
           <button class="lg-link" onclick="pauseWorkout()">Save for later</button>
           <button class="lg-link danger" onclick="discardWorkout()">Discard workout</button>
         </div>
-      </div>
+      </section>
     </div>
 
     <div class="side">
+      <div class="card diag-card">
+        <div class="diag-ttl">This session</div>
+        <div class="vol-row"><span>Volume</span><b>${vol?fmtKg(vol)+' kg':'—'}</b></div>
+        ${prevVol?`<div class="vol-row"><span>Last time (${esc(F.fmtDate(prevSame.completedAt))})</span><b>${fmtKg(prevVol)} kg</b></div>`:''}
+        <div class="vol-row"><span>Exercises</span><b>${active.exercises.length}</b></div>
+        <div class="vol-row"><span>Sets completed</span><b>${doneSets} / ${active.exercises.reduce((n,e)=>n+e.sets.length,0)}</b></div>
+        <div class="vol-row"><span>Muscle groups</span><b>${new Set([...t.pri, ...t.sec].map(shortMuscle)).size}</b></div>
+      </div>
       <div class="card diag-card">
         <div class="diag-ttl">Muscles worked</div>
         <div class="wk-diagram" id="wk-diagram">
@@ -843,19 +934,117 @@ function renderWorkout(host){
         <div class="targets" id="wk-targets"></div>
         <div class="diag-note">Finishing this workout marks these muscles as <b>recovering</b> on your Recovery body map and dashboard.</div>
       </div>
-      <div class="card diag-card">
-        <div class="diag-ttl">This session</div>
-        <div class="vol-row"><span>Exercises</span><b>${active.exercises.length}</b></div>
-        <div class="vol-row"><span>Working sets</span><b>${workingSets}</b></div>
-        <div class="vol-row"><span>Sets completed</span><b>${doneSets} / ${active.exercises.reduce((n,e)=>n+e.sets.length,0)}</b></div>
-        <div class="vol-row"><span>Muscle groups</span><b>${new Set([...t.pri, ...t.sec].map(shortMuscle)).size}</b></div>
-      </div>
     </div>
   </div>`;
 
   renderTargets(t);
   renderLockIn();
   ensureBody();
+  if(!_durTick) _durTick=setInterval(tickDur, 15000);
+  if(restTick) updateRest();
+  if(_focusNext){ _focusNext=false; const n=nextUp(); if(n) setTimeout(()=>{ const el=document.getElementById('set-'+n.s.id); if(el) el.scrollIntoView({ behavior:'smooth', block:'center' }); }, 60); }
+}
+
+// One line: what to do now (or the rest countdown), with a jump to that set.
+function upNextHtml(nx){
+  if(!active.exercises.length) return '';
+  if(!nx) return `<section class="card un un-done"><div class="un-b"><div class="un-eye">All sets done</div><div class="un-h">Great session — finish to log it</div></div>
+    <button class="btn tr-cta sm" onclick="finishWorkout()">Finish</button></section>`;
+  const resting = restTick!==null;
+  return `<section class="card un"><div class="un-b">
+      <div class="un-eye" id="un-eye">${resting?'Resting · <b id="un-rest"></b>':'Up next'}</div>
+      <div class="un-h">${esc(nx.ex.name)} · ${nx.s.type==='warmup'?'Warm-up':'Set '+setNo(nx.ex,nx.s)}</div>
+      <div class="un-sub">${setHint(nx.ex,nx.s)}</div></div>
+    <button class="btn btn-s btn-sm" onclick="goToSet('${nx.s.id}')">Go</button></section>`;
+}
+
+// Last few sessions' top set for this exercise (exHistory), as small bars.
+function prevChart(ex){
+  const h = exHistory(ex.name, realHistory().filter(w=>w.id!==active.id)).slice(-6);
+  if(!h.length) return `<div class="pc pc-empty">First time logging ${esc(ex.name)}: nothing to compare yet.</div>`;
+  const max=Math.max(...h.map(x=>x.top));
+  return `<div class="pc" role="img" aria-label="Top set in your last ${h.length} sessions">
+    <div class="pc-l">Top set · last ${h.length} session${h.length===1?'':'s'}</div>
+    <div class="pc-bars">${h.map((x,i)=>`<div class="pc-c${i===h.length-1?' on':''}" title="${esc(F.fmtDate(x.t))}: ${esc(x.top)} kg × ${esc(x.reps)}"><span>${esc(x.top)}×${esc(x.reps||'?')}</span><i style="height:${Math.max(8,Math.round(x.top/max*100))}%"></i></div>`).join('')}</div></div>`;
+}
+
+function renderExercise(ex, nx){
+  const last = lastPerf(ex.name, ex.machine && ex.machine.id);
+  const hasRir = ex.targetRir!=null && ex.targetRir!=='';
+  const isCur = !!(nx && nx.ex===ex);
+  const nextHere = ex.sets.find(s=>!s.completed);
+  const ws = workSets(ex), wDone = ws.filter(s=>s.completed).length;
+  const rows = ex.sets.map((s)=>{
+    const n = setNo(ex,s);
+    const prev = prevFor(ex,s,last);
+    const cur = nextHere && s.id===nextHere.id;
+    return `
+    <div class="set-row${ex.unilateral?' uni':''}${s.completed?' done':''}${cur?' cur':''}${cur&&isCur?' now':''}" id="set-${s.id}">
+      <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" aria-label="Set ${n}: toggle warm-up" onclick="toggleType('${ex.id}','${s.id}')">${n}</button>
+      ${ex.unilateral
+        ? `<input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'L'}" aria-label="Left weight in kg" value="${s.weightL??''}" oninput="setSide('${ex.id}','${s.id}','weightL',this.value)">
+      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'R'}" aria-label="Right weight in kg" value="${s.weightR??''}" oninput="setSide('${ex.id}','${s.id}','weightR',this.value)">`
+        : `<input class="set-in" data-f="weight" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight??''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">`}
+      <input class="set-in" data-f="reps" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps??''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
+      <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
+      <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+    </div>
+    ${s.velocity?`<div class="set-velo">${renderVelocityResult(s.velocity)}</div>`:''}
+    ${cur&&isCur?`<button class="btn tr-cta tr-log" onclick="logSet('${ex.id}','${s.id}')">Log ${s.type==='warmup'?'warm-up':'set '+n}</button>`:''}`; }).join('');
+  const tgt = ex.targetReps
+    ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
+    : (hasRir ? `${ex.targetRir} RIR` : '');
+  const meta = [
+    tgt ? `<span>Planned <b>${esc(tgt)}</b></span>` : '',
+    last ? `<span>Last time${last.elsewhere?` (${last.elsewhere})`:''} <b>${last.sets.map(s=>`${s.weight!==''?esc(s.weight):'–'}×${s.reps!==''?esc(s.reps):'–'}`).join(', ')}</b> · ${esc(F.fmtDate(last.date))}</span>` : '',
+  ].filter(Boolean).join('');
+  const equip = [ex.machine ? machineLabel(ex.machine) : ex.equipmentKey, ex.unilateral ? 'Each side' : ''].filter(Boolean).join(' · ');
+  const camOk = window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex);
+  const camSet = nextHere || ex.sets[ex.sets.length-1];
+  const open = _exOpen.has(ex.id);
+  return `<section class="card ex${isCur?' is-cur':''}${ws.length&&wDone===ws.length?' is-done':''}">
+    <div class="ex-hd">
+      <div class="ex-ti">
+        <button class="ex-name" title="See weight progression" onclick="showProg('${jsName(ex.name)}')">${esc(ex.name)}</button>
+        ${equip?`<div class="ex-eq">${esc(equip)}</div>`:''}
+      </div>
+      <span class="ex-count">${wDone}/${ws.length}</span>
+      <button class="icon-btn ex-more" aria-label="Exercise settings" aria-expanded="${open}" onclick="toggleExSettings('${ex.id}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+    </div>
+    ${meta?`<div class="ex-meta">${meta}</div>`:''}
+    ${isCur?prevChart(ex):''}
+    ${open?exSettingsHtml(ex):''}
+    <div class="sets">
+      <div class="set-row head${ex.unilateral?' uni':''}"><span>Set</span>${ex.unilateral?'<span>L kg</span><span>R kg</span>':'<span>kg</span>'}<span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span></span></div>
+      ${rows}
+    </div>
+    <div class="ex-foot">
+      <button class="add-set" onclick="addSet('${ex.id}')">＋ Add set</button>
+      ${camOk&&camSet?`<button class="tr-cam" onclick="trackWorkoutSet('${ex.id}','${camSet.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>${camSet.velocity?'Track again':'Count reps with camera'}</button>`:''}
+    </div>
+  </section>`;
+}
+
+// Everything that isn't logging a set: sides, machine, equipment, tools, and each
+// set's optional effort / calibration details.
+function exSettingsHtml(ex){
+  return `<div class="ex-set">
+    <div class="ex-set-row"><span>Sides</span>
+      <div class="ex-sides" role="group" aria-label="Sides">
+        <button aria-pressed="${!ex.unilateral}" onclick="setSides('${ex.id}',false)">Both together</button>
+        <button aria-pressed="${!!ex.unilateral}" onclick="setSides('${ex.id}',true)" title="Separate left and right weights for each set">Each side</button>
+      </div></div>
+    ${machineBlock(ex)}
+    <label class="ex-equipment">Equipment variation (for personal predictions)${ex.machine?`<span> · ${esc(machineLabel(ex.machine))}</span>`:`<input value="${esc(ex.equipmentKey||'')}" placeholder="Optional, e.g. barbell · flat bench" onchange="setEquipmentVariation('${ex.id}',this.value)">`}</label>
+    <div class="ex-set-acts">
+      <button class="lg-link" onclick="openPlates('${ex.id}')">Plate calculator</button>
+      <button class="lg-link" onclick="showProg('${jsName(ex.name)}')">Progress chart</button>
+      <button class="lg-link danger" onclick="removeExercise('${ex.id}')">Remove exercise</button>
+    </div>
+    <div class="ex-set-lbl">Effort &amp; calibration by set (optional)</div>
+    ${ex.sets.map(s=>`<details class="set-calibration"><summary>Set ${setNo(ex,s)}${s.completed?' · done':''}</summary>${renderTrackedSet(ex,s)}
+      <button class="lg-link danger" onclick="removeSet('${ex.id}','${s.id}')">Remove this set</button></details>`).join('')}
+  </div>`;
 }
 
 // Most recent finished session's working sets for an exercise ("last time").
@@ -876,53 +1065,6 @@ function lastPerf(name, machineId){
   }
   return other;
 }
-function renderExercise(ex){
-  const last = lastPerf(ex.name, ex.machine && ex.machine.id);
-  const hasRir = ex.targetRir!=null && ex.targetRir!=='';
-  const rows = ex.sets.map((s,i)=>{
-    const wi = i - ex.sets.slice(0,i).filter(x=>x.type==='warmup').length; // working-set number (0-based)
-    const prev = s.type!=='warmup' && last && !last.elsewhere ? last.sets[Math.min(wi, last.sets.length-1)] : null;
-    return `
-    <div class="set-row${ex.unilateral?' uni':''}${s.completed?' done':''}">
-      <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" aria-label="Set ${s.type==='warmup'?'warm-up':wi+1}: toggle warm-up" onclick="toggleType('${ex.id}','${s.id}')">${s.type==='warmup'?'W':wi+1}</button>
-      ${ex.unilateral
-        ? `<input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'L'}" aria-label="Left weight in kg" value="${s.weightL??''}" oninput="setSide('${ex.id}','${s.id}','weightL',this.value)">
-      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'R'}" aria-label="Right weight in kg" value="${s.weightR??''}" oninput="setSide('${ex.id}','${s.id}','weightR',this.value)">`
-        : `<input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight||''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">`}
-      <input class="set-in" type="number" inputmode="numeric" placeholder="${s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps||''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
-      <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
-      <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set done':'Mark set done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
-      <button class="set-rm" title="Remove set" aria-label="Remove set" onclick="removeSet('${ex.id}','${s.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-    </div>
-    ${renderTrackedSet(ex,s)}`; }).join('');
-  const tgt = ex.targetReps
-    ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
-    : (hasRir ? `${ex.targetRir} RIR` : '');
-  const meta = [
-    tgt ? `<span>Target <b>${esc(tgt)}</b></span>` : '',
-    last ? `<span>Last time${last.elsewhere?` (${last.elsewhere})`:''} <b>${last.sets.map(s=>`${s.weight!==''?esc(s.weight):'–'} × ${s.reps!==''?esc(s.reps):'–'}`).join(', ')}</b> · ${esc(F.fmtDate(last.date))}</span>` : '',
-  ].filter(Boolean).join('');
-  return `<div class="ex">
-    <div class="ex-hd">
-      <button class="ex-name" title="See weight progression" onclick="showProg('${jsName(ex.name)}')">${esc(ex.name)}</button>
-      <button class="icon-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlates('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 7v10M18 7v10M9 5v14M15 5v14M9 12h6"/></svg></button>
-      <button class="icon-btn" title="Remove exercise" aria-label="Remove ${esc(ex.name)}" onclick="removeExercise('${ex.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-    </div>
-    <div class="ex-sides" role="group" aria-label="Sides">
-      <button aria-pressed="${!ex.unilateral}" onclick="setSides('${ex.id}',false)">Bilateral</button>
-      <button aria-pressed="${!!ex.unilateral}" onclick="setSides('${ex.id}',true)" title="Separate left and right weights for each set">Unilateral</button>
-    </div>
-    ${meta?`<div class="ex-meta">${meta}</div>`:''}
-    ${machineBlock(ex)}
-    <label class="ex-equipment">Equipment variation for personal predictions${ex.machine?`<span> · ${esc(machineLabel(ex.machine))}</span>`:`<input value="${esc(ex.equipmentKey||'')}" placeholder="Optional, e.g. barbell · flat bench" onchange="setEquipmentVariation('${ex.id}',this.value)">`}</label>
-    <div class="sets">
-      <div class="set-row head${ex.unilateral?' uni':''}"><span>Set</span>${ex.unilateral?'<span>L kg</span><span>R kg</span>':'<span>kg</span>'}<span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span>Done</span><span></span></div>
-      ${rows}
-      <button class="add-set" onclick="addSet('${ex.id}')">＋ Add set</button>
-    </div>
-  </div>`;
-}
-
 function shortMuscle(id){ return muscleName(id).replace(/^(Left|Right)\s+/,'').replace('Quadriceps','Quads').replace('Abdominals','Abs'); }
 
 function targetMuscles(wk){
@@ -1102,7 +1244,7 @@ function renderTrackedSet(ex,s){
       <label class="calibration-check"><input type="checkbox" ${s.epleySupported?'checked':''} onchange="setCalibrationField('${ex.id}','${s.id}','epleySupported',this.checked)"> Enable optional Epley 1RM estimate for this exercise (assumes 1–10 reps to failure)</label>
       <label class="calibration-check"><input type="checkbox" ${s.tested1RM?.verified?'checked':''} onchange="setCalibrationField('${ex.id}','${s.id}','tested1RM',this.checked)"> Successful maximal single (actual tested 1RM)</label>
       <div class="velocity-detail">Optional labels describe this set. Training to failure or attempting a maximum is never required. Reported effort is separate from model estimates.</div>
-    </details>${s.velocity?renderVelocityResult(s.velocity):s.predictions&&window.VelocityCoachMetrics?window.VelocityCoachMetrics.renderCoachMetrics(loggedPredictionRecord(ex,s),{predictions:s.predictions}):''}</div>`;
+    </details>${!s.velocity&&s.predictions&&window.VelocityCoachMetrics?window.VelocityCoachMetrics.renderCoachMetrics(loggedPredictionRecord(ex,s),{predictions:s.predictions}):''}</div>`;
 }
 function renderVelocityResult(record, chartMax){
   if(!record || !Array.isArray(record.reps)) return '';
@@ -1263,7 +1405,8 @@ function toggleDone(eid,sid){
   s.completed=!s.completed;
   if(s.completed) s.completedAt=Date.now(); else delete s.completedAt;
   refreshSetPrediction(ex,s);
-  if(s.completed && s.type!=='warmup'){ checkPR(ex,s); startRest(); }
+  if(s.completed && s.type!=='warmup'){ checkPR(ex,s); if(restAuto()) startRest(); }
+  if(s.completed){ _focusNext=true; try{ navigator.vibrate&&navigator.vibrate(12); }catch(_){} }
   saveActive(); renderLog();
 }
 
@@ -1314,7 +1457,7 @@ function startRest(){
   updateRest();
 }
 function addRest(s){ restEnd+=s*1000; updateRest(); }
-function stopRest(){ clearInterval(restTick); restTick=null; const p=document.getElementById('rest-pill'); if(p)p.classList.remove('show'); }
+function stopRest(){ clearInterval(restTick); restTick=null; const p=document.getElementById('rest-pill'); if(p)p.classList.remove('show'); const e=document.getElementById('un-eye'); if(e) e.textContent='Up next'; }
 function cycleRest(){
   const opts=[60,90,120,180]; const next=opts[(opts.indexOf(restSecs())+1)%opts.length];
   localStorage.setItem(K_REST,String(next));
@@ -1327,6 +1470,7 @@ function updateRest(){
   if(left<=0){ restDone(); return; }
   p.classList.add('show');
   p.querySelector('.t').textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+  const u=document.getElementById('un-rest'); if(u) u.textContent=p.querySelector('.t').textContent;
 }
 function restDone(){
   stopRest();
