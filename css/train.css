@@ -1,14 +1,14 @@
 /* ============================================================================
  *  Train tab (workouts.html): iOS-style look. Loaded last, so it refines the
  *  page's inline styles, theme.css and training.css without touching others.
- *  Off-white canvas, white rounded cards, near-black ink, one orange accent
+ *  Off-white canvas, white rounded cards, near-black ink, one green accent
  *  for what to do now: the main button, the current set, progress.
  * ==========================================================================*/
 :root {
-  --ac: #FF6A13;
-  --ac2: #E85A06;
-  --acd: rgba(255, 106, 19, .11);
-  --acl: rgba(255, 106, 19, .32);
+  --ac: #1F9D50;
+  --ac2: #178A45;
+  --acd: rgba(31, 157, 80, .10);
+  --acl: rgba(31, 157, 80, .32);
   --card: #fff;
   --tr-r: 22px;
 }
@@ -82,7 +82,7 @@ body { background: #F5F5F7 !important; }
 
 /* Exercise card */
 .ex { padding: 14px 14px 10px; border: 0; }
-.ex.is-cur { box-shadow: 0 0 0 1.5px var(--acl), 0 8px 24px rgba(255,106,19,.10); }
+.ex.is-cur { box-shadow: 0 0 0 1.5px var(--acl), 0 8px 24px rgba(31,157,80,.10); }
 .ex-hd { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 0 0 0 2px; background: none; border-radius: 0; }
 .ex-ti { flex: 1; min-width: 0; }
 .ex-name, .ex-hd button.ex-name, .ex-hd button.ex-name:hover { color: var(--t1); font-size: 17px; font-weight: 750; letter-spacing: -.015em; text-align: left; }
@@ -115,9 +115,9 @@ body { background: #F5F5F7 !important; }
 .set-in:focus { background: #fff; box-shadow: 0 0 0 2px var(--ac); }
 .set-done { width: 44px; height: 42px; border-radius: 12px; border: 0; background: rgba(17,17,20,.06); color: rgba(17,17,20,.22); }
 .set-done.on { background: var(--gr); color: #fff; }
-.set-row.done:not(.head) { background: rgba(34,163,85,.07); }
+.set-row.done:not(.head) { background: rgba(34,163,85,.05); }
 .set-row.done .set-in { background: transparent; }
-.set-row.done .set-tag { background: var(--gr); color: #fff; }
+.set-row.done .set-tag { background: var(--grd); color: var(--gr); }
 .set-row.cur { background: rgba(17,17,20,.025); }
 .set-row.now { background: var(--acd); box-shadow: inset 0 0 0 1.5px var(--acl); }
 .set-row.now .set-tag { background: var(--ac); color: #fff; }
@@ -150,7 +150,7 @@ body { background: #F5F5F7 !important; }
 /* Rest timer pill: quiet, out of the way of the thumb */
 .rest-pill { background: #111114; padding: 9px 10px 9px 16px; gap: 8px; }
 .rest-pill .t { color: #fff; }
-.rest-pill button { color: #FFB27A; background: rgba(255,255,255,.1); min-height: 32px; }
+.rest-pill button { color: #9BE7B5; background: rgba(255,255,255,.1); min-height: 32px; }
 
 /* History */
 .hrow { min-height: 64px; }
