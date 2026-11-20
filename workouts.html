@@ -379,6 +379,7 @@ input,select,textarea{font-family:inherit}
 <link rel="stylesheet" href="css/machines.css">
 <link rel="stylesheet" href="css/train.css">
 <link rel="apple-touch-icon" href="icon-180.png">
+<script src="js/feel.js" defer></script>
 </head>
 <body>
 <div class="app">
@@ -894,7 +895,7 @@ function renderWorkout(host){
         <div class="wk-top">
           <div class="wk-bar-main">
             <input class="wk-name" id="wk-name" value="${esc(active.name)}" oninput="active.name=this.value;saveActive()" placeholder="Workout name" aria-label="Workout name">
-            <div class="wk-sub"><span id="wk-dur">${fmtDur(Date.now()-active.startedAt)}</span> · <b>${workingDone}</b> of ${working} sets${working?` · ${working-workingDone} left`:''}</div>
+            <div class="wk-sub"><span id="wk-dur">${fmtDur(Date.now()-active.startedAt)}</span> · <b data-roll="wk-done">${workingDone}</b> of ${working} sets${working?` · <span data-roll="wk-left">${working-workingDone}</span> left`:''}</div>
           </div>
           <button class="btn wk-finish" onclick="finishWorkout()">Finish</button>
         </div>
@@ -918,10 +919,10 @@ function renderWorkout(host){
     <div class="side">
       <div class="card diag-card">
         <div class="diag-ttl">This session</div>
-        <div class="vol-row"><span>Volume</span><b>${vol?fmtKg(vol)+' kg':'—'}</b></div>
+        <div class="vol-row"><span>Volume</span><b data-roll="wk-vol">${vol?fmtKg(vol)+' kg':'—'}</b></div>
         ${prevVol?`<div class="vol-row"><span>Last time (${esc(F.fmtDate(prevSame.completedAt))})</span><b>${fmtKg(prevVol)} kg</b></div>`:''}
         <div class="vol-row"><span>Exercises</span><b>${active.exercises.length}</b></div>
-        <div class="vol-row"><span>Sets completed</span><b>${doneSets} / ${active.exercises.reduce((n,e)=>n+e.sets.length,0)}</b></div>
+        <div class="vol-row"><span>Sets completed</span><b data-roll="wk-sets">${doneSets} / ${active.exercises.reduce((n,e)=>n+e.sets.length,0)}</b></div>
         <div class="vol-row"><span>Muscle groups</span><b>${new Set([...t.pri, ...t.sec].map(shortMuscle)).size}</b></div>
       </div>
       <div class="card diag-card">
@@ -1008,7 +1009,7 @@ function renderExercise(ex, nx){
         <button class="ex-name" title="See weight progression" onclick="showProg('${jsName(ex.name)}')">${esc(ex.name)}</button>
         ${equip?`<div class="ex-eq">${esc(equip)}</div>`:''}
       </div>
-      <span class="ex-count">${wDone}/${ws.length}</span>
+      <span class="ex-count" data-roll="exc-${ex.id}">${wDone}/${ws.length}</span>
       <button class="icon-btn ex-more" aria-label="Exercise settings" aria-expanded="${open}" onclick="toggleExSettings('${ex.id}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
     </div>
     ${meta?`<div class="ex-meta">${meta}</div>`:''}
