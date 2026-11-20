@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F2F2F7">
+<title>Recovery Map Sandbox</title>
+<!--
+  A sandbox for the Recovery page's muscle map (recovery.html, between its MUSCLE-START and
+  MUSCLE-END markers). It loads the live shapes, lets you edit them (drag points, draw or sketch new
+  ones around a reference image you drop in), keeps a draft in this browser, and exports the block
+  to paste back. Nothing here changes the app until that block is put into recovery.html.
+  Not linked from the app (noindex).
+-->
+<style>
+:root{--bg:#F2F2F7;--card:#fff;--t1:#1C1C1E;--t2:#6E6E73;--t3:#8E8E93;--bd:rgba(60,60,67,.12);--ac:#34C759;--gr:#1E7F36;--re:#D70015;--sel:#007AFF}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--t1);font:14px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.top{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;background:rgba(242,242,247,.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--bd)}
+.top h1{font-size:17px;font-weight:700;letter-spacing:-.01em;margin-right:6px}
+.seg{display:inline-flex;background:rgba(60,60,67,.08);border-radius:10px;padding:2px}
+.seg button{padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;color:var(--t2)}
+.seg button.on{background:#fff;color:var(--t1);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;background:#fff;border:1px solid var(--bd);font-size:13px;font-weight:600}
+.btn:hover{border-color:rgba(60,60,67,.25)}
+.btn.p{background:var(--gr);color:#fff;border-color:var(--gr)}
+.btn.d{color:var(--re)}
+.btn:disabled{opacity:.4;cursor:default}
+.sp{flex:1}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;padding:16px;max-width:1400px;margin:0 auto}
+.card{background:var(--card);border-radius:20px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 4px 14px rgba(0,0,0,.04)}
+.stagebox{padding:12px;overflow:auto;max-height:calc(100vh - 150px)}
+.stage{position:relative;margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.stage img.body{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.stage img.ref{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.hint{font-size:12px;color:var(--t2);padding:8px 4px 0}
+.side{display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 90px);overflow:auto;position:sticky;top:70px}
+.sec{padding:14px}
+.sec h2{font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+.row label{font-size:12.5px;color:var(--t2);min-width:62px}
+.row input[type=text]{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--bd);border-radius:9px;background:#fff}
+.row input[type=range]{flex:1}
+.list{max-height:280px;overflow:auto;margin:0 -6px}
+.li{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 8px;border-radius:9px;font-size:13px}
+.li:hover{background:rgba(60,60,67,.05)}
+.li.on{background:rgba(0,122,255,.10)}
+.li small{color:var(--t3);margin-left:auto;font-size:11px}
+.li i{width:9px;height:9px;border-radius:3px;background:#D1D1D6;flex-shrink:0}
+.li.on i{background:var(--sel)}
+.srch{width:100%;padding:7px 10px;border:1px solid var(--bd);border-radius:9px;margin-bottom:6px}
+textarea.out{width:100%;height:120px;font:11px/1.4 ui-monospace,Menlo,Consolas,monospace;padding:8px;border:1px solid var(--bd);border-radius:10px;resize:vertical;background:#FAFAFB}
+.note{font-size:12px;color:var(--t2);line-height:1.5}
+.status{font-size:12px;color:var(--t2)}
+.status b{color:var(--gr)}
+/* image drop zone, below the map */
+.drop{margin-top:12px;padding:16px;border:2px dashed rgba(60,60,67,.22);border-radius:18px;text-align:center;color:var(--t2);font-size:13.5px;transition:background .15s,border-color .15s}
+.drop.over{background:rgba(52,199,89,.08);border-color:var(--ac)}
+.drop b{color:var(--t1)}
+.thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;justify-content:center}
+.th{position:relative;width:92px;height:92px;border-radius:12px;overflow:hidden;border:2px solid transparent;background:#eee;cursor:pointer}
+.th.on{border-color:var(--sel)}
+.th img{width:100%;height:100%;object-fit:cover;display:block}
+.th button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:13px;line-height:22px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1C1C1E;color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
+.toast.show{opacity:1}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}.side{position:static;max-height:none}.stagebox{max-height:none}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Recovery map sandbox</h1>
+  <div class="seg" role="toolbar" aria-label="Tool">
+    <button data-tool="edit" class="on" title="Select a muscle, drag its points or the whole shape (V)">Edit</button>
+    <button data-tool="draw" title="Click points to outline a new muscle; click the first point or press Enter to finish (P)">Draw</button>
+    <button data-tool="sketch" title="Drag freehand to sketch a new muscle (S)">Sketch</button>
+    <button data-tool="image" title="Drag the reference image to line it up (I)">Move image</button>
+  </div>
+  <button class="btn" id="undo" title="Undo (Ctrl+Z)">Undo</button>
+  <button class="btn" id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+  <label class="status">Zoom <input type="range" id="zoom" min="50" max="300" value="100" style="vertical-align:middle;width:110px"></label>
+  <span class="sp"></span>
+  <span class="status" id="status">Loading the live map…</span>
+</div>
+
+<div class="wrap">
+  <div>
+    <div class="card stagebox">
+      <div class="stage" id="stage">
+        <img class="body" id="bodyimg" src="body-diagram.png" alt="">
+        <img class="ref" id="refimg" alt="" hidden>
+        <svg id="svg" viewBox="0 0 1000 1000" aria-label="Muscle map editor"></svg>
+      </div>
+      <div class="hint" id="hint"></div>
+    </div>
+    <div class="card drop" id="drop" tabindex="0" role="button" aria-label="Add reference images">
+      <b>Drop reference images here</b> or click to choose. Pick one to show it behind the map, line it up with
+      <b>Move image</b>, then <b>Draw</b> or <b>Sketch</b> around it.
+      <input type="file" id="file" accept="image/*" multiple hidden>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <section class="card sec">
+      <h2>Layers</h2>
+      <div class="row"><label>Body</label><input type="range" id="bodyop" min="0" max="100" value="100"></div>
+      <div class="row"><label>Muscles</label><input type="range" id="mapop" min="0" max="100" value="55"></div>
+      <div id="refctl" hidden>
+        <div class="row"><label>Image</label><input type="range" id="refop" min="0" max="100" value="60"></div>
+        <div class="row"><label>Size</label><input type="range" id="refsc" min="10" max="300" value="100"></div>
+        <div class="row"><button class="btn" id="reffit">Fit to map</button><button class="btn" id="refhide">Hide image</button><button class="btn" id="reffront">Image on top</button></div>
+      </div>
+    </section>
+
+    <section class="card sec">
+      <h2>Muscles <span id="count" style="text-transform:none;letter-spacing:0;font-weight:600"></span></h2>
+      <input class="srch" id="filter" placeholder="Filter…" autocomplete="off">
+      <div class="list" id="list"></div>
+    </section>
+
+    <section class="card sec" id="selbox" hidden>
+      <h2>Selected</h2>
+      <div class="row"><label>Muscle id</label><input type="text" id="mid" list="ids" spellcheck="false"></div>
+      <datalist id="ids"></datalist>
+      <div class="row"><label>Label</label><input type="text" id="mlabel"></div>
+      <div class="row">
+        <button class="btn" id="addpt" title="Insert a point after the selected point (A)">Add point</button>
+        <button class="btn" id="delpt" title="Delete the selected point (Delete)">Delete point</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="dup">Duplicate</button>
+        <button class="btn" id="mirror" title="Copy to the other side of the same figure (left ↔ right)">Mirror copy</button>
+        <button class="btn d" id="delshape">Delete muscle</button>
+      </div>
+      <p class="note" id="selinfo"></p>
+    </section>
+
+    <section class="card sec">
+      <h2>Save</h2>
+      <p class="note">Your edits are kept in this browser as a draft. To change the real Recovery map, copy this block into
+        <code>recovery.html</code> between <code>MUSCLE-START</code> and <code>MUSCLE-END</code>, or give it to Claude.</p>
+      <textarea class="out" id="out" readonly></textarea>
+      <div class="row">
+        <button class="btn p" id="copy">Copy block</button>
+        <button class="btn" id="dl">Download</button>
+        <button class="btn" id="dljson">Save JSON</button>
+        <button class="btn" id="ldjson">Load JSON</button>
+        <input type="file" id="jsonfile" accept=".json,application/json" hidden>
+      </div>
+      <div class="row"><button class="btn d" id="reset">Reset to the live map</button></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const DRAFT = 'arete_mapsandbox_draft_v1', IMGS = 'arete_mapsandbox_imgs_v1', VIEW = 'arete_mapsandbox_view_v1';
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2000); }
+
+// ── Paths: any SVG path data → absolute segments we can edit, and back ─────────
+// Segment: { c:'M'|'L'|'C'|'Q'|'A'|'Z', p:[x,y] end point, c1, c2 (C), q (Q), a:[rx,ry,rot,large,sweep] (A) }
+function parsePath(d) {
+  const toks = String(d).match(/[a-zA-Z]|-?(?:\d*\.\d+|\d+\.?)(?:e[-+]?\d+)?/g) || [];
+  let i = 0, cmd = null, x = 0, y = 0, sx = 0, sy = 0, last = null;
+  const out = [], num = () => parseFloat(toks[i++]);
+  const isNum = () => i < toks.length && !/^[a-zA-Z]$/.test(toks[i]);
+  while (i < toks.length) {
+    if (/^[a-zA-Z]$/.test(toks[i])) cmd = toks[i++];
+    else if (!cmd) { i++; continue; }
+    const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
+    const rx = (v) => (rel ? x + v : v), ry = (v) => (rel ? y + v : v);
+    if (C === 'Z') { out.push({ c: 'Z' }); x = sx; y = sy; last = null; cmd = null; continue; }
+    if (!isNum()) { cmd = null; continue; }
+    if (C === 'M') { x = rx(num()); y = ry(num()); sx = x; sy = y; out.push({ c: 'M', p: [x, y] }); cmd = rel ? 'l' : 'L'; last = null; continue; }
+    if (C === 'L') { x = rx(num()); y = ry(num()); out.push({ c: 'L', p: [x, y] }); last = null; continue; }
+    if (C === 'H') { x = rel ? x + num() : num(); out.push({ c: 'L', p: [x, y] }); last = null; continue; }
+    if (C === 'V') { y = rel ? y + num() : num(); out.push({ c: 'L', p: [x, y] }); last = null; continue; }
+    if (C === 'C' || C === 'S') {
+      let c1;
+      if (C === 'C') c1 = [rx(num()), ry(num())];
+      else c1 = last && last.c === 'C' ? [2 * x - last.c2[0], 2 * y - last.c2[1]] : [x, y];
+      const c2 = [rx(num()), ry(num())]; x = rx(num()); y = ry(num());
+      last = { c: 'C', c1, c2, p: [x, y] }; out.push(last); continue;
+    }
+    if (C === 'Q' || C === 'T') {
+      let q;
+      if (C === 'Q') q = [rx(num()), ry(num())];
+      else q = last && last.c === 'Q' ? [2 * x - last.q[0], 2 * y - last.q[1]] : [x, y];
+      x = rx(num()); y = ry(num());
+      last = { c: 'Q', q, p: [x, y] }; out.push(last); continue;
+    }
+    if (C === 'A') {
+      const a = [num(), num(), num(), num(), num()]; x = rx(num()); y = ry(num());
+      out.push({ c: 'A', a, p: [x, y] }); last = null; continue;
+    }
+    i++; // unknown: skip
+  }
+  return out;
+}
+const r1 = (v) => Math.round(v * 10) / 10;
+const pt = (p) => `${r1(p[0])},${r1(p[1])}`;
+function pathD(segs) {
+  return segs.map((s) => s.c === 'Z' ? 'Z'
+    : s.c === 'C' ? `C ${pt(s.c1)} ${pt(s.c2)} ${pt(s.p)}`
+    : s.c === 'Q' ? `Q ${pt(s.q)} ${pt(s.p)}`
+    : s.c === 'A' ? `A ${r1(s.a[0])} ${r1(s.a[1])} ${r1(s.a[2])} ${s.a[3] ? 1 : 0} ${s.a[4] ? 1 : 0} ${pt(s.p)}`
+    : `${s.c} ${pt(s.p)}`).join(' ');
+}
+const clone = (o) => JSON.parse(JSON.stringify(o));
+
+// ── State ───────────────────────────────────────────────────────────────────
+let shapes = [];          // { uid, id, label, segs }
+let live = null;          // shapes as loaded from recovery.html (for Reset)
+let sel = null;           // selected shape uid
+let selPt = null;         // { seg, key: 'p'|'c1'|'c2'|'q' }
+let tool = 'edit';
+let pending = [];         // points while drawing
+let past = [], future = [];
+let uidN = 1;
+const newUid = () => 'm' + (uidN++);
+const view = Object.assign({ zoom: 100, bodyop: 100, mapop: 55, ref: null, refop: 60, refsc: 100, rx: 0, ry: 0, refHidden: false, refFront: false }, store.get(VIEW, {}));
+let imgs = store.get(IMGS, []); // [{ id, name, src }]
+
+function snapshot() { past.push(JSON.stringify(shapes)); if (past.length > 200) past.shift(); future = []; syncUndo(); }
+function undo() { if (!past.length) return; future.push(JSON.stringify(shapes)); shapes = JSON.parse(past.pop()); fixSel(); changed(false); }
+function redo() { if (!future.length) return; past.push(JSON.stringify(shapes)); shapes = JSON.parse(future.pop()); fixSel(); changed(false); }
+function syncUndo() { $('undo').disabled = !past.length; $('redo').disabled = !future.length; }
+function fixSel() { if (!shapes.find((s) => s.uid === sel)) { sel = null; selPt = null; } }
+const cur = () => shapes.find((s) => s.uid === sel) || null;
+
+// ── Load the live map from recovery.html ───────────────────────────────────
+async function loadLive() {
+  const txt = await (await fetch('recovery.html', { cache: 'no-store' })).text();
+  const a = txt.indexOf('<!--MUSCLE-START-->'), b = txt.indexOf('<!--MUSCLE-END-->');
+  if (a < 0 || b < 0) throw new Error('Map markers not found in recovery.html');
+  const doc = new DOMParser().parseFromString(`<svg xmlns="${NS}">${txt.slice(a, b)}</svg>`, 'image/svg+xml');
+  return [...doc.querySelectorAll('path[data-muscle]')].map((p) => ({
+    uid: newUid(), id: p.getAttribute('data-muscle'), label: p.getAttribute('aria-label') || p.getAttribute('data-muscle'),
+    segs: parsePath(p.getAttribute('d')),
+  }));
+}
+
+// ── Drawing ─────────────────────────────────────────────────────────────────
+const svg = $('svg');
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function render() {
+  svg.innerHTML = '';
+  const g = el('g', { opacity: String(view.mapop / 100) }, svg);
+  for (const s of shapes) {
+    const on = s.uid === sel;
+    el('path', { d: pathD(s.segs), 'data-uid': s.uid, fill: on ? 'rgba(0,122,255,.45)' : '#9EA3AE', stroke: on ? '#007AFF' : '#5B6070', 'stroke-width': on ? 2 : 1, 'vector-effect': 'non-scaling-stroke', style: 'cursor:pointer' }, g);
+  }
+  const s = cur();
+  if (s && tool === 'edit') {
+    const h = el('g', {}, svg);
+    let prev = null;
+    s.segs.forEach((seg, i) => {
+      if (seg.c === 'Z') { prev = null; return; }
+      if (seg.c === 'C') { el('line', { x1: prev ? prev[0] : seg.p[0], y1: prev ? prev[1] : seg.p[1], x2: seg.c1[0], y2: seg.c1[1], stroke: '#FF9500', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, h);
+        el('line', { x1: seg.p[0], y1: seg.p[1], x2: seg.c2[0], y2: seg.c2[1], stroke: '#FF9500', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, h); handle(h, i, 'c1', seg.c1, true); handle(h, i, 'c2', seg.c2, true); }
+      if (seg.c === 'Q') { el('line', { x1: seg.p[0], y1: seg.p[1], x2: seg.q[0], y2: seg.q[1], stroke: '#FF9500', 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, h); handle(h, i, 'q', seg.q, true); }
+      handle(h, i, 'p', seg.p, false);
+      prev = seg.p;
+    });
+  }
+  if (pending.length) {
+    el('polyline', { points: pending.map(pt).join(' '), fill: 'rgba(52,199,89,.18)', stroke: '#1E7F36', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }, svg);
+    pending.forEach((p, i) => el('circle', { cx: p[0], cy: p[1], r: i === 0 ? 6 : 4, fill: i === 0 ? '#34C759' : '#fff', stroke: '#1E7F36', 'stroke-width': 1.5, 'vector-effect': 'non-scaling-stroke' }, svg));
+  }
+}
+function handle(parent, seg, key, p, ctrl) {
+  const on = selPt && selPt.seg === seg && selPt.key === key;
+  const r = (ctrl ? 4.5 : 5.5) * 100 / view.zoom;
+  el(ctrl ? 'rect' : 'circle', ctrl
+    ? { x: p[0] - r, y: p[1] - r, width: 2 * r, height: 2 * r, fill: on ? '#FF9500' : '#fff', stroke: '#FF9500', 'stroke-width': 1.5, 'vector-effect': 'non-scaling-stroke', 'data-seg': seg, 'data-key': key, style: 'cursor:move' }
+    : { cx: p[0], cy: p[1], r, fill: on ? '#007AFF' : '#fff', stroke: '#007AFF', 'stroke-width': 1.5, 'vector-effect': 'non-scaling-stroke', 'data-seg': seg, 'data-key': key, style: 'cursor:move' }, parent);
+}
+
+function renderList() {
+  const q = $('filter').value.trim().toLowerCase();
+  const items = shapes.filter((s) => !q || s.id.toLowerCase().includes(q) || (s.label || '').toLowerCase().includes(q));
+  $('count').textContent = `(${shapes.length})`;
+  $('list').innerHTML = items.map((s) => `<button class="li${s.uid === sel ? ' on' : ''}" data-uid="${s.uid}"><i></i>${esc(s.label || s.id)}<small>${esc(s.id)}</small></button>`).join('') || '<p class="note" style="padding:6px">No muscles match.</p>';
+  $('ids').innerHTML = [...new Set(shapes.map((s) => s.id))].sort().map((id) => `<option value="${esc(id)}">`).join('');
+}
+function renderSel() {
+  const s = cur();
+  $('selbox').hidden = !s;
+  if (!s) return;
+  if (document.activeElement !== $('mid')) $('mid').value = s.id;
+  if (document.activeElement !== $('mlabel')) $('mlabel').value = s.label || '';
+  const n = s.segs.filter((x) => x.c !== 'Z').length;
+  $('selinfo').textContent = `${n} points${selPt ? ` · point ${selPt.seg + 1} selected` : ''}. Drag a point to move it, or drag inside the shape to move it all. Shift-drag keeps the move straight.`;
+  $('addpt').disabled = !selPt; $('delpt').disabled = !selPt || selPt.key !== 'p';
+}
+function renderOut() {
+  const lines = shapes.map((s) => `          <path class="muscle-patch" data-muscle="${esc(s.id)}" fill="#D1D1D6" tabindex="0" aria-label="${esc(s.label || s.id)}"\n            d="${pathD(s.segs)}"/>`);
+  $('out').value = `\n${lines.join('\n')}\n\n        `;
+}
+function esc(v) { return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function changed(save = true) {
+  render(); renderList(); renderSel(); renderOut(); syncUndo();
+  if (save) { store.set(DRAFT, { shapes, at: Date.now() }); $('status').innerHTML = `<b>Draft saved</b> · ${shapes.length} muscles`; }
+}
+function applyView() {
+  const w = Math.round(680 * view.zoom / 100);
+  $('stage').style.width = w + 'px'; $('stage').style.height = w + 'px';
+  $('zoom').value = view.zoom; $('bodyop').value = view.bodyop; $('mapop').value = view.mapop;
+  $('bodyimg').style.opacity = view.bodyop / 100;
+  const ref = imgs.find((x) => x.id === view.ref), ri = $('refimg');
+  $('refctl').hidden = !ref;
+  if (ref) {
+    if (ri.getAttribute('src') !== ref.src) ri.src = ref.src;
+    ri.hidden = view.refHidden;
+    ri.style.opacity = view.refop / 100;
+    const k = w / 1000; // map units → pixels
+    ri.style.width = (ri.naturalWidth ? ri.naturalWidth : 1000) * (view.refsc / 100) * k + 'px';
+    ri.style.transform = `translate(${view.rx * k}px, ${view.ry * k}px)`;
+    ri.style.zIndex = view.refFront ? 2 : 0;
+    svg.style.zIndex = 1;
+    $('refop').value = view.refop; $('refsc').value = view.refsc;
+    $('refhide').textContent = view.refHidden ? 'Show image' : 'Hide image';
+    $('reffront').textContent = view.refFront ? 'Image behind' : 'Image on top';
+  } else ri.hidden = true;
+  store.set(VIEW, view);
+  render();
+}
+const HINTS = {
+  edit: 'Click a muscle to select it. Drag blue points (corners) or orange squares (curve handles). Delete removes a point; Ctrl+Z undoes.',
+  draw: 'Click to place points around the new muscle. Click the first (green) point or press Enter to finish; Backspace removes the last point; Esc cancels.',
+  sketch: 'Drag to sketch the outline in one stroke; it closes and smooths itself when you let go.',
+  image: 'Drag to line the reference image up with the body. Use Size to scale it.',
+};
+function setTool(t) {
+  tool = t; pending = [];
+  document.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('on', b.dataset.tool === t));
+  $('hint').textContent = HINTS[t];
+  svg.style.cursor = t === 'edit' ? 'default' : t === 'image' ? 'grab' : 'crosshair';
+  render();
+}
+
+// ── Pointer interaction ─────────────────────────────────────────────────────
+function toMap(e) { const m = svg.getScreenCTM().inverse(); const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m); return [p.x, p.y]; }
+let drag = null;
+svg.addEventListener('pointerdown', (e) => {
+  const p = toMap(e);
+  if (tool === 'image') { if (!view.ref) return; drag = { kind: 'image', start: p, rx: view.rx, ry: view.ry }; svg.setPointerCapture(e.pointerId); return; }
+  if (tool === 'draw') {
+    if (pending.length > 2 && Math.hypot(p[0] - pending[0][0], p[1] - pending[0][1]) < 10 * 100 / view.zoom) { finishPending(false); return; }
+    pending.push(p); render(); return;
+  }
+  if (tool === 'sketch') { pending = [p]; drag = { kind: 'sketch' }; svg.setPointerCapture(e.pointerId); render(); return; }
+  // edit
+  const t = e.target;
+  if (t.dataset && t.dataset.seg != null) {
+    selPt = { seg: +t.dataset.seg, key: t.dataset.key };
+    snapshot(); drag = { kind: 'pt', start: p, orig: clone(cur().segs[selPt.seg][selPt.key]) };
+    svg.setPointerCapture(e.pointerId); render(); renderSel(); return;
+  }
+  if (t.dataset && t.dataset.uid) {
+    if (sel !== t.dataset.uid) { sel = t.dataset.uid; selPt = null; changed(false); return; }
+    snapshot(); drag = { kind: 'shape', start: p, orig: clone(cur().segs) }; svg.setPointerCapture(e.pointerId); return;
+  }
+  sel = null; selPt = null; changed(false);
+});
+svg.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const p = toMap(e);
+  let dx = p[0] - (drag.start ? drag.start[0] : 0), dy = p[1] - (drag.start ? drag.start[1] : 0);
+  if (e.shiftKey && drag.start) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+  if (drag.kind === 'image') { view.rx = drag.rx + dx; view.ry = drag.ry + dy; applyView(); return; }
+  if (drag.kind === 'sketch') { const l = pending[pending.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 1.5) { pending.push(p); render(); } return; }
+  const s = cur(); if (!s) return;
+  if (drag.kind === 'pt') {
+    const seg = s.segs[selPt.seg];
+    const nx = drag.orig[0] + dx, ny = drag.orig[1] + dy;
+    if (selPt.key === 'p') { // a corner drags its own curve handles with it
+      const mx = nx - seg.p[0], my = ny - seg.p[1];
+      if (seg.c === 'C') { seg.c2 = [seg.c2[0] + mx, seg.c2[1] + my]; }
+      const next = s.segs[selPt.seg + 1]; if (next && next.c === 'C') next.c1 = [next.c1[0] + mx, next.c1[1] + my];
+    }
+    seg[selPt.key] = [nx, ny];
+  } else if (drag.kind === 'shape') {
+    s.segs = drag.orig.map((g) => { const o = clone(g); ['p', 'c1', 'c2', 'q'].forEach((k) => { if (o[k]) o[k] = [o[k][0] + dx, o[k][1] + dy]; }); return o; });
+  }
+  render();
+});
+svg.addEventListener('pointerup', () => {
+  if (!drag) return;
+  const k = drag.kind; drag = null;
+  if (k === 'sketch') { if (pending.length > 5) finishPending(true); else { pending = []; render(); } return; }
+  if (k === 'image') return;
+  changed();
+});
+svg.addEventListener('wheel', (e) => { if (tool !== 'image' || !view.ref) return; e.preventDefault(); view.refsc = Math.max(10, Math.min(300, view.refsc * (e.deltaY < 0 ? 1.04 : 0.96))); applyView(); }, { passive: false });
+
+// Simplify a freehand stroke (Ramer–Douglas–Peucker) so it's easy to edit afterwards.
+function simplify(pts, eps) {
+  if (pts.length < 3) return pts;
+  const [a, b] = [pts[0], pts[pts.length - 1]];
+  let idx = 0, dmax = 0;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = pts[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const d = Math.abs((b[1] - a[1]) * p[0] - (b[0] - a[0]) * p[1] + b[0] * a[1] - b[1] * a[0]) / L;
+    if (d > dmax) { dmax = d; idx = i; }
+  }
+  if (dmax <= eps) return [a, b];
+  return simplify(pts.slice(0, idx + 1), eps).slice(0, -1).concat(simplify(pts.slice(idx), eps));
+}
+function finishPending(sketched) {
+  let pts = pending; pending = [];
+  if (sketched) pts = simplify(pts, 2.2);
+  if (pts.length < 3) { render(); return; }
+  snapshot();
+  const name = (prompt('Muscle id for this shape (e.g. biceps-l). Existing ids keep the same recovery colour.', 'new-muscle') || 'new-muscle').trim();
+  const s = { uid: newUid(), id: name, label: name, segs: [{ c: 'M', p: pts[0] }, ...pts.slice(1).map((p) => ({ c: 'L', p })), { c: 'Z' }] };
+  shapes.push(s); sel = s.uid; selPt = null; setTool('edit'); changed();
+}
+
+// ── Selected-shape actions ──────────────────────────────────────────────────
+function insertPoint() {
+  const s = cur(); if (!s || !selPt) return;
+  const i = selPt.seg, a = s.segs[i];
+  // next end point in the same subpath (or wrap to its M)
+  let j = i + 1; while (j < s.segs.length && s.segs[j].c === 'Z') j++;
+  let b = s.segs[j] && s.segs[j].c !== 'M' ? s.segs[j] : null;
+  if (!b) { for (let k = i; k >= 0; k--) if (s.segs[k].c === 'M') { b = s.segs[k]; break; } }
+  if (!a.p || !b) return;
+  snapshot();
+  s.segs.splice(i + 1, 0, { c: 'L', p: [(a.p[0] + b.p[0]) / 2, (a.p[1] + b.p[1]) / 2] });
+  selPt = { seg: i + 1, key: 'p' }; changed();
+}
+function deletePoint() {
+  const s = cur(); if (!s || !selPt || selPt.key !== 'p') return;
+  const corners = s.segs.filter((x) => x.c !== 'Z').length;
+  if (corners <= 3) { toast('A muscle needs at least 3 points'); return; }
+  snapshot();
+  const i = selPt.seg, g = s.segs[i];
+  if (g.c === 'M') { const n = s.segs[i + 1]; if (n && n.c !== 'Z' && n.c !== 'M') { s.segs[i + 1] = { c: 'M', p: n.p }; } }
+  s.segs.splice(i, 1);
+  selPt = null; changed();
+}
+function mirrorCopy() {
+  const s = cur(); if (!s) return;
+  // Two figures share the picture: front centred near x 260, back near x 760.
+  const xs = s.segs.filter((g) => g.p).map((g) => g.p[0]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, axis = cx < 510 ? 260 : 760;
+  const f = (p) => p && [2 * axis - p[0], p[1]];
+  const swap = (t) => String(t).replace(/-r(\b|-)/, '-§$1').replace(/-l(\b|-)/, '-r$1').replace(/-§/, '-l')
+    .replace(/\bR\b/, '§').replace(/\bL\b/, 'R').replace(/§/, 'L');
+  snapshot();
+  const m = { uid: newUid(), id: swap(s.id), label: swap(s.label || s.id), segs: s.segs.map((g) => { const o = clone(g); ['p', 'c1', 'c2', 'q'].forEach((k) => { if (o[k]) o[k] = f(o[k]); }); if (o.c === 'A') o.a[4] = o.a[4] ? 0 : 1; return o; }) };
+  shapes.push(m); sel = m.uid; selPt = null; changed(); toast('Mirrored copy: ' + m.id);
+}
+$('addpt').onclick = insertPoint; $('delpt').onclick = deletePoint; $('mirror').onclick = mirrorCopy;
+$('dup').onclick = () => { const s = cur(); if (!s) return; snapshot(); const d = clone(s); d.uid = newUid(); d.segs.forEach((g) => ['p', 'c1', 'c2', 'q'].forEach((k) => { if (g[k]) g[k] = [g[k][0] + 15, g[k][1] + 15]; })); shapes.push(d); sel = d.uid; selPt = null; changed(); };
+$('delshape').onclick = () => { const s = cur(); if (!s || !confirm(`Delete ${s.label || s.id}?`)) return; snapshot(); shapes = shapes.filter((x) => x !== s); sel = null; selPt = null; changed(); };
+let typing = null;
+['mid', 'mlabel'].forEach((id) => $(id).addEventListener('input', (e) => {
+  const s = cur(); if (!s) return;
+  if (typing !== s.uid + id) { snapshot(); typing = s.uid + id; }
+  if (id === 'mid') s.id = e.target.value.trim() || s.id; else s.label = e.target.value;
+  changed();
+}));
+['mid', 'mlabel'].forEach((id) => $(id).addEventListener('blur', () => { typing = null; }));
+$('list').addEventListener('click', (e) => { const b = e.target.closest('[data-uid]'); if (!b) return; sel = b.dataset.uid; selPt = null; setTool('edit'); changed(false); });
+$('filter').addEventListener('input', renderList);
+
+// ── Tools, layers, keys ─────────────────────────────────────────────────────
+document.querySelectorAll('[data-tool]').forEach((b) => b.onclick = () => setTool(b.dataset.tool));
+$('undo').onclick = undo; $('redo').onclick = redo;
+$('zoom').oninput = (e) => { view.zoom = +e.target.value; applyView(); };
+$('bodyop').oninput = (e) => { view.bodyop = +e.target.value; applyView(); };
+$('mapop').oninput = (e) => { view.mapop = +e.target.value; applyView(); };
+$('refop').oninput = (e) => { view.refop = +e.target.value; applyView(); };
+$('refsc').oninput = (e) => { view.refsc = +e.target.value; applyView(); };
+$('refhide').onclick = () => { view.refHidden = !view.refHidden; applyView(); };
+$('reffront').onclick = () => { view.refFront = !view.refFront; applyView(); };
+$('reffit').onclick = () => { const ri = $('refimg'); if (!ri.naturalWidth) return; view.refsc = Math.round(100000 / Math.max(ri.naturalWidth, ri.naturalHeight)) ; view.rx = 0; view.ry = 0; applyView(); };
+document.addEventListener('keydown', (e) => {
+  if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return; }
+  if (tool === 'draw' && e.key === 'Enter') { finishPending(false); return; }
+  if (tool === 'draw' && e.key === 'Backspace') { e.preventDefault(); pending.pop(); render(); return; }
+  if (e.key === 'Escape') { if (pending.length) { pending = []; render(); } else { sel = null; selPt = null; changed(false); } return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selPt) { e.preventDefault(); deletePoint(); return; }
+  if (k === 'v') setTool('edit'); else if (k === 'p') setTool('draw'); else if (k === 's') setTool('sketch'); else if (k === 'i') setTool('image'); else if (k === 'a') insertPoint();
+  if (selPt && e.key.startsWith('Arrow')) { // nudge the selected point
+    e.preventDefault(); const s = cur(), g = s.segs[selPt.seg], st = e.shiftKey ? 5 : 0.5;
+    snapshot(); g[selPt.key] = [g[selPt.key][0] + (e.key === 'ArrowLeft' ? -st : e.key === 'ArrowRight' ? st : 0), g[selPt.key][1] + (e.key === 'ArrowUp' ? -st : e.key === 'ArrowDown' ? st : 0)]; changed();
+  }
+});
+
+// ── Reference images (drop zone below the map) ──────────────────────────────
+function renderThumbs() {
+  $('thumbs').innerHTML = imgs.map((x) => `<div class="th${x.id === view.ref ? ' on' : ''}" data-id="${x.id}" title="${esc(x.name)}"><img src="${x.src}" alt="${esc(x.name)}"><button data-rm="${x.id}" aria-label="Remove ${esc(x.name)}">×</button></div>`).join('');
+}
+function saveImgs() { if (!store.set(IMGS, imgs)) toast('Images too big to keep after a reload. They stay until you close this tab.'); }
+function addFiles(files) {
+  [...files].filter((f) => f.type.startsWith('image/')).forEach((f) => {
+    const r = new FileReader();
+    r.onload = () => {
+      // Shrink big photos so they're light to keep (longest side 1600 px).
+      const im = new Image();
+      im.onload = () => {
+        const s = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+        c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        const item = { id: 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: f.name, src: c.toDataURL('image/jpeg', 0.85) };
+        imgs.push(item); view.ref = item.id; view.refHidden = false; view.rx = 0; view.ry = 0;
+        saveImgs(); renderThumbs();
+        $('refimg').onload = () => { $('reffit').click(); $('refimg').onload = null; };
+        applyView(); toast('Image added behind the map');
+      };
+      im.src = r.result;
+    };
+    r.readAsDataURL(f);
+  });
+}
+const drop = $('drop');
+drop.addEventListener('click', (e) => { if (e.target.closest('.th')) return; $('file').click(); });
+drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+$('file').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
+document.addEventListener('paste', (e) => { const f = [...(e.clipboardData?.files || [])]; if (f.length) addFiles(f); });
+$('thumbs').addEventListener('click', (e) => {
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { imgs = imgs.filter((x) => x.id !== rm.dataset.rm); if (view.ref === rm.dataset.rm) view.ref = imgs.length ? imgs[imgs.length - 1].id : null; saveImgs(); renderThumbs(); applyView(); return; }
+  const th = e.target.closest('.th'); if (!th) return;
+  view.ref = view.ref === th.dataset.id ? null : th.dataset.id; view.refHidden = false; renderThumbs(); applyView();
+});
+$('refimg').addEventListener('load', applyView);
+
+// ── Save / load ─────────────────────────────────────────────────────────────
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+$('copy').onclick = async () => { try { await navigator.clipboard.writeText($('out').value); toast('Copied the map block'); } catch { $('out').select(); document.execCommand('copy'); toast('Copied'); } };
+$('dl').onclick = () => download('recovery-map-block.html', $('out').value, 'text/html');
+$('dljson').onclick = () => download('recovery-map.json', JSON.stringify({ version: 1, shapes: shapes.map(({ id, label, segs }) => ({ id, label, d: pathD(segs) })) }, null, 1), 'application/json');
+$('ldjson').onclick = () => $('jsonfile').click();
+$('jsonfile').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (!Array.isArray(j.shapes)) throw new Error('No shapes in this file');
+    snapshot(); shapes = j.shapes.map((s) => ({ uid: newUid(), id: String(s.id), label: s.label || s.id, segs: parsePath(s.d) })); sel = null; selPt = null; changed(); toast('Loaded ' + shapes.length + ' muscles');
+  } catch (err) { toast('Could not load: ' + err.message); }
+};
+$('reset').onclick = () => { if (!live || !confirm('Throw away your draft and start again from the live Recovery map?')) return; snapshot(); shapes = clone(live).map((s) => ({ ...s, uid: newUid() })); sel = null; selPt = null; store.del(DRAFT); changed(false); $('status').textContent = 'Live map · ' + shapes.length + ' muscles'; };
+
+// ── Start ───────────────────────────────────────────────────────────────────
+(async () => {
+  setTool('edit'); applyView(); renderThumbs(); syncUndo();
+  try { live = await loadLive(); } catch (err) { $('status').textContent = 'Could not load the live map: ' + err.message; live = []; }
+  const draft = store.get(DRAFT, null);
+  if (draft && Array.isArray(draft.shapes) && draft.shapes.length) {
+    shapes = draft.shapes.map((s) => ({ ...s, uid: newUid() }));
+    changed(false);
+    $('status').innerHTML = `<b>Draft</b> from ${new Date(draft.at).toLocaleString()} · ${shapes.length} muscles`;
+  } else {
+    shapes = clone(live);
+    changed(false);
+    $('status').textContent = 'Live map · ' + shapes.length + ' muscles';
+  }
+})();
+</script>
+</body>
+</html>
