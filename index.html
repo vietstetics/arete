@@ -77,7 +77,7 @@ textarea{font-family:inherit;resize:none}
 .ni-ic{width:16px;height:16px;flex-shrink:0;transition:color 160ms}
 .sb-foot{padding:14px 14px;border-top:1px solid var(--bd);display:flex;align-items:center;gap:10px;cursor:pointer;transition:background 160ms;border-radius:0}
 .sb-foot:hover{background:var(--s2)}
-.av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,var(--vi));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.av{width:32px;height:32px;border-radius:50%;background:var(--t1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
 .av-info{flex:1;min-width:0}
 .av-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .av-plan{font-size:11px;color:var(--t3)}
@@ -96,8 +96,10 @@ textarea{font-family:inherit;resize:none}
 .ib{width:36px;height:36px;border-radius:10px;background:var(--s1);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;color:var(--t3);cursor:pointer;position:relative;transition:border-color 160ms,color 160ms,background 160ms}
 .ib:hover{color:var(--t1);border-color:var(--bd2);background:var(--s2)}
 .nd{position:absolute;top:8px;right:8px;width:5px;height:5px;background:var(--vi);border-radius:50%;border:1.5px solid var(--bg)}
-.streak{display:flex;align-items:center;gap:5px;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:6px 11px;font-size:11.5px;font-weight:600;color:var(--or)}
-.hdr-av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4F46E5,var(--vi));display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0}
+.streak{display:flex;align-items:center;gap:6px;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:0 12px;height:36px;font-size:12px;font-weight:500;color:var(--t2);text-decoration:none;font-variant-numeric:tabular-nums}
+.streak[hidden]{display:none}
+.streak b{color:var(--t1);font-weight:600}
+.hdr-av{width:36px;height:36px;border-radius:50%;background:var(--t1);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0}
 
 /* ─── CARDS ─── */
 .card{background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);transition:border-color 200ms,box-shadow 200ms}
@@ -118,7 +120,7 @@ textarea{font-family:inherit;resize:none}
 .ready-ring-center{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 @keyframes readyBreath{0%,100%{opacity:.34;transform:scale(.99)}50%{opacity:.64;transform:scale(1.012)}}
 .ready-num{font-size:46px;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--t1);font-variant-numeric:tabular-nums}
-.ready-lbl{font-size:9.5px;font-weight:700;color:var(--gr);margin-top:4px;letter-spacing:.03em;text-transform:uppercase;line-height:1.18;max-width:92px;white-space:normal;text-align:center}
+.ready-lbl{font-size:11px;font-weight:500;color:var(--t2);margin-top:4px;letter-spacing:0;line-height:1.18;max-width:92px;white-space:normal;text-align:center}
 .ready-body{}
 .ready-eyebrow{font-size:11px;font-weight:500;color:var(--t3);margin-bottom:10px;letter-spacing:0}
 .ready-copy{font-size:14px;color:var(--t2);line-height:1.7;margin-bottom:18px;max-width:460px}
@@ -157,7 +159,7 @@ textarea{font-family:inherit;resize:none}
 .kc-mr{position:relative;width:62px;height:62px;margin:0 auto}
 .kc-mr .t,.kc-mr .f{stroke-width:6}
 .kc-mr .f{stroke:var(--c)}
-.kc-mi{position:absolute;inset:0;display:grid;place-items:center;color:var(--c)}
+.kc-mi{position:absolute;inset:0;display:grid;place-items:center;color:var(--t3)}
 /* Rep counter — entry to the camera rep-standard prototype (curl-lab.html) */
 .repc{display:flex;align-items:center;gap:14px;background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);margin-bottom:18px;padding:16px 18px;color:inherit;text-decoration:none;transition:border-color 160ms}
 .repc:hover{border-color:var(--bd2)}
@@ -632,9 +634,36 @@ textarea{font-family:inherit;resize:none}
 .agrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
 .ag{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 2px;border-radius:14px;color:var(--t1);transition:background 140ms}
 .ag:active{background:var(--s2)}
-.ag-ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center}
-.ag-ic svg{width:21px;height:21px}
+.ag-ic{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--s2);color:var(--t2)}
+.ag-ic svg{width:20px;height:20px;stroke-width:1.5}
 .ag-l{font-size:10.5px;font-weight:600;color:var(--t2);text-align:center;line-height:1.2}
+}
+
+/* ─── CAMERA REP COUNTERS (one card, a row per lift) ─── */
+.rcc{background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0);margin-bottom:18px;padding:16px 8px 8px}
+.rcc-hd{display:flex;align-items:center;gap:12px;padding:0 12px 12px}
+.rcc-ic{width:40px;height:40px;border-radius:12px;background:var(--s2);color:var(--t1);display:grid;place-items:center;flex-shrink:0}
+.rcc-ic svg{width:20px;height:20px}
+.rcc-hb{flex:1;min-width:0}
+.rcc-hb h2{font-size:16px;font-weight:600;letter-spacing:-.01em;margin:0}
+.rcc-hb p{font-size:12.5px;color:var(--t2);margin:2px 0 0}
+.rcc-tag{font-size:11px;color:var(--t3);font-weight:500;flex-shrink:0}
+.rcc-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--bd)}
+.rcc-list li+li{border-top:1px solid var(--bd)}
+.rcc-list a{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n go" "d go";column-gap:12px;align-items:center;min-height:56px;padding:8px 12px;border-radius:12px;color:inherit;text-decoration:none;transition:background-color 140ms}
+.rcc-list a:hover{background:var(--s1)}
+.rcc-list a:active{background:var(--s2)}
+.rcc-n{grid-area:n;font-size:14px;font-weight:500;color:var(--t1)}
+.rcc-d{grid-area:d;font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rcc-go{grid-area:go;width:16px;height:16px;color:var(--t3)}
+
+/* Phone header: date and actions on one row, today's line full width under them. */
+@media (max-width:767px){
+  .hdr{flex-wrap:wrap;row-gap:12px;margin-bottom:24px}
+  .hdr-l{order:2;flex:1 1 100%}
+  .hdr-r{order:1;flex:1 1 100%;justify-content:flex-end}
+  .hdr-l .sub{font-size:17px;margin-top:4px}
+  .sec-sum{white-space:normal;text-overflow:clip;line-height:1.35}
 }
 </style>
 <link rel="stylesheet" href="css/theme.css">
@@ -705,11 +734,10 @@ textarea{font-family:inherit;resize:none}
     <!-- HEADER -->
     <div class="hdr">
       <div class="hdr-l">
-        <div class="greet">Good morning, Joseph</div>
-        <div class="sub">Your lower body is fully recovered. Today's a good day to train hard.</div>
+        <div class="greet" id="hdr-date"></div>
+        <div class="sub" id="hdr-sub">Check in to see what you’re ready for today</div>
       </div>
       <div class="hdr-r">
-        <div class="hdr-date"><strong>Saturday</strong>Jun 14, 2026</div>
         <div class="ib" id="ci-hdr-btn" onclick="CI.openOverlay()" aria-label="Morning Check-In" title="Morning Check-In" style="cursor:pointer">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           <div class="nd" id="ci-pending-dot" style="display:none;background:var(--vi)"></div>
@@ -718,10 +746,7 @@ textarea{font-family:inherit;resize:none}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <div class="nd"></div>
         </div>
-        <div class="streak">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67z"/></svg>
-          6 days
-        </div>
+        <a class="streak" id="hdr-week" href="workouts.html?tab=history" hidden></a>
         <div class="hdr-av">J</div>
       </div>
     </div>
@@ -751,54 +776,24 @@ textarea{font-family:inherit;resize:none}
       </div>
     </section>
 
-    <!-- REP COUNTER (prototype) -->
-    <a class="repc" id="rep-counter-card" href="curl-lab.html">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Bicep curl standard</span><span class="repc-s">Your camera counts reps and flags short ones.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
-
-    <a class="repc" id="squat-counter-card" href="curl-lab.html?ex=squat">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Squat depth standard</span><span class="repc-s">Your camera checks every rep hits rep 1’s depth.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
-
-    <a class="repc" id="bench-counter-card" href="curl-lab.html?ex=bench">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Bench press standard</span><span class="repc-s">Your camera checks every rep's depth and lockout.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
-
-    <a class="repc" id="sbd-counter-card" href="curl-lab.html?ex=auto">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Squat, bench or deadlift</span><span class="repc-s">Your camera recognises the lift, counts it and measures bar speed.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
-
-    <a class="repc" id="deadlift-counter-card" href="curl-lab.html?ex=deadlift">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Deadlift standard</span><span class="repc-s">Your camera checks every rep locks out and returns to the floor.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
-
-    <a class="repc" id="pullup-counter-card" href="curl-lab.html?ex=pullup">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Pull-up standard</span><span class="repc-s">Your camera holds every rep to rep 1’s hang, top and swing.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
-
-    <a class="repc" id="lateral-counter-card" href="curl-lab.html?ex=lateral">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">Lateral raise standard</span><span class="repc-s">Your camera checks every rep reaches rep 1’s height.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
-
-    <a class="repc" id="tbar-counter-card" href="curl-lab.html?ex=tbar">
-      <span class="repc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
-      <span class="repc-b"><span class="repc-eye">Rep counter · Prototype</span><span class="repc-t">T-bar row standard</span><span class="repc-s">Your camera checks every rep reaches rep 1’s stretch and row.</span></span>
-      <span class="repc-go">Open ›</span>
-    </a>
+    <!-- CAMERA REP COUNTERS (prototype): one card, a row per lift -->
+    <section class="rcc" aria-labelledby="rcc-t">
+      <div class="rcc-hd">
+        <span class="rcc-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h2M17 4h2a2 2 0 0 1 2 2v2M21 16v2a2 2 0 0 1-2 2h-2M7 20H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <div class="rcc-hb"><h2 id="rcc-t">Camera rep counters</h2><p>Rep 1 sets the standard, then the camera holds every rep to it</p></div>
+        <span class="rcc-tag">Prototype</span>
+      </div>
+      <ul class="rcc-list">
+        <li><a id="rep-counter-card" href="curl-lab.html"><span class="rcc-n">Bicep curl</span><span class="rcc-d">Counts reps and flags short ones</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+        <li><a id="squat-counter-card" href="curl-lab.html?ex=squat"><span class="rcc-n">Squat</span><span class="rcc-d">Every rep hits rep 1’s depth</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+        <li><a id="bench-counter-card" href="curl-lab.html?ex=bench"><span class="rcc-n">Bench press</span><span class="rcc-d">Every rep reaches rep 1’s depth and lockout</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+        <li><a id="sbd-counter-card" href="curl-lab.html?ex=auto"><span class="rcc-n">Squat, bench or deadlift</span><span class="rcc-d">Recognises the lift and measures bar speed</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+        <li><a id="deadlift-counter-card" href="curl-lab.html?ex=deadlift"><span class="rcc-n">Deadlift</span><span class="rcc-d">Every rep locks out and returns to the floor</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+        <li><a id="pullup-counter-card" href="curl-lab.html?ex=pullup"><span class="rcc-n">Pull-up</span><span class="rcc-d">Every rep matches rep 1’s hang, top and swing</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+        <li><a id="lateral-counter-card" href="curl-lab.html?ex=lateral"><span class="rcc-n">Lateral raise</span><span class="rcc-d">Every rep reaches rep 1’s height</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+        <li><a id="tbar-counter-card" href="curl-lab.html?ex=tbar"><span class="rcc-n">T-bar row</span><span class="rcc-d">Every rep reaches rep 1’s stretch and row</span><svg class="rcc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></a></li>
+      </ul>
+    </section>
 
     <!-- READINESS HERO -->
     <div class="ready" id="ready-card" style="border-left-color:var(--gr)">
@@ -816,38 +811,26 @@ textarea{font-family:inherit;resize:none}
               <circle class="ready-ring-fg" id="ready-ring-fg" cx="60" cy="60" r="52"/>
             </svg>
             <div class="ready-ring-center">
-              <div class="ready-num" id="ready-num">82</div>
-              <div class="ready-lbl" id="ready-lbl">Ready</div>
+              <div class="ready-num" id="ready-num">–</div>
+              <div class="ready-lbl" id="ready-lbl">Not checked in</div>
             </div>
           </div>
         </div>
         <div class="ready-body">
-          <div class="ready-eyebrow">Daily Readiness</div>
-          <div class="ready-copy"><strong>Your legs, back and shoulders are ready to train.</strong> Chest and triceps need one more day. A moderate lower-body session is the move today.</div>
+          <div class="ready-eyebrow">Readiness</div>
+          <div class="ready-copy" id="ready-copy"><strong>How ready are you to train today?</strong> A 60-second morning check-in scores your sleep, energy and mood, and sets the tone for today’s session.</div>
           <div class="ready-mets">
-            <div class="rm"><div class="rm-l">Sleep</div><div class="rm-v" id="ready-met-sleep" style="color:var(--ye)">—</div></div>
-            <div class="rm"><div class="rm-l">Energy</div><div class="rm-v" id="ready-met-energy">—</div></div>
-            <div class="rm"><div class="rm-l">Mood</div><div class="rm-v" id="ready-met-mood" style="color:var(--gr)">—</div></div>
-            <div class="rm"><div class="rm-l">Sleepiness</div><div class="rm-v" id="ready-met-sleepy">—</div></div>
+            <div class="rm"><div class="rm-l">Sleep</div><div class="rm-v" id="ready-met-sleep">–</div></div>
+            <div class="rm"><div class="rm-l">Energy</div><div class="rm-v" id="ready-met-energy">–</div></div>
+            <div class="rm"><div class="rm-l">Mood</div><div class="rm-v" id="ready-met-mood">–</div></div>
+            <div class="rm"><div class="rm-l">Sleepiness</div><div class="rm-v" id="ready-met-sleepy">–</div></div>
           </div>
           <div class="ready-acts">
-            <button class="btn btn-p" onclick="location.href='workouts.html'">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Start Today's Plan
-            </button>
-            <button class="btn btn-s btn-sm">Adjust Plan</button>
+            <button class="btn btn-p" id="ready-go" onclick="CI.openOverlay()">Check in</button>
+            <a class="btn btn-s btn-sm" id="ready-alt" href="workouts.html">Today’s workout</a>
           </div>
         </div>
-        <div class="ready-right">
-          <!-- Mini weekly trend -->
-          <svg class="ready-spark" viewBox="0 0 160 44" preserveAspectRatio="none">
-            <text x="0" y="10" font-size="8" fill="#52525A" font-family="Inter">READINESS THIS WEEK</text>
-            <polyline points="4,36 27,28 50,34 73,20 96,22 119,26 142,16"
-              fill="none" stroke="var(--gr)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/>
-            <circle cx="142" cy="16" r="3" fill="var(--gr)" opacity=".9"/>
-            <text x="146" y="20" font-size="8" fill="#4ADE80" font-family="Inter">82</text>
-          </svg>
-        </div>
+
       </div>
     </div>
 
@@ -855,7 +838,7 @@ textarea{font-family:inherit;resize:none}
     <div class="card appgrid">
       <div class="cp">
         <div class="cl" style="margin:0 0 12px">Explore</div>
-        <div class="agrid"><a class="ag" href="habits.html"><span class="ag-ic" style="background:rgba(29,164,98,.12);color:#1DA462"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/><path d="M4 12v6a2 2 0 0 0 2 2h12"/></svg></span><span class="ag-l">Habits</span></a><a class="ag" href="sleep.html"><span class="ag-ic" style="background:rgba(94,92,230,.12);color:#5E5CE6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span><span class="ag-l">Sleep</span></a><a class="ag" href="connections.html"><span class="ag-ic" style="background:rgba(14,156,192,.12);color:#0E9CC0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a3 3 0 0 1 3-3h2.5a3.5 3.5 0 0 0 0-7H11M15 12a3 3 0 0 1-3 3H9.5a3.5 3.5 0 0 0 0 7H13"/></svg></span><span class="ag-l">Connections</span></a><a class="ag" href="exercises.html"><span class="ag-ic" style="background:rgba(176,125,40,.14);color:#B07D28"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg></span><span class="ag-l">Exercises</span></a><a class="ag" href="nutrition.html"><span class="ag-ic" style="background:rgba(192,85,42,.12);color:#C0552A"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></span><span class="ag-l">Nutrition</span></a><a class="ag" href="settings.html"><span class="ag-ic" style="background:rgba(0,0,0,.06);color:#6E6E73"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="ag-l">Settings</span></a></div>
+        <div class="agrid"><a class="ag" href="habits.html"><span class="ag-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/><path d="M4 12v6a2 2 0 0 0 2 2h12"/></svg></span><span class="ag-l">Habits</span></a><a class="ag" href="sleep.html"><span class="ag-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span><span class="ag-l">Sleep</span></a><a class="ag" href="connections.html"><span class="ag-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a3 3 0 0 1 3-3h2.5a3.5 3.5 0 0 0 0-7H11M15 12a3 3 0 0 1-3 3H9.5a3.5 3.5 0 0 0 0 7H13"/></svg></span><span class="ag-l">Connections</span></a><a class="ag" href="exercises.html"><span class="ag-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg></span><span class="ag-l">Exercises</span></a><a class="ag" href="nutrition.html"><span class="ag-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></span><span class="ag-l">Nutrition</span></a><a class="ag" href="settings.html"><span class="ag-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="ag-l">Settings</span></a></div>
       </div>
     </div>
 
@@ -866,7 +849,7 @@ textarea{font-family:inherit;resize:none}
       <div class="card">
         <div class="cp">
           <div class="sec-hd" id="hd-workout" onclick="dashToggle('workout')">
-            <div class="cl">Today's Workout</div>
+            <div class="cl">Today’s workout</div>
             <span class="sec-sum" id="sum-workout"></span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
@@ -887,7 +870,7 @@ textarea{font-family:inherit;resize:none}
           <div class="sec-bd" id="bd-tasks">
           <div class="pbar"><div class="pf" id="dtask-bar" style="background:var(--vi);width:0"></div></div>
           <div style="display:flex;gap:7px;margin-bottom:12px">
-            <input id="dtask-input" placeholder="Add a task…" maxlength="200" autocomplete="off" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')addDashTask()" style="flex:1;padding:8px 11px;border-radius:9px;border:1px solid var(--bd);background:var(--s2);color:var(--t1);font-size:13px;outline:none">
+            <input id="dtask-input" placeholder="Add a task" maxlength="200" autocomplete="off" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')addDashTask()" style="flex:1;padding:8px 11px;border-radius:9px;border:1px solid var(--bd);background:var(--s2);color:var(--t1);font-size:13px;outline:none">
             <button class="btn btn-p btn-sm" onclick="addDashTask()">Add</button>
           </div>
           <div id="task-list"></div>
@@ -900,7 +883,7 @@ textarea{font-family:inherit;resize:none}
     <div class="card" style="margin-bottom:14px">
       <div class="cp">
         <div class="sec-hd" id="hd-habits" onclick="dashToggle('habits')">
-          <div class="cl">Today's Focus</div>
+          <div class="cl">Today’s focus</div>
           <span class="sec-sum" id="sum-habits"></span>
           <a href="habits.html" class="btn-g" onclick="event.stopPropagation()" style="flex-shrink:0">Habits &rarr;</a>
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -916,7 +899,7 @@ textarea{font-family:inherit;resize:none}
     <div class="card mm-card" style="margin-bottom:14px">
       <div class="cp">
         <div class="sec-hd" id="hd-recovery" onclick="dashToggle('recovery')">
-          <div class="cl">Muscle Recovery</div>
+          <div class="cl">Muscle recovery</div>
           <span class="sec-sum" id="sum-recovery"></span>
           <a href="recovery.html" class="btn-g" onclick="event.stopPropagation()" style="flex-shrink:0">Full report →</a>
           <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1963,11 +1946,30 @@ const CI = (() => {
     })(performance.now());
   }
 
+  function readyEmpty() {
+    const fg = document.getElementById('ready-ring-fg'), C = 2 * Math.PI * 52;
+    if (fg) { fg.style.strokeDasharray = C; fg.style.strokeDashoffset = C; }
+  }
+  // What today's score means for training, from the score itself (no guesses about muscles).
+  function readyAdvice(score) {
+    if (score >= 75) return ['You’re well recovered.', 'A good day for a hard session.'];
+    if (score >= 55) return ['You’re fairly recovered.', 'Train as planned and keep a rep or two in reserve.'];
+    return ['You’re not fully recovered.', 'Go lighter today, or make it a recovery day.'];
+  }
+
   function updateDashboard(score, cat) {
     const lbl  = document.getElementById('ready-lbl');
     const card = document.getElementById('ready-card');
     setReadyVisual(score);
     if (lbl) lbl.textContent = cat;
+    const [head, tail] = readyAdvice(score);
+    const copy = document.getElementById('ready-copy');
+    if (copy) copy.innerHTML = `<strong>${head}</strong> ${tail}`;
+    const sub = document.getElementById('hdr-sub');
+    if (sub) sub.textContent = `${head} ${tail}`;
+    const go = document.getElementById('ready-go'), alt = document.getElementById('ready-alt');
+    if (go) { go.textContent = 'Start workout'; go.onclick = () => { location.href = 'workouts.html'; }; }
+    if (alt) { alt.textContent = 'Adjust plan'; alt.href = 'workouts.html?tab=plan'; }
     if (card) card.style.borderLeftColor = readyColor(score).main;
 
     // Mini-metrics from today's check-in answers
@@ -2400,8 +2402,8 @@ const CI = (() => {
       return;
     }
 
-    // No check-in yet → still sweep the readiness ring up to its shown value.
-    setReadyVisual(parseInt((document.getElementById('ready-num') || {}).textContent, 10) || 0);
+    // No check-in yet → an empty ring and "–" until there's a real score.
+    readyEmpty();
 
     // Brand-new user → one-time onboarding (any time of day).
     // Energy Intelligence was removed (2026-10): no sleep-schedule onboarding.
@@ -2964,7 +2966,7 @@ function startCanvas() {
   } else {
     host.innerHTML='<div class="wkt-title">No plan yet</div>'
       +'<div class="wkt-ai">Choose a split and your training days in Training, and today’s session will show up here automatically.</div>'
-      +acts('Create a Plan','workouts.html',false);
+      +acts('Create a plan','workouts.html',false);
   }
   }
   renderToday();
@@ -3015,5 +3017,22 @@ function startCanvas() {
 </script>
 <script type="module" src="features/training/index.js"></script>
 <script src="js/mobilenav.js" defer></script>
+<script>
+// Header: today's date, and workouts finished since Monday (from your log; sample data excluded).
+(function () {
+  const d = document.getElementById('hdr-date');
+  if (d) d.textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const w = document.getElementById('hdr-week');
+  if (!w) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('jarvis_workouts') || '[]'); } catch (_) {}
+  const mon = new Date(); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+  const n = list.filter((x) => x && x.completedAt >= mon.getTime() && !String(x.id).startsWith('mock-')).length;
+  if (!n) return;
+  w.innerHTML = `<b>${n}</b> workout${n === 1 ? '' : 's'} this week`;
+  w.title = 'Workouts finished since Monday';
+  w.hidden = false;
+})();
+</script>
 </body>
 </html>

@@ -5,7 +5,7 @@ import { injectStepStyles } from './stepStyles.js';
 import { DISCLOSURE } from './stepProgress.js';
 import { todayKey } from '../util/date.js';
 
-const PRIVACY = 'JARVIS reads your phone’s motion / Health Connect step data to count your daily steps. Only daily step totals are stored on your device — raw motion is never uploaded.';
+const PRIVACY = 'Arete reads your phone’s motion or Health Connect step data to count your daily steps. Only daily totals are stored on your device, and raw motion is never uploaded.';
 
 export function renderPermission(target, opts = {}) {
   injectStepStyles();
@@ -26,7 +26,6 @@ export function renderPermission(target, opts = {}) {
     el.innerHTML = `<div class="jstep-panel">
       <h3>Turn on phone step tracking</h3>
       <p>${PRIVACY}</p>
-      <p style="color:var(--t3,#86868b)">${DISCLOSURE}</p>
       ${note}
       <button class="jstep-btn primary" data-act="enable" style="flex:none;width:100%">Enable step tracking</button>
     </div>`;

@@ -22,7 +22,7 @@ function setPerm(v) { try { localStorage.setItem(PERM_KEY, v); } catch {} }
 
 // The web motion pedometer can only count while the app is open — say so.
 const permNote = service.source === 'phone-motion'
-  ? 'Steps are counted from your phone’s motion while JARVIS is open — keep the app open while you walk.'
+  ? 'Steps are counted from your phone’s motion while Arete is open, so keep it open while you walk.'
   : undefined;
 
 function cardModel() {
