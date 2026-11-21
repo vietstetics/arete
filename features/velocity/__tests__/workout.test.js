@@ -95,7 +95,8 @@ test('live velocity scale changes distance and speed but leaves seconds and rati
 
 test('camera setup is exercise specific and unknown exercises never silently become curls', () => {
   for (const [name, mode] of [['Back Squat', 'squat'], ['Dumbbell Bench Press', 'bench'], ['Chest Press', 'press'], ['Seated Cable Row', 'row'], ['Dumbbell Curl', 'curl'], ['Pull-up', 'pullup'], ['Deadlift', 'deadlift'], ['Sumo Deadlift', 'deadlift']]) assert.equal(trackerModeFor({ name }), mode, name);
-  for (const name of ['Leg Curl', 'Romanian Deadlift', 'Unknown exercise', 'Overhead Press']) assert.equal(trackerModeFor({ name }), null, name);
+  for (const [name, mode] of [['Leg Curl', 'legCurl'], ['Seated Leg Curl', 'legCurl'], ['Overhead Press', 'shoulderPress'], ['Dumbbell Shoulder Press', 'shoulderPress'], ['Lat Pulldown', 'pulldown'], ['Triceps Pushdown', 'triceps'], ['Overhead Triceps Extension', 'triceps'], ['Dips', 'dip'], ['Pec Deck', 'fly'], ['Cable Fly', 'fly'], ['Leg Extension', 'legExtension'], ['Standing Calf Raise', 'calfRaise']]) assert.equal(trackerModeFor({ name }), mode, name);
+  for (const name of ['Romanian Deadlift', 'Unknown exercise', 'Reverse Fly', 'Leg Press']) assert.equal(trackerModeFor({ name }), null, name);
   assert.equal(parseWorkoutContext('?ex=curl&workout=1&exercise=2&set=3'), null);
 });
 
