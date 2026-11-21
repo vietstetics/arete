@@ -478,7 +478,7 @@ const EXERCISES = {
     rep1: 'Rep 1 sets the standard — hands back, press to lockout', finding: 'Sit in the machine — finding you', still: 'Hold still with your hands back — then press',
     show: 'Show your shoulders, arms and hands', lost: 'Can’t see your hands clearly' }),
   triceps: liftEx('triceps', { title: 'Triceps standard', short: 'Triceps', name: 'Triceps extension · pushdown or overhead', measure: 'elbow angle',
-    setup: 'Side-on or facing the phone, 2–3 m away, elbows and hands in view',
+    setup: 'Phone propped up, any distance: your working hand in view the whole set',
     intro: 'Only your <b>elbow straightening</b> counts, whether you push down, extend overhead or kick back. Your <b>first rep sets the standard</b>: how far the elbow bends and how straight it gets. Every rep after must reach both to count.',
     rep1: 'Rep 1 sets the standard — elbows bent, straighten fully, back', show: 'Show your shoulders, elbows and hands' }),
   shoulderPress: liftEx('shoulderPress', { title: 'Shoulder press standard', short: 'Shoulder presses', name: 'Shoulder press · dumbbell, barbell or machine', measure: 'hand height',
@@ -643,7 +643,7 @@ GUIDES.press = {
   note: 'Keep both hands and shoulders in frame the whole set, someone standing behind you is fine. Add your height for speed in m/s.',
 };
 const LIFT_GUIDES = {
-  triceps: [['best', 1, 'Side-on or facing the phone', '2–3 m away. Overhead, pushdown or kickback: only the elbow straightening counts.'], ['avoid', 2, 'Directly behind you', 'Your head and body hide your elbows.'], 'Keep shoulders, elbows and hands in frame, overhead too.'],
+  triceps: [['best', 1, 'Side-on or facing the phone, propped up', 'Overhead, pushdown or kickback. 2–3 m away, the elbow is measured; closer, with the elbow out of the picture, your hand’s travel is measured instead.'], ['avoid', 2, 'Held in your hand, or your hand leaving the picture', 'Up close the count follows your hand, so the phone must stay still and the hand stay in view at full extension.'], 'Close up, a rep that stops a little short of lockout is harder to tell from a full one: from 2–3 m the standard is strictest.'],
   shoulderPress: [['best', 1, 'Facing the phone, or side-on', '2–3 m away, lens at chest height, room above your hands at lockout.'], ['avoid', 2, 'Closer than about 2 m', 'Your hands leave the top of the picture at lockout.'], 'Keep shoulders and hands in frame the whole set.'],
   pulldown: [['best', 1, 'Facing the phone or from behind', '2–3 m away. Both hands and shoulders in view, the bar too at the top.'], ['avoid', 2, 'Side-on', 'One arm hides the other.'], 'Tilt the phone up a little so your hands stay in frame at the top.'],
   dip: [['best', 1, 'Side-on', '2–3 m away, lens at hip height, your whole body in view. People walking behind are fine.'], ['avoid', 2, 'Straight in front or behind', 'The elbows bend towards or away from the lens.'], 'Prop the phone up rather than holding it.'],
@@ -1223,7 +1223,7 @@ async function loadTracker() {
   catch { landmarker = await PoseLandmarker.createFromOptions(files, opts('CPU')); }
   // Pushes and pulls filmed from in front are read from the hands' size: the hand model too (only for
   // those lifts, and only until the camera angle says it isn't needed). Never blocks the set if it fails.
-  if (EX.lift && LIFTS[EX.lift].depth && !handLandmarker) {
+  if (EX.lift && (LIFTS[EX.lift].depth || LIFTS[EX.lift].handPath) && !handLandmarker) {
     try {
       const { HandLandmarker } = await import(`${MP}/vision_bundle.mjs`);
       const hopts = (delegate) => ({ baseOptions: { modelAssetPath: HAND_MODEL, delegate }, runningMode: 'VIDEO', numHands: 2 });
@@ -1315,7 +1315,7 @@ function processFrame(tMs) {
   try { res = landmarker.detectForVideo(video, lastTs); }
   catch (e) { endSet(); setStatus('Tracking stopped. Your completed reps were kept. Try again with better light or another video.', 'warn'); return; }
   lastHands = null;
-  if (handLandmarker && liftTr && liftTr.mode !== 'joints') {
+  if (handLandmarker && liftTr && (LIFTS[EX.lift].handPath || liftTr.mode !== 'joints')) {
     try { lastHands = handLandmarker.detectForVideo(video, lastTs).landmarks || null; } catch { handLandmarker = null; }
   }
   // The plate never breaks the rep count: if its tracking throws, it stops for this set. Before counting
@@ -1457,8 +1457,11 @@ function liftFrame(p, t, vw, vh, world, poses, worlds) {
   const ok = m.ok;
   // The lifter only shows who they are by lifting: if that turns out to be someone other than the
   // person followed so far, whatever was counted belonged to them, so the count starts again.
+  // The measure this set uses (elbow angle, or hand distance when filmed close) has its own thresholds.
+  const want = liftTr.counter;
+  if (counter && counter.__minRange !== want.minRange && !counter.reps.length) { counter = createRepCounter({ ...want, tolFloor: want.hysteresis / 2 }); counter.__minRange = want.minRange; }
   if (m.switched && phase === 'live' && counter.reps.length) {
-    counter = createRepCounter({ minRange: LIFTS[EX.lift].minRange, hysteresis: LIFTS[EX.lift].hysteresis, tolFloor: LIFTS[EX.lift].hysteresis / 2 });
+    counter = createRepCounter({ ...want, tolFloor: want.hysteresis / 2 }); counter.__minRange = want.minRange;
     barTrace = []; trace = []; pendingVel = null; liveHist = [];
     $('chips').innerHTML = ''; updateCounts();
     setStatus('Found you — counting from your next rep', 'good');

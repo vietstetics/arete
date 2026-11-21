@@ -38,6 +38,8 @@ export function runClip(data, lift, { start = 0, end = Infinity, sides = [null],
       trace.push({ t: fr.t, y: r.path });
       // As the camera page does: the lifter turned out to be someone else, so the count starts again.
       if (r.switched) { rc = createRepCounter(counterOpts); for (let i = found.length - 1; i >= 0; i--) if (found[i].side === (side || found[i].side) && found[i].mine) found.splice(i, 1); }
+      // The measure a set uses (elbow angle or hand distance) has its own thresholds.
+      if (tr.counter && (tr.counter.minRange !== counterOpts.minRange)) { counterOpts.minRange = tr.counter.minRange; counterOpts.hysteresis = tr.counter.hysteresis; counterOpts.tolFloor = tr.counter.hysteresis / 2; rc = createRepCounter(counterOpts); }
       const ev = rc.push(fr.t, r.value, r.ok);
       if (ev && ev.rep) found.push({ mv: concentricVelocity(trace, ev.rep.startT - 0.15, ev.rep.topT + 0.15)?.mv, unit: tr.unit, mine: true, t: ev.rep.topT, side: side || r.side, result: ev.rep.result, bottom: ev.rep.bottom, top: ev.rep.top, fmt: tr.fmt });
     }

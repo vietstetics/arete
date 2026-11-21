@@ -34,7 +34,7 @@ const fromInv = (v) => `${Math.round(180 - v)}°`;
  */
 export const LIFTS = {
   curl: { name: 'Curl', action: 'Elbow flexion', muscles: 'Biceps, brachialis', limb: 'arm', value: sided('elbow'), both: false, minRange: 40, hysteresis: 20, fmt: deg, per: Math.PI / 180, unit: 0.2, end: 'wrist', start: 'stretch', finish: 'top' },
-  triceps: { name: 'Triceps extension', action: 'Elbow extension', muscles: 'Triceps', limb: 'arm', value: inv('elbow'), both: false, minRange: 35, hysteresis: 15, fmt: fromInv, per: Math.PI / 180, unit: 0.2, end: 'wrist', start: 'bent', finish: 'lockout' },
+  triceps: { name: 'Triceps extension', action: 'Elbow extension', muscles: 'Triceps', limb: 'arm', value: inv('elbow'), both: false, minRange: 35, hysteresis: 15, fmt: fromInv, per: Math.PI / 180, unit: 0.2, handPath: { minRange: 150, hysteresis: 60 }, end: 'wrist', start: 'bent', finish: 'lockout' },
   press: { name: 'Chest press', action: 'Shoulder flexion + elbow extension', muscles: 'Chest, front delts, triceps', limb: 'arm', value: (f, s) => 100 - 100 * f['reach' + s], depth: 'toward', both: true, minRange: 12, hysteresis: 6, fmt: (v) => `${Math.round(100 - v)}%`, per: 1 / 100, unit: 0.332, end: 'wrist', start: 'hands back', finish: 'lockout' },
   shoulderPress: { name: 'Shoulder press', action: 'Shoulder abduction / flexion overhead', muscles: 'Delts, triceps', limb: 'arm', value: (f, s) => -100 * f['handUp' + s], both: true, minRange: 60, hysteresis: 25, fmt: (v) => `${Math.round(-v)}%`, per: 1 / 100, unit: 0.186, end: 'wrist', start: 'bottom', finish: 'lockout' },
   pulldown: { name: 'Pull-down', action: 'Shoulder adduction / extension', muscles: 'Lats, biceps, rear delts', limb: 'arm', value: (f, s) => 100 * f['handUp' + s], both: true, minRange: 60, hysteresis: 25, fmt: (v) => `${Math.round(v)}%`, per: 1 / 100, unit: 0.186, end: 'wrist', start: 'arms up', finish: 'chest' },
@@ -67,6 +67,7 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
   let prev = null, side = fixedSide, mode = null;
   const people = [];
   let locked = null, lead = null, frameNo = 0, switched = false;
+  const hp = { sh: null, last: null, refs: [], seenArm: [], vals: [], fixed: false, path: [], axis: null };
   const travelEuro = oneEuro({ minCutoff, beta });
   const whoReset = () => {};
   const facings = [], palmHist = { L: [], R: [] }, palmRef = { L: null, R: null };
@@ -78,14 +79,17 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
     /** 'palm' (filmed from in front: measured by the hands' size) or 'joints', once known. */
     get mode() { return mode; },
     /** How to show a value: in palm mode it's how much bigger (toward) or smaller (away) the hands look than usual. */
-    get fmt() { return mode === 'palm' ? (v) => `${Math.round(def.depth === 'toward' ? -v : v)}%` : def.fmt; },
+    get fmt() { return mode === 'palm' ? (v) => `${Math.round(def.depth === 'toward' ? -v : v)}%` : mode === 'hand' ? (v) => `${(-v / 100).toFixed(1)} hands` : def.fmt; },
     /**
      * Speed unit: how long one unit of `path` is, as a share of the lifter's height (× height = metres),
      * or NaN when the path has no length (palm mode measures how much bigger the hands look, not metres).
      */
-    get unit() { return mode === 'palm' ? NaN : def.unit; },
+    get unit() { return mode === 'palm' || mode === 'hand' ? NaN : def.unit; },
+    /** Smallest movement that is a rep, and how far past a turn it must go, in this set's measure. */
+    get counter() { return mode === 'hand' ? def.handPath : { minRange: def.minRange, hysteresis: def.hysteresis }; },
     push(t, poses, worlds, vw, vh, hands = null) {
       switched = false;
+      if (def.handPath) { const h = handPush(t, poses, worlds, vw, vh, hands); if (h) return h; }
       const r = read(t, poses, worlds, vw, vh, hands);
       // The moving point's path: how far it has travelled, counted up while lifting (the value falling)
       // and down while lowering, in the lift's own body unit, so speed is the same from any angle.
@@ -153,6 +157,76 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
     const target = locked || (pool.length ? pool.reduce((a, b) => (b.size > a.size ? b : a)) : null);
     lead = target;
     return target && seen.includes(target) ? { lm: target.q.lm, w: target.q.w, f: target.f } : null;
+  }
+  // Filmed close (what most people do): the elbow is often out of the picture or behind the arm, so
+  // its angle can't be read. The hand still can: its distance from the shoulder, in the lifter's own
+  // palm sizes (so the phone's distance doesn't matter), grows as the elbow straightens, whether it's a
+  // pushdown, an overhead extension or a kickback. The shoulder only has to be roughly right: it's
+  // smoothed hard and held while the body is out of view (the phone is propped, so it doesn't move).
+  // Which measure a set uses is decided from how well the elbows are seen, over the last second:
+  // mostly hidden → the hand, clearly seen → the elbow. A change restarts the count (`switched`).
+  function handPush(t, poses, worlds, vw, vh, hands) {
+    const list = (poses || []).map((lm, i) => ({ lm, w: (worlds || [])[i] || null }));
+    const body = list.length ? list.reduce((a, b) => (pickSize(b, vw, vh) > pickSize(a, vw, vh) ? b : a)) : null;
+    if (body) {
+      const s = [(body.lm[11].x + body.lm[12].x) / 2 * vw, (body.lm[11].y + body.lm[12].y) / 2 * vh];
+      if (!hp.fixed) hp.sh = hp.sh ? [hp.sh[0] + 0.15 * (s[0] - hp.sh[0]), hp.sh[1] + 0.15 * (s[1] - hp.sh[1])] : s; // held once the set is under way
+    }
+    const v = (i) => (body ? body.lm[i].visibility ?? 0 : 0);
+    hp.seenArm.push(Math.max(Math.min(v(11), v(13), v(15)), Math.min(v(12), v(14), v(16))) >= 0.6);
+    if (hp.seenArm.length > 90) hp.seenArm.shift();
+    const shareOf = (n) => { const w = hp.seenArm.slice(-n); return w.filter(Boolean).length / w.length; };
+    const was = mode;
+    // Into hand mode quickly (the elbow hidden for most of a second), back only once the elbow has been
+    // clearly seen for 3 s: with the phone close, the arm shows for a moment at the top of every rep.
+    // Once the set has moved through a rep in one measure, it keeps that measure (switching mid-set would
+    // throw away the reps counted so far).
+    if (hp.seenArm.length >= 15 && !hp.fixed) {
+      if (mode == null) mode = shareOf(30) >= 0.65 ? 'joints' : 'hand';
+      else if (mode === 'joints' && shareOf(30) < 0.5) mode = 'hand';
+      else if (mode === 'hand' && hp.seenArm.length >= 90 && shareOf(90) >= 0.9) mode = 'joints';
+    }
+    if (was && mode !== was) { smooth.reset(); win = []; switched = true; hp.vals = []; }
+    if (mode !== 'hand') return null;
+    // The hand: the one nearest where the hand was (the working hand), else the nearest the shoulder.
+    let best = null, bd = Infinity;
+    for (const h of hands || []) {
+      if (!h || h.length < 18) continue;
+      const P = (i) => [h[i].x * vw, h[i].y * vh];
+      const c = [0, 5, 9, 13, 17].map(P).reduce((a, q) => [a[0] + q[0] / 5, a[1] + q[1] / 5], [0, 0]);
+      const size = [5, 9, 13, 17].reduce((a, i) => a + Math.hypot(P(i)[0] - P(0)[0], P(i)[1] - P(0)[1]), 0) / 4;
+      const anchor = hp.last || hp.sh; if (!anchor) continue;
+      const d = Math.hypot(c[0] - anchor[0], c[1] - anchor[1]);
+      if (d < bd) { bd = d; best = { c, size }; }
+    }
+    if (!best || !hp.sh) return { ok: false, value: NaN, f: null, path: NaN, switched, side: 'hand' };
+    hp.last = best.c;
+    if (hp.refs.length < 30) hp.refs.push(best.size);
+    const palm = hp.refs.slice().sort((a, b) => a - b)[hp.refs.length >> 1];
+    // Measured along the line the hand travels (the main direction of its last few seconds of movement),
+    // pointing away from the shoulder, so a hand rising past the shoulder at the top isn't "extending".
+    // The hand's own position (the phone is propped, so the picture holds still); the shoulder, which
+    // the model places badly when the body is half out of the picture, only says which end of the line
+    // is "extended" (the end further from it).
+    const rel = best.c;
+    hp.path.push(rel); if (hp.path.length > 180) hp.path.shift();
+    let axis = null;
+    if (hp.path.length >= 20) {
+      const n = hp.path.length, mx = hp.path.reduce((a, q) => a + q[0], 0) / n, my = hp.path.reduce((a, q) => a + q[1], 0) / n;
+      let sxx = 0, syy = 0, sxy = 0;
+      for (const q of hp.path) { sxx += (q[0] - mx) ** 2; syy += (q[1] - my) ** 2; sxy += (q[0] - mx) * (q[1] - my); }
+      const th = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+      axis = [Math.cos(th), Math.sin(th)];
+      if (axis[0] * (mx - hp.sh[0]) + axis[1] * (my - hp.sh[1]) < 0) axis = [-axis[0], -axis[1]];
+      if (sxx + syy < (0.5 * palm) ** 2 * n) axis = null; // not moving yet: no line to measure along
+    }
+    if (hp.axis && !hp.fixed && axis) hp.axis = axis; else if (!hp.axis && axis) hp.axis = axis;
+    const along = hp.axis ? (rel[0] - hp.sh[0]) * hp.axis[0] + (rel[1] - hp.sh[1]) * hp.axis[1] : Math.hypot(rel[0] - hp.sh[0], rel[1] - hp.sh[1]);
+    const val = (-100 * along) / palm;
+    const value = euro.filter(val, t);
+    hp.vals.push({ t, v: value }); if (hp.vals.length > 300) hp.vals.shift();
+    if (spreadOf(hp.vals) >= def.handPath.minRange) hp.fixed = true;
+    return { ok: true, value, f: null, path: -value / 100, switched, side: 'hand' };
   }
   function read(t, poses, worlds, vw, vh, hands) {
     {
@@ -234,7 +308,9 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
         if (s && (!side || s === side || def.both)) { v = val[s]; used = s; }
       }
       const ok = Number.isFinite(v);
-      return { ok, value: ok ? euro.filter(v, t) : NaN, side: used, f };
+      const out = ok ? euro.filter(v, t) : NaN;
+      if (def.handPath && ok) { hp.vals.push({ t, v: out }); if (hp.vals.length > 300) hp.vals.shift(); if (spreadOf(hp.vals) >= def.minRange) hp.fixed = true; }
+      return { ok, value: out, side: used, f };
     }
   }
 }

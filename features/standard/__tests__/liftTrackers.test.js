@@ -138,3 +138,25 @@ test('someone walking right across in front of the lifter adds no reps', () => {
   const s = runPeople('fly', vals, (t) => (t > 6 && t < 8 ? [{ lift: 'curl', v: 170, dx: -0.6 + 0.6 * (t - 6), scale: 1.8 }] : []));
   assert.equal(s.counted + s.short + s.unclear, 7, JSON.stringify(s));
 });
+
+test('triceps filmed close: elbow out of the picture, counted from the hand alone', () => {
+  const vals = setValues(demoPlan(...DEMO_RANGE.triceps));
+  const def = LIFTS.triceps, tr = createLiftTracker('triceps');
+  let rc = null, minR = null;
+  vals.forEach((v, i) => {
+    const t = i / FPS, { pose, world } = demoLiftPose('triceps', v);
+    for (const j of [13, 14, 15, 16]) pose[j].visibility = 0.1; // the model can't find the elbows or wrists
+    // The hand model still sees the hand: 21 points around the wrist, a palm 0.04 of the picture wide.
+    const w = pose[15], hand = Array.from({ length: 21 }, (_, j) => ({ x: w.x + (j % 5) * 0.01, y: w.y + Math.floor(j / 5) * 0.01 }));
+    const m = tr.push(t, [pose], [world], 1280, 720, [hand]);
+    if (tr.counter.minRange !== minR) { minR = tr.counter.minRange; rc = createRepCounter({ ...tr.counter, tolFloor: tr.counter.hysteresis / 2 }); }
+    rc.push(t, m.value, m.ok);
+  });
+  assert.equal(tr.mode, 'hand');
+  // Every rep is found. Near lockout the hand's straight-line travel changes less than the elbow angle,
+  // so a rep stopping a little short of lockout can pass in hand mode; one that doesn't go back to the
+  // start, or doesn't come close to lockout, is still caught.
+  const sm = rc.summary();
+  assert.equal(sm.counted + sm.short, 7, JSON.stringify(rc.reps.map((r) => [r.result, Math.round(r.bottom), Math.round(r.top)])));
+  assert.ok(rc.reps.some((r) => r.result === 'short'), JSON.stringify(rc.reps.map((r) => [r.result, Math.round(r.bottom), Math.round(r.top)])));
+});
