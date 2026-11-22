@@ -5,11 +5,11 @@
  *  - Never touches /api/ or cross-origin requests (Open Food Facts, fonts…)
  *  Bump VERSION to invalidate old caches on deploy.
  * ==========================================================================*/
-const VERSION = 'arete-v37';
+const VERSION = 'arete-v38';
 
 const CORE = [
   'index.html', 'workouts.html', 'nutrition.html', 'recovery.html',
-  'sleep.html', 'steps.html', 'habits.html', 'exercises.html',
+  'steps.html', 'habits.html', 'exercises.html',
   'connections.html', 'connected-health.html', 'analytics.html', 'consistency.html',
   'finance.html', 'goals.html', 'settings.html', 'login.html',
   'css/theme.css', 'css/touch.css', 'css/training.css', 'css/motion.css', 'js/motion.js', 'brand-logo.png', 'brand-logo-light.png', 'brand-mark.png', 'favicon-32.png',

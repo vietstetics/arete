@@ -8,7 +8,7 @@
   if (window.__motion) return; window.__motion = true;
   var root = document.documentElement;
   // The main tabs (bottom bar and the More sheet): moving between them is a tab change, not going deeper.
-  var TABS = ['index.html', 'workouts.html', 'nutrition.html', 'recovery.html', 'sleep.html', 'connections.html', 'exercises.html', 'settings.html'];
+  var TABS = ['index.html', 'workouts.html', 'nutrition.html', 'recovery.html', 'connections.html', 'exercises.html', 'settings.html'];
   function page(url) {
     try { var p = new URL(url, location.href).pathname.split('/').pop(); return p || 'index.html'; } catch (_) { return ''; }
   }

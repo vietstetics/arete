@@ -365,6 +365,9 @@ input,select,textarea{font-family:inherit}
 .velocity-bar{width:24px;min-height:1px;background:var(--vi);border-radius:3px 3px 0 0}
 .velocity-bar.empty{height:12px;background:transparent;border:1px dashed var(--t3)}
 .velocity-detail{font-size:10.5px;color:var(--t3)}
+.sr{border-radius:10px;padding:8px 10px;margin:4px 0 6px;font-size:12px;line-height:1.45;background:var(--s2)}
+.sr b{margin-right:4px}.sr-low{background:rgba(255,69,58,.10)}.sr-below{background:rgba(255,159,10,.12)}.sr-high{background:rgba(52,199,89,.12)}
+.sr-wait{margin:2px 0 6px}
 .set-calibration{margin:6px 0 10px;font-size:11.5px}
 .set-calibration summary{cursor:pointer;font-weight:600;padding:5px 0}
 .set-calibration label{display:flex;align-items:center;gap:7px;margin:8px 0;flex-wrap:wrap}
@@ -396,7 +399,6 @@ input,select,textarea{font-family:inherit}
     <a href="exercises.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h10"/></svg><span>Exercises</span></a>
     <a href="recovery.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>Recovery</span></a>
     <a href="nutrition.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg><span>Nutrition</span></a>
-    <a href="sleep.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Sleep</span></a>
     <div class="nav-section">Life</div>
     <a href="settings.html" class="ni"><svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
   </nav>
@@ -992,7 +994,7 @@ function renderExercise(ex, nx){
       <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
     </div>
-    ${s.velocity?`<div class="set-velo">${renderVelocityResult(s.velocity)}</div>`:''}
+    ${s.velocity?`<div class="set-velo">${speedReadinessHtml(ex,s)}${renderVelocityResult(s.velocity)}</div>`:''}
     ${cur&&isCur?`<button class="btn tr-cta tr-log" onclick="logSet('${ex.id}','${s.id}')">Log ${s.type==='warmup'?'warm-up':'set '+n}</button>`:''}`; }).join('');
   const tgt = ex.targetReps
     ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
@@ -1248,6 +1250,21 @@ function renderTrackedSet(ex,s){
       <label class="calibration-check"><input type="checkbox" ${s.tested1RM?.verified?'checked':''} onchange="setCalibrationField('${ex.id}','${s.id}','tested1RM',this.checked)"> Successful maximal single (actual tested 1RM)</label>
       <div class="velocity-detail">Optional labels describe this set. Training to failure or attempting a maximum is never required. Reported effort is separate from model estimates.</div>
     </details>${!s.velocity&&s.predictions&&window.VelocityCoachMetrics?window.VelocityCoachMetrics.renderCoachMetrics(loggedPredictionRecord(ex,s),{predictions:s.predictions}):''}</div>`;
+}
+// Readiness from bar speed (features/velocity/services/readiness.js): under the first tracked set of an
+// exercise today, how it moved against your usual speed at the same weight in earlier sessions.
+function speedReadinessHtml(ex,s){
+  const R=window.VelocityReadiness; if(!R||!active) return '';
+  const first=ex.sets.find(x=>x.velocity); if(first!==s) return '';
+  const load=r=>Number.isFinite(r?.loadKg)?r.loadKg:null;
+  const loadOf=(x)=>load(x.velocity)??(x.weight!==''&&x.weight!=null&&Number.isFinite(+x.weight)?+x.weight:NaN);
+  const key=normExName(ex.name), history=[];
+  completed().forEach(w=>(w.exercises||[]).filter(e=>normExName(e.name)===key).forEach(e=>(e.sets||[]).forEach((x,i)=>{
+    if(x.velocity) history.push({record:x.velocity,loadKg:loadOf(x),equipmentKey:x.velocity.equipmentKey||null,sessionId:w.id,at:(w.startedAt||w.completedAt)+i});
+  })));
+  const r=R.speedReadiness({record:s.velocity,loadKg:loadOf(s),equipmentKey:s.velocity.equipmentKey||null,sessionId:active.id,at:Date.now()},history);
+  if(r.status!=='ok') return `<div class="velocity-detail sr-wait">Readiness: ${esc(r.reason)}</div>`;
+  return `<div class="sr sr-${r.level}"><b>Readiness</b> ${esc(r.message)}<span class="velocity-detail"> · ${r.today.toFixed(2)} vs usual ${r.usual.toFixed(2)} m/s (${r.sessions} sessions)</span></div>`;
 }
 function renderVelocityResult(record, chartMax){
   if(!record || !Array.isArray(record.reps)) return '';
@@ -2924,7 +2941,9 @@ window.addEventListener('storage',e=>{ if(e.key===K_ACTIVE){ active=rj(K_ACTIVE,
 import * as tracking from './features/velocity/services/workout.js';
 import * as predictions from './features/velocity/services/predictions.js';
 import * as metrics from './features/velocity/services/coachMetrics.js';
+import * as readiness from './features/velocity/services/readiness.js';
 window.VelocityWorkout=tracking;
+window.VelocityReadiness=readiness;
 window.VelocityPredictions=predictions;
 window.VelocityCoachMetrics=metrics;
 if(tab==='log' && active && !active.paused) renderLog();
