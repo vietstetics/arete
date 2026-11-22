@@ -217,6 +217,9 @@ body.clean #live .count span{font-weight:500}
 .vp-dial,.vp-sub{display:none}
 body.clean .vp{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;padding:12px}
 body.clean .vp-dial{display:grid;place-items:center;width:104px;height:104px;position:relative}
+/* Until the script has put this exercise's words in, they stay hidden (the page can be drawn first, e.g. as it
+   slides in): never another exercise's placeholder. */
+html:not(.lab-ready) :is(#pre-h,#intro,.ttl,#status){visibility:hidden}
 body.clean .vp-ring{position:absolute;inset:0;width:104px;height:104px;transform:rotate(-90deg)}
 .vp-ring circle{fill:none;stroke-width:7;stroke-linecap:round}
 .vp-ring .trk{stroke:rgba(255,255,255,.14)}
@@ -232,6 +235,8 @@ body.clean .vp-sub{display:block;font-size:11.5px;font-weight:500;letter-spacing
 @media (prefers-reduced-motion:reduce){.vp-ring .arc{transition:none}.pop{animation:none}}
 </style>
 <script src="js/feel.js" defer></script>
+<link rel="stylesheet" href="css/motion.css">
+<script src="js/motion.js"></script>
 </head>
 <body class="clean">
 <div class="app">
@@ -240,13 +245,13 @@ body.clean .vp-sub{display:block;font-size:11.5px;font-weight:500;letter-spacing
     <canvas id="canvas"></canvas>
     <div class="top">
       <a class="ibtn" href="workouts.html" aria-label="Back to Training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></a>
-      <div class="ttl">Curl standard <em>Prototype</em></div>
+      <div class="ttl">&nbsp;</div>
       <button class="pill" id="arm-btn" aria-label="Choose arm">Arm: Auto</button>
       <button class="pill" id="min-btn" hidden aria-pressed="false" title="Hide the skeleton during the set">Minimal</button>
       <button class="ibtn" id="snd-btn" hidden aria-pressed="true" aria-label="Sound on"></button>
       <button class="ibtn" id="flip-btn" aria-label="Switch camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3l-2-3H9L7 7H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1z"/><path d="M9 13a3 3 0 0 1 5-2.2M15 13a3 3 0 0 1-5 2.2"/><polyline points="14 9 14.5 11 12.5 11.5"/><polyline points="10 17 9.5 15 11.5 14.5"/></svg></button>
     </div>
-    <div class="status" id="status" role="status" aria-live="polite">Side-on, phone at hip height, 2–3 m away</div>
+    <div class="status" id="status" role="status" aria-live="polite">&nbsp;</div>
     <aside class="vp" id="vp" hidden aria-label="Bar speed per rep">
       <div class="vp-k" id="vp-k">Bar speed</div>
       <div class="vp-src" id="vp-src" hidden></div>
@@ -270,7 +275,7 @@ body.clean .vp-sub{display:block;font-size:11.5px;font-weight:500;letter-spacing
   <section class="sheet" id="sheet">
     <!-- before the set -->
     <div id="pre">
-      <div class="h" id="pre-h">Bicep curl · one arm</div>
+      <div class="h" id="pre-h">&nbsp;</div>
       <p class="hint" id="intro">Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.</p>
       <p class="hint" id="last-std" hidden></p>
       <div class="fields" id="fields">
@@ -380,7 +385,7 @@ body.clean .vp-sub{display:block;font-size:11.5px;font-weight:500;letter-spacing
 </div>
 
 <link rel="stylesheet" href="css/velocity-coach.css">
-<script type="module">
+<script type="module" blocking="render">
 import { createRepCounter, createReturnCounter, createHeightTracker, HEIGHT_DEFAULTS, createPullupTracker, PULLUP_DEFAULTS, createStillGate, armExtension, REACH_DEFAULTS, jointAngle, oneEuro, pickPerson } from './features/standard/services/repEngine.js';
 import { concentricVelocity, metresPerUnit, lossBand, BODY as PROPORTIONS } from './features/standard/services/velocity.js';
 import { createPlateSession } from './features/velocity/services/live/plateSession.js';
@@ -2235,6 +2240,7 @@ window.addEventListener('pagehide', () => {
   if (recURL && recBlob) URL.revokeObjectURL(recURL);
 });
 function liftUI() {
+  document.documentElement.classList.add('lab-ready');
   document.title = 'Arete — ' + EX.title;
   document.querySelector('.ttl').firstChild.textContent = (EX.short || EX.title) + ' ';
   $('pre-h').textContent = EX.name;

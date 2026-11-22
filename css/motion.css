@@ -1,0 +1,46 @@
+/* ============================================================================
+ *  Motion between screens (every page). Each screen is its own page, so without
+ *  this a tap swaps the whole screen in one frame. With cross-document view
+ *  transitions (Chrome / Android 126+, Safari / iOS 18.2+) the old screen and
+ *  the new one animate into each other:
+ *    push — a deeper screen slides in from the right over the old one
+ *    back — going back: the screen slides off to the right
+ *    tab  — between the main tabs: a quick crossfade, the new one rising slightly
+ *  The bottom bar keeps its own name, so it stays put while the page changes.
+ *  Older browsers: each page eases in on arrival instead (.no-vt, set by motion.js).
+ *  Reduced motion: none of it.
+ * ==========================================================================*/
+@view-transition { navigation: auto; }
+
+.mnav { view-transition-name: mnav; }
+.mnav-fab { view-transition-name: mnav-fab; }
+
+::view-transition-group(root) { animation-duration: 320ms; }
+::view-transition-old(root),
+::view-transition-new(root) { animation-timing-function: cubic-bezier(.32, .72, 0, 1); }
+
+/* push: in from the right, the old screen easing left and dimming under it */
+html:active-view-transition-type(push)::view-transition-old(root) { animation: 320ms cubic-bezier(.32, .72, 0, 1) both mo-out-left; }
+html:active-view-transition-type(push)::view-transition-new(root) { animation: 320ms cubic-bezier(.32, .72, 0, 1) both mo-in-right; }
+/* back: the reverse */
+html:active-view-transition-type(back)::view-transition-old(root) { animation: 280ms cubic-bezier(.32, .72, 0, 1) both mo-out-right; z-index: 2; }
+html:active-view-transition-type(back)::view-transition-new(root) { animation: 280ms cubic-bezier(.32, .72, 0, 1) both mo-in-left; }
+/* tab: crossfade, the new screen rising a little */
+html:active-view-transition-type(tab)::view-transition-old(root) { animation: 150ms ease-out both mo-fade-out; }
+html:active-view-transition-type(tab)::view-transition-new(root) { animation: 240ms cubic-bezier(.2, .8, .2, 1) 40ms both mo-rise-in; }
+
+@keyframes mo-in-right { from { transform: translateX(32%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes mo-out-left { to { transform: translateX(-12%); opacity: .35; } }
+@keyframes mo-out-right { to { transform: translateX(32%); opacity: 0; } }
+@keyframes mo-in-left { from { transform: translateX(-12%); opacity: .35; } to { transform: none; opacity: 1; } }
+@keyframes mo-fade-out { to { opacity: 0; } }
+@keyframes mo-rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* No view transitions: the page eases in on arrival (no delay before leaving, so taps stay instant). */
+html.no-vt body { animation: mo-rise-in 260ms cubic-bezier(.2, .8, .2, 1) both; }
+html.no-vt.mo-back body { animation-name: mo-in-left; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  html.no-vt body { animation: none !important; }
+}

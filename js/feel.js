@@ -42,7 +42,7 @@
   // ── Press ─────────────────────────────────────────────────────────────────
   const PRESS = ['button', '.btn', '[role="button"]', 'input[type="button"]', 'input[type="submit"]', 'summary',
     '.ni', '.mob-item', '.tab', '.chip', '.ei-ct', '.ei-obs-btn', '.meal-add', '.water-btn', '.jstep-btn', '.icon-btn',
-    '.mood-btn', '.pill', '.seg', '.seg-btn', '.wtab', '.td-go', '.ag', '.rcc-list a', '.li', '.th', '.ib', '.streak'].join(',');
+    '.mood-btn', '.pill', '.seg', '.seg-btn', '.wtab', '.td-go', '.ag', '.rcc-list a', '.li', '.th', '.ib', '.streak', 'a[href]', 'label[for]'].join(',');
   const ROWS = '.ni, .mob-item, .td-go, .rcc-list a, .li, summary';
   function scaleOf(el) { const s = parseFloat(getComputedStyle(el).scale); return Number.isFinite(s) ? s : 1; }
   function toScale(el, to, cfg) {
@@ -53,11 +53,14 @@
     if (to === 1) a.onfinish = () => { if (el.__feel === a) { a.cancel(); el.__feel = null; } };
   }
   let held = null;
-  function press(el) { held = el; toScale(el, el.matches(ROWS) ? 0.985 : 0.96, SPRINGS.press); }
+  // Anything wide (a full-width card or row) shrinks less, so it doesn't jump.
+  function press(el) { held = el; toScale(el, el.matches(ROWS) || el.getBoundingClientRect().width > 0.6 * innerWidth ? 0.985 : 0.96, SPRINGS.press); }
   function release() { if (held) { toScale(held, 1, SPRINGS.release); held = null; } }
   function target(e) {
     const el = e.target && e.target.closest ? e.target.closest(PRESS) : null;
     if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true' || el.closest('[data-no-press]')) return null;
+    // A link inside a sentence stays still; links shaped like buttons and cards press.
+    if ((el.tagName === 'A' || el.tagName === 'LABEL') && getComputedStyle(el).display === 'inline') return null;
     return el;
   }
   if (can) {
