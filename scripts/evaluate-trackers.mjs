@@ -81,6 +81,8 @@ for (const [key, tr] of Object.entries(truth)) {
     tot.truth += visible.length; tot.hidden = (tot.hidden || 0) + hidden.length; tot.hit += s.hit; tot.extra += s.extra.length; tot.nc = (tot.nc || 0) + s.notCounted.length;
     // Extras the lifter would see counted (a short or unclear extra adds nothing to the count).
     tot.extraCounted = (tot.extraCounted || 0) + found.filter((f) => s.extra.includes(f.t) && f.result === 'counted').length;
+    // Part-reps (marked in the truth) must never count as full reps.
+    for (const [pt] of partial) { const f = found.find((x) => Math.abs(x.t - pt) <= TOL); tot.partials = (tot.partials || 0) + 1; if (f && f.result === 'counted') { tot.partialCounted = (tot.partialCounted || 0) + 1; console.log(`  ! ${key}: part-rep at ${pt}s counted as full`); } }
     console.log(`${key.padEnd(34)} ${tr.lift.padEnd(10)} ${s.hit}/${visible.length} found, ${s.extra.length} extra${hidden.length ? ` (+${hidden.length} out of sight)` : ''}${s.notCounted.length ? ` · found but judged short/unclear ${fmt(s.notCounted)}` : ''}${s.missed.length ? ` · missed ${fmt(s.missed)}` : ''}${s.extra.length ? ` · extra ${fmt(s.extra)}` : ''}`);
   }
   if (verbose) for (const f of found) console.log(`    ${f.t.toFixed(2)}s (shown ${f.shownAt.toFixed(2)}s) ${f.side ?? ''} ${f.result} ${f.fmt(f.bottom)} → ${f.fmt(f.top)}${Number.isFinite(f.mv) ? ` · ${f.mv.toFixed(2)} limb lengths/s` : ''}`);
@@ -89,4 +91,5 @@ if (tot.truth) {
   console.log(`\nAll: ${tot.hit}/${tot.truth} reps found (${Math.round((100 * tot.hit) / tot.truth)}%), ${tot.extra} extra.`);
   // Full reps (not marked partial) the lifter would see counted: found, and judged 'counted'.
   console.log(`Counted as full reps: ${tot.hit - tot.nc}/${tot.truth} (${Math.round((100 * (tot.hit - tot.nc)) / tot.truth)}%), ${tot.extraCounted} extra counted.`);
+  if (tot.partials) console.log(`Part-reps counted as full: ${tot.partialCounted || 0} of ${tot.partials}.`);
 }

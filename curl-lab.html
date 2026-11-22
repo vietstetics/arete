@@ -406,8 +406,9 @@ import { demoLiftPose, demoPlan, DEMO_RANGE } from './features/standard/services
 // recognises squat, bench or deadlift from the set-up.
 // Lifts followed by liftTrackers.js: each is one joint action, measured in the lifter's own frame from
 // any angle where the joints can be seen. `lift` names the tracker; the rest is what the page says.
-const liftEx = (lift, o) => ({ lift, part: LIFTS[lift].limb === 'leg' ? 'legs' : 'arms', start: LIFTS[lift].start, finish: LIFTS[lift].finish, fmt: LIFTS[lift].fmt,
-  finding: 'Get set — finding you', still: 'Hold still — then start your first rep', lost: `Can’t see your ${LIFTS[lift].limb === 'leg' ? 'legs' : 'arms'} clearly`,
+const PART = { leg: 'legs', arm: 'arms', hip: 'hips', body: 'body' };
+const liftEx = (lift, o) => ({ lift, part: PART[LIFTS[lift].limb] || 'arms', start: LIFTS[lift].start, finish: LIFTS[lift].finish, fmt: LIFTS[lift].fmt,
+  finding: 'Get set — finding you', still: 'Hold still — then start your first rep', lost: `Can’t see your ${PART[LIFTS[lift].limb] || 'arms'} clearly`,
   demo: { plan: demoPlan(...DEMO_RANGE[lift]) }, ...o });
 const EXERCISES = {
   curl: { title: 'Curl standard', name: 'Bicep curl · one arm', part: 'arm', measure: 'elbow angle', start: 'stretch', finish: 'top',
@@ -505,6 +506,22 @@ const EXERCISES = {
     setup: 'Side-on, about 2 m away, hip, knee and ankle in view',
     intro: 'Tracked at your <b>knee</b>: how straight it starts and how far you curl. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
     rep1: 'Rep 1 sets the standard — legs long, curl, back', show: 'Show your hip, knee and ankle' }),
+  pullUp: liftEx('pullUp', { title: 'Pull-up standard', short: 'Pull-ups', name: 'Pull-up · with speed', measure: 'body height',
+    setup: 'Phone propped still (not held), in front or behind, 2–3 m away, your hips in view the whole set',
+    intro: 'Tracked by <b>how high your body rises</b> (your hips, in your own torso lengths, so it reads the same from any distance; your hands and head can leave the top of the picture). Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — hang, pull up, lower', still: 'Hang still — then pull', show: 'Show your hips and legs' }),
+  hackSquat: liftEx('hackSquat', { title: 'Squat machine standard', short: 'Reps', name: 'Hack squat or leg press', measure: 'hip to ankle',
+    setup: 'Side-on, 2–3 m away, hip, knee and ankle in view (feet too)',
+    intro: 'Tracked by the <b>distance from your hips to your ankles</b>, in your own leg lengths: how deep you go and how far you push. Speed is the sled’s travel. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — down, drive up', show: 'Show your hips, knees and feet' }),
+  backExtension: liftEx('backExtension', { title: 'Back extension standard', short: 'Back extensions', name: 'Back extension · 45° or 90°', measure: 'hip angle',
+    setup: 'Side-on, 2–3 m away, shoulders, hips and knees in view',
+    intro: 'Tracked at your <b>hips</b>: how far you fold and how straight you come up. Speed is your shoulders’ travel. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — fold down, come up straight', show: 'Show your shoulders, hips and knees' }),
+  hipThrust: liftEx('hipThrust', { title: 'Hip thrust standard', short: 'Hip thrusts', name: 'Hip thrust · bench or machine', measure: 'hip height',
+    setup: 'Side-on, 2–3 m away, shoulders, hips and knees in view',
+    intro: 'Tracked by <b>how far your hips sit below the line from your shoulders to your knees</b> (in torso lengths): how low you go and how flat you lock out. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — hips down, drive up flat', show: 'Show your shoulders, hips and knees' }),
   hipAbduction: liftEx('hipAbduction', { title: 'Hip abduction standard', short: 'Hip abductions', name: 'Hip abduction · seated machine', measure: 'thigh angle',
     setup: 'Facing the phone, 2–3 m away, hips and knees in view',
     intro: 'Tracked by the <b>angle between your thighs</b>: how close they start and how wide you push. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
@@ -658,6 +675,10 @@ const LIFT_GUIDES = {
   fly: [['best', 1, 'Facing the phone or from behind', '2–3 m away, both hands and shoulders in view.'], ['avoid', 2, 'Side-on', 'One arm hides the other, and the gap between your hands can’t be seen.'], 'Measured as the gap between your hands in shoulder widths, so the distance to the phone doesn’t matter.'],
   legExtension: [['best', 1, 'Side-on', 'About 2 m away, lens at seat height: hip, knee and ankle in view.'], ['avoid', 2, 'In front', 'Your shin kicks straight at the lens.'], 'The machine’s pad can hide the ankle: a little behind side-on helps.'],
   legCurl: [['best', 1, 'Side-on', 'About 2 m away, lens at the height of your knee: hip, knee and ankle in view.'], ['avoid', 2, 'In front or behind', 'Your shin swings towards or away from the lens.'], 'The machine’s pad can hide the ankle: a little in front of side-on helps.'],
+  pullUp: [['best', 1, 'In front or behind, phone propped', '2–3 m away, your hips and legs in view the whole set. Your hands and head may leave the top of the picture.'], ['avoid', 2, 'Held in your hand', 'The body’s rise is measured against the picture: the phone must stay still.'], 'Speed is measured at your hips, in your own torso lengths.'],
+  hackSquat: [['best', 1, 'Side-on', '2–3 m away, lens at knee height: hips, knees and feet in view.'], ['avoid', 2, 'Low in front', 'Your feet leave the picture and the ankles are guessed.'], 'Works for the leg press and belt squat too.'],
+  backExtension: [['best', 1, 'Side-on', '2–3 m away, lens at hip height: shoulders, hips and knees in view.'], ['avoid', 2, 'In front', 'You fold towards the lens, which a camera judges worst.'], 'Speed is your shoulders’ travel around your hips.'],
+  hipThrust: [['best', 1, 'Side-on', '2–3 m away, lens at bench height: shoulders, hips and knees in view.'], ['avoid', 2, 'Low in front, at the feet', 'At the top you lie flat towards the lens and the body is lost.'], 'Speed is your hips’ travel.'],
   hipAbduction: [['best', 1, 'Facing the phone', '2–3 m away, lens at seat height: hips and both knees in view.'], ['avoid', 2, 'Side-on', 'One knee hides the other.'], 'The machine’s pads can hide your shins: only the hips and knees are needed.'],
   hipAdduction: [['best', 1, 'Facing the phone', '2–3 m away, lens at seat height: hips and both knees in view.'], ['avoid', 2, 'Side-on', 'One knee hides the other.'], 'The machine’s pads can hide your shins: only the hips and knees are needed.'],
   calfRaise: [['best', 1, 'Side-on or at 45°, phone propped up', '2–3 m away, head to feet in view.'], ['avoid', 2, 'Held in your hand or by someone', 'A calf raise moves a few centimetres: a shaking phone moves more than that.'], 'Feet in frame the whole set. From behind works when the phone is still.'],
@@ -1630,6 +1651,12 @@ function onEvent(ev) {
   $('relock-btn').disabled = true; // one ROM/velocity reference per set
   if (SPEED) { measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0); renderPanel(); }
   addChip(r);
+  // Rep 1 turned out to be the odd one (a jump into it, a move while getting set): the standard was learnt
+  // again from the reps after it, and the short ones judged again. Redraw them all.
+  if (ev.restandard) {
+    $('chips').innerHTML = ''; counter.reps.forEach(addChip);
+    if (ev.restandard.changed.length) setStatus(`Rep 1 was the odd one out — standard reset from your next reps (${ev.restandard.changed.length} now count)`, 'good');
+  }
   if (ev.type === 'rep' && EX.pullup) {
     if (r.result === 'counted') { sfx('counted'); buzz(35); flash('good'); setStatus(`Rep ${counter.summary().counted}`, 'good'); }
     else if (r.result === 'short') { const why = shortReasons(r); sfx('short'); buzz([200, 100, 200]); flash('bad', why); setStatus(`Short — ${why}`, 'warn'); }
@@ -1865,7 +1892,7 @@ function currentLiveRecord() {
   const reportedRir = typed('rir-in', 0, 10), reportedRpe = typed('rpe-in', 1, 10);
   const defaults = { curl: ['Dumbbell Curl', 'Dumbbell'], squat: ['Back Squat', 'Barbell'], bench: ['Bench Press', 'Barbell'], lateral: ['Lateral Raise', 'Dumbbell'], deadlift: ['Deadlift', 'Barbell'], auto: ['Barbell lift', 'Barbell'], row: ['T-bar Row', 'T-bar'], press: ['Chest Press', 'Machine'], tbar: ['T-bar Row', 'T-bar'], pullup: ['Pull-up', 'Bodyweight'],
     triceps: ['Triceps Extension', 'Cable'], shoulderPress: ['Shoulder Press', 'Dumbbell'], pulldown: ['Lat Pulldown', 'Cable'], dip: ['Dip', 'Bodyweight'],
-    fly: ['Chest Fly', 'Machine'], legExtension: ['Leg Extension', 'Machine'], legCurl: ['Leg Curl', 'Machine'], calfRaise: ['Calf Raise', 'Machine'], hipAbduction: ['Hip Abduction', 'Machine'], hipAdduction: ['Hip Adduction', 'Machine'] };
+    fly: ['Chest Fly', 'Machine'], legExtension: ['Leg Extension', 'Machine'], legCurl: ['Leg Curl', 'Machine'], calfRaise: ['Calf Raise', 'Machine'], hipAbduction: ['Hip Abduction', 'Machine'], hipAdduction: ['Hip Adduction', 'Machine'], pullUp: ['Pull-up', 'Bodyweight'], hackSquat: ['Hack Squat', 'Machine'], backExtension: ['Back Extension', 'Bodyweight'], hipThrust: ['Hip Thrust', 'Barbell'] };
   const [name, equipment] = defaults[EXK];
   const exerciseName = params.get('exerciseName') || name;
   let userId = params.get('userId') || null;

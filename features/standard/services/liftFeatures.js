@@ -55,10 +55,15 @@ export function pickLifter(poses, prev = null, { vw = 1, vh = 1 } = {}) {
  *   elbowGap   distance between the elbows ÷ shoulder width
  *   kneeGap    distance between the knees ÷ hip width
  *   thighAngle angle between the two thighs (hip→knee), degrees: grows as the knees open (hip abduction)
+ *   hipAnkleL/R hip→ankle distance ÷ leg length (thigh + shin): 1 = standing straight (squats, leg press)
+ *   hipSagL/R  how far the hip sits off the shoulder→knee line, in torso lengths (0 = straight: hip thrust lockout)
+ *   hipVis     { L, R } how clearly shoulder, hip and knee are seen (hip-hinge lifts)
+ *   hipsVis    { L, R } how clearly each hip is seen (the body's height: pull-ups)
  *   footUpL/R  heel above the toes along the shin direction, in foot lengths
  *   tilt       torso from upright (0 standing, 90 lying)
  *   y2d        mid-shoulder height in the picture, in torso lengths (grows upwards) — whole-body moves
  *   hipY2d     mid-hip height in the picture, in torso lengths (grows upwards)
+ *   hipYpx     mid-hip height in the picture, pixels (grows upwards)
  *   wristY2dL/R wrist height in the picture, in torso lengths (grows upwards)
  *   rise2d     shoulders and hips above the toes in the picture, in torso lengths: the whole body
  *              going up on the toes (calf raise), whatever the phone's distance or tilt
@@ -97,6 +102,11 @@ export function liftFeatures(pose, world = null, { vw = 1, vh = 1, minVis = 0.3,
     const shinLen = dist(K, A);
     if (shinLen > 0) out.pts.ankle[s] = mul(sub(A, K), 1 / shinLen);
     out.legVis[s] = Math.min(v(j.H), v(j.K), v(j.A));
+    (out.hipVis ||= {})[s] = Math.min(v(j.S), v(j.H), v(j.K));
+    (out.hipsVis ||= {})[s] = v(j.H);
+    const thigh = dist(H, K);
+    out['hipAnkle' + s] = thigh + shinLen > 0 ? dist(H, A) / (thigh + shinLen) : NaN;
+    { const sk = sub(K, S), n2 = dot(sk, sk), tor = dist(S, H); if (n2 > 1e-12 && tor > 0) { const u = Math.max(0, Math.min(1, dot(sub(H, S), sk) / n2)); out['hipSag' + s] = dist(H, add(S, mul(sk, u))) / tor; } else out['hipSag' + s] = NaN; }
     out['elbow' + s] = angleAt(S, E, W);
     out['knee' + s] = angleAt(H, K, A);
     out['hip' + s] = angleAt(S, H, K);
@@ -131,6 +141,7 @@ export function liftFeatures(pose, world = null, { vw = 1, vh = 1, minVis = 0.3,
   out.tilt = Math.acos(Math.max(-1, Math.min(1, -U[1]))) * DEG;
   out.y2d = -mid(Q(11), Q(12))[1] / torso2d;
   out.hipY2d = -mid(Q(23), Q(24))[1] / torso2d;
+  out.hipYpx = -mid(Q(23), Q(24))[1]; // pixels, up = bigger (for a scale fixed over the set)
   const toeY = (Q(31)[1] + Q(32)[1]) / 2;
   out.rise2d = Math.min(v(31), v(32)) >= minVis ? (toeY - (Q(11)[1] + Q(12)[1] + Q(23)[1] + Q(24)[1]) / 4) / torso2d : NaN;
   out.torso2d = torso2d;

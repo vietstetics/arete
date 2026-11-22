@@ -61,6 +61,12 @@ export const HEIGHT_DEFAULTS = { minRange: 20, hysteresis: 10, tolFloor: 4 };
  *   the finish, as on dips). Its top keeps deepening until it turns, then { type: 'settled', rep }
  *   (the same rep object, top final: measure its speed now). Reps that never reach the Finish
  *   are short, and are given when they turn, as usual.
+ * restandard (default on): rep 1 can be the odd one out (a jump into the first pull-up, a movement
+ *   while getting set, a model glitch), and then every honest rep after it is "short". When the last
+ *   two reps were short the same way and agree with each other, and most reps since rep 1 were short
+ *   that way, the standard is learnt again from those two and the short reps are judged again (never
+ *   a counted rep made short). Once per set. The rep event that does it carries
+ *   restandard: { standard, changed: [rep numbers now counted] }.
  */
 export function createRepCounter(opts = {}) {
   const o = { ...DEFAULTS, ...opts };
@@ -70,6 +76,25 @@ export function createRepCounter(opts = {}) {
   let dir = 'extend', peak = null, peakT = 0, trough = null, troughT = 0;
   let repFrames = 0, repLow = 0, lastConfT = null, gap = 0, started = false, lastT = -Infinity;
   let given = null; // early: this lift's rep, already given at the Finish line
+  let restandardised = false;
+  // After a judged rep: was rep 1 the odd one out? (see `restandard` above)
+  function review(ev) {
+    if (restandardised || o.restandard === false || !standard || !ev || !ev.rep) return ev;
+    const after = reps.filter((r) => !r.isStandard && r.result !== 'unclear');
+    if (after.length < 2) return ev;
+    const [a, b] = after.slice(-2);
+    for (const flag of ['shortStart', 'shortFinish']) {
+      if (!(a.result === 'short' && b.result === 'short' && a[flag] && b[flag])) continue;
+      if (after.filter((r) => r.result === 'short' && r[flag]).length * 2 <= after.length) continue;
+      if (Math.abs(a.bottom - b.bottom) > tol() || Math.abs(a.top - b.top) > tol()) continue;
+      standard = { start: Math.min(a.bottom, b.bottom), finish: Math.max(a.top, b.top) };
+      restandardised = true;
+      const changed = [];
+      for (const r of after) if (r.result === 'short') { Object.assign(r, judge(r.bottom, r.top, false)); if (r.result === 'counted') changed.push(r.n); }
+      return { ...ev, restandard: { standard: { ...standard, tol: tol() }, changed } };
+    }
+    return ev;
+  }
 
   const H = () => (standard ? Math.max(o.hysteresis * 0.75, o.hysteresisPct * (standard.start - standard.finish)) : o.hysteresis);
   const tol = () => (standard ? Math.max(o.tolFloor, o.tolPct * (standard.start - standard.finish)) : o.tolFloor);
@@ -112,7 +137,7 @@ export function createRepCounter(opts = {}) {
       if (o.early && standard && trough <= standard.finish + tol() && peak - trough >= o.minRange) {
         given = { n: reps.length + 1, bottom: peak, top: trough, startT: peakT, topT: troughT, ...judge(peak, trough, unclearNow()), isStandard: false };
         reps.push(given);
-        return { type: 'rep', rep: given };
+        return review({ type: 'rep', rep: given });
       }
       return null;
     }
@@ -138,13 +163,13 @@ export function createRepCounter(opts = {}) {
     }
     const rep = { n: reps.length + 1, bottom, top, startT, topT: troughT, ...judge(bottom, top, unclear), isStandard: false };
     reps.push(rep);
-    return { type: 'rep', rep };
+    return review({ type: 'rep', rep });
   }
 
   return {
     push,
     /** Forget the standard; the next full rep becomes the new one. */
-    relock() { standard = null; },
+    relock() { standard = null; restandardised = false; },
     /** Change a rep's result after the set (user correction). */
     override(n, result) { const r = reps.find((x) => x.n === n); if (r) r.result = result; return r; },
     get standard() { return standard ? { ...standard, tol: tol() } : null; },

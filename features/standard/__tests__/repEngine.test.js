@@ -350,3 +350,28 @@ test('early: a rep that misses the Start is short even though given early', () =
   const { rc } = run(curlTrace([{ bottom: 170, top: 45 }, { bottom: 120, top: 45 }, { bottom: 170, top: 45 }]), { early: true });
   assert.deepEqual(results(rc), ['counted', 'short', 'counted']);
 });
+
+test('restandard: an odd rep 1 (a jump into the first rep) is learnt again from the reps after it', () => {
+  // Rep 1 reaches 25° (it overshoots); every rep after reaches 55° (the lifter's real top), consistently.
+  const reps = [{ bottom: 160, top: 25 }, ...Array(5).fill({ bottom: 160, top: 55 })];
+  const { rc, events } = run(curlTrace(reps), { early: true });
+  assert.deepEqual(results(rc), Array(6).fill('counted'));
+  assert.ok(events.some((e) => e.restandard), 'the event that re-learnt the standard says so');
+  // Without it, every honest rep after rep 1 would be short.
+  const off = run(curlTrace(reps), { early: true, restandard: false });
+  assert.deepEqual(results(off.rc), ['counted', ...Array(5).fill('short')]);
+});
+
+test('restandard: a set that only fades at the end keeps its standard (fatigue is still short)', () => {
+  const reps = [...Array(5).fill({ bottom: 160, top: 40 }), { bottom: 160, top: 75 }, { bottom: 160, top: 78 }];
+  const { rc, events } = run(curlTrace(reps), { early: true });
+  assert.deepEqual(results(rc), [...Array(5).fill('counted'), 'short', 'short']);
+  assert.ok(!events.some((e) => e.restandard));
+});
+
+test('restandard: reps that disagree with each other (a part-rep among full ones) never re-learn the standard', () => {
+  const reps = [{ bottom: 160, top: 25 }, { bottom: 160, top: 55 }, { bottom: 160, top: 100 }, { bottom: 160, top: 55 }];
+  const { rc, events } = run(curlTrace(reps), { early: true });
+  assert.ok(!events.some((e) => e.restandard));
+  assert.equal(results(rc)[2], 'short', 'the part-rep stays short');
+});

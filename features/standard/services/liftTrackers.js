@@ -44,6 +44,21 @@ export const LIFTS = {
   legExtension: { name: 'Leg extension', action: 'Knee extension', muscles: 'Quads', limb: 'leg', value: inv('knee'), both: true, minRange: 20, hysteresis: 10, fmt: fromInv, per: Math.PI / 180, unit: 0.246, end: 'ankle', start: 'bent', finish: 'straight' },
   legCurl: { name: 'Leg curl', action: 'Knee flexion', muscles: 'Hamstrings', limb: 'leg', value: sided('knee'), both: true, minRange: 20, hysteresis: 10, fmt: deg, per: Math.PI / 180, unit: 0.246, end: 'ankle', start: 'straight', finish: 'bent' },
   calfRaise: { name: 'Calf raise', action: 'Ankle plantarflexion', muscles: 'Calves', limb: 'leg', value: (f) => -100 * f.rise2d, both: 'pair', minRange: 8, hysteresis: 3, fmt: (v) => `${Math.round(-v)}`, per: 1 / 100, unit: 0.288, end: 'heel', start: 'heels down', finish: 'on your toes' },
+  // Pull-up / chin-up: the body rises past fixed hands. Measured by the hips' height in the picture (in
+  // torso lengths, so the phone's distance doesn't matter; the hips stay in view when close filming cuts
+  // off the hands and head at the top). The torso length is the one seen over the set's first second,
+  // then fixed (the shoulders can leave the picture at the top). Needs a still phone. Speed = the body's
+  // rise: × torso length.
+  pullUp: { name: 'Pull-up', action: 'Shoulder adduction + elbow flexion', muscles: 'Lats, biceps, mid back', limb: 'body', scale: 'torso2d', value: (f, s, ref = f.torso2d) => (-100 * f.hipYpx) / ref, both: 'pair', minRange: 40, hysteresis: 15, fmt: (v) => `${Math.round(-v)}`, per: 1 / 100, unit: 0.288, end: 'hips', start: 'hang', finish: 'top' },
+  // Squat patterns on a machine or with the feet fixed (hack squat, leg press, belt squat): the hips move
+  // away from the feet. Hip→ankle distance in leg lengths; speed = its rate × leg length (the sled's travel).
+  hackSquat: { name: 'Hack squat', action: 'Knee + hip extension', muscles: 'Quads, glutes', limb: 'leg', value: (f, s) => -100 * f['hipAnkle' + s], both: true, minRange: 15, hysteresis: 6, fmt: (v) => `${Math.round(-v)}%`, per: 1 / 100, unit: 0.491, end: 'hips', start: 'bottom', finish: 'lockout' },
+  // Hip hinges: the angle at the hip (shoulder–hip–knee) opens. Back extension: the torso swings about the
+  // hips, so speed = angle × torso. Hip thrust: shoulders on the bench and feet planted, so the hips are
+  // what moves: measured (and timed) by how far the hip sits off the shoulder→knee line, in torso lengths
+  // (cleaner than the hip angle, which jumps when the model loses the body at the top).
+  backExtension: { name: 'Back extension', action: 'Hip extension', muscles: 'Glutes, hamstrings, spinal erectors', limb: 'hip', value: inv('hip'), both: true, minRange: 25, hysteresis: 15, fmt: fromInv, per: Math.PI / 180, unit: 0.288, end: 'shoulders', start: 'bent over', finish: 'body straight' },
+  hipThrust: { name: 'Hip thrust', action: 'Hip extension', muscles: 'Glutes, hamstrings', limb: 'hip', value: (f, s) => 100 * f['hipSag' + s], both: true, minRange: 15, hysteresis: 8, fmt: (v) => `${Math.round(v)}%`, per: 1 / 100, unit: 0.288, end: 'hips', start: 'hips down', finish: 'lockout' },
   // Upper arm out to the side; speed at the elbow (where a machine's pad sits): angle × upper arm.
   lateralRaise: { name: 'Lateral raise', action: 'Shoulder abduction', muscles: 'Side delts', limb: 'arm', value: inv('elev'), both: true, minRange: 35, hysteresis: 15, fmt: (v) => `${Math.round(180 - v)}°`, per: Math.PI / 180, unit: 0.186, end: 'elbow', start: 'arms down', finish: 'arms out' },
   // Seated hip machines: the knees move apart (abduction) or together (adduction). Measured by the gap
@@ -79,6 +94,7 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
   const span = (w) => (w.length > 1 ? w[w.length - 1].t - w[0].t : 0);
   const FRAME = 1 / 30; // the windows were tuned at 30 fps: "n frames" there is n / 30 s
   const hist = { L: [], R: [] };
+  let scaleRef = null; const scaleHist = [];
   let prev = null, side = fixedSide, mode = null;
   const people = [];
   let locked = null, lead = null, frameNo = 0, switched = false;
@@ -90,7 +106,7 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
   const travelFilter = (v, t) => travelEuro.filter(medianOf(travelWin, v, t), t);
   const whoReset = () => {};
   const facings = [], palmHist = { L: [], R: [] }, palmRef = { L: null, R: null };
-  const visOf = (f, s) => (def.limb === 'leg' ? f.legVis[s] : f.vis[s]);
+  const visOf = (f, s) => (def.limb === 'leg' ? f.legVis[s] : def.limb === 'hip' ? f.hipVis[s] : def.limb === 'body' ? f.hipsVis[s] : f.vis[s]);
   const spread = (xs) => { const v = xs.filter(Number.isFinite).sort((a, b) => a - b); return v.length > 5 ? v[Math.floor(v.length * 0.95)] - v[Math.floor(v.length * 0.05)] : 0; };
   return {
     def,
@@ -158,18 +174,27 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
   function chooseLifter(t, list, vw, vh, hands) {
     const seen = [];
     for (const q of list) {
-      const f = liftFeatures(q.lm, q.w, { vw, vh, hands });
+      // A pull-up is read from the hips alone (the shoulders can be at the picture's top edge, scored low);
+      // hip hinges lie back or fold over, so the model scores the shoulders lower while placing them well.
+      const f = liftFeatures(q.lm, q.w, { vw, vh, hands, ...(def.limb === 'body' ? { minVis: 0 } : def.limb === 'hip' ? { minVis: 0.15 } : {}) });
       if (!f) continue;
       const c = [(q.lm[11].x + q.lm[12].x + q.lm[23].x + q.lm[24].x) / 4 * vw, (q.lm[11].y + q.lm[12].y + q.lm[23].y + q.lm[24].y) / 4 * vh];
       const size = pickSize(q, vw, vh);
       let who = null, bd = Infinity;
-      for (const pp of people) {
+      // The only body in the picture, with a lifter already found: it's them (a hip thrust or a pull-up moves
+      // the body's centre further between frames than anyone walks).
+      // Someone else alone in the picture (walking in front while the lifter is hidden) is far bigger or
+      // somewhere else, so it must be about the lifter's size (within 1.7×) and within 2 of their sizes.
+      if (list.length === 1 && locked && Math.abs(Math.log(size / locked.size)) < Math.log(1.7) && Math.hypot(c[0] - locked.c[0], c[1] - locked.c[1]) < 2 * locked.size) who = locked;
+      for (const pp of who ? [] : people) {
         if (seen.includes(pp)) continue;
         // The lifter gets more room (a dip or a jump in the model moves the whole body).
         const d = Math.hypot(c[0] - pp.c[0], c[1] - pp.c[1]), reach = pp.size * ((pp === locked ? 1.2 : 0.6) + 2 * (t - pp.t));
         // Someone walking between the lifter and the phone can stand right where the lifter is, but is
         // much bigger in the picture: never the same person.
-        if (Math.abs(Math.log(size / pp.size)) > Math.log(1.35)) continue;
+        // (With only one person in the picture there's no one to mistake them for: the model's size for a
+        // body seen from behind can swing by half from one moment to the next.)
+        if (list.length > 1 && Math.abs(Math.log(size / pp.size)) > Math.log(1.35)) continue;
         if (d < reach && d < bd) { bd = d; who = pp; }
       }
       if (!who) { who = { c, size, t, first: t, firstFrame: frameNo, seenFrames: 0, vals: [] }; people.push(who); }
@@ -323,8 +348,17 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
       }
       prev = p;
       if (def.both === 'pair') {
-        const vs = def.limb === 'leg' ? f.legVis : f.vis, ok = Math.min(vs.L, vs.R) >= minVis * 0.6;
-        const v = def.value(f);
+        const ok = Math.min(visOf(f, 'L'), visOf(f, 'R')) >= minVis * 0.6;
+        // A scale fixed over the set (the median of its first second), when the lift asks for one.
+        let ref;
+        if (def.scale) {
+          if (scaleRef == null && Number.isFinite(f[def.scale]) && ok) { scaleHist.push({ t, v: f[def.scale] }); if (span(scaleHist) >= 29 * FRAME - 1e-6) { const xs = scaleHist.map((q) => q.v).sort((a, b) => a - b); scaleRef = xs[xs.length >> 1]; } }
+          ref = scaleRef ?? undefined;
+          // No reading until the scale is fixed: a value on a scale still settling would make rep 1 (the
+          // standard) disagree with every rep after it.
+          if (ref == null) return { ok: false, value: NaN, side: 'both', f };
+        }
+        const v = def.value(f, null, ref);
         return { ok: ok && Number.isFinite(v), value: ok && Number.isFinite(v) ? euro.filter(v, t) : NaN, side: 'both', f };
       }
       // Pushes and pulls filmed from in front: the hands travel straight at the lens, which neither the
@@ -356,7 +390,7 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
       // Legs in a machine are partly behind its pads: the model scores them low while still placing knee
       // and ankle well (the knee angle stays clean down to 0.3). With neither leg clearly seen, the better
       // one is read (never averaged with the other, which is then a guess).
-      if (def.limb === 'leg' && !seen.L && !seen.R) {
+      if ((def.limb === 'leg' || def.limb === 'hip') && !seen.L && !seen.R) {
         const b = visOf(f, 'L') >= visOf(f, 'R') ? 'L' : 'R';
         if (visOf(f, b) >= 0.3 && Number.isFinite(val[b]) && (!side || side === b)) seen[b] = true;
       }

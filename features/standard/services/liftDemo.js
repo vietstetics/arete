@@ -62,7 +62,23 @@ const POSE = {
   // Seated, thighs forward and opening sideways: value = −100 × knee gap ÷ hip width (abduction) or + (adduction).
   hipAbduction: (P, v) => seatedOpen(P, gapToDeg(-v / 100)),
   hipAdduction: (P, v) => seatedOpen(P, gapToDeg(v / 100)),
+  // Value = −100 × hip→ankle ÷ leg length: feet fixed, knees bending forward, hips straight above the ankles.
+  hackSquat: (P, v) => { const r = Math.max(0.3, Math.min(0.999, -v / 100)) * (THIGH + SHIN); for (const [h, k, a] of [[23, 25, 27], [24, 26, 28]]) { const A = P[a], H = [A[0], A[1] - r, A[2]]; const c = (THIGH * THIGH - SHIN * SHIN + r * r) / (2 * r), off = Math.sqrt(Math.max(0, THIGH * THIGH - c * c)); P[k] = [A[0] + off, H[1] + c, A[2]]; const dy = H[1] - P[h][1]; for (const i of [h]) P[i] = H; if (h === 23) for (let i = 0; i <= 22; i++) if (P[i]) P[i] = add(P[i], [0, dy, 0]); } },
+  // Value = 180 − hip angle: legs straight, the upper body tipping forward about the hips.
+  backExtension: (P, v) => hinge(P, 180 - v),
+  // Value = 100 × hip off the shoulder→knee line ÷ torso: found by turning the upper body until it matches.
+  hipThrust: (P, v) => { let lo = 90, hi = 180; for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; const Q = P.map((q) => q && q.slice()); hinge(Q, mid, true); const sag = sagOf(Q); if (sag * 100 > v) lo = mid; else hi = mid; } hinge(P, (lo + hi) / 2, true); },
 };
+// The upper body (head, shoulders, arms) turned about the hips so the shoulder–hip–knee angle is `hip`.
+// thrust: knees bent at 90° with the thighs level (a hip thrust's feet-planted shape) instead of straight legs.
+function sagOf(P) { const S = P[11], H = P[23], K = P[25], sk = [K[0] - S[0], K[1] - S[1], K[2] - S[2]], n2 = sk[0] ** 2 + sk[1] ** 2 + sk[2] ** 2, u = Math.max(0, Math.min(1, ((H[0] - S[0]) * sk[0] + (H[1] - S[1]) * sk[1] + (H[2] - S[2]) * sk[2]) / n2)), q = [S[0] + sk[0] * u - H[0], S[1] + sk[1] * u - H[1], S[2] + sk[2] * u - H[2]]; return Math.hypot(...q) / Math.hypot(H[0] - S[0], H[1] - S[1], H[2] - S[2]); }
+function hinge(P, hip, thrust = false) {
+  if (thrust) for (const [h, k, a] of [[23, 25, 27], [24, 26, 28]]) { P[k] = add(P[h], [THIGH, 0, 0]); P[a] = add(P[k], [0, SHIN, 0]); }
+  const thighDir = Math.atan2(P[25][1] - P[23][1], P[25][0] - P[23][0]);
+  const torsoDir = thighDir - hip * DEG; // the torso at `hip` degrees from the thigh
+  const now = Math.atan2(P[11][1] - P[23][1], P[11][0] - P[23][0]), rot = torsoDir - now, c = Math.cos(rot), sn = Math.sin(rot);
+  for (let i = 0; i <= 22; i++) { if (!P[i]) continue; const x = P[i][0], y = P[i][1]; P[i] = [x * c - y * sn, x * sn + y * c, P[i][2]]; }
+}
 // The angle between the thighs that puts the knees `gap` hip widths apart.
 const gapToDeg = (gap) => (2 * Math.asin(Math.max(0, Math.min(1, ((gap - 1) * 2 * HIPW) / (2 * THIGH))))) / DEG;
 function seatedOpen(P, deg) {
@@ -94,13 +110,17 @@ export function demoLiftPose(lift, value, { vw = 1280, vh = 720, front = false }
   if (front) P = P.map(([x, y, z]) => [-z, y, -x]);
   const k = 0.42; // metres → share of picture height
   let lift2d = 0;
+  if (lift === 'pullUp') {
+    // The whole body rises (hands fixed on the bar above): value = −100 × hip height ÷ torso, in the picture.
+    lift2d = (0.28 - (value * TORSO * k) / 100) / k;
+  }
   if (lift === 'calfRaise') {
     // Up on the toes: everything but the toes rises; the value is −100 × (rise ÷ torso) above standing.
     const stand = (THIGH + SHIN + 0.05 + TORSO / 2) / TORSO;
     lift2d = (-value / 100 - stand) * TORSO;
   }
   const pose = P.map((q, i) => {
-    const up = lift2d && i !== 31 && i !== 32 ? lift2d * (i === 29 || i === 30 ? 0.9 : 1) : 0;
+    const up = lift === 'pullUp' ? lift2d : lift2d && i !== 31 && i !== 32 ? lift2d * (i === 29 || i === 30 ? 0.9 : 1) : 0;
     return { x: 0.5 + (q[0] * k * vh) / vw, y: 0.28 + (q[1] - up) * k, z: q[2], visibility: 0.98 };
   });
   return { pose, world: P.map((q) => ({ x: q[0], y: q[1], z: q[2] })) };
@@ -120,4 +140,5 @@ export const DEMO_RANGE = {
   curl: [165, 50], triceps: [100, 12], dip: [95, 12], press: [42, 4], row: [96, 45], shoulderPress: [-15, -175],
   pulldown: [175, -5], fly: [360, 160], legExtension: [90, 8], legCurl: [168, 75], calfRaise: [-250, -265],
   lateralRaise: [170, 95], hipAbduction: [-110, -250], hipAdduction: [250, 110],
+  pullUp: [128, 45], hackSquat: [-55, -97], backExtension: [90, 8], hipThrust: [58, 8],
 };

@@ -65,7 +65,7 @@ export function trackerModeFor(exercise = {}) {
   if (/^(?:barbell |back |front |goblet )?squat$/.test(name)) return 'squat';
   if (/^(?:barbell |dumbbell |incline |decline |flat )*bench press$/.test(name)) return 'bench';
   if (/^(?:barbell |conventional |sumo )?deadlift$/.test(name)) return 'deadlift';
-  if (/^(?:pull[ -]?ups?|chin[ -]?ups?)$/.test(name)) return 'pullup';
+  if (/^(?:weighted |assisted )?(?:pull[ -]?ups?|chin[ -]?ups?)$/.test(name)) return 'pullUp';
   if (/\b(?:leg|hamstring) curls?$/.test(name)) return 'legCurl';
   if (/\bcurl\b/.test(name) && !/\bleg\b/.test(name)) return 'curl';
   if (/^(?:machine )?chest press$/.test(name)) return 'press';
@@ -78,6 +78,9 @@ export function trackerModeFor(exercise = {}) {
   if (/^(?:pec deck|(?:machine |cable |dumbbell |chest )*fl(?:y|ies|yes))$/.test(name)) return 'fly';
   if (/^(?:machine |seated )?leg extensions?$/.test(name)) return 'legExtension';
   if (/^(?:standing |seated |machine |smith machine )*calf raises?$/.test(name)) return 'calfRaise';
+  if (/^(?:machine |plate[ -]loaded |pendulum )?hack squats?$|^(?:machine |seated |45[ -]degree |horizontal )?leg press(?:es)?$|^belt squats?$/.test(name)) return 'hackSquat';
+  if (/^(?:45[ -]degree |90[ -]degree |roman chair |weighted )?(?:back extensions?|hyperextensions?)$/.test(name)) return 'backExtension';
+  if (/^(?:barbell |machine |smith machine |single[ -]leg )?(?:hip thrusts?|glute bridges?)$/.test(name)) return 'hipThrust';
   if (/^(?:machine |seated |cable )*hip abductions?$|^(?:machine |seated )*(?:thigh |outer thigh )abductions?$/.test(name)) return 'hipAbduction';
   if (/^(?:machine |seated |cable )*hip adductions?$|^(?:machine |seated )*(?:thigh |inner thigh )adductions?$/.test(name)) return 'hipAdduction';
   return null;
