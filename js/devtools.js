@@ -44,7 +44,12 @@
     '.dv-row:active{background:#F2F2F7}' +
     '.dv-row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-row .c{color:#8E8E93;font-size:13px}' +
     '.dv-row svg{width:18px;height:18px;flex:none;color:#8E8E93}' +
-    '.dv-clip{padding:12px 14px;border-top:1px solid rgba(60,60,67,.1)}.dv-clip:first-child{border-top:0}' +
+    '.dv-clip{padding:12px 14px;border-top:1px solid rgba(60,60,67,.1);display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}.dv-clip:first-child{border-top:0}.dv-cm{flex:1;min-width:0}.dv-clip .dv-img{flex-basis:100%}' +
+    '.dv-thumb{position:relative;width:64px;height:86px;flex:none;border-radius:8px;overflow:hidden;background:#D1D1D6;display:block}' +
+    '.dv-thumb img,.dv-thumb .sheet{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}' +
+    '.dv-thumb .sheet{background-size:400% auto;background-position:0 0;background-repeat:no-repeat}' +
+    '.dv-thumb .play{position:absolute;left:50%;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:rgba(0,0,0,.45)}' +
+    '.dv-thumb .play::after{content:"";position:absolute;left:9px;top:7px;border-style:solid;border-width:5px 0 5px 8px;border-color:transparent transparent transparent #fff}' +
     '.dv-clip .t{display:flex;gap:8px;align-items:baseline}.dv-clip .t .n{flex:1;min-width:0;word-break:break-all;font-weight:600;font-size:14px}.dv-clip .t .s{color:#8E8E93;font-size:12px;white-space:nowrap}' +
     '.dv-clip .st{font-size:13px;color:#6E6E73;margin-top:3px}.dv-clip .st.ok{color:#248A3D}.dv-clip .st.bad{color:#C4271D}' +
     '.dv-clip .note{font-size:13px;color:#3A3A3C;margin-top:4px;white-space:pre-wrap}' +
@@ -93,7 +98,23 @@
       var files = Array.prototype.slice.call(picker.files || []);
       var folder = picker.dataset.folder; picker.value = '';
       // Name each video before it's sent, so the clip says what's in it.
-      if (files.length && folder) { state.pending = { folder: folder, files: files, names: files.map(function () { return ''; }), urls: files.map(function (f) { try { return URL.createObjectURL(f); } catch (_) { return ''; } }) }; state.open = folder; }
+      if (files.length && folder) {
+        var pend = state.pending = { folder: folder, files: files, names: files.map(function () { return ''; }), covers: [], urls: [] };
+        state.open = folder;
+        // Covers one at a time (a phone decodes one big video at a time comfortably).
+        files.reduce(function (chain, file, i) {
+          return chain.then(function () {
+            if (state.pending !== pend) return;
+            var src = URL.createObjectURL(file);
+            return makeCover(src).then(function (blob) {
+              URL.revokeObjectURL(src);
+              if (!blob || state.pending !== pend) return;
+              pend.covers[i] = blob; pend.urls[i] = URL.createObjectURL(blob);
+              var img = body.querySelector('.dv-pcov[data-i="' + i + '"]'); if (img) { img.src = pend.urls[i]; img.style.visibility = 'visible'; }
+            });
+          });
+        }, Promise.resolve());
+      }
       render();
     };
     // Cancelled picker: no change event, so stop holding redraws once the page has focus again.
@@ -167,7 +188,7 @@
         '<div style="font-size:13px;color:#6E6E73">Say what’s in it: exercise, camera angle, weight, reps. E.g. <i>curl side 12kg 8 reps</i>. Left blank, it keeps its phone name.</div>';
       pend.files.forEach(function (file, i) {
         html += '<div style="display:flex;gap:10px;align-items:center;padding-top:6px;border-top:1px solid rgba(60,60,67,.1)">' +
-          (pend.urls[i] ? '<video src="' + pend.urls[i] + '#t=0.5" muted playsinline preload="metadata" style="width:64px;height:84px;object-fit:cover;border-radius:8px;background:#000;flex:none"></video>' : '') +
+          '<div class="dv-thumb"><img class="dv-pcov" data-i="' + i + '" alt="" src="' + (pend.urls[i] || '') + '" style="visibility:' + (pend.urls[i] ? 'visible' : 'hidden') + '"></div>' +
           '<div style="flex:1;min-width:0"><div style="font-size:12px;color:#8E8E93;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(file.name || 'video') + ' · ' + mb(file.size) + '</div>' +
           '<input class="dv-name" data-i="' + i + '" type="text" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="90" placeholder="e.g. curl side 12kg 8 reps" value="' + esc(pend.names[i]) + '" style="width:100%;box-sizing:border-box;margin-top:4px;border:1px solid rgba(60,60,67,.18);border-radius:9px;padding:9px 10px;font:16px -apple-system,BlinkMacSystemFont,sans-serif;color:#1C1C1E;background:#fff"></div></div>';
       });
@@ -191,12 +212,18 @@
         else if (c.analysed) { st = 'Analysed · landmarks saved'; cls = 'ok'; }
         else st = 'Not analysed yet';
         var busy = j && (j.state === 'running' || j.state === 'queued');
-        html += '<div class="dv-clip"><div class="t"><span class="n">' + esc(c.name) + '</span><span class="s">' + mb(c.size) + '</span></div>' +
+        if (j && j.renameTo && busy) st += ' · will be renamed to “' + esc(j.renameTo) + '” when it finishes';
+        var q = 'folder=' + encodeURIComponent(f.name) + '&clip=' + encodeURIComponent(c.name) + '&key=' + encodeURIComponent(key());
+        // Cover: the frame saved at upload; failing that, the first frame of the analysis sheet.
+        var cover = c.cover ? '<img alt="" src="/__dev/cover?' + q + '&v=' + c.added + '">'
+          : c.sheet ? '<span class="sheet" style="background-image:url(\'/__dev/sheet?' + q + '&v=' + c.added + '\')"></span>' : '';
+        html += '<div class="dv-clip"><a class="dv-thumb" href="/__dev/video?' + q + '" target="_blank" rel="noopener" aria-label="Watch ' + esc(c.name) + '">' + cover + '<span class="play"></span></a><div class="dv-cm">' +
+          '<div class="t"><span class="n">' + esc(c.name) + '</span><span class="s">' + mb(c.size) + '</span></div>' +
           '<div class="st ' + cls + '">' + st + '</div>' + (c.note ? '<div class="note">' + esc(c.note) + '</div>' : '') +
           '<div class="acts"><button class="dv-b" type="button" data-an="' + i + '"' + (busy ? ' disabled' : '') + '>' + (c.analysed ? 'Analyse again' : 'Analyse') + '</button>' +
           (c.sheet ? '<button class="dv-b" type="button" data-sh="' + i + '">' + (state.sheet[f.name + '/' + c.name] ? 'Hide frames' : 'Check frames') + '</button>' : '') +
           '<button class="dv-b" type="button" data-nt="' + i + '">' + (c.note ? 'Edit note' : 'Add note') + '</button>' +
-          '<button class="dv-b" type="button" data-rn="' + i + '"' + (busy ? ' disabled' : '') + '>Rename</button></div>' +
+          '<button class="dv-b" type="button" data-rn="' + i + '">Rename</button></div></div>' +
           (c.sheet && state.sheet[f.name + '/' + c.name] ? '<img class="dv-img" alt="Frames from ' + esc(c.name) + ' with the tracked skeleton drawn on" src="/__dev/sheet?folder=' + encodeURIComponent(f.name) + '&clip=' + encodeURIComponent(c.name) + '&key=' + encodeURIComponent(key()) + '&v=' + c.added + '">' : '') +
           '</div>';
       });
@@ -208,8 +235,8 @@
       body.querySelectorAll('.dv-name').forEach(function (el) { el.oninput = function () { pend.names[+el.dataset.i] = el.value; }; });
       body.querySelector('[data-cancel]').onclick = function () { clearPending(); render(); };
       body.querySelector('[data-send]').onclick = function () {
-        var files = pend.files, names = files.map(function (file, i) { return clipName(pend.names[i], file, i); });
-        clearPending(); render(); upload(f.name, files, names);
+        var files = pend.files, covers = pend.covers.slice(), names = files.map(function (file, i) { return clipName(pend.names[i], file, i); });
+        clearPending(); render(); upload(f.name, files, names, covers);
       };
     } else body.querySelector('[data-pick]').onclick = function () { state.picking = true; picker.dataset.folder = f.name; picker.click(); };
     body.querySelector('.dv-add textarea').oninput = function (e) { state.note = e.target.value; };
@@ -218,6 +245,63 @@
     body.querySelectorAll('[data-sh]').forEach(function (el) { el.onclick = function () { var k = f.name + '/' + f.clips[+el.dataset.sh].name; state.sheet[k] = !state.sheet[k]; render(); }; });
     body.querySelectorAll('[data-nt]').forEach(function (el) { el.onclick = function () { editNote(f.name, f.clips[+el.dataset.nt]); }; });
     body.querySelectorAll('[data-rn]').forEach(function (el) { el.onclick = function () { renameClip(f.name, f.clips[+el.dataset.rn]); }; });
+    backfillCovers(f);
+  }
+
+  // One frame from a video (a phone file or a clip on the computer) as a small JPEG.
+  function makeCover(src) {
+    return new Promise(function (done) {
+      var v = document.createElement('video'), finished = false;
+      function end(blob) { if (finished) return; finished = true; clearTimeout(t); v.removeAttribute('src'); try { v.load(); } catch (_) {} done(blob || null); }
+      var t = setTimeout(function () { end(null); }, 15000);
+      v.muted = true; v.playsInline = true; v.setAttribute('playsinline', ''); v.preload = 'auto';
+      v.onerror = function () { end(null); };
+      var tries = [0.5, 1.5, 3];
+      function seekNext() {
+        if (!tries.length) return end(null);
+        var d = isFinite(v.duration) && v.duration > 0 ? v.duration : 1;
+        try { v.currentTime = Math.min(tries.shift(), d * 0.5); } catch (_) { end(null); }
+      }
+      // Seek only once a frame has loaded, then wait for that frame to be painted before copying it.
+      v.onloadeddata = function () { v.onloadeddata = null; seekNext(); };
+      v.onseeked = function () {
+        var shot = function () {
+          var w = v.videoWidth, h = v.videoHeight; if (!w || !h) return end(null);
+          var s = Math.min(1, 240 / Math.max(w, h)), c = document.createElement('canvas');
+          c.width = Math.round(w * s); c.height = Math.round(h * s);
+          try {
+            var g = c.getContext('2d'); g.drawImage(v, 0, 0, c.width, c.height);
+            // A black frame (not decoded yet, or a fade-in): try a later moment.
+            var px = g.getImageData(0, 0, c.width, c.height).data, lit = 0;
+            for (var k = 0; k < px.length; k += 4 * 37) if (px[k] + px[k + 1] + px[k + 2] > 40) lit++;
+            if (lit < 3 && tries.length) return seekNext();
+            c.toBlob(end, 'image/jpeg', 0.75);
+          } catch (_) { end(null); }
+        };
+        if (v.requestVideoFrameCallback) { var done1 = false; v.requestVideoFrameCallback(function () { if (!done1) { done1 = true; shot(); } }); setTimeout(function () { if (!done1) { done1 = true; shot(); } }, 400); }
+        else setTimeout(shot, 150);
+      };
+      v.src = src;
+      // iPhone Safari only loads frames once playback has been asked for.
+      var p = v.play && v.play(); if (p && p.then) p.then(function () { v.pause(); }).catch(function () {});
+    });
+  }
+  function sendCover(folder, clip, blob) {
+    return fetch('/__dev/cover?folder=' + encodeURIComponent(folder) + '&clip=' + encodeURIComponent(clip), { method: 'POST', headers: { 'X-Dev-Key': key(), 'Content-Type': 'image/jpeg' }, body: blob }).catch(function () {});
+  }
+  // Clips added before covers existed (or from a computer): make the cover here, once.
+  var tried = {}, backfilling = false;
+  function backfillCovers(f) {
+    if (backfilling || state.uploading || state.pending) return;
+    var c = f.clips.filter(function (x) { return !x.cover && !tried[f.name + '/' + x.name]; })[0];
+    if (!c) return;
+    backfilling = true; tried[f.name + '/' + c.name] = true;
+    makeCover('/__dev/video?folder=' + encodeURIComponent(f.name) + '&clip=' + encodeURIComponent(c.name) + '&key=' + encodeURIComponent(key())).then(function (blob) {
+      return blob ? sendCover(f.name, c.name, blob).then(function () { c.cover = true; }) : null;
+    }).then(function () {
+      backfilling = false;
+      if (state.open === f.name && !state.pending && !state.uploading && !(document.activeElement && /^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName))) render();
+    });
   }
 
   function clearPending() { if (state.pending) state.pending.urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (_) {} }); state.pending = null; }
@@ -251,7 +335,7 @@
   }
 
   // One file at a time, straight to disk on the computer (XHR for upload progress).
-  function upload(folder, files, names) {
+  function upload(folder, files, names, covers) {
     var note = state.note.trim(), auto = state.auto;
     var total = files.reduce(function (s, f) { return s + f.size; }, 0), doneBytes = 0, i = 0, failed = [];
     state.uploading = true; btn.classList.add('busy');
@@ -281,8 +365,10 @@
         show(total ? (100 * (doneBytes + e.loaded)) / total : 0, 'Uploading ' + (i + 1) + ' of ' + files.length + ' · ' + mb(doneBytes + e.loaded) + ' of ' + mb(total) + ' · keep this screen open');
       };
       xhr.onload = function () {
+        var after = Promise.resolve();
         if (xhr.status !== 200) { var m = 'Failed'; try { m = JSON.parse(xhr.responseText).error; } catch (_) {} failed.push(name + ': ' + m); }
-        doneBytes += file.size; i++; next();
+        else if (covers && covers[i]) { var saved = name; try { saved = JSON.parse(xhr.responseText).name || name; } catch (_) {} after = sendCover(folder, saved, covers[i]); }
+        doneBytes += file.size; i++; after.then(next);
       };
       xhr.onerror = function () { failed.push(name + ': connection to the computer lost'); doneBytes += file.size; i++; next(); };
       xhr.send(file);

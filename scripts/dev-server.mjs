@@ -54,6 +54,7 @@ async function folderPath(name) {
 }
 const posesFor = (folder, clip) => join(posesDir, folder, basename(clip, extname(clip)) + '.json');
 const sheetFor = (folder, clip) => join(posesDir, 'sheets', `${folder} - ${basename(clip, extname(clip))}.jpg`);
+const coverFor = (folder, clip) => join(videosDir, '.covers', folder, basename(clip, extname(clip)) + '.jpg');
 const noteFor = (dir, clip) => join(dir, basename(clip, extname(clip)) + '.note.txt');
 
 async function listFiles() {
@@ -68,6 +69,7 @@ async function listFiles() {
         name: n, size: s.size, added: s.mtimeMs,
         analysed: !!(await stat(posesFor(d.name, n)).catch(() => null)),
         sheet: !!(await stat(sheetFor(d.name, n)).catch(() => null)),
+        cover: !!(await stat(coverFor(d.name, n)).catch(() => null)),
         note: (await readFile(noteFor(dir, n), 'utf8').catch(() => '')).trim(),
       });
     }
@@ -101,10 +103,20 @@ function runNext() {
     clearInterval(gone);
     job.ended = Date.now();
     job.state = code === 0 && !job.log.some((l) => l.startsWith('error:')) ? 'done' : 'failed';
-    running = false; runNext();
+    running = false;
+    // A rename asked for while it was being analysed (the file is open until now).
+    const to = job.renameTo; job.renameTo = null;
+    (to ? moveClip(job.folder, job.clip, to).then(() => { job.clip = to; }).catch((e) => console.log(`  rename failed: ${e.message}`)) : Promise.resolve()).then(runNext);
   });
 }
-const publicJob = (j) => ({ id: j.id, folder: j.folder, clip: j.clip, state: j.state, last: j.log[j.log.length - 1] || '', started: j.started, ended: j.ended });
+// Renames a clip with everything that belongs to it: note, landmarks, frame sheet, cover.
+async function moveClip(folder, clip, to) {
+  const dir = join(videosDir, folder);
+  await rename(join(dir, clip), join(dir, to));
+  for (const f of [(c) => noteFor(dir, c), (c) => posesFor(folder, c), (c) => sheetFor(folder, c), (c) => coverFor(folder, c)]) await rename(f(clip), f(to)).catch(() => {});
+  console.log(`Renamed ${folder}/${clip} → ${to}`);
+}
+const publicJob = (j) => ({ id: j.id, folder: j.folder, clip: j.clip, renameTo: j.renameTo || null, state: j.state, last: j.log[j.log.length - 1] || '', started: j.started, ended: j.ended });
 
 // ---- HTTP ----
 function send(res, code, body, type = 'text/plain; charset=utf-8') {
@@ -174,12 +186,12 @@ async function api(req, res, url) {
     const dir = await folderPath(folder);
     if (!dir || !safeName(clip) || !(await stat(join(dir, clip)).catch(() => null))) return send(res, 404, { error: 'No such clip.' });
     if (!safeName(to) || !VIDEO.has(extname(to).toLowerCase())) return send(res, 400, { error: 'That name can’t be used for a file.' });
-    if (await stat(join(dir, to)).catch(() => null)) return send(res, 409, { error: 'A clip with that name is already in this folder.' });
-    if (jobs.some((j) => j.folder === folder && j.clip === clip && (j.state === 'queued' || j.state === 'running'))) return send(res, 409, { error: 'Wait until it has finished analysing.' });
-    await rename(join(dir, clip), join(dir, to));
-    // The note, landmarks and frame sheet follow the video.
-    for (const [a, b] of [[noteFor(dir, clip), noteFor(dir, to)], [posesFor(folder, clip), posesFor(folder, to)], [sheetFor(folder, clip), sheetFor(folder, to)]]) await rename(a, b).catch(() => {});
-    console.log(`Renamed ${folder}/${clip} → ${to}`);
+    if (await stat(join(dir, to)).catch(() => null) || jobs.some((j) => j.folder === folder && j.renameTo === to)) return send(res, 409, { error: 'A clip with that name is already in this folder.' });
+    // Being analysed: the file is open, so it's renamed the moment analysis ends.
+    const live = jobs.find((j) => j.folder === folder && j.clip === clip && j.state === 'running');
+    if (live) { live.renameTo = to; console.log(`Will rename ${folder}/${clip} → ${to} after analysis`); return send(res, 200, { ok: true, name: to, later: true }); }
+    await moveClip(folder, clip, to);
+    for (const j of jobs) if (j.folder === folder && j.clip === clip && j.state === 'queued') j.clip = to;
     return send(res, 200, { ok: true, name: to });
   }
 
@@ -188,6 +200,47 @@ async function api(req, res, url) {
     const dir = await folderPath(folder);
     if (!dir || !safeName(clip) || !(await stat(join(dir, clip)).catch(() => null))) return send(res, 404, { error: 'No such clip.' });
     return send(res, 200, { job: publicJob(queueAnalysis(folder, clip)) });
+  }
+
+  // Cover picture: one frame, taken on the phone as the video uploads (no video decoder needed here).
+  if (route === 'cover' && req.method === 'POST') {
+    const folder = url.searchParams.get('folder'), clip = url.searchParams.get('clip');
+    const dir = await folderPath(folder);
+    if (!dir || !safeName(clip) || !(await stat(join(dir, clip)).catch(() => null))) return send(res, 404, { error: 'No such clip.' });
+    const chunks = []; let n = 0;
+    for await (const c of req) { n += c.length; if (n > 2 * 1024 ** 2) return send(res, 413, { error: 'Cover too big.' }); chunks.push(c); }
+    const buf = Buffer.concat(chunks);
+    if (buf[0] !== 0xff || buf[1] !== 0xd8) return send(res, 400, { error: 'Not a JPEG.' });
+    const f = coverFor(folder, clip);
+    await mkdir(join(videosDir, '.covers', folder), { recursive: true });
+    await writeFile(f, buf);
+    return send(res, 200, { ok: true });
+  }
+  if (route === 'cover' && req.method === 'GET') {
+    const folder = url.searchParams.get('folder'), clip = url.searchParams.get('clip');
+    if (!(await folderPath(folder)) || !safeName(clip)) return send(res, 404, 'Not found');
+    const f = coverFor(folder, clip), s = await stat(f).catch(() => null);
+    if (!s) return send(res, 404, 'No cover');
+    res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Content-Length': s.size, 'Cache-Control': 'no-store' });
+    return createReadStream(f).pipe(res);
+  }
+  // The video itself, to watch on the phone (ranges, so it can seek without downloading it all).
+  if (route === 'video' && req.method === 'GET') {
+    const folder = url.searchParams.get('folder'), clip = url.searchParams.get('clip');
+    const dir = await folderPath(folder);
+    if (!dir || !safeName(clip) || !VIDEO.has(extname(clip).toLowerCase())) return send(res, 404, 'Not found');
+    const f = join(dir, clip), s = await stat(f).catch(() => null);
+    if (!s) return send(res, 404, 'Not found');
+    const type = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm' }[extname(clip).toLowerCase()];
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m && (m[1] || m[2])) {
+      let start = m[1] ? +m[1] : Math.max(0, s.size - +m[2]), end = m[1] && m[2] ? Math.min(+m[2], s.size - 1) : s.size - 1;
+      if (start > end || start >= s.size) { res.writeHead(416, { 'Content-Range': `bytes */${s.size}` }); return res.end(); }
+      res.writeHead(206, { 'Content-Type': type, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${s.size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' });
+      return createReadStream(f, { start, end }).pipe(res);
+    }
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': s.size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' });
+    return createReadStream(f).pipe(res);
   }
 
   if (route === 'sheet' && req.method === 'GET') {
@@ -207,7 +260,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://local');
   try {
     if (url.pathname.startsWith('/__dev/')) {
-      if (!/^\/__dev\/(ping|files|sheet)$/.test(url.pathname)) console.log(`${new Date().toLocaleTimeString()} ${req.method} ${url.pathname}${url.searchParams.get('folder') ? ' ' + url.searchParams.get('folder') + '/' + (url.searchParams.get('name') || '') : ''}`);
+      if (!/^\/__dev\/(ping|files|sheet|cover|video)$/.test(url.pathname)) console.log(`${new Date().toLocaleTimeString()} ${req.method} ${url.pathname}${url.searchParams.get('folder') ? ' ' + url.searchParams.get('folder') + '/' + (url.searchParams.get('name') || '') : ''}`);
       return await api(req, res, url);
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
