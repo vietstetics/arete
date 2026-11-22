@@ -41,9 +41,9 @@ try {
       short: document.getElementById('d-short').textContent, reps: window.__plateDebug().poseReps,
       summary: document.getElementById('verdict').textContent }));
     assert.equal(errors.length, 0, `${mode}: ${errors.join('; ')}`);
-    assert.equal(result.counted, mode === 'pullup' ? 4 : 5, `${mode}: ${JSON.stringify(result)}`);
+    assert.equal(result.counted, 5, `${mode}: ${JSON.stringify(result)}`);
     assert.ok(result.reps.filter((r) => r.result === 'unclear').every((r) => !r.vel), `${mode}: unclear rep has speed`);
-    if (mode !== 'pullup') {
+    {
       assert.ok(!/\d+\.\d+\s*m\/s/.test(result.summary), `${mode}: body demo without a height claims absolute speed`);
       await page.$eval('#kg-next', (el) => { el.value='100'; el.dispatchEvent(new Event('input')); });
       await page.$eval('#rir-in', (el) => { el.value='2'; el.dispatchEvent(new Event('change')); });

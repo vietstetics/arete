@@ -411,16 +411,12 @@ const liftEx = (lift, o) => ({ lift, part: PART[LIFTS[lift].limb] || 'arms', sta
   finding: 'Get set — finding you', still: 'Hold still — then start your first rep', lost: `Can’t see your ${PART[LIFTS[lift].limb] || 'arms'} clearly`,
   demo: { plan: demoPlan(...DEMO_RANGE[lift]) }, ...o });
 const EXERCISES = {
-  curl: { title: 'Curl standard', name: 'Bicep curl · one arm', part: 'arm', measure: 'elbow angle', start: 'stretch', finish: 'top',
-    joints: { left: [11, 13, 15], right: [12, 14, 16] },
+  // Curl, lateral raise, rows and pull-ups run on the same 3D lift trackers as every other lift
+  // (liftTrackers.js): one tracker, one speed and the velocity ring everywhere.
+  curl: liftEx('curl', { title: 'Curl standard', name: 'Bicep curl', measure: 'elbow angle',
     setup: 'Side-on, phone at hip height, 2–3 m away',
-    intro: 'Your <b>first rep sets the standard</b>: where it starts (full stretch) and where it finishes. Every rep after must reach both to count. Slowing down is fine.',
-    rep1: 'Rep 1 sets the standard — full stretch, then curl to the top',
-    finding: 'Step side-on — finding you',
-    still: 'Hold still — then start your first rep',
-    show: 'Show the whole arm — shoulder, elbow and wrist',
-    fmt: (v) => `${Math.round(v)}°`,
-    demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[170, 45], [169, 46], [170, 47], [170, 78], [168, 46], [140, 45], [170, 48]] } },
+    intro: 'Tracked at your <b>elbow</b>: how straight it starts and how far you curl (the arm that moves, or both). Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — full stretch, then curl to the top', finding: 'Step side-on — finding you', show: 'Show the whole arm — shoulder, elbow and wrist' }),
   squat: { height: 'squat', title: 'Squat standard', name: 'Squat · depth standard', part: 'body', measure: 'hip height', start: 'lockout', finish: 'depth',
     limbs: [[23, 25, 27], [24, 26, 28]],
     setup: 'Phone at hip height, 3–4 m away, head to feet in frame',
@@ -462,17 +458,10 @@ const EXERCISES = {
     intro: 'Get set for your lift. Arete <b>recognises a squat, bench or deadlift from your set-up</b> — the bar on your back, arms up from the bench, or hands on the bar at your shins — then counts it as that lift: your <b>first rep sets the standard</b>, and every rep after must match it.',
     finding: 'Get set for your lift — recognising squat, bench or deadlift',
     fmt: (v) => `${Math.round(v)}` },
-  row: { row: true, title: 'T-bar row', name: 'T-bar row · hands', part: 'hands', measure: 'arm reach', start: 'hang', finish: 'top',
-    setup: 'Phone 2–3 m away, side-on or at an angle',
-    intro: 'Tracked at your <b>hands</b> only, from any angle. Your <b>first rep sets the standard</b>: how long your arms hang and how high you pull. Every rep after must reach both to count. Speed is live in the top-right corner.',
-    rep1: 'Rep 1 sets the standard — arms long, pull to your chest, lower',
-    finding: 'Get set side-on — finding your hands',
-    still: 'Hold still with your arms long — then row',
-    show: 'Show your hands and shoulders',
-    lost: 'Can’t see your hands clearly',
-    fmt: (v) => `${Math.round(v)}%`,
-    note: 'How far your arms reach, as a % of their full length.',
-    demo: { plan: [[95, 35], [94, 36], [95, 35], [95, 56], [93, 35], [74, 35], [95, 36]] } },
+  row: liftEx('row', { title: 'Row standard', name: 'Row · T-bar, cable or machine', measure: 'arm reach',
+    setup: 'Side-on or at an angle, 2–3 m away, hands and shoulders in view',
+    intro: 'Tracked by <b>how far your hands reach</b> from your shoulders, in your own arm lengths (any angle, any torso lean). Your <b>first rep sets the standard</b>: how long your arms get and how far you pull. Every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — arms long, pull to your chest, lower', still: 'Hold still with your arms long — then row', show: 'Show your hands and shoulders' }),
   press: liftEx('press', { title: 'Chest press standard', short: 'Chest presses', name: 'Chest press · machine', measure: 'arm reach',
     setup: 'Side-on, or in front of you at chest height, 2–3 m away',
     intro: 'Your <b>first rep sets the standard</b>: how far back your hands come and how far you press. Every rep after must reach both to count. Filmed from in front, Arete reads the press from how much bigger your hands look as they come towards the phone. Speed is live in the top-right corner.',
@@ -536,35 +525,18 @@ const EXERCISES = {
     rep1: 'Rep 1 sets the standard — heels down, rise onto your toes, lower', still: 'Stand still with your heels down — then rise', show: 'Show your whole body, feet too' }),
   // The angle at the shoulder between the body and the upper arm (hip–shoulder–elbow). The signal is
   // 180° − that angle (falls as you raise), so the counter reads it like a curl.
-  lateral: { lateral: true, title: 'Lateral raise standard', short: 'Lateral raises', name: 'Lateral raise · range standard', part: 'arm', measure: 'arm angle', start: 'arms down', finish: 'top',
-    joints: { left: [23, 11, 13], right: [24, 12, 14] },
+  lateral: liftEx('lateralRaise', { title: 'Lateral raise standard', short: 'Lateral raises', name: 'Lateral raise · dumbbell, cable or machine', measure: 'arm angle',
     setup: 'Facing the phone, lens at chest height, 2–3 m away',
-    intro: 'Your <b>first rep sets the standard</b>: how low your arms start and how high you raise them. Every rep after must come down as far and reach the same height to count. Slowing down is fine.',
-    rep1: 'Rep 1 sets the standard — arms down, raise to the side, lower',
-    finding: 'Face the phone — finding you',
-    still: 'Hold still with your arms down — then raise',
-    show: 'Show your hips, shoulders and elbows',
-    fmt: (v) => `${Math.round(180 - v)}°`,
-    demo: { plan: [[170, 92], [169, 91], [170, 93], [170, 122], [168, 92], [142, 92], [170, 91]] } },
-  tbar: { title: 'T-bar row standard', short: 'T-bar rows', name: 'T-bar row · range standard', part: 'arm', measure: 'elbow angle', start: 'arms long', finish: 'chest',
-    joints: { left: [11, 13, 15], right: [12, 14, 16] },
+    intro: 'Tracked by <b>how high your upper arms rise</b> from your sides. Your <b>first rep sets the standard</b>: how low your arms start and how high you raise them. Every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — arms down, raise to the side, lower', still: 'Hold still with your arms down — then raise', show: 'Show your shoulders and elbows' }),
+  tbar: liftEx('row', { title: 'T-bar row standard', short: 'T-bar rows', name: 'T-bar row', measure: 'arm reach',
     setup: 'Side-on, phone at hip height, 2–3 m away',
-    intro: 'Your <b>first rep sets the standard</b>: how long your arms get at the bottom and how far you row the handle in. Every rep after must reach both to count. Slowing down is fine.',
-    rep1: 'Rep 1 sets the standard — arms long, row to your chest, lower',
-    finding: 'Get set side-on — finding you',
-    still: 'Hold still at the bottom — then row',
-    show: 'Show the whole arm — shoulder, elbow and wrist',
-    fmt: (v) => `${Math.round(v)}°`,
-    demo: { a: { x: 0.47, y: 0.34 }, b: { x: 0.49, y: 0.56 }, plan: [[165, 75], [164, 76], [165, 74], [165, 105], [163, 76], [135, 75], [165, 77]] } },
-  pullup: { pullup: true, speed: false, facing: 'environment', title: 'Pull-up standard', short: 'Pull-ups', name: 'Pull-up · strict standard', part: 'arms', measure: 'nose height', start: 'hang', finish: 'top',
-    setup: 'Rear camera, portrait, 2–3 m in front of the bar (or behind, at an angle)',
-    intro: 'Your <b>first rep sets the standard</b>, whatever it is: how low you hang, how high your nose gets and how much you swing. Every rep after must match all three to count. Slowing down is fine.',
-    rep1: 'Rep 1 sets the standard — pull from your hang, lower back down',
-    finding: 'Hang from the bar — finding you',
-    still: 'Hang still — then pull',
-    lost: 'Can’t see your head or shoulders clearly',
-    fmt: (v) => `${Math.round(v)}`,
-    note: 'Nose height below the bar (shoulders when filmed from behind), in % of your upper arm (below 0 = above the bar).' },
+    intro: 'Tracked by <b>how far your hands reach</b> from your shoulders, in your own arm lengths. Your <b>first rep sets the standard</b>: how long your arms get at the bottom and how far you row the handle in. Every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — arms long, row to your chest, lower', still: 'Hold still at the bottom — then row', show: 'Show your hands and shoulders' }),
+  pullup: liftEx('pullUp', { facing: 'environment', title: 'Pull-up standard', short: 'Pull-ups', name: 'Pull-up · with speed', measure: 'body height',
+    setup: 'Rear camera, phone propped still, 2–3 m in front of the bar or behind it; your hips in view the whole set',
+    intro: 'Tracked by <b>how high your body rises</b> (your hips, in your own torso lengths, so it reads the same from any distance; your hands and head can leave the top of the picture). Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — pull from your hang, lower back down', finding: 'Hang from the bar — finding you', still: 'Hang still — then pull', show: 'Show your hips and legs' }),
 };
 const EXQ = new URLSearchParams(location.search).get('ex');
 const AUTO = EXQ === 'auto';
@@ -575,7 +547,7 @@ const requestedName = new URLSearchParams(location.search).get('exerciseName') |
 const ARMS = EX.joints;
 const SPEED = EX.speed !== false; // bar-speed panel and weight call (not for pull-ups)
 // How still you must hold before rep 1 (setting up must never count as a rep).
-const STILL_BANDS = { curl: [8], lateral: [8], squat: [4], bench: [6], deadlift: [5], auto: [5], press: [8], row: [6], pullup: [15, 0.1, 0.15] };
+const STILL_BANDS = { curl: [8], lateral: [8], squat: [4], bench: [6], deadlift: [5], auto: [5], press: [8], row: [6] };
 for (const k in EXERCISES) if (EXERCISES[k].lift) STILL_BANDS[k] = [Math.max(3, LIFTS[EXERCISES[k].lift].hysteresis * 0.6)];
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
@@ -609,10 +581,10 @@ const GUIDES = {
       <text x="150" y="132" text-anchor="middle" font-size="10" fill="#8B957F">you (from above)</text>
       ${marker(268, 100, 'best', 1, [200, 100])}${marker(150, 180, 'avoid', 2, [150, 116])}${marker(150, 20, 'avoid', 2, [150, 88])}</svg>`,
     items: [
-      ['best', 1, 'Side-on to your working arm', '2–3 m away, lens at hip height. The arm closest to the phone is the one tracked.'],
+      ['best', 1, 'Side-on to your working arm', '2–3 m away, lens at hip height. The arm that curls is tracked (both, when they curl together; one at a time for alternating curls).'],
       ['avoid', 2, 'In front or behind', 'Your elbow bends towards or away from the lens, so the angle can’t be read.'],
     ],
-    note: 'Portrait is fine. Keep shoulder, elbow and wrist in frame the whole set.',
+    note: 'Portrait is fine. Keep shoulder, elbow and wrist in frame the whole set. Speed is the dumbbell’s travel around your elbow; add your height for m/s.',
   },
   squat: {
     svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone 3 to 4 metres away, at 45 degrees, side-on, behind or in front">
@@ -705,18 +677,18 @@ GUIDES.auto = {
 GUIDES.lateral = {
   svg: GUIDES.curl.svg,
   items: [
-    ['best', 1, 'In front of you, facing the phone', '2–3 m away, lens at chest height. Your arms rise across the picture, so their angle reads cleanly. The arm the camera sees best is tracked.'],
-    ['avoid', 2, 'Side-on', 'The arm rises towards or away from the lens, so its angle can’t be read.'],
+    ['best', 1, 'In front of you, facing the phone', '2–3 m away, lens at chest height. Both arms are measured in 3D and read together.'],
+    ['avoid', 2, 'Side-on', 'One arm hides the other.'],
   ],
-  note: 'Keep your hips, shoulders and elbows in frame the whole set, arms down to the top. Add your height for hand speed in m/s.',
+  note: 'Keep your shoulders and elbows in frame the whole set, arms down to the top. Speed is your elbows’ travel; add your height for m/s.',
 };
 GUIDES.tbar = {
   svg: GUIDES.curl.svg,
   items: [
-    ['best', 1, 'Side-on to the arm nearest the phone', '2–3 m away, lens at hip height. That arm is the one tracked.'],
-    ['avoid', 2, 'In front or behind', 'Your elbow bend can’t be read, and the plates hide your arms.'],
+    ['best', 1, 'Side-on or at an angle', '2–3 m away, lens at hip height. Your hands’ reach from your shoulders is measured in 3D, whatever your lean.'],
+    ['avoid', 2, 'In front or behind', 'The plates hide your hands.'],
   ],
-  note: 'Keep shoulder, elbow and wrist in frame the whole set, from arms long to the handle at your chest.',
+  note: 'Keep your hands and shoulders in frame the whole set, from arms long to the handle at your chest. Speed is your hands’ travel; add your height for m/s.',
 };
 GUIDES.pullup = {
   svg: `<svg viewBox="0 0 300 220" role="img" aria-label="Top-down view: phone straight in front of the bar, up to 30 degrees to one side, or behind at an angle">
@@ -728,11 +700,11 @@ GUIDES.pullup = {
     ${marker(150, 206, 'best', 1, [150, 96])}${marker(236, 192, 'ok', 2, [160, 94])}
     ${marker(70, 20, 'ok', 3, [128, 62])}${marker(282, 120, 'avoid', 4, [200, 92])}${marker(186, 124, 'avoid', 5)}</svg>`,
   items: [
-    ['best', 1, 'In front of the bar, facing you', '2–3 m away. Both arms, your face and your hips stay in view.'],
+    ['best', 1, 'In front of the bar, facing you', '2–3 m away. Your hips and legs stay in view the whole set.'],
     ['ok', 2, 'In front, up to 30° to one side', 'If something blocks the straight-on view.'],
-    ['ok', 3, 'Behind you, at an angle', 'Works with one hand in view; your head is followed from your shoulders when it’s hidden.'],
-    ['avoid', 4, 'Side-on', 'One arm hides the other, and the bar and your swing can’t be read.'],
-    ['avoid', 5, 'Closer than about 2 m', 'Your hands must stay in frame at the top and your hips at the bottom.'],
+    ['ok', 3, 'Behind you', 'Close is fine: your hands and head may leave the top of the picture, your hips are what’s measured.'],
+    ['avoid', 4, 'Side-on', 'Your legs swing towards and away from the lens.'],
+    ['avoid', 5, 'Held in your hand', 'Your body’s rise is measured against the picture: the phone must stay still.'],
   ],
   note: '<b>Rear camera, portrait.</b> Lens at about head height when you stand, tilted up a little so the bar sits near the top of the picture with your hips still in frame. Prop the phone up rather than holding it. The view fills the screen, so a screen recording shows everything.',
 };
