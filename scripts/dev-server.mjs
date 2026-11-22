@@ -95,7 +95,10 @@ function runNext() {
   const p = spawn(process.execPath, ['scripts/extract-poses.mjs', '--force', join(videosDir, job.folder, job.clip)], { cwd: root });
   const take = (b) => { for (const line of String(b).split(/\r?\n/)) if (line.trim()) { job.log.push(line.trim()); console.log(`  [${job.clip}] ${line.trim()}`); } if (job.log.length > 40) job.log.splice(0, job.log.length - 40); };
   p.stdout.on('data', take); p.stderr.on('data', take);
+  // A clip deleted mid-analysis would leave the job running for ever.
+  const gone = setInterval(async () => { if (!(await stat(join(videosDir, job.folder, job.clip)).catch(() => null))) { job.log.push('error: the video was deleted'); p.kill(); } }, 5000);
   p.on('close', (code) => {
+    clearInterval(gone);
     job.ended = Date.now();
     job.state = code === 0 && !job.log.some((l) => l.startsWith('error:')) ? 'done' : 'failed';
     running = false; runNext();
@@ -132,13 +135,14 @@ async function api(req, res, url) {
   if (route === 'upload' && req.method === 'POST') {
     const dir = await folderPath(url.searchParams.get('folder'));
     let name = basename(url.searchParams.get('name') || '');
-    if (!dir) return send(res, 400, { error: 'Pick a folder.' });
-    if (!safeName(name) || !VIDEO.has(extname(name).toLowerCase())) return send(res, 400, { error: 'Only .mp4, .mov, .m4v or .webm videos.' });
+    if (!dir) { console.log('  refused: no such folder'); return send(res, 400, { error: 'Pick a folder.' }); }
+    if (!safeName(name) || !VIDEO.has(extname(name).toLowerCase())) { console.log(`  refused name: ${JSON.stringify(name)}`); return send(res, 400, { error: 'Only .mp4, .mov, .m4v or .webm videos.' }); }
     if (+req.headers['content-length'] > MAX_UPLOAD) return send(res, 413, { error: 'Over 4 GB.' });
     // Never overwrite: a clip with the same name gets " (2)", " (3)", …
     const stem = basename(name, extname(name)), ext = extname(name);
     for (let i = 2; await stat(join(dir, name)).catch(() => null); i++) name = `${stem} (${i})${ext}`;
     const part = join(dir, `.${name}.part`);
+    console.log(`Receiving ${basename(dir)}/${name} (${(+req.headers['content-length'] / 1024 ** 2 || 0).toFixed(1)} MB)…`);
     let bytes = 0, tooBig = false;
     await new Promise((done, fail) => {
       const out = createWriteStream(part);
@@ -165,6 +169,20 @@ async function api(req, res, url) {
     return send(res, 200, { ok: true });
   }
 
+  if (route === 'rename' && req.method === 'POST') {
+    const { folder, clip, to } = await readJson(req);
+    const dir = await folderPath(folder);
+    if (!dir || !safeName(clip) || !(await stat(join(dir, clip)).catch(() => null))) return send(res, 404, { error: 'No such clip.' });
+    if (!safeName(to) || !VIDEO.has(extname(to).toLowerCase())) return send(res, 400, { error: 'That name can’t be used for a file.' });
+    if (await stat(join(dir, to)).catch(() => null)) return send(res, 409, { error: 'A clip with that name is already in this folder.' });
+    if (jobs.some((j) => j.folder === folder && j.clip === clip && (j.state === 'queued' || j.state === 'running'))) return send(res, 409, { error: 'Wait until it has finished analysing.' });
+    await rename(join(dir, clip), join(dir, to));
+    // The note, landmarks and frame sheet follow the video.
+    for (const [a, b] of [[noteFor(dir, clip), noteFor(dir, to)], [posesFor(folder, clip), posesFor(folder, to)], [sheetFor(folder, clip), sheetFor(folder, to)]]) await rename(a, b).catch(() => {});
+    console.log(`Renamed ${folder}/${clip} → ${to}`);
+    return send(res, 200, { ok: true, name: to });
+  }
+
   if (route === 'analyse' && req.method === 'POST') {
     const { folder, clip } = await readJson(req);
     const dir = await folderPath(folder);
@@ -188,10 +206,14 @@ async function api(req, res, url) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://local');
   try {
-    if (url.pathname.startsWith('/__dev/')) return await api(req, res, url);
+    if (url.pathname.startsWith('/__dev/')) {
+      if (!/^\/__dev\/(ping|files|sheet)$/.test(url.pathname)) console.log(`${new Date().toLocaleTimeString()} ${req.method} ${url.pathname}${url.searchParams.get('folder') ? ' ' + url.searchParams.get('folder') + '/' + (url.searchParams.get('name') || '') : ''}`);
+      return await api(req, res, url);
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
     return await serveStatic(req, res, url.pathname);
   } catch (e) {
+    console.log(`  failed: ${e.message}`);
     if (!res.headersSent) send(res, 400, { error: e.message || 'Failed' }); else res.destroy();
   }
 });

@@ -67,8 +67,8 @@
     tool: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>'
   };
 
-  var state = { folders: [], jobs: [], open: null, paired: false, uploading: false, sheet: {} };
-  var btn, wrap, body, timer;
+  var state = { folders: [], jobs: [], open: null, paired: false, uploading: false, picking: false, sheet: {}, note: '', auto: true, prog: null, pending: null };
+  var btn, wrap, body, timer, picker;
 
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function mb(n) { return n >= 1024 * 1024 * 1024 ? (n / 1024 / 1024 / 1024).toFixed(1) + ' GB' : (n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0) + ' MB'; }
@@ -85,6 +85,20 @@
     wrap.onclick = function (e) { if (e.target === wrap) closeSheet(); };
     wrap.querySelector('.dv-x').onclick = closeSheet;
     body = wrap.querySelector('.dv-body');
+    // One file input for the whole panel, outside the part that redraws: iPhone drops the chosen
+    // videos if the input it opened is replaced while the library is open.
+    picker = document.createElement('input'); picker.type = 'file'; picker.accept = 'video/*'; picker.multiple = true; picker.hidden = true;
+    picker.onchange = function () {
+      state.picking = false;
+      var files = Array.prototype.slice.call(picker.files || []);
+      var folder = picker.dataset.folder; picker.value = '';
+      // Name each video before it's sent, so the clip says what's in it.
+      if (files.length && folder) { state.pending = { folder: folder, files: files, names: files.map(function () { return ''; }), urls: files.map(function (f) { try { return URL.createObjectURL(f); } catch (_) { return ''; } }) }; state.open = folder; }
+      render();
+    };
+    // Cancelled picker: no change event, so stop holding redraws once the page has focus again.
+    window.addEventListener('focus', function () { setTimeout(function () { if (state.picking && !state.uploading) { state.picking = false; } }, 1500); });
+    wrap.appendChild(picker);
     document.body.appendChild(btn); document.body.appendChild(wrap);
     if (paired) poll();
   }
@@ -104,7 +118,7 @@
       state.folders = d.folders; state.jobs = d.jobs;
       var busy = d.jobs.some(function (j) { return j.state === 'queued' || j.state === 'running'; });
       btn.classList.toggle('busy', busy || state.uploading);
-      if (wrap.classList.contains('on') && !state.uploading) render();
+      if (wrap.classList.contains('on') && !state.uploading && !state.picking && !state.pending && !(document.activeElement && /^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName))) render();
       if (busy) timer = setTimeout(poll, 2500);
     }).catch(function () {});
   }
@@ -116,7 +130,19 @@
 
   function render() {
     if (!state.paired) {
-      body.innerHTML = '<div class="dv-msg">This phone isn’t paired yet. On the computer, run <b>npm run dev</b> and open the link it prints (it ends in <b>?devkey=…</b>) on this phone.</div>';
+      body.innerHTML = '<div class="dv-msg">This phone isn’t paired yet. Type the pairing code: the part after <b>devkey=</b> in the link the computer printed.</div>' +
+        '<div class="dv-add"><input class="dv-code" type="text" inputmode="text" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Pairing code" style="border:1px solid rgba(60,60,67,.18);border-radius:9px;padding:10px 12px;font:16px ui-monospace,Menlo,monospace;color:#1C1C1E;background:#fff">' +
+        '<button class="dv-b p big" type="button" data-pair>Pair this phone</button><div class="dv-pairmsg" style="font-size:13px;color:#C4271D"></div></div>';
+      var inp = body.querySelector('.dv-code'), msg = body.querySelector('.dv-pairmsg');
+      body.querySelector('[data-pair]').onclick = function () {
+        var k = inp.value.replace(/.*devkey=/, '').replace(/[^a-fA-F0-9]/g, '').toLowerCase();
+        if (k.length !== 24) { msg.textContent = 'The code is 24 letters and numbers (0–9, a–f). You typed ' + k.length + '.'; return; }
+        try { localStorage.setItem(KEY_STORE, k); } catch (_) {}
+        fetch('/__dev/ping', { headers: { 'X-Dev-Key': k }, cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+          if (!d.paired) { msg.textContent = 'That code doesn’t match. Check it against the link.'; return; }
+          state.paired = true; refresh(); poll();
+        }).catch(function () { msg.textContent = 'Can’t reach the computer.'; });
+      };
       return;
     }
     var html = state.err ? '<div class="dv-msg err">' + esc(state.err) + '</div>' : '';
@@ -135,11 +161,24 @@
       return;
     }
     html += '<div class="dv-crumb"><button type="button" data-back>Folders</button><span>›</span><span>' + esc(f.name) + '</span></div>';
+    var pend = state.pending && state.pending.folder === f.name ? state.pending : null;
+    if (pend) {
+      html += '<div class="dv-add"><b style="font-size:15px">Name ' + (pend.files.length === 1 ? 'this video' : 'these ' + pend.files.length + ' videos') + '</b>' +
+        '<div style="font-size:13px;color:#6E6E73">Say what’s in it: exercise, camera angle, weight, reps. E.g. <i>curl side 12kg 8 reps</i>. Left blank, it keeps its phone name.</div>';
+      pend.files.forEach(function (file, i) {
+        html += '<div style="display:flex;gap:10px;align-items:center;padding-top:6px;border-top:1px solid rgba(60,60,67,.1)">' +
+          (pend.urls[i] ? '<video src="' + pend.urls[i] + '#t=0.5" muted playsinline preload="metadata" style="width:64px;height:84px;object-fit:cover;border-radius:8px;background:#000;flex:none"></video>' : '') +
+          '<div style="flex:1;min-width:0"><div style="font-size:12px;color:#8E8E93;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(file.name || 'video') + ' · ' + mb(file.size) + '</div>' +
+          '<input class="dv-name" data-i="' + i + '" type="text" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="90" placeholder="e.g. curl side 12kg 8 reps" value="' + esc(pend.names[i]) + '" style="width:100%;box-sizing:border-box;margin-top:4px;border:1px solid rgba(60,60,67,.18);border-radius:9px;padding:9px 10px;font:16px -apple-system,BlinkMacSystemFont,sans-serif;color:#1C1C1E;background:#fff"></div></div>';
+      });
+      html += '<textarea placeholder="Note for these clips (optional): anything else, e.g. velocity device numbers">' + esc(state.note) + '</textarea>' +
+        '<label><input type="checkbox"' + (state.auto ? ' checked' : '') + ' data-auto> Analyse on the computer after upload</label>' +
+        '<div style="display:flex;gap:8px"><button class="dv-b" type="button" data-cancel style="flex:1">Cancel</button><button class="dv-b p big" type="button" data-send style="flex:2">Upload</button></div></div>';
+    } else
     html += '<div class="dv-add"><button class="dv-b p big" type="button" data-pick' + (state.uploading ? ' disabled' : '') + '>Add videos to “' + esc(f.name) + '”</button>' +
-      '<input type="file" accept="video/*" multiple hidden>' +
-      '<textarea placeholder="Note for these clips (optional): exercise, angle, weight, reps, velocity device numbers"></textarea>' +
-      '<label><input type="checkbox" checked data-auto> Analyse on the computer after upload</label>' +
-      '<div class="dv-prog" hidden><div class="dv-bar"><i></i></div><div class="st" style="font-size:13px;color:#6E6E73;margin-top:6px"></div></div></div>';
+      '<textarea placeholder="Note for these clips (optional): exercise, angle, weight, reps, velocity device numbers">' + esc(state.note) + '</textarea>' +
+      '<label><input type="checkbox"' + (state.auto ? ' checked' : '') + ' data-auto> Analyse on the computer after upload</label>' +
+      '<div class="dv-prog"' + (state.prog && state.prog.folder === f.name ? '' : ' hidden') + '><div class="dv-bar"><i style="width:' + (state.prog ? state.prog.pct : 0) + '%"></i></div><div class="st" style="font-size:13px;margin-top:6px;color:' + (state.prog && state.prog.bad ? '#C4271D' : '#6E6E73') + '">' + esc(state.prog ? state.prog.text : '') + '</div></div></div>';
     if (f.guide) html += '<details class="dv-guide"><summary>What to record</summary>' + esc(f.guide.replace(/^.*\n\n?/, '')) + '</details>';
     html += '<div class="dv-sec">' + (f.clips.length ? f.clips.length + (f.clips.length === 1 ? ' clip' : ' clips') : 'No clips yet') + '</div>';
     if (f.clips.length) {
@@ -156,7 +195,8 @@
           '<div class="st ' + cls + '">' + st + '</div>' + (c.note ? '<div class="note">' + esc(c.note) + '</div>' : '') +
           '<div class="acts"><button class="dv-b" type="button" data-an="' + i + '"' + (busy ? ' disabled' : '') + '>' + (c.analysed ? 'Analyse again' : 'Analyse') + '</button>' +
           (c.sheet ? '<button class="dv-b" type="button" data-sh="' + i + '">' + (state.sheet[f.name + '/' + c.name] ? 'Hide frames' : 'Check frames') + '</button>' : '') +
-          '<button class="dv-b" type="button" data-nt="' + i + '">' + (c.note ? 'Edit note' : 'Add note') + '</button></div>' +
+          '<button class="dv-b" type="button" data-nt="' + i + '">' + (c.note ? 'Edit note' : 'Add note') + '</button>' +
+          '<button class="dv-b" type="button" data-rn="' + i + '"' + (busy ? ' disabled' : '') + '>Rename</button></div>' +
           (c.sheet && state.sheet[f.name + '/' + c.name] ? '<img class="dv-img" alt="Frames from ' + esc(c.name) + ' with the tracked skeleton drawn on" src="/__dev/sheet?folder=' + encodeURIComponent(f.name) + '&clip=' + encodeURIComponent(c.name) + '&key=' + encodeURIComponent(key()) + '&v=' + c.added + '">' : '') +
           '</div>';
       });
@@ -164,12 +204,36 @@
     }
     body.innerHTML = html;
     body.querySelector('[data-back]').onclick = function () { state.open = null; render(); };
-    var input = body.querySelector('input[type=file]');
-    body.querySelector('[data-pick]').onclick = function () { input.click(); };
-    input.onchange = function () { if (input.files.length) upload(f.name, Array.prototype.slice.call(input.files)); };
+    if (pend) {
+      body.querySelectorAll('.dv-name').forEach(function (el) { el.oninput = function () { pend.names[+el.dataset.i] = el.value; }; });
+      body.querySelector('[data-cancel]').onclick = function () { clearPending(); render(); };
+      body.querySelector('[data-send]').onclick = function () {
+        var files = pend.files, names = files.map(function (file, i) { return clipName(pend.names[i], file, i); });
+        clearPending(); render(); upload(f.name, files, names);
+      };
+    } else body.querySelector('[data-pick]').onclick = function () { state.picking = true; picker.dataset.folder = f.name; picker.click(); };
+    body.querySelector('.dv-add textarea').oninput = function (e) { state.note = e.target.value; };
+    body.querySelector('[data-auto]').onchange = function (e) { state.auto = e.target.checked; };
     body.querySelectorAll('[data-an]').forEach(function (el) { el.onclick = function () { analyse(f.name, f.clips[+el.dataset.an].name); }; });
     body.querySelectorAll('[data-sh]').forEach(function (el) { el.onclick = function () { var k = f.name + '/' + f.clips[+el.dataset.sh].name; state.sheet[k] = !state.sheet[k]; render(); }; });
     body.querySelectorAll('[data-nt]').forEach(function (el) { el.onclick = function () { editNote(f.name, f.clips[+el.dataset.nt]); }; });
+    body.querySelectorAll('[data-rn]').forEach(function (el) { el.onclick = function () { renameClip(f.name, f.clips[+el.dataset.rn]); }; });
+  }
+
+  function clearPending() { if (state.pending) state.pending.urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (_) {} }); state.pending = null; }
+  // A typed name made safe for a file, keeping the video's own extension.
+  function clipName(typed, file, i) {
+    var orig = file.name || ('clip-' + (i + 1) + '.mov');
+    var ext = (orig.match(/\.(mp4|mov|m4v|webm)$/i) || [''])[0].toLowerCase() || (/quicktime/.test(file.type) ? '.mov' : '.mp4');
+    var t = String(typed || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').replace(/^[.\s]+|[.\s]+$/g, '').slice(0, 90);
+    return t ? t + ext : orig.replace(/\.[^.]+$/, '') + ext;
+  }
+  function renameClip(folder, c) {
+    var stem = c.name.replace(/\.[^.]+$/, '');
+    var t = prompt('New name for ' + c.name + ' (exercise, angle, weight, reps)', stem);
+    if (t == null || !t.trim() || t.trim() === stem) return;
+    var to = clipName(t, { name: c.name }, 0);
+    api('rename', { method: 'POST', json: { folder: folder, clip: c.name, to: to } }).then(refresh).catch(function (e) { alert(e.message); });
   }
 
   function newFolder() {
@@ -187,36 +251,40 @@
   }
 
   // One file at a time, straight to disk on the computer (XHR for upload progress).
-  function upload(folder, files) {
-    var prog = body.querySelector('.dv-prog'), bar = prog.querySelector('i'), txt = prog.querySelector('.st');
-    var note = body.querySelector('.dv-add textarea').value.trim();
-    var auto = body.querySelector('[data-auto]').checked;
+  function upload(folder, files, names) {
+    var note = state.note.trim(), auto = state.auto;
     var total = files.reduce(function (s, f) { return s + f.size; }, 0), doneBytes = 0, i = 0, failed = [];
-    state.uploading = true; btn.classList.add('busy'); prog.hidden = false;
-    body.querySelector('[data-pick]').disabled = true;
+    state.uploading = true; btn.classList.add('busy');
+    function show(pct, text, bad) {
+      state.prog = { folder: folder, pct: pct, text: text, bad: !!bad };
+      var prog = body.querySelector('.dv-prog');
+      if (!prog || state.open !== folder) return;
+      prog.hidden = false; prog.querySelector('i').style.width = pct.toFixed(1) + '%';
+      var t = prog.querySelector('.st'); t.textContent = text; t.style.color = bad ? '#C4271D' : '#6E6E73';
+      var pick = body.querySelector('[data-pick]'); if (pick) pick.disabled = state.uploading;
+    }
+    show(0, 'Starting upload of ' + files.length + (files.length === 1 ? ' video' : ' videos') + ' (' + mb(total) + ')…');
     function next() {
       if (i >= files.length) {
         state.uploading = false;
-        txt.textContent = failed.length ? 'Done, but ' + failed.length + ' failed: ' + failed.join('; ') : 'Uploaded ' + files.length + (files.length === 1 ? ' video' : ' videos') + (auto ? ' · analysing on the computer' : '');
+        if (!failed.length) state.note = '';
+        show(100, failed.length ? (files.length - failed.length) + ' of ' + files.length + ' saved. Failed: ' + failed.join('; ') : 'Saved ' + files.length + (files.length === 1 ? ' video' : ' videos') + ' on the computer' + (auto ? ' · analysing there now' : ''), failed.length);
         refresh().then(poll);
         return;
       }
       var file = files[i];
-      var name = file.name || ('clip-' + (i + 1) + '.mov');
-      if (!/\.(mp4|mov|m4v|webm)$/i.test(name)) name += /quicktime/.test(file.type) ? '.mov' : '.mp4';
+      var name = (names && names[i]) || clipName('', file, i);
       var xhr = new XMLHttpRequest();
       xhr.open('POST', '/__dev/upload?folder=' + encodeURIComponent(folder) + '&name=' + encodeURIComponent(name) + '&analyse=' + (auto ? '1' : '0') + (note ? '&note=' + encodeURIComponent(note) : ''));
       xhr.setRequestHeader('X-Dev-Key', key());
       xhr.upload.onprogress = function (e) {
-        var pct = total ? (100 * (doneBytes + e.loaded)) / total : 0;
-        bar.style.width = pct.toFixed(1) + '%';
-        txt.textContent = 'Uploading ' + (i + 1) + ' of ' + files.length + ' · ' + mb(doneBytes + e.loaded) + ' of ' + mb(total);
+        show(total ? (100 * (doneBytes + e.loaded)) / total : 0, 'Uploading ' + (i + 1) + ' of ' + files.length + ' · ' + mb(doneBytes + e.loaded) + ' of ' + mb(total) + ' · keep this screen open');
       };
       xhr.onload = function () {
         if (xhr.status !== 200) { var m = 'Failed'; try { m = JSON.parse(xhr.responseText).error; } catch (_) {} failed.push(name + ': ' + m); }
         doneBytes += file.size; i++; next();
       };
-      xhr.onerror = function () { failed.push(name + ': connection lost'); doneBytes += file.size; i++; next(); };
+      xhr.onerror = function () { failed.push(name + ': connection to the computer lost'); doneBytes += file.size; i++; next(); };
       xhr.send(file);
     }
     next();
