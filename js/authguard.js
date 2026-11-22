@@ -7,6 +7,24 @@
  *    page until the async check resolves, then pulls the user's cloud data
  *    and mirrors changes back up.
  * ==========================================================================*/
+
+// Dev tools (js/devtools.js): only when the app is served from the computer on the home Wi-Fi
+// (npm run dev), never on the live site. The pairing key from the printed link is kept before any
+// redirect to login, then taken out of the address bar.
+(function () {
+  var h = location.hostname;
+  if (!/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[::1\])/.test(h) && !/\.local$/.test(h)) return;
+  try {
+    var m = location.search.match(/[?&]devkey=([a-f0-9]{24})/);
+    if (m) {
+      localStorage.setItem('arete.devkey', m[1]);
+      history.replaceState(null, '', location.pathname + location.search.replace(/([?&])devkey=[a-f0-9]{24}&?/, '$1').replace(/[?&]$/, '') + location.hash);
+    }
+  } catch (_) {}
+  var s = document.createElement('script'); s.src = 'js/devtools.js'; s.defer = true;
+  (document.head || document.documentElement).appendChild(s);
+})();
+
 (function () {
   if (!window.Auth) return;
 
