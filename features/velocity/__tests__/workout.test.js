@@ -98,6 +98,13 @@ test('camera setup is exercise specific and unknown exercises never silently bec
   for (const [name, mode] of [['Leg Curl', 'legCurl'], ['Seated Leg Curl', 'legCurl'], ['Overhead Press', 'shoulderPress'], ['Dumbbell Shoulder Press', 'shoulderPress'], ['Lat Pulldown', 'pulldown'], ['Triceps Pushdown', 'triceps'], ['Overhead Triceps Extension', 'triceps'], ['Dips', 'dip'], ['Pec Deck', 'fly'], ['Cable Fly', 'fly'], ['Leg Extension', 'legExtension'], ['Standing Calf Raise', 'calfRaise']]) assert.equal(trackerModeFor({ name }), mode, name);
   for (const [name, mode] of [['Hip Abduction', 'hipAbduction'], ['Machine Hip Abduction', 'hipAbduction'], ['Hip Adduction', 'hipAdduction'], ['Seated Hip Adduction', 'hipAdduction'], ['Machine Lateral Raise', 'lateral'], ['Hack Squat', 'hackSquat'], ['Leg Press', 'hackSquat'], ['45 Degree Back Extension', 'backExtension'], ['Hyperextension', 'backExtension'], ['Hip Thrust', 'hipThrust'], ['Barbell Hip Thrust', 'hipThrust'], ['Chin-up', 'pullUp']]) assert.equal(trackerModeFor({ name }), mode, name);
   for (const name of ['Romanian Deadlift', 'Unknown exercise', 'Reverse Fly', 'Bulgarian Split Squat']) assert.equal(trackerModeFor({ name }), null, name);
+  // Same movement as a tracked lift, under the names the exercise and machine databases use.
+  for (const [name, mode] of [['Assisted Dip', 'dip'], ['Machine Dip', 'dip'], ['Chest-Biased Assisted Dip', 'dip'], ['Barbell Row', 'row'], ['High Row', 'row'], ['Chest-Supported Upper-Back Row', 'row'], ['Wide Chest-Supported Row', 'row'], ['One-Arm Lat-Focused Row', 'row'],
+    ['Flat Machine Chest Press', 'press'], ['Incline Machine Press', 'press'], ['Decline Machine Press', 'press'], ['Converging Chest Press', 'press'], ['Close-Grip Machine Press', 'press'], ['Full-ROM Machine Shoulder Press', 'shoulderPress'], ['Top-Half Shoulder Press', 'shoulderPress'],
+    ['Medium-Grip Lat Pulldown', 'pulldown'], ['Neutral-Grip Lat Pulldown', 'pulldown'], ['Single-Arm Cable Lat Pulldown', 'pulldown'], ['Hip Abduction Machine', 'hipAbduction'], ['Hip Adduction Machine', 'hipAdduction'], ['Cable Adduction', 'hipAdduction'],
+    ['Pendulum Squat', 'hackSquat'], ['Smith Machine Squat', 'hackSquat'], ['Machine Squat', 'hackSquat'], ['Reclined Leg Extension', 'legExtension']]) assert.equal(trackerModeFor({ name }), mode, name);
+  // Not the elbow's curl: no tracker rather than the wrong one.
+  for (const name of ['Wrist Curl', 'Cable Wrist Curl', 'Finger Curl', 'Nordic Curl', 'Leg Press Calf Raise', 'Low-Incline Smith Press']) assert.equal(trackerModeFor({ name }), null, name);
   assert.equal(parseWorkoutContext('?ex=curl&workout=1&exercise=2&set=3'), null);
 });
 

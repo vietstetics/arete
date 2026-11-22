@@ -208,3 +208,34 @@ test('triceps: once two full reps are counted, the measure stays (walking off at
   assert.equal(switched, false);
   assert.equal(rc.summary().counted, before);
 });
+
+// Speed is the lift's concentric (lifting) phase only, never the lowering, for every lift. Each rep here
+// lifts slowly (1.2 s) and lowers three times as fast (0.4 s): reading any lowering would show ~3× the speed.
+for (const lift of Object.keys(LIFTS)) {
+  test(`${lift}: speed is the concentric (lifting) phase only, never the lowering`, () => {
+    const [start, finish] = DEMO_RANGE[lift], UP = 1.2, DOWN = 0.4;
+    const vals = [], hold = (v, s) => { for (let i = 0; i < s * FPS; i++) vals.push(v); };
+    const move = (a, b, s) => { const n = Math.round(s * FPS); for (let i = 1; i <= n; i++) vals.push(a + ((b - a) * (1 - Math.cos((Math.PI * i) / n))) / 2); };
+    hold(start, 1.5);
+    for (let r = 0; r < 4; r++) { hold(start, 0.4); move(start, finish, UP); hold(finish, 0.3); move(finish, start, DOWN); }
+    hold(start, 1);
+    const tr = createLiftTracker(lift), def = LIFTS[lift];
+    const rc = createRepCounter({ minRange: def.minRange, hysteresis: def.hysteresis, tolFloor: def.hysteresis / 2, tolPct: 0.2, early: true });
+    const trace = [], reps = [];
+    vals.forEach((v, i) => {
+      const t = i / FPS, { pose, world } = demoLiftPose(lift, v);
+      const m = tr.push(t, [pose], [world], 1280, 720);
+      trace.push({ t, y: m.path });
+      const ev = rc.push(t, m.value, m.ok);
+      if (ev && ev.rep && ev.type !== 'settled') reps.push(ev.rep);
+    });
+    const timed = reps.map((r) => concentricVelocity(trace, r.startT - 0.15, r.topT + 0.15)).filter(Boolean);
+    assert.ok(timed.length >= 3, `${lift}: reps timed ${timed.length}`);
+    for (const v of timed) {
+      // Mean speed × lift time ÷ distance: ~1 for the 1.2 s lift (a little over: the slow ends are left out);
+      // ~3 if the 0.4 s lowering had been measured.
+      const k = (v.mv * UP) / v.range;
+      assert.ok(k > 0.85 && k < 1.4, `${lift}: ${k.toFixed(2)} (mean ${v.mv.toFixed(3)} over ${v.dur.toFixed(2)} s, range ${v.range.toFixed(3)})`);
+    }
+  });
+}

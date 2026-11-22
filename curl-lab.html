@@ -1024,13 +1024,17 @@ function drawLive(t) {
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
   const c = cv.getContext('2d');
   c.clearRect(0, 0, W, H);
-  const vals = liveHist.map((p) => p.v).filter(Number.isFinite);
-  const top = Math.max(metres ? 0.5 : 1e-9, ...vals.map((x) => Math.abs(x))) * 1.15;
-  const X = (tt) => ((tt - (t - 5)) / 5) * W, Y = (x) => H / 2 - (x / top) * (H / 2 - 4 * dpr);
-  c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = dpr; c.beginPath(); c.moveTo(0, H / 2); c.lineTo(W, H / 2); c.stroke();
+  // Concentric only: the trace is the lifting speed. Lowering (and resting) draws nothing, so the line
+  // shows each lift on its own, from the baseline up, never the eccentric below it.
+  const lifting = (x) => Number.isFinite(x) && x > 0;
+  const vals = liveHist.map((p) => p.v).filter(lifting);
+  const top = Math.max(metres ? 0.5 : 1e-9, ...vals) * 1.15;
+  const base = H - 3 * dpr;
+  const X = (tt) => ((tt - (t - 5)) / 5) * W, Y = (x) => base - (x / top) * (base - 4 * dpr);
+  c.strokeStyle = 'rgba(255,255,255,.25)'; c.lineWidth = dpr; c.beginPath(); c.moveTo(0, base); c.lineTo(W, base); c.stroke();
   c.strokeStyle = '#58DB3D'; c.lineWidth = 2.5 * dpr; c.lineJoin = 'round'; c.beginPath();
   let pen = false;
-  for (const p of liveHist) { if (!Number.isFinite(p.v)) { pen = false; continue; } const x = X(p.t), y = Y(p.v); if (pen) c.lineTo(x, y); else { c.moveTo(x, y); pen = true; } }
+  for (const p of liveHist) { if (!lifting(p.v)) { pen = false; continue; } const x = X(p.t), y = Y(p.v); if (pen) c.lineTo(x, y); else { c.moveTo(x, Y(0)); c.lineTo(x, y); pen = true; } }
   c.stroke();
 }
 function pushBar(t, y) {

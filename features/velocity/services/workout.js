@@ -66,23 +66,27 @@ export function trackerModeFor(exercise = {}) {
   if (/^(?:barbell |dumbbell |incline |decline |flat )*bench press$/.test(name)) return 'bench';
   if (/^(?:barbell |conventional |sumo )?deadlift$/.test(name)) return 'deadlift';
   if (/^(?:weighted |assisted )?(?:pull[ -]?ups?|chin[ -]?ups?)$/.test(name)) return 'pullUp';
+  // Curls of the wrist or fingers, and the Nordic curl (knees, body falling forward), aren't the elbow's
+  // curl: no tracker until one is built and checked on footage.
+  if (/\b(?:wrist|finger|nordic)\b/.test(name)) return null;
   if (/\b(?:leg|hamstring) curls?$/.test(name)) return 'legCurl';
   if (/\bcurl\b/.test(name) && !/\bleg\b/.test(name)) return 'curl';
-  if (/^(?:machine )?chest press$/.test(name)) return 'press';
+  if (/^(?:flat |incline |decline |converging |close[ -]grip |seated )*(?:machine (?:chest )?|chest )press$/.test(name)) return 'press';
   if (/^(?:dumbbell |cable |seated |machine )?lateral raises?$/.test(name)) return 'lateral';
-  if (/^(?:seated )?cable row$|^(?:seated )?machine row$|^t[ -]?bar row$/.test(name)) return 'row';
+  // Rows are read from the hand's reach in 3D, whatever the torso's angle (bent over or chest-supported).
+  if (/^(?:seated )?cable row$|^(?:seated )?machine row$|^t[ -]?bar row$|^(?:barbell |bent[ -]over )+row$|^high row$|^(?:wide )?chest[ -]supported (?:upper[ -]back )?row$|^one[ -]arm lat[ -]focused row$/.test(name)) return 'row';
   if (/\btriceps? (?:push[ -]?downs?|extensions?|kick[ -]?backs?)$|\bskull ?crushers?$|^(?:cable |rope )?push[ -]?downs?$/.test(name)) return 'triceps';
-  if (/^(?:dumbbell |barbell |machine |seated |standing )*(?:overhead|shoulder|military) press$/.test(name)) return 'shoulderPress';
-  if (/^(?:lat |wide[ -]grip |close[ -]grip |cable )*pull[ -]?downs?$/.test(name)) return 'pulldown';
-  if (/^(?:bar |parallel bar |weighted |chest |triceps? )*dips?$/.test(name)) return 'dip';
+  if (/^(?:full[ -]rom |top[ -]half |dumbbell |barbell |machine |seated |standing )*(?:overhead|shoulder|military) press$/.test(name)) return 'shoulderPress';
+  if (/^(?:lat |wide[ -]grip |close[ -]grip |medium[ -]grip |neutral[ -]grip |single[ -]arm |cable )*pull[ -]?downs?$/.test(name)) return 'pulldown';
+  if (/^(?:bar |parallel bar |weighted |assisted |machine |chest[ -]biased |chest |triceps? )*dips?$/.test(name)) return 'dip';
   if (/^(?:pec deck|(?:machine |cable |dumbbell |chest )*fl(?:y|ies|yes))$/.test(name)) return 'fly';
-  if (/^(?:machine |seated )?leg extensions?$/.test(name)) return 'legExtension';
+  if (/^(?:machine |seated |reclined )?leg extensions?$/.test(name)) return 'legExtension';
   if (/^(?:standing |seated |machine |smith machine )*calf raises?$/.test(name)) return 'calfRaise';
-  if (/^(?:machine |plate[ -]loaded |pendulum )?hack squats?$|^(?:machine |seated |45[ -]degree |horizontal )?leg press(?:es)?$|^belt squats?$/.test(name)) return 'hackSquat';
+  if (/^(?:machine |plate[ -]loaded |pendulum )?hack squats?$|^(?:machine |seated |45[ -]degree |horizontal )?leg press(?:es)?$|^belt squats?$|^(?:machine |pendulum |smith machine )squats?$/.test(name)) return 'hackSquat';
   if (/^(?:45[ -]degree |90[ -]degree |roman chair |weighted )?(?:back extensions?|hyperextensions?)$/.test(name)) return 'backExtension';
   if (/^(?:barbell |machine |smith machine |single[ -]leg )?(?:hip thrusts?|glute bridges?)$/.test(name)) return 'hipThrust';
-  if (/^(?:machine |seated |cable )*hip abductions?$|^(?:machine |seated )*(?:thigh |outer thigh )abductions?$/.test(name)) return 'hipAbduction';
-  if (/^(?:machine |seated |cable )*hip adductions?$|^(?:machine |seated )*(?:thigh |inner thigh )adductions?$/.test(name)) return 'hipAdduction';
+  if (/^(?:machine |seated |cable )*hip abductions?(?: machine)?$|^(?:machine |seated )*(?:thigh |outer thigh )abductions?$/.test(name)) return 'hipAbduction';
+  if (/^(?:machine |seated |cable )*hip adductions?(?: machine)?$|^cable adductions?$|^(?:machine |seated )*(?:thigh |inner thigh )adductions?$/.test(name)) return 'hipAdduction';
   return null;
 }
 
