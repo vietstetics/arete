@@ -315,3 +315,38 @@ test('a rep taken back out (the bar never moved) leaves the count and, if it was
   assert.equal(rc.standard, null);
   assert.equal(rc.discard(9), null);
 });
+
+// ── early: a rep is given the moment it reaches the Finish ─────────────────
+test('early: reps after the first are given on reaching the Finish, then settle at the real top', () => {
+  // Rest at the Finish between reps (a dip's lockout): without early, each rep waits for the next.
+  const reps = Array(4).fill({ bottom: 170, top: 45 });
+  const trace = curlTrace(reps), late = run(trace), early = run(trace, { early: true });
+  assert.deepEqual(results(early.rc), results(late.rc));
+  const at = (events, type) => events.filter((e) => e.type === type).map((e) => e.rep);
+  const given = early.events.filter((e) => e.type === 'rep'), settled = at(early.events, 'settled');
+  assert.equal(given.length, 3); // rep 1 is the standard event
+  assert.deepEqual(settled, given.map((e) => e.rep)); // each settles once, the same rep object
+  // Given before its top, and with the same top once settled.
+  for (const r of settled) {
+    const l = late.rc.reps.find((x) => x.n === r.n);
+    assert.ok(Math.abs(r.top - l.top) < 1e-9 && Math.abs(r.topT - l.topT) < 1e-9);
+  }
+});
+
+test('early: a rep given at the Finish arrives before the counter would otherwise see it', () => {
+  const trace = curlTrace(Array(3).fill({ bottom: 170, top: 45 }));
+  const when = (opts) => { const rc = createRepCounter(opts); const ts = []; for (const f of trace) { const e = rc.push(f.t, f.a, f.ok); if (e && e.type === 'rep') ts.push(f.t); } return ts; };
+  const late = when({}), early = when({ early: true });
+  early.forEach((t, i) => assert.ok(t < late[i] - 0.2, `rep ${i + 2}: early ${t.toFixed(2)} vs ${late[i].toFixed(2)}`));
+});
+
+test('early: a rep that never reaches the Finish is still given at its turn, short', () => {
+  const { rc, events } = run(curlTrace([{ bottom: 170, top: 45 }, { bottom: 170, top: 90 }, { bottom: 170, top: 45 }]), { early: true });
+  assert.deepEqual(results(rc), ['counted', 'short', 'counted']);
+  assert.equal(events.filter((e) => e.type === 'settled').length, 1);
+});
+
+test('early: a rep that misses the Start is short even though given early', () => {
+  const { rc } = run(curlTrace([{ bottom: 170, top: 45 }, { bottom: 120, top: 45 }, { bottom: 170, top: 45 }]), { early: true });
+  assert.deepEqual(results(rc), ['counted', 'short', 'counted']);
+});

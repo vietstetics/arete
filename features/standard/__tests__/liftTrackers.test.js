@@ -160,3 +160,25 @@ test('triceps filmed close: elbow out of the picture, counted from the hand alon
   assert.equal(sm.counted + sm.short, 7, JSON.stringify(rc.reps.map((r) => [r.result, Math.round(r.bottom), Math.round(r.top)])));
   assert.ok(rc.reps.some((r) => r.result === 'short'), JSON.stringify(rc.reps.map((r) => [r.result, Math.round(r.bottom), Math.round(r.top)])));
 });
+
+test('triceps: an elbow that stops giving readings hands over to the hand, even after a rep-sized move', () => {
+  // A rep-sized elbow movement while getting set (fixes the measure), then the set itself with the
+  // elbow and wrist out of the picture: it must still move to the hand and count from there.
+  const vals = setValues(demoPlan(...DEMO_RANGE.triceps));
+  const tr = createLiftTracker('triceps');
+  let rc = null, minR = null, t = 0;
+  const step = (v, hidden) => {
+    const { pose, world } = demoLiftPose('triceps', v);
+    if (hidden) for (const j of [13, 14, 15, 16]) pose[j].visibility = 0.65; // scored as seen, yet unreadable:
+    if (hidden) for (const j of [13, 15]) { pose[j].x = NaN; world[j].x = NaN; }   // no usable elbow angle
+    const w = demoLiftPose('triceps', v).pose[15], hand = Array.from({ length: 21 }, (_, j) => ({ x: w.x + (j % 5) * 0.01, y: w.y + Math.floor(j / 5) * 0.01 }));
+    const m = tr.push(t, [pose], [world], 1280, 720, [hand]); t += 1 / FPS;
+    if (tr.counter.minRange !== minR) { minR = tr.counter.minRange; rc = createRepCounter({ ...tr.counter, tolFloor: tr.counter.hysteresis / 2 }); }
+    rc.push(t, m.value, m.ok);
+  };
+  for (let i = 0; i < 90; i++) step(150 - 70 * Math.sin((Math.PI * i) / 90), false); // the setup move, elbow seen
+  for (const v of vals) step(v, true);
+  assert.equal(tr.mode, 'hand');
+  const sm = rc.summary();
+  assert.ok(sm.counted >= 4, JSON.stringify(sm));
+});

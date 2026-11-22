@@ -67,8 +67,12 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
   let prev = null, side = fixedSide, mode = null;
   const people = [];
   let locked = null, lead = null, frameNo = 0, switched = false;
-  const hp = { sh: null, last: null, refs: [], seenArm: [], vals: [], fixed: false, path: [], axis: null };
+  const hp = { sh: null, last: null, refs: [], seenArm: [], jointOk: [], vals: [], fixed: false, path: [], axis: null };
   const travelEuro = oneEuro({ minCutoff, beta });
+  // The same running median as the value: a frame or two where the model jumps the shoulders or
+  // wrists would otherwise be read as the body flying up (a dip rep twice as fast as the rest).
+  let travelWin = [];
+  const travelFilter = (v, t) => { travelWin.push(v); if (travelWin.length > medianN) travelWin.shift(); const s = travelWin.slice().sort((a, b) => a - b); return travelEuro.filter(s[(s.length - 1) >> 1], t); };
   const whoReset = () => {};
   const facings = [], palmHist = { L: [], R: [] }, palmRef = { L: null, R: null };
   const visOf = (f, s) => (def.limb === 'leg' ? f.legVis[s] : f.vis[s]);
@@ -91,11 +95,14 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
       switched = false;
       if (def.handPath) { const h = handPush(t, poses, worlds, vw, vh, hands); if (h) return h; }
       const r = read(t, poses, worlds, vw, vh, hands);
+      // Measured by the elbow: did it give a reading? (The model can score the arm as seen while the
+      // elbow angle still can't be read, e.g. the lifter half out of the picture.)
+      if (def.handPath && mode === 'joints') { hp.jointOk.push(r.ok); if (hp.jointOk.length > 30) hp.jointOk.shift(); }
       // The moving point's path: how far it has travelled, counted up while lifting (the value falling)
       // and down while lowering, in the lift's own body unit, so speed is the same from any angle.
       // Travel so far, counted up while lifting (the value falls as you lift).
       const tv = r.ok && def.travel ? def.travel(r.f) : NaN;
-      const path = !r.ok ? NaN : mode === 'palm' ? -r.value / 100 : def.travel ? (Number.isFinite(tv) ? travelEuro.filter(tv, t) : NaN) : -r.value * def.per;
+      const path = !r.ok ? NaN : mode === 'palm' ? -r.value / 100 : def.travel ? (Number.isFinite(tv) ? travelFilter(tv, t) : NaN) : -r.value * def.per;
       // switched: it had been following someone else (the lifter only showed who they are by lifting):
       // anything counted until now was that other person, so the count should start again.
       return { ...r, path, switched };
@@ -181,12 +188,15 @@ export function createLiftTracker(key, { minVis = 0.5, minCutoff = 1.2, beta = 0
     // clearly seen for 3 s: with the phone close, the arm shows for a moment at the top of every rep.
     // Once the set has moved through a rep in one measure, it keeps that measure (switching mid-set would
     // throw away the reps counted so far).
-    if (hp.seenArm.length >= 15 && !hp.fixed) {
+    // Except: an elbow that can't be read for most of the last second hands over to the hand even then
+    // (the measure was fixed on something done while getting set up, and the set itself can't be read).
+    const jointsFailing = hp.jointOk.length >= 30 && hp.jointOk.filter(Boolean).length < 15;
+    if (hp.seenArm.length >= 15) {
       if (mode == null) mode = shareOf(30) >= 0.65 ? 'joints' : 'hand';
-      else if (mode === 'joints' && shareOf(30) < 0.5) mode = 'hand';
-      else if (mode === 'hand' && hp.seenArm.length >= 90 && shareOf(90) >= 0.9) mode = 'joints';
+      else if (mode === 'joints' && (jointsFailing || (!hp.fixed && shareOf(30) < 0.5))) mode = 'hand';
+      else if (mode === 'hand' && !hp.fixed && hp.seenArm.length >= 90 && shareOf(90) >= 0.9) mode = 'joints';
     }
-    if (was && mode !== was) { smooth.reset(); win = []; switched = true; hp.vals = []; }
+    if (was && mode !== was) { smooth.reset(); win = []; switched = true; hp.vals = []; hp.jointOk = []; hp.fixed = false; hp.path = []; hp.axis = null; hp.seenArm = []; }
     if (mode !== 'hand') return null;
     // The hand: the one nearest where the hand was (the working hand), else the nearest the shoulder.
     let best = null, bd = Infinity;

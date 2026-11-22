@@ -27,7 +27,7 @@ export function runClip(data, lift, { start = 0, end = Infinity, sides = [null],
   const found = [];
   for (const side of sides) {
     const tr = createLiftTracker(lift, { ...opts, side });
-    const counterOpts = { minRange: def.minRange, hysteresis: def.hysteresis, tolFloor: def.hysteresis / 2, ...(opts.counter || {}) };
+    const counterOpts = { minRange: def.minRange, hysteresis: def.hysteresis, tolFloor: def.hysteresis / 2, tolPct: 0.2, early: true, ...(opts.counter || {}) }; // as the camera page
     let rc = createRepCounter(counterOpts);
     const trace = [];
     for (const fr of data.frames) {
@@ -41,7 +41,11 @@ export function runClip(data, lift, { start = 0, end = Infinity, sides = [null],
       // The measure a set uses (elbow angle or hand distance) has its own thresholds.
       if (tr.counter && (tr.counter.minRange !== counterOpts.minRange)) { counterOpts.minRange = tr.counter.minRange; counterOpts.hysteresis = tr.counter.hysteresis; counterOpts.tolFloor = tr.counter.hysteresis / 2; rc = createRepCounter(counterOpts); }
       const ev = rc.push(fr.t, r.value, r.ok);
-      if (ev && ev.rep) found.push({ mv: concentricVelocity(trace, ev.rep.startT - 0.15, ev.rep.topT + 0.15)?.mv, unit: tr.unit, mine: true, t: ev.rep.topT, side: side || r.side, result: ev.rep.result, bottom: ev.rep.bottom, top: ev.rep.top, fmt: tr.fmt });
+      // As on the camera page: a rep can be given at the Finish line ('rep'), then its top is final
+      // ('settled'), when its speed is measured over the whole lift.
+      const speed = (rep) => concentricVelocity(trace, rep.startT - 0.15, rep.topT + 0.15)?.mv;
+      if (ev && ev.type === 'settled') { const f = found.find((x) => x.rep === ev.rep); if (f) Object.assign(f, { mv: speed(ev.rep), t: ev.rep.topT, top: ev.rep.top }); }
+      else if (ev && ev.rep) found.push({ rep: ev.rep, shownAt: fr.t, mv: speed(ev.rep), unit: tr.unit, mine: true, t: ev.rep.topT, side: side || r.side, result: ev.rep.result, bottom: ev.rep.bottom, top: ev.rep.top, fmt: tr.fmt });
     }
   }
   return found.sort((a, b) => a.t - b.t);
@@ -53,8 +57,9 @@ function score(found, reps) {
   reps.forEach(([t], i) => found.forEach((f, j) => { const d = Math.abs(f.t - t); if (d <= TOL) pairs.push([d, i, j]); }));
   pairs.sort((a, b) => a[0] - b[0]);
   const ti = new Set(), fj = new Set();
-  for (const [, i, j] of pairs) if (!ti.has(i) && !fj.has(j)) { ti.add(i); fj.add(j); }
-  return { hit: ti.size, missed: reps.filter((_, i) => !ti.has(i)).map(([t]) => t), extra: found.filter((_, j) => !fj.has(j)).map((f) => f.t) };
+  const notCounted = [];
+  for (const [, i, j] of pairs) if (!ti.has(i) && !fj.has(j)) { ti.add(i); fj.add(j); if (found[j].result !== 'counted') notCounted.push(reps[i][0]); }
+  return { hit: ti.size, notCounted, missed: reps.filter((_, i) => !ti.has(i)).map(([t]) => t), extra: found.filter((_, j) => !fj.has(j)).map((f) => f.t) };
 }
 
 let tot = { truth: 0, hit: 0, extra: 0 };
@@ -72,9 +77,15 @@ for (const [key, tr] of Object.entries(truth)) {
     const s = score(found, visible);
     // A hidden rep found anyway isn't an extra.
     s.extra = s.extra.filter((t) => ![...hidden, ...partial].some(([h]) => Math.abs(h - t) <= TOL));
-    tot.truth += visible.length; tot.hidden = (tot.hidden || 0) + hidden.length; tot.hit += s.hit; tot.extra += s.extra.length;
-    console.log(`${key.padEnd(34)} ${tr.lift.padEnd(10)} ${s.hit}/${visible.length} found, ${s.extra.length} extra${hidden.length ? ` (+${hidden.length} out of sight)` : ''}${s.missed.length ? ` · missed ${fmt(s.missed)}` : ''}${s.extra.length ? ` · extra ${fmt(s.extra)}` : ''}`);
+    tot.truth += visible.length; tot.hidden = (tot.hidden || 0) + hidden.length; tot.hit += s.hit; tot.extra += s.extra.length; tot.nc = (tot.nc || 0) + s.notCounted.length;
+    // Extras the lifter would see counted (a short or unclear extra adds nothing to the count).
+    tot.extraCounted = (tot.extraCounted || 0) + found.filter((f) => s.extra.includes(f.t) && f.result === 'counted').length;
+    console.log(`${key.padEnd(34)} ${tr.lift.padEnd(10)} ${s.hit}/${visible.length} found, ${s.extra.length} extra${hidden.length ? ` (+${hidden.length} out of sight)` : ''}${s.notCounted.length ? ` · found but judged short/unclear ${fmt(s.notCounted)}` : ''}${s.missed.length ? ` · missed ${fmt(s.missed)}` : ''}${s.extra.length ? ` · extra ${fmt(s.extra)}` : ''}`);
   }
-  if (verbose) for (const f of found) console.log(`    ${f.t.toFixed(2)}s ${f.side ?? ''} ${f.result} ${f.fmt(f.bottom)} → ${f.fmt(f.top)}${Number.isFinite(f.mv) ? ` · ${f.mv.toFixed(2)} limb lengths/s` : ''}`);
+  if (verbose) for (const f of found) console.log(`    ${f.t.toFixed(2)}s (shown ${f.shownAt.toFixed(2)}s) ${f.side ?? ''} ${f.result} ${f.fmt(f.bottom)} → ${f.fmt(f.top)}${Number.isFinite(f.mv) ? ` · ${f.mv.toFixed(2)} limb lengths/s` : ''}`);
 }
-if (tot.truth) console.log(`\nAll: ${tot.hit}/${tot.truth} reps found (${Math.round((100 * tot.hit) / tot.truth)}%), ${tot.extra} extra.`);
+if (tot.truth) {
+  console.log(`\nAll: ${tot.hit}/${tot.truth} reps found (${Math.round((100 * tot.hit) / tot.truth)}%), ${tot.extra} extra.`);
+  // Full reps (not marked partial) the lifter would see counted: found, and judged 'counted'.
+  console.log(`Counted as full reps: ${tot.hit - tot.nc}/${tot.truth} (${Math.round((100 * (tot.hit - tot.nc)) / tot.truth)}%), ${tot.extraCounted} extra counted.`);
+}

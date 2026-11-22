@@ -54,6 +54,11 @@ export const HEIGHT_DEFAULTS = { minRange: 20, hysteresis: 10, tolFloor: 4 };
  * Rep counter for a flexion movement (angle falls during the lift).
  *   const rc = createRepCounter(); rc.push(t, angle, confident) → event|null
  * Events: { type: 'standard', standard } then { type: 'rep', rep } per rep.
+ * early: true — once the standard exists, a rep is given the moment it reaches the standard's
+ *   Finish (no waiting for the weight to come back down, or for the next rep when you rest at
+ *   the finish, as on dips). Its top keeps deepening until it turns, then { type: 'settled', rep }
+ *   (the same rep object, top final: measure its speed now). Reps that never reach the Finish
+ *   are short, and are given when they turn, as usual.
  */
 export function createRepCounter(opts = {}) {
   const o = { ...DEFAULTS, ...opts };
@@ -62,6 +67,7 @@ export function createRepCounter(opts = {}) {
   // Turning-point tracking. dir 'extend' = angle rising (lowering the weight).
   let dir = 'extend', peak = null, peakT = 0, trough = null, troughT = 0;
   let repFrames = 0, repLow = 0, lastConfT = null, gap = 0, started = false, lastT = -Infinity;
+  let given = null; // early: this lift's rep, already given at the Finish line
 
   const H = () => (standard ? Math.max(o.hysteresis * 0.75, o.hysteresisPct * (standard.start - standard.finish)) : o.hysteresis);
   const tol = () => (standard ? Math.max(o.tolFloor, o.tolPct * (standard.start - standard.finish)) : o.tolFloor);
@@ -96,13 +102,25 @@ export function createRepCounter(opts = {}) {
     }
 
     // dir === 'flex' (lifting)
-    if (angle < trough) { trough = angle; troughT = t; return null; }
+    const unclearNow = () => repFrames > 0 && (repLow / repFrames > o.unclearShare || gap > o.maxGap);
+    if (angle < trough) {
+      trough = angle; troughT = t;
+      if (given) { given.top = trough; given.topT = troughT; return null; }
+      // Reached the standard's Finish: the rep is done as far as judging goes. Give it now.
+      if (o.early && standard && trough <= standard.finish + tol() && peak - trough >= o.minRange) {
+        given = { n: reps.length + 1, bottom: peak, top: trough, startT: peakT, topT: troughT, ...judge(peak, trough, unclearNow()), isStandard: false };
+        reps.push(given);
+        return { type: 'rep', rep: given };
+      }
+      return null;
+    }
     if (angle <= trough + H()) return null;
 
     // Turned back down: the rep's top was `trough`. Judge it now.
     const bottom = peak, top = trough, startT = peakT;
-    const unclear = repFrames > 0 && (repLow / repFrames > o.unclearShare || gap > o.maxGap);
+    const unclear = unclearNow();
     dir = 'extend'; peak = angle; peakT = t;
+    if (given) { const rep = given; given = null; return { type: 'settled', rep }; }
     if (bottom - top < o.minRange) return null; // a twitch, not a rep
 
     if (!standard) {
