@@ -109,3 +109,7 @@ body { background: #F2F2F7 !important; color: var(--t1); }
 /* Energy Intelligence was removed (2026-10): hide its dashboard card and the
  * Energy figure in the readiness card. (Code stays dormant; other pages use it.) */
 .card:has(#hd-energy), .rm:has(#ready-met-energy) { display: none !important; }
+
+/* Brand mark in the desktop sidebar (brand-mark.png carries its own dark rounded square). */
+.sb-icon:has(> img){background:none;box-shadow:none}
+.sb-icon > img{width:30px;height:30px;border-radius:9px;display:block}
