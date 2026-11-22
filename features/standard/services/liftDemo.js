@@ -57,7 +57,21 @@ const POSE = {
   legExtension: (P, v) => seated(P, 180 - v),
   legCurl: (P, v) => seated(P, v),
   calfRaise: () => {},
+  // Value = 180 − upper arm raised from the side; straight arms lifting out to the sides.
+  lateralRaise: (P, v) => arms(P, (S, side) => { const e = (180 - v) * DEG, dir = [0, Math.cos(e), side * Math.sin(e)]; return [add(S, sc(dir, U)), add(S, sc(dir, U + FA))]; }),
+  // Seated, thighs forward and opening sideways: value = −100 × knee gap ÷ hip width (abduction) or + (adduction).
+  hipAbduction: (P, v) => seatedOpen(P, gapToDeg(-v / 100)),
+  hipAdduction: (P, v) => seatedOpen(P, gapToDeg(v / 100)),
 };
+// The angle between the thighs that puts the knees `gap` hip widths apart.
+const gapToDeg = (gap) => (2 * Math.asin(Math.max(0, Math.min(1, ((gap - 1) * 2 * HIPW) / (2 * THIGH))))) / DEG;
+function seatedOpen(P, deg) {
+  const h = (deg / 2) * DEG;
+  for (const [hp, k, a, heel, toe] of [[23, 25, 27, 29, 31], [24, 26, 28, 30, 32]]) {
+    const side = P[hp][2] > 0 ? 1 : -1, K = add(P[hp], [THIGH * Math.cos(h), 0, side * THIGH * Math.sin(h)]); P[k] = K;
+    P[a] = add(K, [0, SHIN, 0]); P[heel] = add(P[a], [-0.04, 0.03, 0]); P[toe] = add(P[a], [0.12, 0.05, 0]);
+  }
+}
 function seated(P, knee) {
   for (const [h, k, a, heel, toe] of [[23, 25, 27, 29, 31], [24, 26, 28, 30, 32]]) {
     const K = add(P[h], [THIGH, 0, 0]); P[k] = K;
@@ -105,4 +119,5 @@ export function demoPlan(start, finish) {
 export const DEMO_RANGE = {
   curl: [165, 50], triceps: [100, 12], dip: [95, 12], press: [42, 4], row: [96, 45], shoulderPress: [-15, -175],
   pulldown: [175, -5], fly: [360, 160], legExtension: [90, 8], legCurl: [168, 75], calfRaise: [-250, -265],
+  lateralRaise: [170, 95], hipAbduction: [-110, -250], hipAdduction: [250, 110],
 };

@@ -505,6 +505,14 @@ const EXERCISES = {
     setup: 'Side-on, about 2 m away, hip, knee and ankle in view',
     intro: 'Tracked at your <b>knee</b>: how straight it starts and how far you curl. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
     rep1: 'Rep 1 sets the standard — legs long, curl, back', show: 'Show your hip, knee and ankle' }),
+  hipAbduction: liftEx('hipAbduction', { title: 'Hip abduction standard', short: 'Hip abductions', name: 'Hip abduction · seated machine', measure: 'thigh angle',
+    setup: 'Facing the phone, 2–3 m away, hips and knees in view',
+    intro: 'Tracked by the <b>angle between your thighs</b>: how close they start and how wide you push. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — knees in, push them out, back', show: 'Show your hips and both knees' }),
+  hipAdduction: liftEx('hipAdduction', { title: 'Hip adduction standard', short: 'Hip adductions', name: 'Hip adduction · seated machine', measure: 'thigh angle',
+    setup: 'Facing the phone, 2–3 m away, hips and knees in view',
+    intro: 'Tracked by the <b>angle between your thighs</b>: how wide they start and how close you squeeze. Your <b>first rep sets the standard</b>; every rep after must reach both to count.',
+    rep1: 'Rep 1 sets the standard — knees wide, squeeze them in, back', show: 'Show your hips and both knees' }),
   calfRaise: liftEx('calfRaise', { title: 'Calf raise standard', short: 'Calf raises', name: 'Calf raise · standing', measure: 'body height',
     setup: 'Phone propped still (not held), 2–3 m away, head to feet in view',
     intro: 'Tracked by how far your <b>whole body rises above your toes</b>, in torso lengths. Your <b>first rep sets the standard</b>: heels down and how high you go. Every rep after must reach both to count. A calf raise is a small movement: prop the phone so it stays still.',
@@ -650,6 +658,8 @@ const LIFT_GUIDES = {
   fly: [['best', 1, 'Facing the phone or from behind', '2–3 m away, both hands and shoulders in view.'], ['avoid', 2, 'Side-on', 'One arm hides the other, and the gap between your hands can’t be seen.'], 'Measured as the gap between your hands in shoulder widths, so the distance to the phone doesn’t matter.'],
   legExtension: [['best', 1, 'Side-on', 'About 2 m away, lens at seat height: hip, knee and ankle in view.'], ['avoid', 2, 'In front', 'Your shin kicks straight at the lens.'], 'The machine’s pad can hide the ankle: a little behind side-on helps.'],
   legCurl: [['best', 1, 'Side-on', 'About 2 m away, lens at the height of your knee: hip, knee and ankle in view.'], ['avoid', 2, 'In front or behind', 'Your shin swings towards or away from the lens.'], 'The machine’s pad can hide the ankle: a little in front of side-on helps.'],
+  hipAbduction: [['best', 1, 'Facing the phone', '2–3 m away, lens at seat height: hips and both knees in view.'], ['avoid', 2, 'Side-on', 'One knee hides the other.'], 'The machine’s pads can hide your shins: only the hips and knees are needed.'],
+  hipAdduction: [['best', 1, 'Facing the phone', '2–3 m away, lens at seat height: hips and both knees in view.'], ['avoid', 2, 'Side-on', 'One knee hides the other.'], 'The machine’s pads can hide your shins: only the hips and knees are needed.'],
   calfRaise: [['best', 1, 'Side-on or at 45°, phone propped up', '2–3 m away, head to feet in view.'], ['avoid', 2, 'Held in your hand or by someone', 'A calf raise moves a few centimetres: a shaking phone moves more than that.'], 'Feet in frame the whole set. From behind works when the phone is still.'],
 };
 for (const [k, [best, avoid, note]] of Object.entries(LIFT_GUIDES)) GUIDES[k] = { svg: GUIDES.curl.svg, items: [best, avoid], note };
@@ -1500,6 +1510,9 @@ function liftFrame(p, t, vw, vh, world, poses, worlds) {
   pushBar(t, ok ? m.path : NaN);
   const ev = counter.push(t, a, ok);
   if (ev) onEvent(ev);
+  // Two full reps fix the measure (elbow or hand) for the rest of the set: walking off at the end can't
+  // switch it and wipe the set.
+  if (ev && ev.rep && counter.reps.filter((r) => r.result === 'counted').length >= 2) liftTr.lock?.();
   if (!ok && phase === 'live') setStatus(EX.lost, 'warn');
   updateMeter();
   draw({ p, ok, a }, vw, vh);
@@ -1852,7 +1865,7 @@ function currentLiveRecord() {
   const reportedRir = typed('rir-in', 0, 10), reportedRpe = typed('rpe-in', 1, 10);
   const defaults = { curl: ['Dumbbell Curl', 'Dumbbell'], squat: ['Back Squat', 'Barbell'], bench: ['Bench Press', 'Barbell'], lateral: ['Lateral Raise', 'Dumbbell'], deadlift: ['Deadlift', 'Barbell'], auto: ['Barbell lift', 'Barbell'], row: ['T-bar Row', 'T-bar'], press: ['Chest Press', 'Machine'], tbar: ['T-bar Row', 'T-bar'], pullup: ['Pull-up', 'Bodyweight'],
     triceps: ['Triceps Extension', 'Cable'], shoulderPress: ['Shoulder Press', 'Dumbbell'], pulldown: ['Lat Pulldown', 'Cable'], dip: ['Dip', 'Bodyweight'],
-    fly: ['Chest Fly', 'Machine'], legExtension: ['Leg Extension', 'Machine'], legCurl: ['Leg Curl', 'Machine'], calfRaise: ['Calf Raise', 'Machine'] };
+    fly: ['Chest Fly', 'Machine'], legExtension: ['Leg Extension', 'Machine'], legCurl: ['Leg Curl', 'Machine'], calfRaise: ['Calf Raise', 'Machine'], hipAbduction: ['Hip Abduction', 'Machine'], hipAdduction: ['Hip Adduction', 'Machine'] };
   const [name, equipment] = defaults[EXK];
   const exerciseName = params.get('exerciseName') || name;
   let userId = params.get('userId') || null;

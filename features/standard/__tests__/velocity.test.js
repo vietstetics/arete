@@ -166,3 +166,45 @@ test('squat: bar speed in m/s from the pose matches the real speed within 8%', (
   assert.ok(near(r.mv * mpu, 0.5 / 0.8, 0.08), `got ${(r.mv * mpu).toFixed(3)} m/s vs 0.625`);
   assert.ok(Math.abs(r.range * mpu - 0.5) < 0.01, 'bar travel in metres');
 });
+
+// One rep sampled at a given frame rate (positions read off the same smooth movement).
+function liftAt(fps, { range = 0.4, secs = 0.8, pause = 0.6, dip = null } = {}) {
+  const out = [], T = pause + secs + pause;
+  // dip: [at (share of the lift), for (s)]: the speed nearly stops for a moment (a sticking point).
+  const pos = (t) => {
+    if (t <= pause) return 0;
+    if (t >= pause + secs) return range;
+    let u = (t - pause) / secs;
+    if (dip) { const [at, len] = dip, a = at, b = at + len / secs; u = u < a ? u : u < b ? a + (u - a) * 0.05 : u - (b - a) * 0.95; u = Math.min(1, u / (1 - (b - a) * 0.95)); }
+    return range * (1 - Math.cos(Math.PI * u)) / 2;
+  };
+  for (let t = 0; t <= T + 1e-9; t += 1 / fps) out.push({ t, y: pos(t) });
+  return { samples: out, end: T };
+}
+
+test('the same rep gives the same speed at 24, 30 and 60 fps (within 3%), and at 15 fps (within 5%)', () => {
+  for (const [range, secs] of [[0.4, 0.8], [0.3, 0.5], [0.5, 1.6]]) {
+    const at = (fps) => { const { samples, end } = liftAt(fps, { range, secs }); return concentricVelocity(samples, 0, end).mv; };
+    const mvs = [24, 30, 60].map(at), lo = Math.min(...mvs), hi = Math.max(...mvs);
+    assert.ok(hi / lo - 1 <= 0.03, `${range} in ${secs} s: ${mvs.map((v) => v.toFixed(3)).join(' ')}`);
+    // 15 fps: a half-second rep is 7 frames, so a little of the curve is lost between them.
+    assert.ok(Math.abs(at(15) / at(60) - 1) <= 0.05, `${range} in ${secs} s at 15 fps: ${at(15).toFixed(3)} vs ${at(60).toFixed(3)}`);
+  }
+});
+
+test('jitter at 60 fps reads the same rep as at 30 fps (a noisy frame does not end the lift early)', () => {
+  let s = 9; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647 - 0.5) * 2;
+  const a = liftAt(30), b = liftAt(60);
+  const noisy = (xs) => xs.map((p) => ({ t: p.t, y: p.y + 0.004 * rnd() }));
+  const va = concentricVelocity(noisy(a.samples), 0, a.end).mv, vb = concentricVelocity(noisy(b.samples), 0, b.end).mv;
+  assert.ok(Math.abs(vb / va - 1) <= 0.06, `${va.toFixed(3)} vs ${vb.toFixed(3)}`);
+});
+
+test('a sticking point mid-lift is part of the lift, not where it ends', () => {
+  const plain = liftAt(30, { secs: 1.0 });
+  const stuck = liftAt(30, { secs: 1.0, dip: [0.45, 0.12] }); // nearly stops for 0.12 s halfway up
+  const p = concentricVelocity(plain.samples, 0, plain.end), q = concentricVelocity(stuck.samples, 0, stuck.end);
+  assert.ok(Math.abs(q.range - p.range) < 0.01, 'whole range');
+  assert.ok(q.mv < p.mv, `the stall slows the average: ${q.mv.toFixed(3)} vs ${p.mv.toFixed(3)}`);
+  assert.ok(q.dur > 0.8, `timed over the whole lift (${q.dur.toFixed(2)} s), not only the fast part after the stall`);
+});

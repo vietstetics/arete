@@ -54,6 +54,7 @@ export function pickLifter(poses, prev = null, { vw = 1, vh = 1 } = {}) {
  *   handGap    distance between the wrists ÷ shoulder width
  *   elbowGap   distance between the elbows ÷ shoulder width
  *   kneeGap    distance between the knees ÷ hip width
+ *   thighAngle angle between the two thighs (hip→knee), degrees: grows as the knees open (hip abduction)
  *   footUpL/R  heel above the toes along the shin direction, in foot lengths
  *   tilt       torso from upright (0 standing, 90 lying)
  *   y2d        mid-shoulder height in the picture, in torso lengths (grows upwards) — whole-body moves
@@ -125,6 +126,7 @@ export function liftFeatures(pose, world = null, { vw = 1, vh = 1, minVis = 0.3,
   out.handGap = shoulderW > 0 ? dist(P(15), P(16)) / shoulderW : NaN;
   out.elbowGap = shoulderW > 0 ? dist(P(13), P(14)) / shoulderW : NaN;
   out.kneeGap = hipW > 0 ? dist(P(25), P(26)) / hipW : NaN;
+  { const a = unit(sub(P(25), P(23))), b = unit(sub(P(26), P(24))); out.thighAngle = a && b ? Math.acos(Math.max(-1, Math.min(1, dot(a, b)))) * DEG : NaN; }
   out.facing = three ? Math.abs(F[2]) : NaN;
   out.tilt = Math.acos(Math.max(-1, Math.min(1, -U[1]))) * DEG;
   out.y2d = -mid(Q(11), Q(12))[1] / torso2d;

@@ -46,6 +46,7 @@ export function runClip(data, lift, { start = 0, end = Infinity, sides = [null],
       const speed = (rep) => concentricVelocity(trace, rep.startT - 0.15, rep.topT + 0.15)?.mv;
       if (ev && ev.type === 'settled') { const f = found.find((x) => x.rep === ev.rep); if (f) Object.assign(f, { mv: speed(ev.rep), t: ev.rep.topT, top: ev.rep.top }); }
       else if (ev && ev.rep) found.push({ rep: ev.rep, shownAt: fr.t, mv: speed(ev.rep), unit: tr.unit, mine: true, t: ev.rep.topT, side: side || r.side, result: ev.rep.result, bottom: ev.rep.bottom, top: ev.rep.top, fmt: tr.fmt });
+      if (found.filter((x) => x.mine && x.side === (side || x.side) && x.result === 'counted').length >= 2) tr.lock(); // as the camera page: two full reps fix the measure
     }
   }
   return found.sort((a, b) => a.t - b.t);

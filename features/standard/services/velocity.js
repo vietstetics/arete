@@ -56,54 +56,90 @@ export function metresPerUnit(lift, { heightM, scale, standShoulderPx, armPx } =
  * should hold the rep's bottom and its top. The lift is the stretch of
  * movement around the fastest moment where the speed stays above
  * `threshold` × peak, so pauses at the bottom or top never count. Start and
- * end are interpolated between frames: at 30 fps, rounding to whole frames
- * alone would be ~8% off on a quick rep.
- * Synthetic regression tests cover known displacement and timing, position
- * jitter and uneven frame intervals; they do not establish camera accuracy.
+ * end are interpolated, so the result doesn't depend on where frames fell.
+ *
+ * Everything is defined in time, never in frames, so the same rep filmed at
+ * 15, 24, 30 or 60 fps gives the same speed: the trace is put on an even
+ * `grid` (s) and smoothed over a fixed `smooth` (s, Gaussian σ) before speeds
+ * are taken, and a dip in speed shorter than `bridge` (s) inside the lift is
+ * part of it (a noisy frame, or a sticking point, doesn't end the rep early:
+ * ending early times only the fastest part and reads far too fast).
+ * scripts/velocity-consistency.mjs replays real clips at other frame rates,
+ * distances and noise levels to check this; synthetic tests cover known
+ * displacement and timing. Neither establishes absolute camera accuracy.
  * Returns { mv, pv, range, dur } in native units per second, or null.
  */
-export function concentricVelocity(samples, t0, t1, { threshold = 0.1 } = {}) {
+export function concentricVelocity(samples, t0, t1, { threshold = 0.1, smooth = 0.05, bridge = 0.2, grid = 0.01 } = {}) {
   if (!Number.isFinite(t0) || !Number.isFinite(t1) || !(t1 > t0) || !(threshold > 0 && threshold < 1)) return null;
   if (!Array.isArray(samples) || !samples.every((s, i) => s && Number.isFinite(s.t) && (i === 0 || s.t > samples[i - 1].t))) return null;
   const pts = samples.filter((s) => s.t >= t0 && s.t <= t1 && Number.isFinite(s.y));
   const n = pts.length;
   if (n < 5) return null;
-  // A local linear fit at the actual timestamp. An equal-weight moving
-  // average shifts positions in time when frame spacings differ and can
-  // create false peak speeds even in a perfectly smooth trace.
-  const ys = pts.map((point, i) => {
-    let count = 0, sx = 0, sxx = 0, sy = 0, sxy = 0;
-    for (let j = Math.max(0, i - 1); j <= Math.min(n - 1, i + 1); j++) {
-      const x = pts[j].t - point.t;
-      count++; sx += x; sxx += x * x; sy += pts[j].y; sxy += x * pts[j].y;
-    }
-    return (sy * sxx - sx * sxy) / (count * sxx - sx * sx);
-  });
-  const t = pts.map((p) => p.t);
+  // Even time grid (linear between samples), then a Gaussian of fixed width in seconds.
+  const g0 = pts[0].t, m = Math.floor((pts[n - 1].t - g0) / grid) + 1;
+  if (m < 5) return null;
+  const t = new Float64Array(m), raw = new Float64Array(m);
+  for (let i = 0, k = 0; i < m; i++) {
+    const ti = g0 + i * grid; t[i] = ti;
+    while (k < n - 2 && pts[k + 1].t < ti) k++;
+    const a = pts[k], b = pts[Math.min(k + 1, n - 1)];
+    raw[i] = b.t > a.t ? a.y + ((ti - a.t) / (b.t - a.t)) * (b.y - a.y) : a.y;
+  }
+  const ys = new Float64Array(m);
+  const half = Math.ceil((3 * smooth) / grid);
+  const wts = Array.from({ length: 2 * half + 1 }, (_, j) => Math.exp(-0.5 * (((j - half) * grid) / smooth) ** 2));
+  for (let i = 0; i < m; i++) {
+    let sw = 0, sy = 0;
+    for (let j = -half; j <= half; j++) { const q = i + j; if (q < 0 || q >= m) continue; sw += wts[j + half]; sy += wts[j + half] * raw[q]; }
+    ys[i] = sy / sw;
+  }
   let iMin = 0;
-  for (let i = 1; i < n; i++) if (ys[i] < ys[iMin]) iMin = i;
+  for (let i = 1; i < m; i++) if (ys[i] < ys[iMin]) iMin = i;
   let iMax = iMin;
-  for (let i = iMin + 1; i < n; i++) if (ys[i] > ys[iMax]) iMax = i;
-  if (iMax - iMin < 3) return null;
+  for (let i = iMin + 1; i < m; i++) if (ys[i] > ys[iMax]) iMax = i;
+  if ((t[iMax] - t[iMin]) < 0.1) return null;
   // Endpoints have no centred derivative: assigning zero would invent a
   // resting bottom/top when the recording actually started/stopped moving.
-  const v = ys.map((_, i) => (i === 0 || i === n - 1 ? NaN : (ys[i + 1] - ys[i - 1]) / (t[i + 1] - t[i - 1])));
-  let ip = iMin;
-  for (let i = iMin; i <= iMax; i++) if (Number.isFinite(v[i]) && (!Number.isFinite(v[ip]) || v[i] > v[ip])) ip = i;
-  const pv = v[ip];
+  const v = Array.from(ys, (_, i) => (i === 0 || i === m - 1 ? NaN : (ys[i + 1] - ys[i - 1]) / (t[i + 1] - t[i - 1])));
+  // The heart of the lift, found by position (robust): from where it last leaves the bottom 5% of its
+  // range to where it first reaches the top 5%, through the moment it passes halfway. Everything in
+  // between belongs to the lift whatever the speed does there (a sticking point, a noisy frame).
+  const range0 = ys[iMax] - ys[iMin];
+  if (!(range0 > 0)) return null;
+  const lvl = (k) => ys[iMin] + k * range0;
+  let c = iMin; while (c < iMax && ys[c] < lvl(0.5)) c++;
+  let a = c; while (a > iMin && ys[a] > lvl(0.05)) a--;
+  let b = c; while (b < iMax && ys[b] < lvl(0.95)) b++;
+  if (!(t[b] > t[a])) return null;
+  // Then out to where the movement really starts and stops: the speed falling below `threshold` × the
+  // heart's mean speed (a mean, not the single fastest moment, which one noisy frame can move), with
+  // any dip shorter than `bridge` crossed if the speed comes back.
+  const core = (0.9 * range0) / (t[b] - t[a]);
+  const thr = threshold * core, gap = Math.round(bridge / grid);
+  let s = a;
+  while (s > iMin) {
+    if (v[s - 1] >= thr) { s--; continue; }
+    let j = s - 1; while (j > iMin && j >= s - gap && !(v[j] >= thr)) j--;
+    if (j >= s - gap && j > iMin && v[j] >= thr) s = j; else break;
+  }
+  let e = b;
+  while (e < iMax) {
+    if (v[e + 1] >= thr) { e++; continue; }
+    let j = e + 1; while (j < iMax && j <= e + gap && !(v[j] >= thr)) j++;
+    if (j <= e + gap && j < iMax && v[j] >= thr) e = j; else break;
+  }
+  let pv = -Infinity;
+  for (let i = s; i <= e; i++) if (Number.isFinite(v[i]) && v[i] > pv) pv = v[i];
   if (!(pv > 0)) return null;
-  const thr = threshold * pv;
-  let s = ip; while (s > iMin && v[s - 1] >= thr) s--;
-  let e = ip; while (e < iMax && v[e + 1] >= thr) e++;
-  if (!(s > 0 && e < n - 1 && Number.isFinite(v[s - 1]) && v[s - 1] < thr && Number.isFinite(v[e + 1]) && v[e + 1] < thr)) return null;
-  // Filtering missing positions must not silently bridge a long occlusion.
-  for (let i = s; i <= e + 1; i++) if (t[i] - t[i - 1] > 0.5 + 1e-6) return null;
+  if (!(s > 0 && e < m - 1 && Number.isFinite(v[s - 1]) && v[s - 1] < thr && Number.isFinite(v[e + 1]) && v[e + 1] < thr)) return null;
   const cross = (below, above) => {
     const f = (thr - v[below]) / (v[above] - v[below]);
     return { t: t[below] + f * (t[above] - t[below]), y: ys[below] + f * (ys[above] - ys[below]) };
   };
   const A = s > iMin ? cross(s - 1, s) : { t: t[s], y: ys[s] };
   const B = e < iMax ? cross(e + 1, e) : { t: t[e], y: ys[e] };
+  // Filtering missing positions must not silently bridge a long occlusion.
+  for (let i = 1; i < n; i++) if (pts[i].t > A.t && pts[i - 1].t < B.t && pts[i].t - pts[i - 1].t > 0.5 + 1e-6) return null;
   const dur = B.t - A.t, mv = (B.y - A.y) / dur, range = ys[iMax] - ys[iMin];
   if (!(dur > 0) || !Number.isFinite(mv) || !(mv > 0) || !Number.isFinite(pv) || !Number.isFinite(range)) return null;
   return { mv, pv, range, dur };

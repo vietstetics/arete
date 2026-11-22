@@ -69,7 +69,7 @@ export function trackerModeFor(exercise = {}) {
   if (/\b(?:leg|hamstring) curls?$/.test(name)) return 'legCurl';
   if (/\bcurl\b/.test(name) && !/\bleg\b/.test(name)) return 'curl';
   if (/^(?:machine )?chest press$/.test(name)) return 'press';
-  if (/^(?:dumbbell |cable |seated )?lateral raises?$/.test(name)) return 'lateral';
+  if (/^(?:dumbbell |cable |seated |machine )?lateral raises?$/.test(name)) return 'lateral';
   if (/^(?:seated )?cable row$|^(?:seated )?machine row$|^t[ -]?bar row$/.test(name)) return 'row';
   if (/\btriceps? (?:push[ -]?downs?|extensions?|kick[ -]?backs?)$|\bskull ?crushers?$|^(?:cable |rope )?push[ -]?downs?$/.test(name)) return 'triceps';
   if (/^(?:dumbbell |barbell |machine |seated |standing )*(?:overhead|shoulder|military) press$/.test(name)) return 'shoulderPress';
@@ -78,6 +78,8 @@ export function trackerModeFor(exercise = {}) {
   if (/^(?:pec deck|(?:machine |cable |dumbbell |chest )*fl(?:y|ies|yes))$/.test(name)) return 'fly';
   if (/^(?:machine |seated )?leg extensions?$/.test(name)) return 'legExtension';
   if (/^(?:standing |seated |machine |smith machine )*calf raises?$/.test(name)) return 'calfRaise';
+  if (/^(?:machine |seated |cable )*hip abductions?$|^(?:machine |seated )*(?:thigh |outer thigh )abductions?$/.test(name)) return 'hipAbduction';
+  if (/^(?:machine |seated |cable )*hip adductions?$|^(?:machine |seated )*(?:thigh |inner thigh )adductions?$/.test(name)) return 'hipAdduction';
   return null;
 }
 

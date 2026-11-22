@@ -21,7 +21,9 @@ export function jointAngle(a, b, c) {
 /** One Euro filter: smooths jitter at rest, stays responsive when moving. */
 export function oneEuro({ minCutoff = 1.5, beta = 0.05, dCutoff = 1.0 } = {}) {
   let x = null, dx = 0, tPrev = null;
-  const alpha = (cutoff, dt) => { const tau = 1 / (2 * Math.PI * cutoff); return 1 / (1 + tau / dt); };
+  // The exact smoothing factor for a gap of dt (not the 1 / (1 + τ/dt) shortcut): the same smoothing
+  // per second whatever the frame rate, so a 60 fps phone and a 30 fps phone see the same curve.
+  const alpha = (cutoff, dt) => { const tau = 1 / (2 * Math.PI * cutoff); return 1 - Math.exp(-dt / tau); };
   return {
     filter(value, t) {
       if (x === null || tPrev === null || t <= tPrev) { x = value; tPrev = t; dx = 0; return x; }

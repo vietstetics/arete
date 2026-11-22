@@ -182,3 +182,29 @@ test('triceps: an elbow that stops giving readings hands over to the hand, even 
   const sm = rc.summary();
   assert.ok(sm.counted >= 4, JSON.stringify(sm));
 });
+
+test('triceps: once two full reps are counted, the measure stays (walking off at the end cannot wipe the set)', () => {
+  // A set read from the elbow, then the lifter walks off: the elbow stops giving readings. Locked after
+  // two full reps (as the camera page does), the tracker keeps the elbow instead of restarting on the hand.
+  const vals = setValues(demoPlan(...DEMO_RANGE.triceps));
+  const tr = createLiftTracker('triceps');
+  const rc = createRepCounter({ ...tr.counter, tolFloor: tr.counter.hysteresis / 2 });
+  let t = 0, switched = false;
+  const step = (v, hidden) => {
+    const { pose, world } = demoLiftPose('triceps', v);
+    if (hidden) for (const j of [13, 15]) { pose[j].x = NaN; world[j].x = NaN; pose[j].visibility = 0.2; }
+    const w = demoLiftPose('triceps', v).pose[15], hand = Array.from({ length: 21 }, (_, j) => ({ x: w.x + (j % 5) * 0.01, y: w.y + Math.floor(j / 5) * 0.01 }));
+    const m = tr.push(t, [pose], [world], 1280, 720, [hand]); t += 1 / FPS;
+    switched ||= m.switched;
+    const ev = rc.push(t, m.value, m.ok);
+    if (ev && ev.rep && rc.reps.filter((r) => r.result === 'counted').length >= 2) tr.lock();
+  };
+  for (const v of vals) step(v, false);
+  assert.equal(tr.mode, 'joints');
+  const before = rc.summary().counted;
+  assert.ok(before >= 2, JSON.stringify(rc.summary()));
+  for (let i = 0; i < 120; i++) step(vals[vals.length - 1], true); // walks off: 4 s of unreadable elbow
+  assert.equal(tr.mode, 'joints');
+  assert.equal(switched, false);
+  assert.equal(rc.summary().counted, before);
+});
