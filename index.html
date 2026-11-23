@@ -89,6 +89,7 @@ textarea{font-family:inherit;resize:none}
 /* ─── HEADER ─── */
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;gap:16px}
 .hdr-l .greet{font-size:14px;font-weight:400;color:var(--t2);letter-spacing:0}
+.hdr-l .greet-hi{font-size:26px;line-height:1.2;letter-spacing:-.015em;margin-bottom:4px}
 .hdr-l .sub{font-size:18px;font-weight:500;letter-spacing:-.015em;color:var(--t1);margin-top:5px;line-height:1.4}
 .hdr-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .hdr-date{font-size:11.5px;color:var(--t3);text-align:right;line-height:1.4}
@@ -778,6 +779,7 @@ html.splash-on body{overflow:hidden}
     <!-- HEADER -->
     <div class="hdr">
       <div class="hdr-l">
+        <div class="greet greet-hi" id="hdr-hi"></div>
         <div class="greet" id="hdr-date"></div>
         <div class="sub" id="hdr-sub"></div>
       </div>
@@ -1666,8 +1668,17 @@ window.addEventListener('DOMContentLoaded', () => {
 <script>
 // Header: today's date, and workouts finished since Monday (from your log; sample data excluded).
 (function () {
-  const d = document.getElementById('hdr-date');
-  if (d) d.textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  // Greeting from the phone's own clock: morning before 12, afternoon until 5 pm, evening after.
+  const paint = () => {
+    const now = new Date(), h = now.getHours();
+    const hi = document.getElementById('hdr-hi');
+    if (hi) hi.textContent = h >= 5 && h < 12 ? 'Good morning' : h >= 12 && h < 17 ? 'Good afternoon' : 'Good evening';
+    const d = document.getElementById('hdr-date');
+    if (d) d.textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  };
+  paint();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) paint(); });
+  setInterval(paint, 60000);
   const w = document.getElementById('hdr-week');
   if (!w) return;
   let list = [];
