@@ -88,6 +88,20 @@ input,select,textarea{font-family:inherit}
 
 /* ── SUMMARY CARD ─────────────────────────────────────────────── */
 .card{background:#fff;border:1px solid var(--bd);border-radius:var(--r);box-shadow:var(--sh0)}
+.bw{padding:16px 18px;margin-bottom:14px}
+.bw-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.bw-t{font-size:15px;font-weight:700}.bw-sub{font-size:12px;color:var(--t2);margin-top:2px}
+.bw-in{display:flex;align-items:center;gap:6px}
+.bw-in input{width:86px;padding:8px 10px;border:1px solid var(--bd);border-radius:10px;font:inherit;font-size:15px;background:var(--s1);color:var(--t1)}
+.bw-unit{border:1px solid var(--bd);background:var(--s1);border-radius:10px;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;color:var(--t2);cursor:pointer}
+.bw-save{border:0;background:var(--t1);color:#fff;border-radius:10px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.bw-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.bw-stats div{display:flex;flex-direction:column;gap:2px}.bw-stats b{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}.bw-stats span{font-size:11.5px;color:var(--t2)}
+.bw-chart{width:100%;height:96px;margin-top:12px;display:block}
+@media(min-width:900px){.bw-chart{height:130px}}
+.bw-chart .dot{fill:rgba(17,17,20,.22)}.bw-chart .line{fill:none;stroke:#248A3D;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.bw-sub.bw-warn{color:#C4321F}
+.bw-note{font-size:11.5px;color:var(--t2);margin-top:8px;line-height:1.45}
 .summary{display:grid;grid-template-columns:auto 1fr;gap:32px;padding:30px 32px;margin-bottom:18px;align-items:center;background:linear-gradient(160deg,#FFFFFF 0%,#F4FAF6 100%);border-color:rgba(29,164,98,.12)}
 .ring-wrap{position:relative;width:156px;height:156px;flex-shrink:0}
 .ring-wrap svg{width:156px;height:156px;transform:rotate(-90deg)}
@@ -408,6 +422,25 @@ input,select,textarea{font-family:inherit}
         <div class="macro-bar"><div class="macro-fill" id="f-bar" style="background:var(--ye);width:0%"></div></div>
       </div>
     </div>
+  </div>
+
+  <!-- Bodyweight: weigh-ins and the trend through them (features/nutrition/services/weightTrend.js) -->
+  <div class="card bw" id="bw-card">
+    <div class="bw-hd">
+      <div><div class="bw-t">Bodyweight</div><div class="bw-sub" id="bw-sub">Weigh in to start your trend</div></div>
+      <form class="bw-in" onsubmit="event.preventDefault();saveWeighIn()">
+        <input id="bw-input" type="number" inputmode="decimal" step="0.1" min="20" max="900" placeholder="Weight" aria-label="Today's weight">
+        <button type="button" class="bw-unit" id="bw-unit" onclick="toggleWeightUnit()" aria-label="Switch kg or lb">kg</button>
+        <button class="bw-save" type="submit">Save</button>
+      </form>
+    </div>
+    <div class="bw-stats" id="bw-stats" hidden>
+      <div><b id="bw-trend">–</b><span>Trend</span></div>
+      <div><b id="bw-rate">–</b><span>Per week</span></div>
+      <div><b id="bw-last">–</b><span id="bw-last-l">Latest</span></div>
+    </div>
+    <svg class="bw-chart" id="bw-chart" aria-hidden="true" hidden></svg>
+    <div class="bw-note" id="bw-note" hidden>Day-to-day swings of 1–2 kg are water, food and salt. The line is the trend: it moves 10% of the way to each weigh-in, so it shows what’s really changing.</div>
   </div>
 
   <!-- Tabs -->
@@ -1415,6 +1448,52 @@ function round1(n){ return Math.round(n*10)/10; }
 // ══════════════════════════════════════════════════════════════
 //  RENDER  —  summary + meals
 // ══════════════════════════════════════════════════════════════
+// ── Bodyweight ─────────────────────────────────────────
+const K_WEIGH = 'arete_weighins', K_WUNIT = 'arete_weight_unit', LB = 0.45359237;
+function weightUnit(){ return localStorage.getItem(K_WUNIT) === 'lb' ? 'lb' : 'kg'; }
+function toUnit(kg){ return weightUnit() === 'lb' ? kg / LB : kg; }
+function toggleWeightUnit(){ localStorage.setItem(K_WUNIT, weightUnit() === 'lb' ? 'kg' : 'lb'); renderWeight(); }
+function saveWeighIn(){
+  const el = document.getElementById('bw-input'); const v = parseFloat(el.value);
+  if (!(v > 0)) { el.focus(); return; }
+  const kg = weightUnit() === 'lb' ? v * LB : v;
+  if (!(kg > 20 && kg < 400)) { const sub = document.getElementById('bw-sub'); sub.textContent = 'That weight doesn’t look right. Check the unit (' + weightUnit() + ').'; sub.classList.add('bw-warn'); return; }
+  const list = readJSON(K_WEIGH, []).filter(r => r.date !== curDate);
+  list.push({ date: curDate, kg: Math.round(kg * 100) / 100, at: Date.now() });
+  list.sort((a, b) => (a.date < b.date ? -1 : 1));
+  writeJSON(K_WEIGH, list.slice(-1500));
+  el.value = ''; el.blur(); renderWeight();
+}
+function renderWeight(){
+  const W = window.WeightTrend; if (!W) return;
+  const u = weightUnit(), fmt = (kg) => (Math.round(toUnit(kg) * 10) / 10).toFixed(1);
+  document.getElementById('bw-sub').classList.remove('bw-warn');
+  document.getElementById('bw-unit').textContent = u;
+  const daily = W.dailyWeights(readJSON(K_WEIGH, []), readJSON('jarvis_body_log', []));
+  const series = W.trendSeries(daily);
+  const today = daily.find(d => d.date === curDate);
+  document.getElementById('bw-input').placeholder = today ? fmt(today.kg) : 'Weight';
+  const has = series.length > 0;
+  ['bw-stats', 'bw-chart', 'bw-note'].forEach(id => { document.getElementById(id).hidden = !has; });
+  if (!has) { document.getElementById('bw-sub').textContent = 'Weigh in to start your trend'; return; }
+  const last = series[series.length - 1], rate = W.weeklyRate(series);
+  document.getElementById('bw-sub').textContent = today ? `Logged for ${curDate === todayStr() ? 'today' : curDate}` : `Last weigh-in ${last.date}`;
+  document.getElementById('bw-trend').textContent = fmt(last.trend) + ' ' + u;
+  document.getElementById('bw-rate').textContent = rate ? `${rate.kgPerWeek >= 0 ? '+' : '−'}${Math.abs(Math.round(toUnit(rate.kgPerWeek) * 100) / 100).toFixed(2)} ${u}` : 'Needs a week';
+  document.getElementById('bw-rate').title = rate ? `${rate.pctPerWeek >= 0 ? '+' : ''}${rate.pctPerWeek.toFixed(2)}% of bodyweight a week, over ${rate.days} days` : '4 weigh-ins over at least 7 days';
+  document.getElementById('bw-last').textContent = fmt(last.kg) + ' ' + u;
+  document.getElementById('bw-last-l').textContent = last.date === todayStr() ? 'Today' : 'Latest';
+  // Last 60 days: weigh-ins as dots, the trend as the line. Drawn at the chart's real width so dots stay round.
+  const recent = series.slice(-60), svg = document.getElementById('bw-chart');
+  const w = Math.max(200, Math.round(svg.getBoundingClientRect().width) || 320), h = Math.round(svg.getBoundingClientRect().height) || 96;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const vals = recent.flatMap(r => [r.kg, r.trend]), lo = Math.min(...vals) - 0.3, hi = Math.max(...vals) + 0.3;
+  const t0 = Date.parse(recent[0].date), t1 = Math.max(t0 + 864e5, Date.parse(recent[recent.length - 1].date));
+  const X = (d) => 6 + ((Date.parse(d) - t0) / (t1 - t0)) * (w - 12), Y = (v) => h - 6 - ((v - lo) / (hi - lo)) * (h - 12);
+  svg.innerHTML = recent.map(r => `<circle class="dot" cx="${X(r.date).toFixed(1)}" cy="${Y(r.kg).toFixed(1)}" r="2.4"/>`).join('')
+    + (recent.length > 1 ? `<polyline class="line" points="${recent.map(r => `${X(r.date).toFixed(1)},${Y(r.trend).toFixed(1)}`).join(' ')}"/>` : '');
+}
+
 function totalsFor(entries){
   return entries.reduce((t,e)=>{
     const q = e.qty || 1;
@@ -1557,6 +1636,7 @@ function render(){
   syncDashboard();
   if (activeTab === 'nutrients') renderNutrients();
   if (activeTab === 'report') renderNutritionReport();
+  renderWeight();
 }
 
 function setMacro(key, val, goal){
@@ -2956,6 +3036,12 @@ function portionFood(food, meal){
 render();
 refreshFast();
 setInterval(tickFast, 60000);
+</script>
+<script type="module">
+import * as W from './features/nutrition/services/weightTrend.js';
+window.WeightTrend = W;
+if (typeof renderWeight === 'function') renderWeight();
+let bwW = 0; addEventListener('resize', () => { const w = document.getElementById('bw-chart')?.getBoundingClientRect().width | 0; if (w && Math.abs(w - bwW) > 8) { bwW = w; renderWeight(); } });
 </script>
 <script src="js/mobilenav.js" defer></script>
 </body>

@@ -365,6 +365,10 @@ input,select,textarea{font-family:inherit}
 .velocity-bar{width:24px;min-height:1px;background:var(--vi);border-radius:3px 3px 0 0}
 .velocity-bar.empty{height:12px;background:transparent;border:1px dashed var(--t3)}
 .velocity-detail{font-size:10.5px;color:var(--t3)}
+.coach{margin:2px 0 10px;padding:9px 11px;border-radius:10px;background:var(--s2);font-size:12.5px;line-height:1.45}
+.coach b{font-weight:700}.coach-add{background:rgba(52,199,89,.12)}.coach-lighter{background:rgba(255,159,10,.12)}
+.coach-why{font-size:11.5px;color:var(--t2);margin-top:2px}.coach-why .lg-link,.coach-off .lg-link{font-size:11.5px;padding:0;margin-left:4px}
+.coach-off{margin:2px 0 10px;font-size:11.5px;color:var(--t2)}
 .sr{border-radius:10px;padding:8px 10px;margin:4px 0 6px;font-size:12px;line-height:1.45;background:var(--s2)}
 .sr b{margin-right:4px}.sr-low{background:rgba(255,69,58,.10)}.sr-below{background:rgba(255,159,10,.12)}.sr-high{background:rgba(52,199,89,.12)}
 .sr-wait{margin:2px 0 6px}
@@ -819,6 +823,8 @@ function fmtKg(v){ return v>=10000 ? (v/1000).toFixed(1)+'k' : Math.round(v).toL
 // Last session's matching set for set s (the grey hints in the inputs).
 function prevFor(ex,s,last){ if(s.type==='warmup'||!last||last.elsewhere) return null; const wi=workSets(ex).indexOf(s); return last.sets[Math.min(Math.max(wi,0), last.sets.length-1)]||null; }
 function setHint(ex,s){
+  const c=coachFor_set(ex,s,coachFor(ex));
+  if(c && c.reps) return `Next ${c.weight!=null?esc(c.weight)+' kg × ':''}${esc(c.reps)} reps`;
   const p=prevFor(ex,s,lastPerf(ex.name, ex.machine&&ex.machine.id));
   if(p && (p.weight!==''||p.reps!=='')) return `Last time ${p.weight!==''?esc(p.weight)+' kg':''}${p.weight!==''&&p.reps!==''?' × ':''}${p.reps!==''?esc(p.reps)+' reps':''}`;
   if(s.type!=='warmup' && ex.targetReps) return `Target ${esc(ex.targetReps)} reps${ex.targetRir!=null&&ex.targetRir!==''?' · '+esc(ex.targetRir)+' RIR':''}`;
@@ -833,7 +839,8 @@ function toggleRestAuto(){ localStorage.setItem(K_REST_AUTO, restAuto()?'0':'1')
 // Log set: empty fields take last session's numbers (the grey hints), then the set is done.
 function logSet(eid,sid){
   const ex=findEx(eid), s=ex&&ex.sets.find(x=>x.id===sid); if(!s||s.completed) return;
-  const p=prevFor(ex,s,lastPerf(ex.name, ex.machine&&ex.machine.id));
+  const c=coachFor_set(ex,s,coachFor(ex));
+  const p=c ? { weight:c.weight!=null?c.weight:'', reps:c.reps!=null?c.reps:'' } : prevFor(ex,s,lastPerf(ex.name, ex.machine&&ex.machine.id));
   if(!ex.unilateral && (s.weight===''||s.weight==null) && p && p.weight!=='') setField(eid,sid,'weight',String(p.weight));
   if((s.reps===''||s.reps==null) && p && p.reps!=='') setField(eid,sid,'reps',String(p.reps));
   if(s.reps===''||s.reps==null){ toast('Enter your reps first'); const i=document.querySelector('#set-'+sid+' [data-f="reps"]'); if(i) i.focus(); return; }
@@ -975,13 +982,15 @@ function prevChart(ex){
 
 function renderExercise(ex, nx){
   const last = lastPerf(ex.name, ex.machine && ex.machine.id);
+  const sug = coachFor(ex);
   const hasRir = ex.targetRir!=null && ex.targetRir!=='';
   const isCur = !!(nx && nx.ex===ex);
   const nextHere = ex.sets.find(s=>!s.completed);
   const ws = workSets(ex), wDone = ws.filter(s=>s.completed).length;
   const rows = ex.sets.map((s)=>{
     const n = setNo(ex,s);
-    const prev = prevFor(ex,s,last);
+    const cs = coachFor_set(ex,s,sug);
+    const prev = cs ? { weight:cs.weight!=null?cs.weight:'', reps:cs.reps!=null?cs.reps:'' } : prevFor(ex,s,last);
     const cur = nextHere && s.id===nextHere.id;
     return `
     <div class="set-row${ex.unilateral?' uni':''}${s.completed?' done':''}${cur?' cur':''}${cur&&isCur?' now':''}" id="set-${s.id}">
@@ -1017,6 +1026,7 @@ function renderExercise(ex, nx){
       <button class="icon-btn ex-more" aria-label="Exercise settings" aria-expanded="${open}" onclick="toggleExSettings('${ex.id}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
     </div>
     ${meta?`<div class="ex-meta">${meta}</div>`:''}
+    ${coachHtml(ex,sug)}
     ${isCur?prevChart(ex):''}
     ${open?exSettingsHtml(ex):''}
     <div class="sets">
@@ -1030,6 +1040,15 @@ function renderExercise(ex, nx){
   </section>`;
 }
 
+// The coach's call for this exercise and why, with a switch back to repeating last time.
+function coachHtml(ex,sug){
+  if(ex.progressionOff) return window.Progression && perfSessions(ex.name, ex.machine&&ex.machine.id).length ? `<div class="coach-off">Repeating last time’s numbers · <button class="lg-link" onclick="toggleProgression('${ex.id}')">Suggest next weight</button></div>` : '';
+  if(!sug) return '';
+  const head={ add:'Add weight', reps:'One more rep', lighter:'Go lighter', hold:'Hold' }[sug.kind];
+  const next=`${sug.weight!=null?sug.weight+' kg × ':''}${sug.reps.join(', ')}`;
+  return `<div class="coach coach-${sug.kind}"><b>${head}:</b> ${esc(next)}<div class="coach-why">${esc(sug.reason)} <button class="lg-link" onclick="toggleProgression('${ex.id}')">Repeat last time instead</button></div></div>`;
+}
+
 // Everything that isn't logging a set: sides, machine, equipment, tools, and each
 // set's optional effort / calibration details.
 function exSettingsHtml(ex){
@@ -1041,6 +1060,7 @@ function exSettingsHtml(ex){
       </div></div>
     ${machineBlock(ex)}
     <label class="ex-equipment">Equipment variation (for personal predictions)${ex.machine?`<span> · ${esc(machineLabel(ex.machine))}</span>`:`<input value="${esc(ex.equipmentKey||'')}" placeholder="Optional, e.g. barbell · flat bench" onchange="setEquipmentVariation('${ex.id}',this.value)">`}</label>
+    <label class="ex-equipment">Weight step for “Add weight” (kg)<input type="number" inputmode="decimal" min="0.25" step="0.25" value="${customStep(ex)??''}" placeholder="${window.Progression?window.Progression.loadStep({ equipment:window.Progression.equipmentOf({ name:ex.name, machine:ex.machine }) }):''}" onchange="setLoadStep('${ex.id}',this.value)"></label>
     <div class="ex-set-acts">
       <button class="lg-link" onclick="openPlates('${ex.id}')">Plate calculator</button>
       <button class="lg-link" onclick="showProg('${jsName(ex.name)}')">Progress chart</button>
@@ -1070,6 +1090,39 @@ function lastPerf(name, machineId){
   }
   return other;
 }
+// Earlier sessions of an exercise (newest first): the same machine's when one is chosen, so another
+// machine's numbers never set the targets.
+function perfSessions(name, machineId, n=3){
+  const key=normExName(name), out=[];
+  for(const w of _hist){
+    if(active && w.id===active.id) continue;
+    if(String(w.id).startsWith('mock-')) continue;
+    const e=(w.exercises||[]).find(x=>normExName(x.name)===key); if(!e) continue;
+    if(machineId && (!e.machine || e.machine.id!==machineId)) continue;
+    const sets=(e.sets||[]).filter(s=>s.type!=='warmup' && s.completed && s.reps!=='' && s.reps!=null);
+    if(!sets.length) continue;
+    out.push({ date:w.completedAt, sets });
+    if(out.length>=n) break;
+  }
+  return out;
+}
+// The weight step a lifter set for an exercise (a machine's stack), kept per machine or exercise name.
+const K_STEPS='arete_load_steps';
+function stepKey(ex){ return ex.machine&&ex.machine.id ? 'm:'+ex.machine.id+':'+(ex.machine.mode||'default') : 'x:'+normExName(ex.name); }
+function customStep(ex){ const v=parseFloat((rj(K_STEPS,{})||{})[stepKey(ex)]); return isFinite(v)&&v>0 ? v : null; }
+function setLoadStep(eid,v){ const ex=findEx(eid); if(!ex) return; const m=rj(K_STEPS,{})||{}; const n=parseFloat(v); if(isFinite(n)&&n>0) m[stepKey(ex)]=n; else delete m[stepKey(ex)]; localStorage.setItem(K_STEPS, JSON.stringify(m)); renderLog(); }
+// What to lift next (features/training/services/progression.js): double progression over the plan's
+// rep range. Off per exercise when the lifter would rather repeat last time.
+function coachFor(ex){
+  const P=window.Progression; if(!P || ex.progressionOff) return null;
+  const sessions=perfSessions(ex.name, ex.machine&&ex.machine.id);
+  if(!sessions.length) return null;
+  const unit=(sessions[0].sets.find(x=>x.unit)||{}).unit==='lb' ? 'lb' : 'kg';
+  const r=readinessFor(ex);
+  return P.suggestNext(sessions, { range:ex.targetReps, targetRir:ex.targetRir, equipment:P.equipmentOf({ name:ex.name, machine:ex.machine }), unit, step:customStep(ex), readiness:r?r.level:null, setCount:workSets(ex).length });
+}
+function coachFor_set(ex,s,sug){ if(!sug||s.type==='warmup') return null; const wi=Math.max(0,workSets(ex).indexOf(s)); return { weight:sug.weight, reps:sug.reps[Math.min(wi, sug.reps.length-1)] }; }
+function toggleProgression(eid){ const ex=findEx(eid); if(!ex) return; ex.progressionOff=!ex.progressionOff; saveActive(); renderLog(); }
 function shortMuscle(id){ return muscleName(id).replace(/^(Left|Right)\s+/,'').replace('Quadriceps','Quads').replace('Abdominals','Abs'); }
 
 function targetMuscles(wk){
@@ -1253,6 +1306,21 @@ function renderTrackedSet(ex,s){
 }
 // Readiness from bar speed (features/velocity/services/readiness.js): under the first tracked set of an
 // exercise today, how it moved against your usual speed at the same weight in earlier sessions.
+function readinessFor(ex){
+  const R=window.VelocityReadiness; if(!R||!active) return null;
+  const first=ex.sets.find(x=>x.velocity); if(!first) return null;
+  const r=readinessRaw(ex,first); return r&&r.status==='ok' ? r : null;
+}
+function readinessRaw(ex,s){
+  const R=window.VelocityReadiness;
+  const load=r=>Number.isFinite(r?.loadKg)?r.loadKg:null;
+  const loadOf=(x)=>load(x.velocity)??(x.weight!==''&&x.weight!=null&&Number.isFinite(+x.weight)?+x.weight:NaN);
+  const key=normExName(ex.name), history=[];
+  completed().forEach(w=>(w.exercises||[]).filter(e=>normExName(e.name)===key).forEach(e=>(e.sets||[]).forEach((x,i)=>{
+    if(x.velocity) history.push({record:x.velocity,loadKg:loadOf(x),equipmentKey:x.velocity.equipmentKey||null,sessionId:w.id,at:(w.startedAt||w.completedAt)+i});
+  })));
+  return R.speedReadiness({record:s.velocity,loadKg:loadOf(s),equipmentKey:s.velocity.equipmentKey||null,sessionId:active.id,at:Date.now()},history);
+}
 function speedReadinessHtml(ex,s){
   const R=window.VelocityReadiness; if(!R||!active) return '';
   const first=ex.sets.find(x=>x.velocity); if(first!==s) return '';
@@ -2942,8 +3010,10 @@ import * as tracking from './features/velocity/services/workout.js';
 import * as predictions from './features/velocity/services/predictions.js';
 import * as metrics from './features/velocity/services/coachMetrics.js';
 import * as readiness from './features/velocity/services/readiness.js';
+import * as progression from './features/training/services/progression.js';
 window.VelocityWorkout=tracking;
 window.VelocityReadiness=readiness;
+window.Progression=progression;
 window.VelocityPredictions=predictions;
 window.VelocityCoachMetrics=metrics;
 if(tab==='log' && active && !active.paused) renderLog();
