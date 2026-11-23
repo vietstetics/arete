@@ -23,9 +23,9 @@
       const sets = (ex.sets || []).filter((s) => s && s.completed).map((s) => {
         const unit = s.unit || 'kg';
         const weight = ex.unilateral
-          ? (blank(s.weightL) && blank(s.weightR) ? DASH : `L ${blank(s.weightL) ? DASH : s.weightL} · R ${blank(s.weightR) ? DASH : s.weightR} ${unit}`)
+          ? (blank(s.weightL) && blank(s.weightR) ? DASH : `R ${blank(s.weightR) ? DASH : s.weightR} · L ${blank(s.weightL) ? DASH : s.weightL} ${unit}`)
           : (blank(s.weight) ? DASH : `${s.weight} ${unit}`);
-        return { label: s.type === 'warmup' ? 'W' : String(++n), weight, reps: blank(s.reps) ? DASH : String(s.reps), rir: blank(s.rir) ? DASH : String(s.rir), warm: s.type === 'warmup' };
+        return { label: s.type === 'warmup' ? 'W' : String(++n), weight, reps: ex.unilateral && !(blank(s.repsR) && blank(s.repsL)) ? `R ${blank(s.repsR) ? DASH : s.repsR} · L ${blank(s.repsL) ? DASH : s.repsL}` : blank(s.reps) ? DASH : String(s.reps), rir: blank(s.rir) ? DASH : String(s.rir), warm: s.type === 'warmup' };
       });
       return { name: String(ex.name || 'Exercise'), sets };
     }).filter((e) => e.sets.length);

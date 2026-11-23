@@ -127,7 +127,18 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .tw-x-n { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; display: flex; gap: 8px; align-items: baseline; }
 .tw-x-n b { font-size: 11px; color: var(--t3); font-variant-numeric: tabular-nums; }
 .tw-x-acts { display: flex; gap: 0; flex-shrink: 0; }
-.tw-x-f { display: grid; grid-template-columns: 64px 1fr 72px; gap: 8px; margin-top: 8px; }
+.tw-x-f { display: grid; grid-template-columns: 1fr 72px; gap: 8px; margin-top: 8px; }
+/* Sets and sides: the two choices that decide what the logger shows, so they come first and big. */
+.tw-x-sets { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
+.tw-step { display: flex; align-items: center; border: 1px solid var(--bd); border-radius: 12px; overflow: hidden; }
+.tw-step-b { width: 44px; height: 46px; font-size: 22px; font-weight: 600; color: var(--t1); background: var(--s2); }
+.tw-step-b:disabled { color: var(--t3); }
+.tw-step-v { display: flex; align-items: baseline; gap: 5px; padding: 0 10px; font-size: 13px; font-weight: 700; color: var(--t2); }
+.tw-num.tw-sets { width: 40px; min-height: 0; padding: 0; border: 0; background: none; font-size: 22px; font-weight: 800; }
+.tw-sides { display: flex; flex: 1; min-width: 220px; background: var(--s2); border-radius: 12px; padding: 3px; }
+.tw-sides button { flex: 1; min-height: 40px; border-radius: 9px; font-size: 13px; font-weight: 700; color: var(--t2); }
+.tw-sides button[aria-pressed="true"] { background: var(--s1); color: var(--t1); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.tw-x-note { font-size: 12px; color: var(--t2); margin-top: 6px; }
 .tw-x-f label { display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; min-width: 0; }
 .tw-range { display: flex; align-items: center; gap: 4px; }
 .tw-range i { font-style: normal; color: var(--t3); }

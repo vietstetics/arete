@@ -106,7 +106,7 @@ body { background: #F2F2F7 !important; }
 /* Sets: Set · kg · Reps · RIR · ✓ */
 .sets { padding: 0; }
 .set-row { grid-template-columns: 34px 1fr 1fr 54px 44px; gap: 6px; padding: 5px 4px; border-radius: 12px; }
-.set-row.uni { grid-template-columns: 34px 1fr 1fr 1fr 50px 44px; }
+.set-row.uni { grid-template-columns: 34px 46px 1fr 1fr 54px 44px; row-gap: 6px; }
 .set-row.head { font-size: 10.5px; padding: 0 4px 2px; }
 .set-row.head span { text-align: center; } .set-row.head span:first-child { text-align: left; }
 .set-tag { width: 30px; height: 30px; border-radius: 9px; background: rgba(17,17,20,.05); color: var(--t2); font-size: 12.5px; }
@@ -163,7 +163,7 @@ body { background: #F2F2F7 !important; }
   .ph-title { font-size: 32px; }
   .wtabs { max-width: none; }
   .set-row { grid-template-columns: 30px 1fr 1fr 48px 44px; gap: 5px; }
-  .set-row.uni { grid-template-columns: 30px 1fr 1fr 1fr 44px 44px; gap: 4px; }
+  .set-row.uni { grid-template-columns: 30px 42px 1fr 1fr 48px 44px; gap: 5px; row-gap: 6px; }
   .ts-grid { gap: 12px; } .ts-k + .ts-k { padding-left: 12px; }
 }
 #lockin:empty { display: none; }

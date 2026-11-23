@@ -124,7 +124,9 @@ input,select,textarea{font-family:inherit}
 .ex-sides{display:inline-flex;gap:2px;padding:2px;margin:2px 18px 6px;border-radius:9px;background:var(--s2)}
 .ex-sides button{padding:5px 10px;border-radius:7px;font-size:12px;font-weight:600;color:var(--t2)}
 .ex-sides button[aria-pressed="true"]{background:#fff;color:var(--t1);box-shadow:var(--sh0)}
-.set-row.uni{grid-template-columns:30px 1fr 1fr 1fr 46px 46px 30px}
+.set-row.uni{grid-template-columns:30px 44px 1fr 1fr 46px 38px;row-gap:6px}
+.set-row.uni>.set-tag,.set-row.uni>.set-span{grid-row:span 2;align-self:center}
+.side-k{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--t2)}
 .ex-tags{display:flex;flex-wrap:wrap;gap:3px;margin:0 18px 6px}
 .tg{font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--s2);color:var(--t2)}
 .tg.pri{background:var(--vid);color:var(--vi)}
@@ -354,7 +356,7 @@ input,select,textarea{font-family:inherit}
 .pm-days{font-size:10.5px;font-weight:600;color:var(--vi);margin-top:8px}
 .pm-opt.blank .pm-days{color:var(--t3)}
 @media(max-width:560px){.pm-b{grid-template-columns:1fr}}
-@media(max-width:920px){.set-row.uni{grid-template-columns:24px 1fr 1fr 1fr 38px 38px 26px;gap:4px}}
+@media(max-width:920px){.set-row.uni{grid-template-columns:24px 40px 1fr 1fr 40px 34px;gap:4px;row-gap:6px}}
 @media(max-width:900px){.cols{grid-template-columns:1fr}}
 .velocity-row{padding:5px 0 10px 30px;font-size:11.5px;color:var(--t2)}
 .velocity-row .btn{margin-bottom:5px}
@@ -695,8 +697,8 @@ function startPlanSession(s){
   active={ id:'w-'+F.uid(), name:r.name, startedAt:Date.now(), notes:'',
     planId:s.plan.planId, planVersionId:s.plan.id, routineId:r.id, scheduledFor:s.date,
     exercises:r.exercises.map(x=>{ const m=musclesFor(x.name); return { id:'e-'+F.uid(), name:x.name,
-      primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetSets:x.sets, targetReps:repTxt(x), targetRir:(x.rir??''), ...(x.machine?{ machine:x.machine }:{}),
-      sets:Array.from({length:Math.max(1,x.sets||1)},()=>({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:'', rpe:'', rir:'', completed:false })) }; }) };
+      primaryMuscles:m.primary, secondaryMuscles:m.secondary, targetSets:x.sets, targetReps:repTxt(x), targetRir:(x.rir??''), ...(x.machine?{ machine:x.machine }:{}), ...(x.unilateral?{ unilateral:true }:{}),
+      sets:Array.from({length:Math.max(1,x.sets||1)},()=>({ id:'s-'+F.uid(), type:'working', weight:'', unit:'kg', reps:'', rpe:'', rir:'', ...(x.unilateral?{ weightR:'', repsR:'', weightL:'', repsL:'' }:{}), completed:false })) }; }) };
   saveActive(); setTab('log'); scrollMainTop();
 }
 // Starting something else must not silently drop a saved draft.
@@ -842,6 +844,14 @@ function logSet(eid,sid){
   const ex=findEx(eid), s=ex&&ex.sets.find(x=>x.id===sid); if(!s||s.completed) return;
   const c=coachFor_set(ex,s,coachFor(ex));
   const p=c ? { weight:c.weight!=null?c.weight:'', reps:c.reps!=null?c.reps:'' } : prevFor(ex,s,lastPerf(ex.name, ex.machine&&ex.machine.id));
+  if(ex.unilateral){
+    // Each empty side takes the hint, like the grey numbers show.
+    for(const S of ['R','L']){
+      if(!sideNum(s['weight'+S]) && p && p.weight!=='') setSide(eid,sid,'weight'+S,String(p.weight));
+      if(!sideNum(s['reps'+S]) && p && p.reps!=='') setSide(eid,sid,'reps'+S,String(p.reps));
+    }
+    if(!sideNum(s.repsR)||!sideNum(s.repsL)){ toast('Enter reps for both sides first'); const i=document.querySelector('#set-'+sid+' [aria-label="'+(sideNum(s.repsR)?'Left':'Right')+' side reps"]'); if(i) i.focus(); return; }
+  }
   if(!ex.unilateral && (s.weight===''||s.weight==null) && p && p.weight!=='') setField(eid,sid,'weight',String(p.weight));
   if((s.reps===''||s.reps==null) && p && p.reps!=='') setField(eid,sid,'reps',String(p.reps));
   if(s.reps===''||s.reps==null){ toast('Enter your reps first'); const i=document.querySelector('#set-'+sid+' [data-f="reps"]'); if(i) i.focus(); return; }
@@ -996,13 +1006,20 @@ function renderExercise(ex, nx){
     return `
     <div class="set-row${ex.unilateral?' uni':''}${s.completed?' done':''}${cur?' cur':''}${cur&&isCur?' now':''}" id="set-${s.id}">
       <button class="set-tag ${s.type==='warmup'?'warm':''}" title="Toggle warm-up / working" aria-label="Set ${n}: toggle warm-up" onclick="toggleType('${ex.id}','${s.id}')">${n}</button>
-      ${ex.unilateral
-        ? `<input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'L'}" aria-label="Left weight in kg" value="${s.weightL??''}" oninput="setSide('${ex.id}','${s.id}','weightL',this.value)">
-      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'R'}" aria-label="Right weight in kg" value="${s.weightR??''}" oninput="setSide('${ex.id}','${s.id}','weightR',this.value)">`
-        : `<input class="set-in" data-f="weight" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight??''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">`}
+      ${ex.unilateral ? `
+      <span class="side-k">Right</span>
+      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Right side weight in kg" value="${s.weightR??''}" oninput="setSide('${ex.id}','${s.id}','weightR',this.value)">
+      <input class="set-in" data-f="reps" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Right side reps" value="${s.repsR??''}" oninput="setSide('${ex.id}','${s.id}','repsR',this.value)">
+      <input class="set-in set-span" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
+      <button class="set-done set-span ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+      <span class="side-k">Left</span>
+      <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Left side weight in kg" value="${s.weightL??''}" oninput="setSide('${ex.id}','${s.id}','weightL',this.value)">
+      <input class="set-in" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Left side reps" value="${s.repsL??''}" oninput="setSide('${ex.id}','${s.id}','repsL',this.value)">
+      ` : `
+      <input class="set-in" data-f="weight" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight??''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
       <input class="set-in" data-f="reps" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps??''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
       <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
-      <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+      <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
     </div>
     ${s.velocity?`<div class="set-velo">${speedReadinessHtml(ex,s)}${renderVelocityResult(s.velocity)}</div>`:''}
     ${cur&&isCur?`<button class="btn tr-cta tr-log" onclick="logSet('${ex.id}','${s.id}')">Log ${s.type==='warmup'?'warm-up':'set '+n}</button>`:''}`; }).join('');
@@ -1032,7 +1049,7 @@ function renderExercise(ex, nx){
     ${isCur?prevChart(ex):''}
     ${open?exSettingsHtml(ex):''}
     <div class="sets">
-      <div class="set-row head${ex.unilateral?' uni':''}"><span>Set</span>${ex.unilateral?'<span>L kg</span><span>R kg</span>':'<span>kg</span>'}<span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span></span></div>
+      <div class="set-row head${ex.unilateral?' uni':''}"><span>Set</span>${ex.unilateral?'<span></span>':''}<span>kg</span><span>Reps</span><span title="Reps in reserve (0 = to failure)">RIR</span><span></span></div>
       ${rows}
     </div>
     ${fatigueHtml(ex)}
@@ -1057,8 +1074,8 @@ function exSettingsHtml(ex){
   return `<div class="ex-set">
     <div class="ex-set-row"><span>Sides</span>
       <div class="ex-sides" role="group" aria-label="Sides">
-        <button aria-pressed="${!ex.unilateral}" onclick="setSides('${ex.id}',false)">Both together</button>
-        <button aria-pressed="${!!ex.unilateral}" onclick="setSides('${ex.id}',true)" title="Separate left and right weights for each set">Each side</button>
+        <button aria-pressed="${!ex.unilateral}" onclick="setSides('${ex.id}',false)">Both sides</button>
+        <button aria-pressed="${!!ex.unilateral}" onclick="setSides('${ex.id}',true)" title="Log each set as Right and Left">One side at a time</button>
       </div></div>
     ${machineBlock(ex)}
     <label class="ex-equipment">Equipment variation (for personal predictions)${ex.machine?`<span> · ${esc(machineLabel(ex.machine))}</span>`:`<input value="${esc(ex.equipmentKey||'')}" placeholder="Optional, e.g. barbell · flat bench" onchange="setEquipmentVariation('${ex.id}',this.value)">`}</label>
@@ -1406,7 +1423,7 @@ function strengthAnalyticsHtml(name,srcWorkouts){
     ${plots||`<div class="velocity-summary velocity-detail">Load–velocity profile unavailable. ${esc(model?.oneRm?.reason||'Reliable calibrated physical velocity points are needed.')}</div>`}
     <div class="coach-reps-wrap"><table class="coach-reps-table"><thead><tr><th>Date / set</th><th>Equipment</th><th>Actual tested 1RM</th><th>Velocity 1RM estimate</th><th>Optional Epley estimate</th><th>Estimated RIR</th><th>Estimated RPE</th></tr></thead><tbody>${rows.slice(0,20).map(({s,e,w,set,p})=>`<tr><td>${esc(F.fmtDate(w.completedAt))} · ${set}</td><td>${esc(e.equipmentKey||e.machine?.name||'Unspecified')}</td><td>${s.tested1RM?.verified&&Number.isFinite(s.tested1RM.loadKg)?esc(s.tested1RM.loadKg)+' kg':'—'}</td><td>${esc(estimate(p?.oneRm,' kg'))}</td><td>${esc(estimate(p?.repetitionOneRm,' kg'))}</td><td>${esc(estimate(p?.rir))}</td><td>${esc(estimate(p?.rpe))}</td></tr>`).join('')}</tbody></table></div>`;
 }
-function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', ...(ex.unilateral?{ weightL:last?last.weightL??'':'', weightR:last?last.weightR??'':'' }:{}), unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
+function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', ...(ex.unilateral?{ weightL:last?last.weightL??'':'', weightR:last?last.weightR??'':'', repsL:'', repsR:'' }:{}), unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
 function removeSet(eid,sid){ const ex=findEx(eid); ex.sets=ex.sets.filter(s=>s.id!==sid); if(!ex.sets.length) active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
 function setField(eid,sid,f,v){
   const ex=findEx(eid), s=ex.sets.find(s=>s.id===sid); s[f]=v===''?'':parseFloat(v);
@@ -1416,21 +1433,27 @@ function setField(eid,sid,f,v){
   refreshSetPrediction(ex,s);
   saveActive();
 }
-// Unilateral sets keep a left and a right weight. The set's own weight follows
-// the heavier side, so last time, PRs and progression charts keep working.
+// One-side sets keep a right and a left weight and reps. The set's own weight is the heavier side and
+// its reps the weaker side, so last time, PRs and progression only move on when both sides did.
+const sideNum=(x)=>x!==''&&x!=null&&Number.isFinite(x);
+function sideTotals(s){
+  const w=[s.weightL,s.weightR].filter(sideNum), r=[s.repsL,s.repsR].filter(sideNum);
+  s.weight= w.length ? Math.max(...w) : '';
+  s.reps= r.length ? Math.min(...r) : '';
+}
 function setSide(eid,sid,f,v){
-  const s=findEx(eid).sets.find(x=>x.id===sid);
+  const ex=findEx(eid), s=ex.sets.find(x=>x.id===sid);
   s[f]= v===''?'':parseFloat(v);
-  const sides=[s.weightL,s.weightR].filter(x=>x!==''&&x!=null&&Number.isFinite(x));
-  s.weight= sides.length ? Math.max(...sides) : '';
+  sideTotals(s);
+  refreshSetPrediction(ex,s);
   saveActive();
 }
 function setSides(eid,on){
   const ex=findEx(eid); if(!ex || !!ex.unilateral===on) return;
   ex.unilateral=on;
   ex.sets.forEach(s=>{
-    if(on){ if(s.weightL==null) s.weightL=s.weight; if(s.weightR==null) s.weightR=s.weight; }
-    else { delete s.weightL; delete s.weightR; }
+    if(on){ if(s.weightL==null) s.weightL=s.weight; if(s.weightR==null) s.weightR=s.weight; if(s.repsL==null) s.repsL=s.reps; if(s.repsR==null) s.repsR=s.reps; }
+    else { delete s.weightL; delete s.weightR; delete s.repsL; delete s.repsR; }
   });
   saveActive(); renderLog();
 }
@@ -1687,8 +1710,8 @@ function saveTemplate(){
 function instantiate(tpl){
   return { id:'w-'+F.uid(), name:tpl.name, startedAt:Date.now(), notes:'',
     exercises: tpl.exercises.map(e=>{ const m=musclesFor(e.name); return { id:'e-'+F.uid(), name:e.name,
-      primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary, targetRir:e.targetRir, equipmentKey:e.equipmentKey, ...(e.machine?{ machine:e.machine }:{}),
-      sets:(e.sets||[{type:'working'}]).map(s=>({ id:'s-'+F.uid(), type:s.type||'working', weight:s.weight??'', unit:'kg', reps:s.reps??'', rpe:s.rpe??'', rir:s.rir??'', completed:false })) }; }) };
+      primaryMuscles:e.primaryMuscles||m.primary, secondaryMuscles:e.secondaryMuscles||m.secondary, targetRir:e.targetRir, equipmentKey:e.equipmentKey, ...(e.machine?{ machine:e.machine }:{}), ...(e.unilateral?{ unilateral:true }:{}),
+      sets:(e.sets||[{type:'working'}]).map(s=>({ id:'s-'+F.uid(), type:s.type||'working', weight:s.weight??'', unit:'kg', reps:s.reps??'', rpe:s.rpe??'', rir:s.rir??'', ...(e.unilateral?{ weightR:s.weightR??'', repsR:s.repsR??'', weightL:s.weightL??'', repsL:s.repsL??'' }:{}), completed:false })) }; }) };
 }
 // ════════════════════════════════════════════════════════════════
 //  WEIGHT PROGRESSION — tap any exercise name to see it as a graph.
@@ -2593,7 +2616,7 @@ function openSession(id){
       ${e.machine?`<div class="mc-hist">${esc(machineLabel(e.machine))}</div>`:''}
       <div style="display:grid;grid-template-columns:40px 1fr 1fr 1fr 28px;gap:4px;font-size:12.5px;margin-top:6px;font-variant-numeric:tabular-nums">
         <span style="color:var(--t3);font-size:10.5px;font-weight:700">SET</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">WEIGHT</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">REPS</span><span style="color:var(--t3);font-size:10.5px;font-weight:700">RIR</span><span></span>
-        ${e.sets.map((s,i)=>`<span style="color:var(--t2)">${s.type==='warmup'?'W':i+1-e.sets.slice(0,i).filter(x=>x.type==='warmup').length}</span><span>${s.weight!==''&&s.weight!=null?esc(s.weight)+' kg':'–'}</span><span>${s.reps!==''&&s.reps!=null?esc(s.reps):'–'}</span><span>${s.rir!==''&&s.rir!=null?esc(s.rir):'–'}</span><span style="color:${s.completed?'var(--gr)':'var(--t3)'}">${s.completed?'✓':'–'}</span>`).join('')}
+        ${e.sets.map((s,i)=>`<span style="color:var(--t2)">${s.type==='warmup'?'W':i+1-e.sets.slice(0,i).filter(x=>x.type==='warmup').length}</span><span>${e.unilateral&&(sideNum(s.weightR)||sideNum(s.weightL))?'R '+esc(s.weightR??'–')+' · L '+esc(s.weightL??'–')+' kg':s.weight!==''&&s.weight!=null?esc(s.weight)+' kg':'–'}</span><span>${e.unilateral&&(sideNum(s.repsR)||sideNum(s.repsL))?'R '+esc(s.repsR??'–')+' · L '+esc(s.repsL??'–'):s.reps!==''&&s.reps!=null?esc(s.reps):'–'}</span><span>${s.rir!==''&&s.rir!=null?esc(s.rir):'–'}</span><span style="color:${s.completed?'var(--gr)':'var(--t3)'}">${s.completed?'✓':'–'}</span>`).join('')}
       </div>
       ${fatigueHtml(e)}
       ${e.sets.map((s,i)=>s.velocity||s.predictions?`<div class="velocity-detail" style="margin-top:8px">Set ${i+1} measurements &amp; estimates</div>${s.velocity?renderVelocityResult(s.velocity):window.VelocityCoachMetrics?.renderCoachMetrics(loggedPredictionRecord(e,s,w),{predictions:s.predictions})||''}`:'').join('')}
@@ -2605,7 +2628,7 @@ function closeSession(){ document.getElementById('sess-modal').classList.remove(
 function repeatWorkout(id){
   if(!keepDraftOk()) return; 
   const w=completed().find(x=>x.id===id); if(!w) return;
-  active = instantiate({ name:w.name, exercises:w.exercises.map(e=>({name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, machine:e.machine, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir}))})) });
+  active = instantiate({ name:w.name, exercises:w.exercises.map(e=>({name:e.name, primaryMuscles:e.primaryMuscles, secondaryMuscles:e.secondaryMuscles, targetRir:e.targetRir, machine:e.machine, unilateral:e.unilateral, sets:e.sets.map(s=>({type:s.type,weight:s.weight,reps:s.reps,rpe:s.rpe,rir:s.rir,weightR:s.weightR,repsR:s.repsR,weightL:s.weightL,repsL:s.repsL}))})) });
   saveActive(); setTab('log'); toast('Loaded — edit and finish to log again');
 }
 

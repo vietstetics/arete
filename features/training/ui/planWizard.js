@@ -41,8 +41,10 @@ let opts = {};
 
 // ── State ───────────────────────────────────────────────────────────────
 function newRoutine(name) { return { id: 'r-' + uid(), name, exercises: [] }; }
+// Lifts usually trained one side at a time start as "one side"; the lifter can change it.
+const ONE_SIDE = /(single[- ]?(arm|leg)|one[- ]?(arm|leg)|unilateral|bulgarian|split squat|lunges?|step[- ]?ups?|kickbacks?|concentration curl|pistol)/i;
 function newExercise(name, src = {}) {
-  return { id: 'x-' + uid(), name, sets: src.sets ?? 2, repMin: src.repMin ?? 8, repMax: src.repMax ?? 12, rir: src.rir ?? 1 };
+  return { id: 'x-' + uid(), name, sets: src.sets ?? 2, repMin: src.repMin ?? 8, repMax: src.repMax ?? 12, rir: src.rir ?? 1, unilateral: src.unilateral ?? ONE_SIDE.test(name) };
 }
 function blank() {
   return { step: 0, maxStep: 0, splitId: null, name: '', routines: [], bank: [], custom: null, customName: '', days: [], rotation: 'continue', assignments: {}, startDate: localKey(), planId: null, editing: false, open: null, confirmEnd: false, error: '' };
@@ -137,7 +139,7 @@ function buildPlan() {
       exercises: r.exercises.map((x) => {
         const lo = int(x.repMin, 1, 100, 8), hi = int(x.repMax, 1, 100, lo);
         const rir = x.rir === '' || x.rir == null ? null : Math.min(10, Math.max(0, Number(x.rir)));
-        return { id: x.id, name: x.name, ...(x.catalogId ? { catalogId: x.catalogId } : {}), ...(x.machine ? { machine: x.machine } : {}), sets: int(x.sets, 1, 20, 2), repMin: Math.min(lo, hi), repMax: Math.max(lo, hi), rir: Number.isFinite(rir) ? rir : null };
+        return { id: x.id, name: x.name, ...(x.catalogId ? { catalogId: x.catalogId } : {}), ...(x.machine ? { machine: x.machine } : {}), sets: int(x.sets, 1, 20, 2), repMin: Math.min(lo, hi), repMax: Math.max(lo, hi), rir: Number.isFinite(rir) ? rir : null, ...(x.unilateral ? { unilateral: true } : {}) };
       }),
     })),
   };
@@ -320,8 +322,19 @@ function exRow(r, x, i) {
         <button class="tw-iconbtn sm" data-act="xdel" ${k} aria-label="Remove ${esc(x.name)}">${ICON.trash}</button>
       </span>
     </div>
+    <div class="tw-x-sets">
+      <div class="tw-step" role="group" aria-label="Sets for ${esc(x.name)}">
+        <button class="tw-step-b" data-act="xsets-" ${k} ${+x.sets <= 1 ? 'disabled' : ''} aria-label="One set fewer">−</button>
+        <label class="tw-step-v"><input class="tw-num tw-sets" type="number" inputmode="numeric" min="1" max="20" data-field="xsets" ${k} value="${esc(x.sets)}" aria-label="Sets"><span>${+x.sets === 1 ? 'set' : 'sets'}</span></label>
+        <button class="tw-step-b" data-act="xsets+" ${k} ${+x.sets >= 20 ? 'disabled' : ''} aria-label="One set more">+</button>
+      </div>
+      <div class="tw-sides" role="group" aria-label="How ${esc(x.name)} is done">
+        <button data-act="xsides" data-v="both" ${k} aria-pressed="${!x.unilateral}">Both sides</button>
+        <button data-act="xsides" data-v="each" ${k} aria-pressed="${!!x.unilateral}">One side at a time</button>
+      </div>
+    </div>
+    ${x.unilateral ? `<p class="tw-x-note">Each set is logged as Right and Left.</p>` : ''}
     <div class="tw-x-f">
-      <label><span>Sets</span><input class="tw-num" type="number" inputmode="numeric" min="1" max="20" data-field="xsets" ${k} value="${esc(x.sets)}"></label>
       <label><span>Reps</span><span class="tw-range"><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="xmin" ${k} value="${esc(x.repMin)}" aria-label="Minimum reps"><i>–</i><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="xmax" ${k} value="${esc(x.repMax)}" aria-label="Maximum reps"></span></label>
       <label><span>RIR</span><input class="tw-num" type="number" inputmode="decimal" min="0" max="10" step="0.5" data-field="xrir" ${k} value="${esc(x.rir ?? '')}" placeholder="–"></label>
     </div>
@@ -362,7 +375,7 @@ function step3() {
     <div class="tw-lbl tw-lbl-row">Workouts <button class="tw-link" data-act="goto" data-step="2">Edit</button></div>
     ${plan.routines.map((r) => `<div class="tw-rv">
       <div class="tw-rv-h">${esc(r.name)}</div>
-      ${r.exercises.length ? `<ul>${r.exercises.map((x) => `<li><span>${esc(x.name)}${x.machine ? `<small class="tw-rv-mc">${esc([x.machine.brand, x.machine.name, x.machine.model].filter(Boolean).join(' · '))}</small>` : ''}</span><span>${x.sets} × ${esc(repText(x))}${x.rir != null ? ` · ${x.rir} RIR` : ''}</span></li>`).join('')}</ul>` : '<p class="tw-p small">No exercises yet</p>'}
+      ${r.exercises.length ? `<ul>${r.exercises.map((x) => `<li><span>${esc(x.name)}${x.machine ? `<small class="tw-rv-mc">${esc([x.machine.brand, x.machine.name, x.machine.model].filter(Boolean).join(' · '))}</small>` : ''}</span><span>${x.sets} ${x.sets === 1 ? 'set' : 'sets'} × ${esc(repText(x))}${x.unilateral ? ' · each side' : ''}${x.rir != null ? ` · ${x.rir} RIR` : ''}</span></li>`).join('')}</ul>` : '<p class="tw-p small">No exercises yet</p>'}
     </div>`).join('')}
     <div class="tw-lbl">Overlap &amp; coverage</div>
     ${planPanelHtml(plan, catalogue, sessionsPerWeek(plan))}
@@ -429,6 +442,8 @@ function onClick(e) {
       });
       return;
     }
+    case 'xsets-': case 'xsets+': if (xi >= 0) x[xi].sets = Math.min(20, Math.max(1, (Number(x[xi].sets) || 1) + (act === 'xsets+' ? 1 : -1))); render(); break;
+    case 'xsides': if (xi >= 0) x[xi].unilateral = el.dataset.v === 'each'; render(); break;
     case 'xmachine-clear': if (xi >= 0) setMachine(x[xi], null); render(); break;
     case 'xup': if (xi > 0) [x[xi - 1], x[xi]] = [x[xi], x[xi - 1]]; render(); break;
     case 'xdown': if (xi >= 0 && xi < x.length - 1) [x[xi + 1], x[xi]] = [x[xi], x[xi + 1]]; render(); break;
