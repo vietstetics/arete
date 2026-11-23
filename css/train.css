@@ -34,6 +34,9 @@ body { background: #F2F2F7 !important; }
 .td { max-width: 640px; }
 .td-hero { padding: 22px 20px 18px; }
 .td-h { font-size: 26px; }
+/* Arete's display face (as on the sign-in screen), for the no-plan call to action. */
+.td-big { font: 800 52px/.92 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif; text-transform: uppercase; letter-spacing: -.01em; margin: 6px 0 12px; color: var(--t1); }
+.td-big em { font-style: normal; color: var(--ac2); }
 .tr-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 12px; }
 .tr-stats div { display: flex; flex-direction: column; }
 .tr-stats b { font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }

@@ -15,7 +15,7 @@
 <title>Arete — Training</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#F5F5F7;--s1:rgba(0,0,0,.03);--s2:rgba(0,0,0,.05);--s3:rgba(0,0,0,.07);
@@ -762,30 +762,24 @@ function renderToday(host){
   }
   if(planOn){
     main += '<div id="plan-home"></div>';
-  } else if(!draft && sugg){
-    const exs = sugg.day.exercises;
-    main = `<section class="card td-hero">
-      <div class="td-eye">Today · ${esc(sugg.prog.name)}</div>
-      <h3 class="td-h">${esc(sugg.day.name)}</h3>
-      <div class="td-sub">${esc(dateLabel)} · from your weekly workouts <button class="td-text" style="display:inline;padding:0;margin:0;font-weight:600" onclick="setTab('programs')">Edit</button></div>
-      ${exs.length?`<ul class="tp-ex">${exs.map(x=>`<li><span>${esc(x.name)}</span><span>${esc((x.targetSets||3)+' × '+(x.targetReps||''))}</span></li>`).join('')}</ul>`:''}
-      <button class="btn btn-p td-cta" onclick="startProgramWorkout('${sugg.prog.id}',${sugg.di})">${TD_ICON.play} Start workout</button>
-    </section>`;
   } else if(!draft){
-    main = `<section class="card td-hero">
+    // No plan yet: the one thing to do is make one. An empty workout stays a quiet option.
+    main = `<section class="card td-hero td-noplan">
       <div class="td-eye">${esc(dateLabel)}</div>
-      <h3 class="td-h">Ready to train?</h3>
-      <p class="td-p">Start a workout and add exercises as you go.</p>
-      <button class="btn btn-p td-cta" onclick="startWorkout()">${TD_ICON.plus} Start workout</button>
+      <h3 class="td-big">No plan<br><em>yet.</em></h3>
+      <p class="td-p">Create a plan once: pick your split and training days, and Arete puts the right workout here every day, with the weights to beat.</p>
+      <button class="btn btn-p td-cta" onclick="setTab('plan')">${wizDraft?'Finish your plan':'Create your plan'}</button>
+      <button class="td-text" onclick="startWorkout()">Or start an empty workout</button>
     </section>`;
   }
-  const setup = planOn || sugg ? '' : `<section class="card td-setup">
+  const setup = planOn || !draft ? '' : `<section class="card td-setup">
       <div class="td-setup-b"><b>Train to a weekly plan</b><span>Choose a split and your days once. Arete puts the right session here every day and tracks your week.</span></div>
       <button class="btn btn-s btn-sm" onclick="openPlanSetup()">${wizDraft?'Continue setup':'Set up plan'}</button>
     </section>`;
 
   const rows = [];
-  if(planOn || draft || sugg) rows.push(tdRow(TD_ICON.plus, 'Empty workout', 'Add exercises as you go', 'startWorkout()'));
+  if(planOn || draft) rows.push(tdRow(TD_ICON.plus, 'Empty workout', 'Add exercises as you go', 'startWorkout()'));
+  if(sugg) rows.push(tdRow(TD_ICON.list, sugg.day.name, `Today in ${sugg.prog.name} · ${sugg.day.exercises.length} exercise${sugg.day.exercises.length===1?'':'s'}`, `startProgramWorkout('${sugg.prog.id}',${sugg.di})`, 'Start'));
   plansToday.forEach(p=>rows.push(tdRow(TD_ICON.cal, p.name, `Scheduled for today · ${p.exercises.length} exercise${p.exercises.length===1?'':'s'}`, `startPlanned('${p.id}')`, 'Start')));
   (_allRoutines ? tpls : tpls.slice(0,3)).forEach(t=>rows.push(tdRow(TD_ICON.list, t.name, `Routine · ${t.exercises.length} exercise${t.exercises.length===1?'':'s'}`, `startRoutine('${t.id}')`, 'Start', `delRoutine('${t.id}')`)));
   rows.push(tdRow(TD_ICON.cal, 'Schedule a workout', 'Pick a day and it waits here', 'openPlan()'));
