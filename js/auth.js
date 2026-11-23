@@ -30,7 +30,10 @@ window.Auth = (() => {
     if (loadingPromise) return loadingPromise;
     loadingPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      // Pinned version + integrity hash: a changed or tampered file from the CDN is refused.
+      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+      s.integrity = 'sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o';
+      s.crossOrigin = 'anonymous';
       s.onload = () => resolve(window.supabase);
       s.onerror = () => reject(new Error('Could not load the Supabase SDK (offline?).'));
       document.head.appendChild(s);
@@ -75,31 +78,69 @@ window.Auth = (() => {
     return c.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + '/login.html' } });
   }
 
-  // ── Secure per-user cloud sync of the app's data (all jarvis_* keys) ──────
-  const PREFIX = 'jarvis_';
-  function snapshot() {
-    const o = {};
-    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf(PREFIX) === 0) o[k] = localStorage.getItem(k); }
-    return o;
+  // ── Secure per-user cloud sync of the app's data ─────────────────────────
+  // What syncs: the app's jarvis_* and arete_* data. Never synced: sign-in state, and secrets that
+  // belong to this phone only (the user's own Anthropic key, Oura/Strava/WHOOP/Fitbit tokens), plus
+  // large scratch data. A user's row is only readable/writable by that user (Row-Level Security,
+  // supabase/schema.sql).
+  const NOT_DATA = new Set(['arete_session', 'arete_accounts', 'arete_owner', 'arete_anthropic_key', 'arete_splash']);
+  const SECRETISH = /(token|secret|password|api_?key|_key$)/i;
+  const isDataKey = (k) => typeof k === 'string'
+    && (k.indexOf('jarvis_') === 0 || k.indexOf('arete_') === 0)
+    && !NOT_DATA.has(k) && !SECRETISH.test(k) && k.indexOf('arete_mapsandbox_') !== 0;
+  function dataKeys() { const out = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (isDataKey(k)) out.push(k); } return out; }
+  function snapshot() { const o = {}; dataKeys().forEach(k => { o[k] = localStorage.getItem(k); }); return o; }
+  // Clears this phone of the account's data AND its phone-only secrets (tokens, personal API key).
+  function wipeLocalData() {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (isDataKey(k) || k === 'arete_anthropic_key' || ((k || '').match(/^(jarvis|arete)_/) && SECRETISH.test(k))) keys.push(k);
+    }
+    keys.forEach(k => { try { origRemove(k); } catch {} });
   }
+  const OWNER_KEY = 'arete_owner';
+  // Nothing is uploaded until this device has read the user's cloud copy once: otherwise an empty
+  // or half-loaded phone (offline at sign-in) would overwrite the account's data.
+  let pulledFor = null;
   async function pull() {
-    const c = await getClient(); const u = await getUser(); if (!u) return;
+    const c = await getClient(); const u = await getUser(); if (!u) return false;
+    // Another account used this device last: clear its data so it never lands in this account.
+    const owner = localStorage.getItem(OWNER_KEY);
+    if (owner && owner !== u.id) wipeLocalData();
     const { data, error } = await c.from('user_data').select('data').eq('user_id', u.id).maybeSingle();
-    if (error || !data || !data.data) return;
-    for (const k in data.data) { try { localStorage.setItem(k, data.data[k]); } catch {} }
+    if (error) return false;                                  // try again later; uploads stay paused
+    const remote = (data && data.data) || {};
+    for (const k in remote) { if (isDataKey(k) && typeof remote[k] === 'string') { try { origSet(k, remote[k]); } catch {} } }
+    localStorage.setItem(OWNER_KEY, u.id);
+    pulledFor = u.id;
+    if (!data) schedulePush();                                // new account: upload this device's data
+    return true;
   }
   let pushTimer = null, pushing = false;
   async function push() {
-    if (pushing) return; pushing = true;
-    try { const c = await getClient(); const u = await getUser(); if (u) await c.from('user_data').upsert({ user_id: u.id, data: snapshot(), updated_at: new Date().toISOString() }); }
-    catch {} finally { pushing = false; }
+    if (pushing) return false; pushing = true;
+    try {
+      const c = await getClient(); const u = await getUser();
+      if (!u) return false;
+      if (pulledFor !== u.id && !(await pull())) return false;
+      const { error } = await c.from('user_data').upsert({ user_id: u.id, data: snapshot(), updated_at: new Date().toISOString() });
+      return !error;
+    } catch { return false; } finally { pushing = false; }
   }
   function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(() => push(), 2500); }
-  // Mirror any jarvis_* write up to the cloud (debounced) once signed in.
+  // Mirror data writes up to the cloud (debounced) once signed in.
+  const origSet = localStorage.setItem.bind(localStorage), origRemove = localStorage.removeItem.bind(localStorage);
   function watch() {
     if (watching) return; watching = true;
-    const orig = localStorage.setItem.bind(localStorage);
-    localStorage.setItem = function (k, v) { orig(k, v); if (typeof k === 'string' && k.indexOf(PREFIX) === 0) schedulePush(); };
+    localStorage.setItem = function (k, v) { origSet(k, v); if (isDataKey(k)) schedulePush(); };
+    localStorage.removeItem = function (k) { origRemove(k); if (isDataKey(k)) schedulePush(); };
+  }
+  /** Headers for the app's own API (/api/*): the signed-in user's access token, checked server-side. */
+  async function authHeaders() {
+    if (!isConfigured()) return {};
+    const s = await getSession();
+    return s && s.access_token ? { Authorization: 'Bearer ' + s.access_token } : {};
   }
 
   // ── Device accounts (used until Supabase is configured) ──────────────────
@@ -163,12 +204,39 @@ window.Auth = (() => {
   function localSession() { try { return JSON.parse(localStorage.getItem(SES_KEY)); } catch { return null; } }
   function localSignOut() { localStorage.removeItem(SES_KEY); }
   async function sessionAny() { return isConfigured() ? getSession() : localSession(); }
-  async function signOutAny() { if (isConfigured()) await signOut(); localSignOut(); }
+  // Cloud accounts: upload the latest first, then clear this phone so the next person who signs in
+  // on it never sees this account's data. If the upload fails the data stays (and is cleared later if
+  // a different account signs in here).
+  async function signOutAny() {
+    if (isConfigured()) {
+      clearTimeout(pushTimer);
+      const saved = await push();
+      await signOut();
+      if (saved) { wipeLocalData(); try { origRemove(OWNER_KEY); } catch {} }
+    }
+    localSignOut();
+  }
+  // Permanently delete the account and its data (cloud row, usage counters, sign-in) and clear this
+  // phone. Device accounts: remove the account and every piece of app data stored on the phone.
+  async function deleteAccount() {
+    if (isConfigured()) {
+      const c = await getClient();
+      const { error } = await c.rpc('delete_my_account');
+      if (error) throw new Error('Couldn’t delete the account. Check your connection and try again.');
+      clearTimeout(pushTimer); pulledFor = null;
+      try { await c.auth.signOut(); } catch {}
+    } else {
+      const s = localSession(), acc = _accounts();
+      if (s && s.email) { delete acc[s.email]; origSet(ACC_KEY, JSON.stringify(acc)); }
+    }
+    wipeLocalData(); try { origRemove(OWNER_KEY); } catch {}
+    localSignOut();
+  }
 
   return {
     CFG, isConfigured, getClient, getUser, getSession,
     signUpEmail, signInEmail, resetPassword, sendPhoneCode, verifyPhoneCode, signOut, signInOAuth,
     localSignUp, localSignIn, localSession, localSignOut, sessionAny, signOutAny,
-    pull, push, watch,
+    pull, push, watch, authHeaders, deleteAccount,
   };
 })();

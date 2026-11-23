@@ -17,3 +17,6 @@ backups/
 
 # Gym videos for testing the camera tracker (personal, large): never uploaded
 test-videos/
+
+# Third-party agent skills library (reference only, never part of the app)
+skills/

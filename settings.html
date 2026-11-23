@@ -73,6 +73,14 @@
     <div class="set-h">Account</div>
     <div class="set-sub" id="account-who">Signed in</div>
     <button onclick="signOutNow()" style="width:100%;padding:12px;border-radius:11px;border:1px solid rgba(240,114,106,.35);background:rgba(240,114,106,.10);color:#F0726A;font-size:13px;font-weight:700;cursor:pointer">Sign out</button>
+    <button onclick="deleteAccountNow()" id="del-btn" style="width:100%;margin-top:10px;padding:12px;border-radius:11px;border:0;background:none;color:#C4321F;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline">Delete account and all data</button>
+    <div class="set-sub" id="del-msg" style="margin-top:6px"></div>
+  </div>
+
+  <div class="set-card">
+    <div class="set-h">Privacy &amp; terms</div>
+    <div class="set-sub">Arete gives fitness information and estimates, not medical advice.</div>
+    <div style="display:flex;gap:16px;font-size:13px;font-weight:600"><a href="privacy.html" style="color:inherit">Privacy Policy</a><a href="terms.html" style="color:inherit">Terms of Use</a></div>
   </div>
 
   <div class="badge">More settings coming soon</div><br>
@@ -96,6 +104,15 @@
   function clearKey(){ localStorage.removeItem(AK_KEY); document.getElementById('ak-in').value=''; paintKey(); }
   paintKey();
 
+  async function deleteAccountNow(){
+    if (!window.Auth) return;
+    if (!confirm('Delete your account? This permanently erases your workouts, food log, body data and settings from this phone and from your account. It can’t be undone.')) return;
+    if (!confirm('Last check: delete everything for good?')) return;
+    const b = document.getElementById('del-btn'), m = document.getElementById('del-msg');
+    b.disabled = true; m.textContent = 'Deleting…';
+    try { await Auth.deleteAccount(); location.replace('login.html'); }
+    catch (e) { m.textContent = (e && e.message) || 'Couldn’t delete the account. Try again.'; b.disabled = false; }
+  }
   function signOutNow(){ if (window.Auth) Auth.signOutAny().then(function(){ location.replace('login.html'); }); }
   (async function(){
     if (!window.Auth) return;

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy Policy · Arete</title>
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="stylesheet" href="css/theme.css">
+<style>
+  body{margin:0;background:var(--bg,#F2F2F7);color:var(--t1,#111114);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif}
+  .doc{max-width:720px;margin:0 auto;padding:40px 20px 64px}
+  h1{font-size:28px;letter-spacing:-.02em;margin:0 0 4px}
+  h2{font-size:17px;margin:30px 0 8px}
+  p,li{color:var(--t2,#3A3A3F)} ul{padding-left:20px} li{margin:4px 0}
+  .meta{font-size:13px;color:var(--t3,#8E8E93);margin-bottom:24px}
+  .todo{background:#FFF4D6;border-radius:6px;padding:0 4px}
+  a{color:inherit}
+  .back{display:inline-block;margin-top:28px;font-size:14px}
+</style>
+</head>
+<body>
+<!-- BEFORE LAUNCH: replace every highlighted [placeholder] and have a lawyer review this page. -->
+<main class="doc">
+  <h1>Privacy Policy</h1>
+  <div class="meta">Last updated 23 November 2026</div>
+
+  <p>Arete is a training and nutrition app run by <span class="todo">[your full legal name or business name]</span> (“we”). This policy explains what the app collects, why, where it goes, and how you can see or delete it. Questions: <span class="todo">[contact email]</span>.</p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li><b>Your account:</b> email address or phone number, and a password that our sign-in provider stores only as a secure hash. If you sign in with Google, Apple or Facebook, we receive your name and email from them.</li>
+    <li><b>What you log:</b> workouts, sets, reps, weights and effort ratings; food, calories, macros and water; body weight; plans, notes and settings.</li>
+    <li><b>Health data you choose to connect:</b> with your permission, data from Apple Health, Health Connect, or Oura, WHOOP, Strava and Fitbit (for example steps, workouts, weight and heart data). We only read the types you allow.</li>
+    <li><b>Camera:</b> when you use bar-speed tracking, the camera image is analysed <b>on your phone</b>. The video is not uploaded to us; only the resulting numbers (such as reps and bar speed) are saved with your workout.</li>
+    <li><b>Food photos:</b> when you use the photo calorie estimate, that photo is sent to our server and to Anthropic (our AI provider) to produce the estimate. We do not store the photo.</li>
+  </ul>
+  <p>Health and fitness information is sensitive. We only process it because you give it to us to run the app, and you can withdraw that at any time by deleting the data or your account.</p>
+
+  <h2>Why we use it</h2>
+  <ul>
+    <li>To run the app: show your history, suggest your next weights, track trends, and sync your data between your devices.</li>
+    <li>To keep the service safe: preventing abuse, such as limiting AI estimates per account per day.</li>
+  </ul>
+  <p>We do <b>not</b> sell your data, show you ads, or use your data to train AI models.</p>
+
+  <h2>Where it is stored and who processes it</h2>
+  <ul>
+    <li><b>On your phone:</b> the app keeps your data on your device.</li>
+    <li><b>Supabase</b> (database and sign-in): if you have an account, your data is synced to it, encrypted in transit and at rest. Each account can only access its own data.</li>
+    <li><b>Vercel</b> (hosting): serves the app and runs the small server functions.</li>
+    <li><b>Anthropic</b> (AI): receives food photos you choose to analyse, and workout captions you choose to import (using your own API key).</li>
+    <li><b>Health and fitness services you connect</b> (Apple, Google, Oura, WHOOP, Strava, Fitbit): their connection tokens stay on your phone and are not uploaded to our database.</li>
+  </ul>
+  <p>These providers may process data in countries other than yours. They act on our instructions and under their own security and privacy commitments.</p>
+
+  <h2>How long we keep it</h2>
+  <p>As long as you keep your account. When you delete your account, your synced data is deleted from our database immediately; backups held by our providers expire on their normal schedule.</p>
+
+  <h2>Your choices and rights</h2>
+  <ul>
+    <li><b>Delete:</b> Settings → Account → Delete account permanently removes your account and synced data.</li>
+    <li><b>Access, correct or get a copy:</b> you can see and edit everything in the app. For a copy of your data, contact <span class="todo">[contact email]</span>.</li>
+    <li><b>Disconnect:</b> you can disconnect any health service in the app, and revoke its access in that service's settings.</li>
+    <li>Depending on where you live, you may have further rights (for example under the GDPR, UK GDPR, California law or the Australian Privacy Principles), including to object or to complain to your data protection authority.</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>Arete is not meant for anyone under 16, and we do not knowingly collect data from them.</p>
+
+  <h2>Security</h2>
+  <p>Connections use HTTPS, passwords are never stored in readable form, and our database only lets each account read its own data. No system is perfectly secure; if a breach affects you, we will tell you as the law requires.</p>
+
+  <h2>Changes</h2>
+  <p>If we change this policy in a meaningful way, we will tell you in the app before it applies.</p>
+
+  <a class="back" href="javascript:history.length>1?history.back():location.assign('index.html')">← Back</a>
+</main>
+</body>
+</html>

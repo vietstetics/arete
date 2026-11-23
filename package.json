@@ -21,7 +21,9 @@
     "test:standard": "node --test \"features/standard/__tests__/*.test.js\"",
     "recognise": "node scripts/recognise-videos.mjs",
     "test:velocity": "node --test \"features/velocity/__tests__/*.test.js\"",
-    "dev": "node scripts/dev-server.mjs"
+    "dev": "node scripts/dev-server.mjs",
+    "test:security": "node --test scripts/test-api-security.mjs scripts/test-sync-security.mjs",
+    "test:nutrition": "node --test \"features/nutrition/__tests__/*.test.js\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",

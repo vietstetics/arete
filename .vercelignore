@@ -1,0 +1,14 @@
+# Files that are for development only and must never be served by the live site.
+/docs
+/scripts
+/native
+/supabase
+/backups
+/test-videos
+/skills
+/android
+/ios
+/www
+/AGENTS.md
+/tsconfig.health.json
+**/__tests__

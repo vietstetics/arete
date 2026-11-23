@@ -47,6 +47,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .msg.err{color:var(--re)}.msg.ok{color:var(--gr)}
 .hint{font-size:11px;color:var(--t3);margin-top:6px}
 .legal{font-size:11px;color:var(--t3);text-align:center;margin-top:18px;line-height:1.6}
+.legal a,.consent a{color:inherit;text-decoration:underline}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--t2);line-height:1.5;margin:16px 0 0;cursor:pointer;text-align:left}
+.consent input{width:18px;height:18px;margin:1px 0 0;flex-shrink:0;accent-color:#1DA462}
 .notice{background:rgba(240,114,106,.10);border:1px solid rgba(240,114,106,.3);border-radius:12px;padding:12px 14px;font-size:12px;color:#F5A39D;line-height:1.55;margin-bottom:16px}
 .notice b{color:#fff}
 </style>
@@ -109,11 +112,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <button class="btn" id="phone-btn" onclick="submitPhone()">Send code</button>
     </form>
 
+      <label class="consent" id="consent-row"><input type="checkbox" id="consent"><span>I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>, including Arete storing my training, nutrition and health data to run the app. I’m 16 or older.</span></label>
     <div class="msg" id="msg"></div>
     <div class="alt" id="switch"></div>
   </div>
 
-  <div class="legal">By continuing you agree to keep your data synced to your secure account.</div>
+  <div class="legal" id="legal-line">By signing in you agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>. Arete is not medical advice.</div>
 </div>
 
 <script src="js/auth.js"></script>
@@ -125,8 +129,19 @@ let codeSent = false;
 const $ = id => document.getElementById(id);
 function setMsg(t, type){ const m=$('msg'); m.textContent=t||''; m.className='msg'+(type?' '+type:''); }
 
+// Creating an account needs an explicit yes to the Terms and Privacy Policy (health data is sensitive),
+// recorded with its date and policy version.
+const POLICY_VERSION = '2026-11-23';
+function needConsent(){
+  if (mode !== 'signup') return false;
+  if (!$('consent').checked){ setMsg('Please agree to the Terms and Privacy Policy to create an account.','err'); $('consent').focus(); return true; }
+  try { localStorage.setItem('jarvis_consent', JSON.stringify({ terms: POLICY_VERSION, privacy: POLICY_VERSION, at: new Date().toISOString() })); } catch {}
+  return false;
+}
 function setMode(m){
   mode = m; setMsg('');
+  $('consent-row').style.display = m==='signup' ? '' : 'none';
+  $('legal-line').style.display = m==='signup' ? 'none' : '';
   $('seg-up').classList.toggle('on', m==='signup');
   $('seg-in').classList.toggle('on', m==='signin');
   $('title').textContent = m==='signup' ? 'Create your account' : 'Welcome back';
@@ -161,6 +176,7 @@ async function submitEmail(){
   const email = $('email').value.trim(), pw = $('pw').value;
   if (!email || !pw) return setMsg('Enter your email and password.','err');
   if (mode==='signup' && pw.length < 8) return setMsg('Password must be at least 8 characters.','err');
+  if (needConsent()) return;
   const btn = $('email-btn'); btn.disabled = true; setMsg(mode==='signup'?'Creating your account…':'Signing in…');
   try {
     if (!Auth.isConfigured()){
@@ -186,6 +202,7 @@ async function submitEmail(){
 async function submitPhone(){
   const phone = $('phone').value.replace(/[^\d+]/g,'');
   if (!phone) return setMsg('Enter your phone number with country code.','err');
+  if (!codeSent && needConsent()) return;
   const btn = $('phone-btn');
   if (!codeSent){
     btn.disabled = true; setMsg('Texting you a code…');
@@ -206,6 +223,7 @@ async function social(provider){
     setMsg(name+' sign-in unlocks with cloud accounts — for now, create an account with email & password. It works exactly the same.');
     return;
   }
+  if (needConsent()) return;
   setMsg('Opening '+name+'…');
   try { const { error } = await Auth.signInOAuth(provider); if (error) throw error; }
   catch(e){ fail(e); }
@@ -225,8 +243,9 @@ async function forgot(){
     // need the cloud backend). The account wall still applies.
     $('tog').style.display='none';
     $('forgot-row').style.display='none';
-    document.querySelector('.legal').textContent='Your account and data are stored securely on this device.';
+    $('legal-line').innerHTML='Your account and data are stored on this device. By signing in you agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.';
   }
+  setMode(mode);
   const s = await Auth.sessionAny();
   if (s) location.replace('index.html');     // already signed in
 })();

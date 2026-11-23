@@ -62,10 +62,36 @@ const SYSTEM =
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
-async function fetchText(url, opts = {}) {
-  const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'en' }, redirect: 'follow', ...opts });
-  if (!r.ok) throw new Error(`fetch ${r.status}`);
-  return r.text();
+import { sendError } from './_lib/account.js';
+
+// Only the video sites this feature is for. Anything else (an internal address, a cloud metadata IP,
+// a random server) is never fetched: the user pastes the caption instead.
+const HOSTS = ['tiktok.com', 'youtube.com', 'youtu.be', 'instagram.com', 'facebook.com', 'fb.watch', 'x.com', 'twitter.com', 'vimeo.com'];
+function allowed(u) {
+  let x; try { x = new URL(u); } catch { return null; }
+  if (x.protocol !== 'https:' || x.username || x.password || (x.port && x.port !== '443')) return null;
+  const h = x.hostname.toLowerCase();
+  return HOSTS.some((d) => h === d || h.endsWith('.' + d)) ? x : null;
+}
+const MAX_PAGE = 2_000_000;
+
+async function fetchText(url, hops = 0) {
+  const u = allowed(url);
+  if (!u) throw new Error('host not allowed');
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const r = await fetch(u.href, { headers: { 'User-Agent': UA, 'Accept-Language': 'en' }, redirect: 'manual', signal: ctl.signal });
+    if (r.status >= 300 && r.status < 400) {
+      const next = r.headers.get('location');
+      if (!next || hops >= 3) throw new Error('too many redirects');
+      return fetchText(new URL(next, u).href, hops + 1);   // re-checked against the allow-list
+    }
+    if (!r.ok) throw new Error(`fetch ${r.status}`);
+    const len = Number(r.headers.get('content-length') || 0);
+    if (len > MAX_PAGE) throw new Error('page too large');
+    const text = await r.text();
+    return text.length > MAX_PAGE ? text.slice(0, MAX_PAGE) : text;
+  } finally { clearTimeout(t); }
 }
 
 function unescapeJson(s) {
@@ -81,7 +107,9 @@ function metaTag(html, prop) {
 /** Pull the caption/description for a video URL. Best-effort per platform. */
 async function captionFor(url) {
   const parts = [];
-  const host = new URL(url).hostname;
+  const u = allowed(url);
+  if (!u) throw new Error('host not allowed');
+  const host = u.hostname;
 
   if (/tiktok\.com/.test(host)) {
     // TikTok oEmbed returns the caption as `title`.
@@ -126,8 +154,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  const url = typeof body.url === 'string' ? body.url.trim() : '';
-  const pasted = typeof body.text === 'string' ? body.text.trim() : '';
+  const url = typeof body.url === 'string' ? body.url.trim().slice(0, 2048) : '';
+  const pasted = typeof body.text === 'string' ? body.text.trim().slice(0, 8000) : '';
   if (!url && !pasted) { res.status(400).json({ error: 'Provide a video `url` or the caption `text`.' }); return; }
 
   let caption = '';
@@ -154,14 +182,15 @@ export default async function handler(req, res) {
       }],
     });
 
-    if (message.stop_reason === 'refusal') { res.status(422).json({ error: 'Could not analyse that text.' }); return; }
+    if (message.stop_reason === 'refusal') { res.status(422).json({ error: 'refused', message: 'Couldn’t analyse that text.' }); return; }
 
     const text = (message.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    let data; try { data = JSON.parse(text); } catch { res.status(502).json({ error: 'The extraction came back unreadable — try again.' }); return; }
+    let data; try { data = JSON.parse(text); } catch { res.status(502).json({ error: 'unreadable', message: 'The extraction came back unreadable. Try again.' }); return; }
     data.captionUsed = material.slice(0, 500);
     res.status(200).json(data);
   } catch (e) {
-    const status = (e && e.status) || 500;
-    res.status(status).json({ error: (e && e.message) || 'Extraction request failed.' });
+    // A bad personal key is the user's to fix; say so without echoing the upstream message.
+    if (Number(e && e.status) === 401) { res.status(401).json({ error: 'bad_key', message: 'Anthropic didn’t accept your API key. Check it in Settings.' }); return; }
+    sendError(res, e, 'Couldn’t read that workout. Try again.');
   }
 }

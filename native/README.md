@@ -208,30 +208,20 @@ the key. **Never** put the `service_role` key in the client.
    and connect an SMS provider (e.g. Twilio — paid). Email is free.
    - Tip: Auth → Email → turn "Confirm email" on for real security (the login
      page already handles the "check your email" step).
-3. **SQL editor** → run:
-
-   ```sql
-   create table if not exists public.user_data (
-     user_id uuid primary key references auth.users(id) on delete cascade,
-     data jsonb not null default '{}'::jsonb,
-     updated_at timestamptz not null default now()
-   );
-   alter table public.user_data enable row level security;
-
-   create policy "own row - select" on public.user_data
-     for select using (auth.uid() = user_id);
-   create policy "own row - insert" on public.user_data
-     for insert with check (auth.uid() = user_id);
-   create policy "own row - update" on public.user_data
-     for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-   ```
+3. **SQL editor** → paste and run the whole of **`supabase/schema.sql`** (safe to
+   re-run). It creates the synced-data table with Row-Level Security, the daily
+   cap for food-photo estimates (20 per user per day), and account deletion.
 4. In **`js/auth.js`** set `CFG.url` (Project URL) and `CFG.anonKey`
    (Project API keys → anon/public).
 5. **Auth → URL Configuration**: add your site origin (e.g.
    `https://your-app.vercel.app`) to the redirect allow‑list.
+6. **Vercel → Settings → Environment Variables**: add `SUPABASE_URL` and
+   `SUPABASE_ANON_KEY` (the same two values as step 4) and redeploy. Until these
+   are set, the food-photo AI endpoint stays switched off (it fails closed,
+   so nobody can run up the Anthropic bill).
 
 That's it — `login.html` then creates accounts, signs in by email/phone, and
-all `jarvis_*` data is mirrored to each user's `user_data` row (pulled on
+the app's `jarvis_*` / `arete_*` data (never tokens or personal API keys) is mirrored to each user's `user_data` row (pulled on
 sign‑in, pushed on change). Sign out from **Settings → Account**.
 
 ## Security notes

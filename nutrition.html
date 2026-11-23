@@ -2050,15 +2050,15 @@ async function onAiFile(input){
   try { dataUrl = await resizeImage(file, 1024, 0.72); } catch { st.className = 'scan-status err'; st.textContent = 'Couldn’t read that image — try another.'; return; }
   st.textContent = 'Analysing your meal…';
   try {
-    const r = await fetch('/api/analyze-food', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ image: dataUrl }) });
+    // The server only answers signed-in users (and caps photos per day), so send the account token.
+    const auth = window.Auth && Auth.authHeaders ? await Auth.authHeaders().catch(() => ({})) : {};
+    const r = await fetch('/api/analyze-food', { method:'POST', headers:{ 'Content-Type':'application/json', ...auth }, body: JSON.stringify({ image: dataUrl }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error || 'Estimate failed');
+    if (!r.ok) throw new Error(j.message || 'Couldn’t estimate this photo.');
     aiData = j; renderAiReview(j);
   } catch (e) {
     st.className = 'scan-status err';
-    st.textContent = /ANTHROPIC_API_KEY/.test(e.message || '')
-      ? 'AI estimate isn’t switched on yet (server key missing).'
-      : (e.message || 'Couldn’t estimate this photo.');
+    st.textContent = (e && e.message) || 'Couldn’t estimate this photo.';
   }
 }
 function resizeImage(file, max, quality){

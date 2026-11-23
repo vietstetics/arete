@@ -19,6 +19,12 @@
  *  Setup: add ANTHROPIC_API_KEY in Vercel → Settings → Environment Variables.
  * ==========================================================================*/
 import Anthropic from '@anthropic-ai/sdk';
+import { requireUser, claimCredit, sendError } from './_lib/account.js';
+
+// Photos the app sends are resized JPEGs well under 1 MB; this cap keeps abuse cheap and stays under
+// Vercel's 4.5 MB request limit.
+const MAX_B64 = 3_000_000;
+const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 const EXT_PROPS = {
   fiber:       { type: 'number', description: 'Dietary fiber, g' },
@@ -141,7 +147,12 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST' }); return; }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) { res.status(500).json({ error: 'ANTHROPIC_API_KEY is not set on the server.' }); return; }
+  if (!apiKey) { res.status(503).json({ error: 'ai_off', message: 'AI estimates aren’t switched on yet.' }); return; }
+
+  // Signed-in users only, and a daily cap per user (enforced in the database), because every call
+  // bills the app owner's Anthropic account.
+  let token;
+  try { ({ token } = await requireUser(req)); } catch (e) { sendError(res, e); return; }
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
@@ -149,17 +160,23 @@ export default async function handler(req, res) {
 
   let image = body.image;
   let mediaType = body.media_type;
-  if (!image || typeof image !== 'string') { res.status(400).json({ error: 'Provide a base64 image in `image`.' }); return; }
+  if (!image || typeof image !== 'string' || image.length > MAX_B64 + 100) { res.status(400).json({ error: 'bad_image', message: 'Send one photo under 2 MB.' }); return; }
 
-  const m = /^data:(image\/[a-z0-9.+-]+);base64,(.*)$/i.exec(image);
-  if (m) { mediaType = mediaType || m[1]; image = m[2]; }
-  mediaType = (mediaType || 'image/jpeg').toLowerCase();
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,(.*)$/is.exec(image);
+  if (m) { mediaType = m[1]; image = m[2]; }
+  mediaType = String(mediaType || 'image/jpeg').toLowerCase();
   image = image.replace(/\s/g, '');
+  if (!TYPES.has(mediaType) || image.length < 100 || image.length > MAX_B64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(image)) {
+    res.status(400).json({ error: 'bad_image', message: 'That file isn’t a photo the app can read.' }); return;
+  }
+
+  // Spend one of today's credits only once the request is valid.
+  try { await claimCredit(token, 'food_photo'); } catch (e) { sendError(res, e); return; }
 
   try {
     const client = new Anthropic({ apiKey });
     const message = await client.messages.create({
-      model: 'claude-opus-4-8',
+      model: 'claude-sonnet-5-5',
       max_tokens: 2048,
       output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
       system: SYSTEM,
@@ -172,13 +189,12 @@ export default async function handler(req, res) {
       }],
     });
 
-    if (message.stop_reason === 'refusal') { res.status(422).json({ error: 'Could not analyse that image.' }); return; }
+    if (message.stop_reason === 'refusal') { res.status(422).json({ error: 'refused', message: 'Couldn’t analyse that image.' }); return; }
 
     const text = (message.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    let data; try { data = JSON.parse(text); } catch { res.status(502).json({ error: 'The estimate came back unreadable — try another photo.' }); return; }
+    let data; try { data = JSON.parse(text); } catch { res.status(502).json({ error: 'unreadable', message: 'The estimate came back unreadable. Try another photo.' }); return; }
     res.status(200).json(reconcile(data));
   } catch (e) {
-    const status = (e && e.status) || 500;
-    res.status(status).json({ error: (e && e.message) || 'Vision request failed.' });
+    sendError(res, e, 'Couldn’t estimate this photo. Try again.');
   }
 }
