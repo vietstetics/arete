@@ -1003,15 +1003,15 @@ function renderExercise(ex, nx){
       ${ex.unilateral ? `
       <span class="side-k">Right</span>
       <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Right side weight in kg" value="${s.weightR??''}" oninput="setSide('${ex.id}','${s.id}','weightR',this.value)">
-      <input class="set-in" data-f="reps" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Right side reps" value="${s.repsR??''}" oninput="setSide('${ex.id}','${s.id}','repsR',this.value)">
+      <span class="rep-cell"><input class="set-in" data-f="reps" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Right side reps" value="${s.repsR??''}" oninput="setSide('${ex.id}','${s.id}','repsR',this.value)"><b class="rep-d${repDelta(ex,s,'R')>0?' up':repDelta(ex,s,'R')<0?' down':''}" id="rd-${s.id}R" aria-live="polite">${repDeltaHtml(ex,s,'R')}</b></span>
       <input class="set-in set-span" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done set-span ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
       <span class="side-k">Left</span>
       <input class="set-in" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Left side weight in kg" value="${s.weightL??''}" oninput="setSide('${ex.id}','${s.id}','weightL',this.value)">
-      <input class="set-in" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Left side reps" value="${s.repsL??''}" oninput="setSide('${ex.id}','${s.id}','repsL',this.value)">
+      <span class="rep-cell"><input class="set-in" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Left side reps" value="${s.repsL??''}" oninput="setSide('${ex.id}','${s.id}','repsL',this.value)"><b class="rep-d${repDelta(ex,s,'L')>0?' up':repDelta(ex,s,'L')<0?' down':''}" id="rd-${s.id}L" aria-live="polite">${repDeltaHtml(ex,s,'L')}</b></span>
       ` : `
       <input class="set-in" data-f="weight" type="number" inputmode="decimal" placeholder="${prev&&prev.weight!==''?esc(prev.weight):'kg'}" aria-label="Weight in kg" value="${s.weight??''}" oninput="setField('${ex.id}','${s.id}','weight',this.value)">
-      <input class="set-in" data-f="reps" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps??''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)">
+      <span class="rep-cell"><input class="set-in" data-f="reps" type="number" inputmode="numeric" placeholder="${prev&&prev.reps!==''?esc(prev.reps):s.type!=='warmup'&&ex.targetReps?esc(ex.targetReps):'reps'}" aria-label="Reps${ex.targetReps?', target '+esc(ex.targetReps):''}" value="${s.reps??''}" oninput="setField('${ex.id}','${s.id}','reps',this.value)"><b class="rep-d${repDelta(ex,s,'')>0?' up':repDelta(ex,s,'')<0?' down':''}" id="rd-${s.id}" aria-live="polite">${repDeltaHtml(ex,s,'')}</b></span>
       <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record!':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
     </div>
@@ -1419,12 +1419,32 @@ function strengthAnalyticsHtml(name,srcWorkouts){
 }
 function addSet(eid){ const ex=findEx(eid); const last=ex.sets[ex.sets.length-1]; ex.sets.push({ id:'s-'+F.uid(), type:'working', weight:last?last.weight:'', ...(ex.unilateral?{ weightL:last?last.weightL??'':'', weightR:last?last.weightR??'':'', repsL:'', repsR:'' }:{}), unit:'kg', reps:last?last.reps:'', completed:false }); saveActive(); renderLog(); }
 function removeSet(eid,sid){ const ex=findEx(eid); ex.sets=ex.sets.filter(s=>s.id!==sid); if(!ex.sets.length) active.exercises=active.exercises.filter(e=>e.id!==eid); saveActive(); renderLog(); }
+// Reps against the same set last session, shown while typing ("+2", "−3"). Only like for like: when this
+// set's weight equals last time's, an empty weight counting as the hint it would be logged with.
+function repDelta(ex,s,side){
+  const last=prevFor(ex,s,lastPerf(ex.name, ex.machine&&ex.machine.id)); if(!last) return 0;
+  const W='weight'+side, R='reps'+side, val=(o,k,fb)=>o[k]!==''&&o[k]!=null&&Number.isFinite(+o[k])?+o[k]:fb;
+  const lw=val(last,W,val(last,'weight',NaN)), lr=val(last,R,val(last,'reps',NaN)), cur=val(s,R,NaN);
+  if(!Number.isFinite(cur)||!Number.isFinite(lr)||!Number.isFinite(lw)) return 0;
+  const c=coachFor_set(ex,s,coachFor(ex)), hintW=c&&c.weight!=null?+c.weight:lw;
+  const w=val(s,W,side?val(s,'weight',hintW):hintW);
+  return Math.abs(w-lw)<1e-9 ? cur-lr : 0;
+}
+function repDeltaHtml(ex,s,side){ const d=repDelta(ex,s,side); return d ? (d>0?'+':'−')+Math.abs(d) : ''; }
+function paintRepDelta(ex,s){
+  for(const side of ex.unilateral?['R','L']:['']){
+    const el=document.getElementById('rd-'+s.id+side); if(!el) continue;
+    const d=repDelta(ex,s,side);
+    el.textContent=d?(d>0?'+':'−')+Math.abs(d):''; el.className='rep-d'+(d>0?' up':d<0?' down':'');
+  }
+}
 function setField(eid,sid,f,v){
   const ex=findEx(eid), s=ex.sets.find(s=>s.id===sid); s[f]=v===''?'':parseFloat(v);
   if(f==='weight'&&s.velocity) s.velocity.loadKg=Number.isFinite(s.weight)?s.weight:null;
   if((f==='weight'||f==='reps')&&s.tested1RM && !(+s.reps===1&&+s.weight>0)) delete s.tested1RM;
   if(f==='weight'&&s.tested1RM?.verified&&+s.reps===1) s.tested1RM={...s.tested1RM,loadKg:+s.weight,at:Date.now()};
   refreshSetPrediction(ex,s);
+  if(f==='weight'||f==='reps') paintRepDelta(ex,s);
   saveActive();
 }
 // One-side sets keep a right and a left weight and reps. The set's own weight is the heavier side and
@@ -1440,6 +1460,7 @@ function setSide(eid,sid,f,v){
   s[f]= v===''?'':parseFloat(v);
   sideTotals(s);
   refreshSetPrediction(ex,s);
+  paintRepDelta(ex,s);
   saveActive();
 }
 function setSides(eid,on){

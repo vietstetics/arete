@@ -197,3 +197,8 @@ body { background: #F2F2F7 !important; }
 button.hm-c { cursor: pointer; } button.hm-c:focus-visible { outline: 2px solid var(--t1); outline-offset: 1px; }
 .hm-key { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 12px; font-size: 11px; color: var(--t2); }
 .hm-key span { margin: 0 4px; }
+
+/* Reps vs last session for the same set, in the corner of the reps box. */
+.rep-cell { position: relative; display: block; min-width: 0; }
+.rep-d { position: absolute; top: 3px; right: 6px; font-size: 11px; font-weight: 800; line-height: 1; pointer-events: none; font-variant-numeric: tabular-nums; }
+.rep-d.up { color: #1E7F36; } .rep-d.down { color: #D4483F; }
