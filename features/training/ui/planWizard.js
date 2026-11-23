@@ -44,13 +44,30 @@ function newRoutine(name) { return { id: 'r-' + uid(), name, exercises: [] }; }
 // Lifts usually trained one side at a time start as "one side"; the lifter can change it.
 const ONE_SIDE = /(single[- ]?(arm|leg)|one[- ]?(arm|leg)|unilateral|bulgarian|split squat|lunges?|step[- ]?ups?|kickbacks?|concentration curl|pistol)/i;
 function newExercise(name, src = {}) {
-  return { id: 'x-' + uid(), name, sets: src.sets ?? 2, repMin: src.repMin ?? 8, repMax: src.repMax ?? 12, rir: src.rir ?? 1, unilateral: src.unilateral ?? ONE_SIDE.test(name) };
+  const own = !st.reps?.chosen && src.repMin != null;
+  return { id: 'x-' + uid(), name, sets: src.sets ?? 2, repMin: own ? src.repMin : repsDefault().min, repMax: own ? (src.repMax ?? src.repMin) : repsDefault().max, rir: src.rir ?? 1, unilateral: src.unilateral ?? ONE_SIDE.test(name) };
+}
+// The plan-wide rep range: fills every exercise that hasn't been given its own.
+function repsDefault() { return st && st.reps ? st.reps : { min: 8, max: 12 }; }
+function applyRepsDefault() {
+  const d = repsDefault();
+  for (const r of st.routines) for (const x of r.exercises) {
+    if (x.repsOwn) continue;
+    x.repMin = d.min; x.repMax = d.max;
+    const lo = root && root.querySelector(`[data-field="xmin"][data-xid="${x.id}"]`), hi = root && root.querySelector(`[data-field="xmax"][data-xid="${x.id}"]`);
+    if (lo) lo.value = d.min; if (hi) hi.value = d.max;
+  }
 }
 function blank() {
-  return { step: 0, maxStep: 0, splitId: null, name: '', routines: [], bank: [], custom: null, customName: '', days: [], rotation: 'continue', assignments: {}, startDate: localKey(), planId: null, editing: false, open: null, confirmEnd: false, error: '' };
+  return { step: 0, maxStep: 0, splitId: null, name: '', routines: [], bank: [], custom: null, customName: '', days: [], rotation: 'continue', assignments: {}, startDate: localKey(), planId: null, editing: false, open: null, confirmEnd: false, error: '', reps: { min: 8, max: 12, chosen: false } };
 }
 function fromPlan(p) {
-  return { ...blank(), step: 3, maxStep: 3, splitId: p.splitId, name: p.name, routines: clone(p.routines), bank: clone(p.routines), days: (p.days || []).slice(), rotation: p.rotation || 'continue', assignments: { ...(p.assignments || {}) }, startDate: p.startDate, planId: p.planId, editing: true, customName: p.splitId === 'custom' ? p.name : '' };
+  const routines = clone(p.routines), count = new Map();
+  for (const r of routines) for (const x of r.exercises) { const k = `${x.repMin}-${x.repMax}`; count.set(k, (count.get(k) || 0) + 1); }
+  const top = [...count].sort((a, b) => b[1] - a[1])[0];
+  const [min, max] = top ? top[0].split('-').map(Number) : [8, 12];
+  for (const r of routines) for (const x of r.exercises) if (x.repMin !== min || x.repMax !== max) x.repsOwn = true;
+  return { ...blank(), reps: { min, max, chosen: true }, routines, step: 3, maxStep: 3, splitId: p.splitId, name: p.name, bank: clone(p.routines), days: (p.days || []).slice(), rotation: p.rotation || 'continue', assignments: { ...(p.assignments || {}) }, startDate: p.startDate, planId: p.planId, editing: true, customName: p.splitId === 'custom' ? p.name : '' };
 }
 function saveDraft() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(st)); } catch { /* storage full or blocked */ } }
 function readDraft() { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { return null; } }
@@ -283,7 +300,12 @@ function step2() {
   const s = split();
   const used = new Set(usedRoutines().map((r) => r.id));
   if (!st.open || !routine(st.open)) st.open = (st.routines.find((r) => !r.exercises.length) || st.routines[0] || {}).id || null;
+  const d = repsDefault();
   return `<h2 class="tw-h">Build your workouts</h2>
+    <div class="tw-reps">
+      <div class="tw-reps-t"><b>Rep range</b><span>Fills in every exercise. Change one below and it keeps its own.</span></div>
+      <span class="tw-range"><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="dmin" value="${esc(d.min)}" aria-label="Rep range, minimum for every exercise"><i>–</i><input class="tw-num" type="number" inputmode="numeric" min="1" max="100" data-field="dmax" value="${esc(d.max)}" aria-label="Rep range, maximum for every exercise"><em>reps</em></span>
+    </div>
     ${st.routines.map((r) => {
       const open = r.id === st.open;
       const starter = starterFor(r.name);
@@ -329,8 +351,8 @@ function exRow(r, x, i) {
         <button class="tw-step-b" data-act="xsets+" ${k} ${+x.sets >= 20 ? 'disabled' : ''} aria-label="One set more">+</button>
       </div>
       <div class="tw-sides" role="group" aria-label="How ${esc(x.name)} is done">
-        <button data-act="xsides" data-v="both" ${k} aria-pressed="${!x.unilateral}">Both sides</button>
-        <button data-act="xsides" data-v="each" ${k} aria-pressed="${!!x.unilateral}">One side at a time</button>
+        <button data-act="xsides" data-v="both" ${k} aria-pressed="${!x.unilateral}">Bilateral</button>
+        <button data-act="xsides" data-v="each" ${k} aria-pressed="${!!x.unilateral}">Unilateral</button>
       </div>
     </div>
     ${x.unilateral ? `<p class="tw-x-note">Each set is logged as Right and Left.</p>` : ''}
@@ -375,7 +397,7 @@ function step3() {
     <div class="tw-lbl tw-lbl-row">Workouts <button class="tw-link" data-act="goto" data-step="2">Edit</button></div>
     ${plan.routines.map((r) => `<div class="tw-rv">
       <div class="tw-rv-h">${esc(r.name)}</div>
-      ${r.exercises.length ? `<ul>${r.exercises.map((x) => `<li><span>${esc(x.name)}${x.machine ? `<small class="tw-rv-mc">${esc([x.machine.brand, x.machine.name, x.machine.model].filter(Boolean).join(' · '))}</small>` : ''}</span><span>${x.sets} ${x.sets === 1 ? 'set' : 'sets'} × ${esc(repText(x))}${x.unilateral ? ' · each side' : ''}${x.rir != null ? ` · ${x.rir} RIR` : ''}</span></li>`).join('')}</ul>` : '<p class="tw-p small">No exercises yet</p>'}
+      ${r.exercises.length ? `<ul>${r.exercises.map((x) => `<li><span>${esc(x.name)}${x.machine ? `<small class="tw-rv-mc">${esc([x.machine.brand, x.machine.name, x.machine.model].filter(Boolean).join(' · '))}</small>` : ''}</span><span>${x.sets} ${x.sets === 1 ? 'set' : 'sets'} × ${esc(repText(x))}${x.unilateral ? ' · unilateral' : ''}${x.rir != null ? ` · ${x.rir} RIR` : ''}</span></li>`).join('')}</ul>` : '<p class="tw-p small">No exercises yet</p>'}
     </div>`).join('')}
     <div class="tw-lbl">Overlap &amp; coverage</div>
     ${planPanelHtml(plan, catalogue, sessionsPerWeek(plan))}
@@ -475,6 +497,10 @@ function onInput(e) {
     const r = routine(el.dataset.id); if (!r) return;
     r.name = v;
     const label = root.querySelector(`[data-name-of="${r.id}"]`); if (label) label.textContent = v || 'Workout';
+  } else if (f === 'dmin' || f === 'dmax') {
+    const n = Math.round(Number(v)); if (v === '' || !Number.isFinite(n) || n < 1 || n > 100) return;
+    st.reps = { ...repsDefault(), [f === 'dmin' ? 'min' : 'max']: n, chosen: true };
+    applyRepsDefault();
   } else if (f === 'startDate') { if (e.type !== 'change' || !isDate(v)) return; st.startDate = v; saveDraft(); render(); return; }
   else if (f === 'assign') { if (e.type !== 'change') return; st.assignments[el.dataset.d] = v; saveDraft(); render(); return; }
   else if (f === 'rtarget') {
@@ -488,6 +514,7 @@ function onInput(e) {
     const r = routine(el.dataset.rid); const x = r && r.exercises.find((q) => q.id === el.dataset.xid); if (!x) return;
     const key = { xsets: 'sets', xmin: 'repMin', xmax: 'repMax', xrir: 'rir' }[f];
     if (key) x[key] = v === '' ? '' : Number(v);
+    if (key === 'repMin' || key === 'repMax') x.repsOwn = true;
   }
   saveDraft();
 }

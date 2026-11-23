@@ -1024,7 +1024,7 @@ function renderExercise(ex, nx){
     tgt ? `<span>Planned <b>${esc(tgt)}</b></span>` : '',
     last ? `<span>Last time${last.elsewhere?` (${last.elsewhere})`:''} <b>${last.sets.map(s=>`${s.weight!==''?esc(s.weight):'–'}×${s.reps!==''?esc(s.reps):'–'}`).join(', ')}</b> · ${esc(F.fmtDate(last.date))}</span>` : '',
   ].filter(Boolean).join('');
-  const equip = [ex.machine ? machineLabel(ex.machine) : ex.equipmentKey, ex.unilateral ? 'Each side' : ''].filter(Boolean).join(' · ');
+  const equip = [ex.machine ? machineLabel(ex.machine) : ex.equipmentKey, ex.unilateral ? 'Unilateral' : ''].filter(Boolean).join(' · ');
   const camOk = window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex);
   const camSet = nextHere || ex.sets[ex.sets.length-1];
   const open = _exOpen.has(ex.id);
@@ -1068,8 +1068,8 @@ function exSettingsHtml(ex){
   return `<div class="ex-set">
     <div class="ex-set-row"><span>Sides</span>
       <div class="ex-sides" role="group" aria-label="Sides">
-        <button aria-pressed="${!ex.unilateral}" onclick="setSides('${ex.id}',false)">Both sides</button>
-        <button aria-pressed="${!!ex.unilateral}" onclick="setSides('${ex.id}',true)" title="Log each set as Right and Left">One side at a time</button>
+        <button aria-pressed="${!ex.unilateral}" onclick="setSides('${ex.id}',false)">Bilateral</button>
+        <button aria-pressed="${!!ex.unilateral}" onclick="setSides('${ex.id}',true)" title="Log each set as Right and Left">Unilateral</button>
       </div></div>
     ${machineBlock(ex)}
     <label class="ex-equipment">Equipment variation (for personal predictions)${ex.machine?`<span> · ${esc(machineLabel(ex.machine))}</span>`:`<input value="${esc(ex.equipmentKey||'')}" placeholder="Optional, e.g. barbell · flat bench" onchange="setEquipmentVariation('${ex.id}',this.value)">`}</label>

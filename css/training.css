@@ -142,6 +142,14 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .tw-x-f label { display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; min-width: 0; }
 .tw-range { display: flex; align-items: center; gap: 4px; }
 .tw-range i { font-style: normal; color: var(--t3); }
+/* Plan-wide rep range, above the workouts it fills in. */
+.tw-reps { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: #fff; border-radius: 16px; padding: 14px 16px; margin: -4px 0 14px; box-shadow: var(--sh0); }
+.tw-reps-t { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.tw-reps-t b { font-size: 15px; font-weight: 800; color: var(--t1); }
+.tw-reps-t span { font-size: 12.5px; color: var(--t2); line-height: 1.4; }
+.tw-reps .tw-range { gap: 6px; }
+.tw-reps .tw-num { width: 58px; }
+.tw-reps em { font-style: normal; font-size: 13px; font-weight: 700; color: var(--t2); margin-left: 2px; }
 .tw-num { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--bd); border-radius: 11px; text-align: center; font-size: 15px; font-weight: 700; color: var(--t1); background: var(--s1); outline: none; font-variant-numeric: tabular-nums; }
 .tw-rt-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .tw-btn2 { min-height: 44px; padding: 0 16px; border-radius: 13px; background: var(--s2); font-size: 13.5px; font-weight: 700; color: var(--t1); }
