@@ -26,7 +26,7 @@
   var ic = {
     home:    '<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
     train:   '<path d="M6 7v10M18 7v10M2 10v4M22 10v4M6 12h12"/>',
-    food:    '<path d="M3 11l19-9-9 19-2-8-8-2z"/>',
+    food:    '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>',
     recover: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
     more:    '<circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
     plus:    '<path d="M12 5v14M5 12h14"/>',
@@ -46,7 +46,7 @@
     { href: 'workouts.html', label: 'Train', icon: ic.train },
   ];
   var RIGHT = [
-    { href: 'nutrition.html', label: 'Food', icon: ic.food },
+    { href: 'nutrition.html', label: 'Nutrition', icon: ic.food },
     { href: '#more',          label: 'More', icon: ic.more },
   ];
   var MORE = [
