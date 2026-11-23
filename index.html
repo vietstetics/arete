@@ -685,8 +685,35 @@ textarea{font-family:inherit;resize:none}
 <link rel="stylesheet" href="css/motion.css">
 <script src="js/motion.js"></script>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="preload" as="image" href="brand-mark-base.png">
+<link rel="preload" as="image" href="brand-mark-line.png">
+<!-- Launch screen (js/splash.js): decided before the first frame, so it never flashes on moving between screens. -->
+<script>
+(function(){var r=document.documentElement,on=true;window.__splashT0=Date.now();
+try{if(document.referrer&&new URL(document.referrer).origin===location.origin)on=false;}catch(e){}
+try{if(sessionStorage.getItem('arete_splash')==='1')on=false;}catch(e){}
+if(on)r.classList.add('splash-on');})();
+</script>
+<style>
+#arete-splash{display:none}
+html.splash-on #arete-splash{display:grid;position:fixed;inset:0;z-index:2147483646;place-items:center;background:#F2F2F7;visibility:visible!important;
+  transition:opacity .38s cubic-bezier(.32,.72,0,1)}
+html.splash-on body{overflow:hidden}
+#arete-splash .as-mark{position:relative;width:96px;height:96px;opacity:0;transform:scale(.86);
+  animation:as-in .62s cubic-bezier(.2,.9,.25,1.12) .08s forwards}
+#arete-splash .as-mark img{position:absolute;inset:0;width:100%;height:100%;border-radius:22px}
+#arete-splash .as-line{clip-path:inset(0 100% 0 0);animation:as-draw .66s cubic-bezier(.45,0,.2,1) .42s forwards}
+#arete-splash.out{opacity:0}
+#arete-splash.out .as-mark{transition:transform .38s cubic-bezier(.32,.72,0,1);transform:scale(1.08)}
+@keyframes as-in{to{opacity:1;transform:none}}
+@keyframes as-draw{to{clip-path:inset(0 0 0 0)}}
+@media (prefers-reduced-motion:reduce){#arete-splash .as-mark{animation:none;opacity:1;transform:none}#arete-splash .as-line{animation:none;clip-path:none}}
+</style>
 </head>
 <body>
+<div id="arete-splash" role="presentation" aria-hidden="true"><div class="as-mark"><img src="brand-mark-base.png" alt=""><img class="as-line" src="brand-mark-line.png" alt=""></div></div>
+<script src="js/splash.js"></script>
+
 <div class="app">
 
 <!-- ══ SIDEBAR ══ -->
