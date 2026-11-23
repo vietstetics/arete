@@ -2,56 +2,88 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#0E1512">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0B110E">
 <title>Arete — Sign in</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--gr:#1DA462;--grd:rgba(29,164,98,.14);--t1:#EAF2EC;--t2:#9DB0A6;--t3:#5E726A;--bd:rgba(255,255,255,.10);--bd2:rgba(255,255,255,.2);--re:#F0726A;--card:#121A16}
+:root{
+  --ink:#0B110E; --ink2:#131B16; --paper:#ECF3EE; --mut:#93A69B; --dim:#5D6F65;
+  --line:rgba(236,243,238,.13); --line2:rgba(236,243,238,.26);
+  --go:#1DA462; --lime:#C8F169; --err:#FF8A80;
+  --display:'Barlow Condensed',Impact,'Arial Narrow',sans-serif;
+  --body:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:radial-gradient(120% 90% at 50% 0%,#16241C 0%,#0C120F 60%,#0A0F0C 100%);color:var(--t1);-webkit-font-smoothing:antialiased;font-size:14px;display:flex;align-items:center;justify-content:center;padding:24px;min-height:100dvh}
-.wrap{width:100%;max-width:400px}
-.brand{display:flex;align-items:center;gap:11px;justify-content:center;margin-bottom:24px}
-.brand-logo{display:block;width:168px;height:auto}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:22px;padding:26px 24px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-.title{font-size:20px;font-weight:800;letter-spacing:-.02em;text-align:center}
-.sub{font-size:13px;color:var(--t2);text-align:center;margin:6px 0 20px;line-height:1.5}
-.seg{display:flex;background:rgba(255,255,255,.05);border-radius:13px;padding:4px;margin-bottom:16px}
-.seg button{flex:1;padding:9px;border:none;background:none;color:var(--t2);font:700 13px/1 inherit;border-radius:9px;cursor:pointer;transition:all .15s}
-.seg button.on{background:var(--gr);color:#fff;box-shadow:0 4px 12px -3px rgba(29,164,98,.6)}
-.soc{display:flex;gap:8px;margin-bottom:14px}
-.soc button{flex:1;padding:11px 6px;border:1px solid var(--bd);background:rgba(255,255,255,.04);color:var(--t1);font:600 12.5px/1 inherit;border-radius:11px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px}
-.soc button:hover{border-color:var(--bd2);background:rgba(255,255,255,.07)}
-.soc svg{width:17px;height:17px;flex-shrink:0}
-.or{display:flex;align-items:center;gap:10px;margin-bottom:14px;color:var(--t3);font-size:10.5px;font-weight:600;letter-spacing:.05em}
-.or::before,.or::after{content:'';flex:1;height:1px;background:var(--bd)}
-.tog{display:flex;gap:8px;margin-bottom:16px}
-.tog button{flex:1;padding:9px;border:1px solid var(--bd);background:rgba(255,255,255,.03);color:var(--t2);font:600 12.5px/1 inherit;border-radius:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px}
-.tog button.on{border-color:var(--gr);color:var(--t1);background:var(--grd)}
-.tog svg{width:15px;height:15px}
-.field{margin-bottom:13px}
-.field label{font-size:11.5px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px}
-.field input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--bd);background:rgba(255,255,255,.04);color:var(--t1);font-size:15px;outline:none;transition:border-color .15s,box-shadow .15s}
-.field input:focus{border-color:var(--gr);box-shadow:0 0 0 3px rgba(29,164,98,.18)}
-.field input::placeholder{color:var(--t3)}
-.btn{width:100%;padding:14px;border-radius:13px;border:none;background:var(--gr);color:#fff;font:800 14.5px/1 inherit;cursor:pointer;transition:all .15s;margin-top:6px;box-shadow:0 8px 22px -6px rgba(29,164,98,.6)}
-.btn:hover{filter:brightness(1.07)}.btn:active{transform:scale(.985)}
-.btn:disabled{opacity:.55;pointer-events:none}
-.alt{font-size:12.5px;color:var(--t2);text-align:center;margin-top:16px}
-.alt a{color:var(--gr);font-weight:700;cursor:pointer}
-.msg{font-size:12.5px;text-align:center;margin-top:14px;min-height:16px;line-height:1.5}
-.msg.err{color:var(--re)}.msg.ok{color:var(--gr)}
-.hint{font-size:11px;color:var(--t3);margin-top:6px}
-.legal{font-size:11px;color:var(--t3);text-align:center;margin-top:18px;line-height:1.6}
-.legal a,.consent a{color:inherit;text-decoration:underline}
-.consent{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:var(--t2);line-height:1.5;margin:16px 0 0;cursor:pointer;text-align:left}
-.consent input{width:18px;height:18px;margin:1px 0 0;flex-shrink:0;accent-color:#1DA462}
-.notice{background:rgba(240,114,106,.10);border:1px solid rgba(240,114,106,.3);border-radius:12px;padding:12px 14px;font-size:12px;color:#F5A39D;line-height:1.55;margin-bottom:16px}
-.notice b{color:#fff}
+html{background:var(--ink)}
+body{min-height:100dvh;background:var(--ink);color:var(--paper);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased;
+  padding:calc(28px + env(safe-area-inset-top,0px)) 24px calc(32px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
+.wrap{width:100%;max-width:420px;display:flex;flex-direction:column}
+.logo{width:112px;height:auto;display:block;opacity:.92}
+
+/* The anchor: one set of reps, each bar a rep's speed, slowing as the set goes on. */
+.bars{display:flex;align-items:flex-end;gap:6px;height:64px;margin:44px 0 18px}
+.bars i{width:10px;border-radius:3px 3px 1px 1px;background:var(--go);transform-origin:bottom;animation:rep .5s cubic-bezier(.2,.8,.2,1) both}
+.bars i:nth-child(n+6){background:var(--lime)}
+.bars i:last-child{background:transparent;border:1.5px dashed var(--line2)}
+@keyframes rep{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){.bars i{animation:none}}
+
+h1{font:800 56px/.92 var(--display);letter-spacing:-.01em;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--lime)}
+.lede{color:var(--mut);margin:14px 0 30px;max-width:32ch}
+
+.social{display:grid;gap:10px;margin-bottom:22px}
+.social[hidden],.or[hidden],.method[hidden]{display:none}
+.social button{display:flex;align-items:center;justify-content:center;gap:10px;min-height:50px;border-radius:12px;border:1px solid var(--line2);
+  background:transparent;color:var(--paper);font:600 15px var(--body);cursor:pointer}
+.social button:hover{background:rgba(236,243,238,.05)}
+.social svg{width:18px;height:18px}
+.or{display:flex;align-items:center;gap:12px;color:var(--dim);font-size:12px;margin:-4px 0 18px}
+.or::before,.or::after{content:'';flex:1;height:1px;background:var(--line)}
+.method{display:flex;gap:18px;margin-bottom:18px;font-size:14px}
+.method button{background:none;border:0;color:var(--mut);font:600 14px var(--body);padding:4px 0;border-bottom:2px solid transparent;cursor:pointer}
+.method button[aria-pressed="true"]{color:var(--paper);border-bottom-color:var(--go)}
+
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--mut);margin-bottom:7px}
+.box{position:relative}
+.field input{width:100%;height:52px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--ink2);color:var(--paper);
+  font:500 16px var(--body);outline:none;transition:border-color .15s}
+.field input::placeholder{color:var(--dim)}
+.field input:focus{border-color:var(--go)}
+.field input[aria-invalid="true"]{border-color:var(--err)}
+.box .eye{position:absolute;right:6px;top:6px;height:40px;padding:0 12px;border:0;border-radius:9px;background:none;color:var(--mut);font:600 13px var(--body);cursor:pointer}
+.box .eye:hover{color:var(--paper)}
+.box input.has-eye{padding-right:72px}
+.note{font-size:13px;color:var(--mut);margin-top:7px}
+.note.ok{color:var(--go)}
+.note button{background:none;border:0;color:var(--lime);font:600 13px var(--body);cursor:pointer;text-decoration:underline;padding:0}
+
+.consent{display:flex;gap:12px;align-items:flex-start;font-size:13px;color:var(--mut);margin:6px 0 20px;cursor:pointer;line-height:1.5}
+.consent input{width:20px;height:20px;margin-top:1px;flex-shrink:0;accent-color:var(--go)}
+.consent a,.legal a{color:var(--paper)}
+
+.go{width:100%;height:54px;border:0;border-radius:12px;background:var(--go);color:#fff;font:700 16px var(--body);cursor:pointer;transition:filter .15s,transform .1s}
+.go:hover{filter:brightness(1.08)}.go:active{transform:scale(.99)}
+.go:disabled{opacity:.6;cursor:default}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
+.msg{min-height:22px;margin-top:14px;font-size:14px}
+.msg.err{color:var(--err)}.msg.ok{color:var(--go)}
+.msg button{background:none;border:0;color:var(--lime);font:600 14px var(--body);cursor:pointer;text-decoration:underline;padding:0;margin-left:4px}
+.switch{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);font-size:14px;color:var(--mut)}
+.switch button,.link{background:none;border:0;color:var(--paper);font:600 14px var(--body);cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:0}
+.forgot{margin-top:14px}
+.legal{font-size:12px;color:var(--dim);margin-top:18px}
+.inbox{border-left:3px solid var(--lime);padding:4px 0 4px 16px;margin-bottom:22px}
+.inbox b{color:var(--paper);overflow-wrap:anywhere}
+[hidden]{display:none!important}
 </style>
 <link rel="apple-touch-icon" href="icon-180.png">
 <script src="js/feel.js" defer></script>
@@ -60,192 +92,295 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 </head>
 <body>
-<div class="wrap">
-  <div class="brand">
-    <img class="brand-logo" src="brand-logo-light.png" alt="Arete" width="168" height="46">
-  </div>
+<main class="wrap">
+  <img class="logo" src="brand-logo-light.png" alt="Arete" width="112" height="31">
 
-  <div class="card">
-    <div class="title" id="title">Create your account</div>
-    <div class="sub" id="sub">One account keeps your training, nutrition and readiness saved & synced — securely.</div>
+  <div class="bars" aria-hidden="true"><i style="height:100%;animation-delay:.05s"></i><i style="height:97%;animation-delay:.1s"></i><i style="height:93%;animation-delay:.15s"></i><i style="height:88%;animation-delay:.2s"></i><i style="height:82%;animation-delay:.25s"></i><i style="height:74%;animation-delay:.3s"></i><i style="height:65%;animation-delay:.35s"></i><i style="height:54%;animation-delay:.4s"></i><i style="height:42%;animation-delay:.45s"></i></div>
 
-    <div id="config-notice" class="notice" style="display:none"></div>
+  <h1 id="title">Every rep,<br><em>kept.</em></h1>
+  <p class="lede" id="lede">Your lifts, food and bodyweight, backed up to your account and on every phone you sign in to.</p>
 
-    <div class="seg" id="seg">
-      <button id="seg-up" class="on" onclick="setMode('signup')">Create account</button>
-      <button id="seg-in" onclick="setMode('signin')">Sign in</button>
+  <!-- Check-your-inbox state after sign-up -->
+  <section id="inbox-view" hidden>
+    <p class="inbox">We sent a confirmation link to <b id="inbox-email"></b>. Open it on this phone, then come back and sign in.</p>
+    <button class="go" type="button" onclick="setMode('signin')">I’ve confirmed, sign in</button>
+    <p class="msg" id="inbox-msg" role="status" aria-live="polite"></p>
+    <div class="switch">Didn’t get it? Check spam, then <button type="button" onclick="resend($('inbox-email').textContent, 'inbox-msg')">send it again</button> or <button type="button" onclick="setMode('signup')">use a different email</button>.</div>
+  </section>
+
+  <!-- Set a new password, after a reset link -->
+  <form id="recover-view" hidden novalidate>
+    <div class="field">
+      <label for="newpw">New password</label>
+      <div class="box"><input id="newpw" class="has-eye" type="password" autocomplete="new-password" minlength="8" required aria-describedby="newpw-note"><button class="eye" type="button" data-for="newpw">Show</button></div>
+      <div class="note" id="newpw-note">At least 8 characters.</div>
+    </div>
+    <button class="go" id="recover-btn" type="submit">Save new password</button>
+    <p class="msg" id="recover-msg" role="status" aria-live="polite"></p>
+  </form>
+
+  <section id="auth-view">
+    <div class="social" id="social" hidden></div>
+    <div class="or" id="or" hidden>or</div>
+
+    <div class="method" id="method" hidden>
+      <button type="button" aria-pressed="true" id="m-email" onclick="setMethod('email')">Email</button>
+      <button type="button" aria-pressed="false" id="m-phone" onclick="setMethod('phone')">Phone</button>
     </div>
 
-    <div class="soc" id="soc">
-      <button onclick="social('google')" aria-label="Continue with Google">
-        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.57 5.57 0 0 1-2.4 3.58v2.98h3.89c2.26-2.09 3.53-5.17 3.53-8.8z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.89-2.98c-1.08.72-2.45 1.16-4.04 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09A11.99 11.99 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.27 14.31a7.2 7.2 0 0 1 0-4.62V6.6H1.29a12.04 12.04 0 0 0 0 10.8l3.98-3.09z"/><path fill="#EA4335" d="M12 4.73c1.77 0 3.35.61 4.6 1.8l3.45-3.45C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.29 6.6l3.98 3.09C6.22 6.84 8.87 4.73 12 4.73z"/></svg>
-        Google
-      </button>
-      <button onclick="social('apple')" aria-label="Continue with Apple">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c-.03-2.89 2.36-4.27 2.47-4.34-1.34-1.96-3.43-2.23-4.18-2.26-1.78-.18-3.47 1.05-4.37 1.05-.9 0-2.29-1.02-3.77-1-1.94.03-3.72 1.13-4.72 2.86-2.01 3.49-.51 8.66 1.45 11.49.96 1.39 2.1 2.94 3.6 2.88 1.45-.06 2-.93 3.74-.93s2.24.93 3.77.9c1.56-.03 2.54-1.41 3.49-2.8 1.1-1.61 1.55-3.17 1.58-3.25-.04-.02-3.03-1.16-3.06-4.6zM14.16 4.06c.8-.97 1.34-2.32 1.19-3.66-1.15.05-2.55.77-3.38 1.73-.74.86-1.39 2.23-1.22 3.55 1.29.1 2.6-.65 3.41-1.62z"/></svg>
-        Apple
-      </button>
-      <button onclick="social('facebook')" aria-label="Continue with Facebook">
-        <svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12a12 12 0 1 0-13.88 11.85v-8.38H7.08V12h3.04V9.36c0-3 1.79-4.67 4.53-4.67 1.31 0 2.68.24 2.68.24v2.95h-1.51c-1.49 0-1.95.92-1.95 1.87V12h3.32l-.53 3.47h-2.79v8.38A12 12 0 0 0 24 12z"/></svg>
-        Facebook
-      </button>
-    </div>
-    <div class="or">OR WITH EMAIL</div>
-
-    <div class="tog" id="tog">
-      <button id="tog-email" class="on" onclick="setMethod('email')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email</button>
-      <button id="tog-phone" onclick="setMethod('phone')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/></svg>Phone</button>
-    </div>
-
-    <!-- EMAIL -->
-    <form id="form-email" onsubmit="return false">
-      <div class="field"><label for="email">Email</label><input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"></div>
-      <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" placeholder="••••••••"><div class="hint" id="pw-hint" style="display:none">At least 8 characters.</div></div>
-      <button class="btn" id="email-btn" onclick="submitEmail()">Create account</button>
-      <div class="alt" id="forgot-row" style="display:none"><a onclick="forgot()">Forgot password?</a></div>
+    <form id="form-email" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" required aria-describedby="email-note">
+        <div class="note" id="email-note" hidden></div>
+      </div>
+      <div class="field">
+        <label for="pw">Password</label>
+        <div class="box"><input id="pw" class="has-eye" type="password" autocomplete="new-password" required aria-describedby="pw-note"><button class="eye" type="button" data-for="pw">Show</button></div>
+        <div class="note" id="pw-note">At least 8 characters.</div>
+      </div>
+      <label class="consent" id="consent-row"><input type="checkbox" id="consent"><span>I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>, including Arete storing my training, food and health data, and I’m 16 or older.</span></label>
+      <button class="go" id="email-btn" type="submit">Create account</button>
+      <div class="forgot" id="forgot-row" hidden><button class="link" type="button" onclick="forgot()">Forgot password?</button></div>
     </form>
 
-    <!-- PHONE -->
-    <form id="form-phone" style="display:none" onsubmit="return false">
-      <div class="field"><label for="phone">Phone number</label><input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+1 555 123 4567"><div class="hint">Include your country code, e.g. +1.</div></div>
-      <div class="field" id="code-field" style="display:none"><label for="code">Verification code</label><input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code"></div>
-      <button class="btn" id="phone-btn" onclick="submitPhone()">Send code</button>
+    <form id="form-phone" hidden novalidate>
+      <div class="field">
+        <label for="phone">Phone number</label>
+        <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+1 555 123 4567" aria-describedby="phone-note">
+        <div class="note" id="phone-note">Start with your country code, like +1.</div>
+      </div>
+      <div class="field" id="code-field" hidden><label for="code">6-digit code</label><input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>
+      <button class="go" id="phone-btn" type="submit">Text me a code</button>
     </form>
 
-      <label class="consent" id="consent-row"><input type="checkbox" id="consent"><span>I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>, including Arete storing my training, nutrition and health data to run the app. I’m 16 or older.</span></label>
-    <div class="msg" id="msg"></div>
-    <div class="alt" id="switch"></div>
-  </div>
-
-  <div class="legal" id="legal-line">By signing in you agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>. Arete is not medical advice.</div>
-</div>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <div class="switch" id="switch"></div>
+    <p class="legal" id="legal-line">By signing in you agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>. Arete is not medical advice.</p>
+  </section>
+</main>
 
 <script src="js/auth.js"></script>
 <script>
 let mode = 'signup';      // 'signup' | 'signin'
 let method = 'email';     // 'email' | 'phone'
 let codeSent = false;
+const $ = (id) => document.getElementById(id);
 
-const $ = id => document.getElementById(id);
-function setMsg(t, type){ const m=$('msg'); m.textContent=t||''; m.className='msg'+(type?' '+type:''); }
+function show(view) { ['auth-view', 'inbox-view', 'recover-view'].forEach((v) => { $(v).hidden = v !== view; }); }
+function setMsg(text, type, action) {
+  const m = $('msg'); m.className = 'msg' + (type ? ' ' + type : ''); m.textContent = text || '';
+  if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = action.run; m.append(' ', b); }
+}
 
 // Creating an account needs an explicit yes to the Terms and Privacy Policy (health data is sensitive),
 // recorded with its date and policy version.
 const POLICY_VERSION = '2026-11-23';
-function needConsent(){
+function needConsent() {
   if (mode !== 'signup') return false;
-  if (!$('consent').checked){ setMsg('Please agree to the Terms and Privacy Policy to create an account.','err'); $('consent').focus(); return true; }
+  if (!$('consent').checked) { setMsg('Tick the box to agree to the Terms and Privacy Policy.', 'err'); $('consent').focus(); return true; }
   try { localStorage.setItem('jarvis_consent', JSON.stringify({ terms: POLICY_VERSION, privacy: POLICY_VERSION, at: new Date().toISOString() })); } catch {}
   return false;
 }
-function setMode(m){
-  mode = m; setMsg('');
-  $('consent-row').style.display = m==='signup' ? '' : 'none';
-  $('legal-line').style.display = m==='signup' ? 'none' : '';
-  $('seg-up').classList.toggle('on', m==='signup');
-  $('seg-in').classList.toggle('on', m==='signin');
-  $('title').textContent = m==='signup' ? 'Create your account' : 'Welcome back';
-  $('sub').textContent = m==='signup'
-    ? 'One account keeps your training, nutrition and readiness saved & synced — securely.'
-    : 'Sign in to pick up exactly where you left off.';
-  $('pw').setAttribute('autocomplete', m==='signup' ? 'new-password' : 'current-password');
-  $('pw-hint').style.display = m==='signup' ? '' : 'none';
-  $('forgot-row').style.display = (m==='signin' && method==='email' && Auth.isConfigured()) ? '' : 'none';
-  $('email-btn').textContent = m==='signup' ? 'Create account' : 'Sign in';
-  resetPhone();
+
+function setMode(m) {
+  mode = m; setMsg(''); show('auth-view');
+  const up = m === 'signup';
+  $('title').innerHTML = up ? 'Every rep,<br><em>kept.</em>' : 'Back under<br><em>the bar.</em>';
+  $('lede').textContent = up ? 'Your lifts, food and bodyweight, backed up to your account and on every phone you sign in to.' : 'Sign in and everything you logged is where you left it.';
+  $('consent-row').hidden = !up;
+  $('legal-line').hidden = up;
+  $('pw').setAttribute('autocomplete', up ? 'new-password' : 'current-password');
+  $('pw-note').hidden = !up;
+  $('forgot-row').hidden = up || method !== 'email' || !Auth.isConfigured();
+  $('email-btn').textContent = up ? 'Create account' : 'Sign in';
+  $('switch').innerHTML = up ? 'Already have an account? <button type="button" onclick="setMode(\'signin\')">Sign in</button>'
+    : 'New to Arete? <button type="button" onclick="setMode(\'signup\')">Create an account</button>';
+  resetPhone(); renderSocial();
 }
-function setMethod(x){
+function setMethod(x) {
   method = x; setMsg('');
-  $('tog-email').classList.toggle('on', x==='email');
-  $('tog-phone').classList.toggle('on', x==='phone');
-  $('form-email').style.display = x==='email' ? '' : 'none';
-  $('form-phone').style.display = x==='phone' ? '' : 'none';
-  $('forgot-row').style.display = (mode==='signin' && x==='email' && Auth.isConfigured()) ? '' : 'none';
+  $('m-email').setAttribute('aria-pressed', String(x === 'email'));
+  $('m-phone').setAttribute('aria-pressed', String(x === 'phone'));
+  $('form-email').hidden = x !== 'email';
+  $('form-phone').hidden = x !== 'phone';
+  $('forgot-row').hidden = mode === 'signup' || x !== 'email' || !Auth.isConfigured();
+  if (x === 'phone') $('form-phone').prepend($('consent-row')); else $('email-btn').before($('consent-row'));
   resetPhone();
 }
-function resetPhone(){ codeSent=false; $('code-field').style.display='none'; $('phone-btn').textContent='Send code'; }
+function resetPhone() { codeSent = false; $('code-field').hidden = true; $('phone-btn').textContent = 'Text me a code'; }
 
-function fail(e){ setMsg((e && (e.message || e.error_description)) || 'Something went wrong. Try again.', 'err'); }
-function done(){
-  if (!Auth.isConfigured()){ setMsg('Welcome to Arete!','ok'); setTimeout(()=>location.replace('index.html'), 350); return; }
-  setMsg('Signed in — loading your data…','ok');
-  Auth.pull().catch(()=>{}).finally(()=>{ setTimeout(()=>location.replace('index.html'), 400); });
+// ── Sign-in methods: only the ones switched on in Supabase are offered ──
+const SOCIAL = {
+  google: ['Google', '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.57 5.57 0 0 1-2.4 3.58v2.98h3.89c2.26-2.09 3.53-5.17 3.53-8.8z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.89-2.98c-1.08.72-2.45 1.16-4.04 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09A11.99 11.99 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.27 14.31a7.2 7.2 0 0 1 0-4.62V6.6H1.29a12.04 12.04 0 0 0 0 10.8l3.98-3.09z"/><path fill="#EA4335" d="M12 4.73c1.77 0 3.35.61 4.6 1.8l3.45-3.45C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.29 6.6l3.98 3.09C6.22 6.84 8.87 4.73 12 4.73z"/></svg>'],
+  apple: ['Apple', '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.54c-.03-2.89 2.36-4.27 2.47-4.34-1.34-1.96-3.43-2.23-4.18-2.26-1.78-.18-3.47 1.05-4.37 1.05-.9 0-2.29-1.02-3.77-1-1.94.03-3.72 1.13-4.72 2.86-2.01 3.49-.51 8.66 1.45 11.49.96 1.39 2.1 2.94 3.6 2.88 1.45-.06 2-.93 3.74-.93s2.24.93 3.77.9c1.56-.03 2.54-1.41 3.49-2.8 1.1-1.61 1.55-3.17 1.58-3.25-.04-.02-3.03-1.16-3.06-4.6zM14.16 4.06c.8-.97 1.34-2.32 1.19-3.66-1.15.05-2.55.77-3.38 1.73-.74.86-1.39 2.23-1.22 3.55 1.29.1 2.6-.65 3.41-1.62z"/></svg>'],
+  facebook: ['Facebook', '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#1877F2" d="M24 12a12 12 0 1 0-13.88 11.85v-8.38H7.08V12h3.04V9.36c0-3 1.79-4.67 4.53-4.67 1.31 0 2.68.24 2.68.24v2.95h-1.51c-1.49 0-1.95.92-1.95 1.87V12h3.32l-.53 3.47h-2.79v8.38A12 12 0 0 0 24 12z"/></svg>'],
+};
+let enabled = null;
+function renderSocial() {
+  const on = enabled ? Object.keys(SOCIAL).filter((p) => enabled[p]) : [];
+  $('social').innerHTML = on.map((p) => `<button type="button" onclick="social('${p}')">${SOCIAL[p][1]}Continue with ${SOCIAL[p][0]}</button>`).join('');
+  $('social').hidden = $('or').hidden = !on.length;
+  $('method').hidden = !(enabled && enabled.phone);
 }
 
-async function submitEmail(){
+// ── Inline help: email typos, password length, show/hide ──
+const DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com', 'me.com', 'proton.me', 'protonmail.com', 'aol.com'];
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function emailTypo(email) {
+  const at = email.lastIndexOf('@'); if (at < 1) return null;
+  const domain = email.slice(at + 1).toLowerCase(); if (!domain || DOMAINS.includes(domain)) return null;
+  const near = DOMAINS.find((d) => editDistance(domain, d) <= 2);
+  return near ? email.slice(0, at + 1) + near : null;
+}
+function checkEmail() {
+  const v = $('email').value.trim(), note = $('email-note'), fix = emailTypo(v);
+  $('email').removeAttribute('aria-invalid');
+  if (!fix) { note.hidden = true; return; }
+  note.hidden = false; note.className = 'note'; note.textContent = 'Did you mean ';
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = fix + '?';
+  b.onclick = () => { $('email').value = fix; note.hidden = true; $('pw').focus(); };
+  note.append(b);
+}
+const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+function checkPw(input, note) {
+  if (mode === 'signin' && input === $('pw')) return;
+  const n = input.value.length;
+  note.className = 'note' + (n >= 8 ? ' ok' : '');
+  note.textContent = n >= 8 ? 'Long enough.' : n ? `At least 8 characters (${8 - n} more).` : 'At least 8 characters.';
+}
+$('email').addEventListener('blur', checkEmail);
+$('email').addEventListener('input', () => { if (!$('email-note').hidden) checkEmail(); });
+$('pw').addEventListener('input', () => checkPw($('pw'), $('pw-note')));
+$('newpw').addEventListener('input', () => checkPw($('newpw'), $('newpw-note')));
+document.querySelectorAll('.eye').forEach((b) => b.addEventListener('click', () => {
+  const i = $(b.dataset.for), hidden = i.type === 'password';
+  i.type = hidden ? 'text' : 'password'; b.textContent = hidden ? 'Hide' : 'Show';
+  b.setAttribute('aria-label', hidden ? 'Hide password' : 'Show password');
+}));
+
+// ── Errors in plain words (Supabase codes first, its messages as a fallback) ──
+function explain(e) {
+  const code = e && e.code, text = String((e && (e.message || e.error_description)) || '');
+  if (code === 'invalid_credentials' || /invalid login credentials/i.test(text)) return { text: 'That email and password don’t match an account.' };
+  if (code === 'email_not_confirmed' || /email not confirmed/i.test(text)) return { text: 'Confirm your email first: open the link we sent you.', action: { label: 'Send it again', run: () => resend($('email').value.trim(), 'msg') } };
+  if (code === 'user_already_exists' || /already registered/i.test(text)) return { text: 'That email already has an account.', action: { label: 'Sign in instead', run: () => setMode('signin') } };
+  if (code === 'weak_password' || /password should/i.test(text)) return { text: 'Choose a longer password, at least 8 characters.' };
+  if (/rate limit|only request this after/i.test(text) || code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit') return { text: 'Too many tries. Wait a minute, then try again.' };
+  if (/failed to fetch|network|offline|load the supabase/i.test(text)) return { text: 'Can’t reach the server. Check your connection and try again.' };
+  return { text: text || 'Something went wrong. Try again.' };
+}
+function fail(e) { const x = explain(e); setMsg(x.text, 'err', x.action); }
+
+function done() {
+  if (!Auth.isConfigured()) { setMsg('Account ready.', 'ok'); setTimeout(() => location.replace('index.html'), 350); return; }
+  setMsg('Signed in. Loading your data…', 'ok');
+  Auth.pull().catch(() => {}).finally(() => { setTimeout(() => location.replace('index.html'), 400); });
+}
+
+async function submitEmail() {
   const email = $('email').value.trim(), pw = $('pw').value;
-  if (!email || !pw) return setMsg('Enter your email and password.','err');
-  if (mode==='signup' && pw.length < 8) return setMsg('Password must be at least 8 characters.','err');
+  if (!validEmail(email)) { $('email').setAttribute('aria-invalid', 'true'); $('email').focus(); return setMsg('Enter a valid email address.', 'err'); }
+  if (!pw) { $('pw').focus(); return setMsg('Enter your password.', 'err'); }
+  if (mode === 'signup' && pw.length < 8) { $('pw').focus(); return setMsg('Password must be at least 8 characters.', 'err'); }
   if (needConsent()) return;
-  const btn = $('email-btn'); btn.disabled = true; setMsg(mode==='signup'?'Creating your account…':'Signing in…');
+  const btn = $('email-btn'); btn.disabled = true; setMsg(mode === 'signup' ? 'Creating your account…' : 'Signing in…');
   try {
-    if (!Auth.isConfigured()){
+    if (!Auth.isConfigured()) {
       // Device accounts until cloud sync is configured — same flow, stored on this device.
-      if (mode==='signup') await Auth.localSignUp(email, pw);
-      else await Auth.localSignIn(email, pw);
+      if (mode === 'signup') await Auth.localSignUp(email, pw); else await Auth.localSignIn(email, pw);
       return done();
     }
-    if (mode==='signup'){
+    if (mode === 'signup') {
       const { data, error } = await Auth.signUpEmail(email, pw);
       if (error) throw error;
-      if (data.session){ return done(); }                 // auto sign-in (email confirmation off)
-      setMsg('Account created — check your email to confirm, then sign in.','ok');
-      setMode('signin');
+      if (data.session) return done();                                   // email confirmation is off
+      // Supabase hides whether an email is taken: an existing account comes back with no identities.
+      if (data.user && Array.isArray(data.user.identities) && !data.user.identities.length) throw { code: 'user_already_exists' };
+      $('inbox-email').textContent = email; $('inbox-msg').textContent = ''; show('inbox-view');
+      $('title').innerHTML = 'Check your<br><em>email.</em>'; $('lede').textContent = 'One tap on the link and your account is ready.';
     } else {
       const { error } = await Auth.signInEmail(email, pw);
       if (error) throw error;
       done();
     }
-  } catch(e){ fail(e); } finally { btn.disabled = false; }
+  } catch (e) { fail(e); } finally { btn.disabled = false; }
 }
 
-async function submitPhone(){
-  const phone = $('phone').value.replace(/[^\d+]/g,'');
-  if (!phone) return setMsg('Enter your phone number with country code.','err');
+async function resend(email, where) {
+  const out = (t, type) => { if (where === 'msg') setMsg(t, type); else { $(where).textContent = t; $(where).className = 'msg' + (type ? ' ' + type : ''); } };
+  if (!validEmail(email)) return out('Enter your email above first.', 'err');
+  try { const { error } = await Auth.resendConfirmation(email); if (error) throw error; out('Sent. Check your inbox and spam.', 'ok'); }
+  catch (e) { out(explain(e).text, 'err'); }
+}
+
+async function submitPhone() {
+  const phone = $('phone').value.replace(/[^\d+]/g, '');
+  if (!/^\+\d{7,15}$/.test(phone)) return setMsg('Enter your number with the country code, like +1 555 123 4567.', 'err');
   if (!codeSent && needConsent()) return;
   const btn = $('phone-btn');
-  if (!codeSent){
+  if (!codeSent) {
     btn.disabled = true; setMsg('Texting you a code…');
-    try { const { error } = await Auth.sendPhoneCode(phone); if (error) throw error; codeSent=true; $('code-field').style.display=''; btn.textContent='Verify & continue'; setMsg('Code sent — enter it above.','ok'); $('code').focus(); }
-    catch(e){ fail(e); } finally { btn.disabled=false; }
+    try { const { error } = await Auth.sendPhoneCode(phone); if (error) throw error; codeSent = true; $('code-field').hidden = false; btn.textContent = 'Verify and continue'; setMsg('Code sent. Enter it above.', 'ok'); $('code').focus(); }
+    catch (e) { fail(e); } finally { btn.disabled = false; }
   } else {
     const code = $('code').value.trim();
-    if (!code) return setMsg('Enter the code we texted you.','err');
-    btn.disabled = true; setMsg('Verifying…');
+    if (!/^\d{6}$/.test(code)) return setMsg('Enter the 6-digit code we texted you.', 'err');
+    btn.disabled = true; setMsg('Checking…');
     try { const { error } = await Auth.verifyPhoneCode(phone, code); if (error) throw error; done(); }
-    catch(e){ fail(e); } finally { btn.disabled=false; }
+    catch (e) { fail(e); } finally { btn.disabled = false; }
   }
 }
 
-async function social(provider){
-  const name = provider[0].toUpperCase()+provider.slice(1);
-  if (!Auth.isConfigured()){
-    setMsg(name+' sign-in unlocks with cloud accounts — for now, create an account with email & password. It works exactly the same.');
-    return;
-  }
+async function social(provider) {
   if (needConsent()) return;
-  setMsg('Opening '+name+'…');
+  setMsg('Opening ' + SOCIAL[provider][0] + '…');
   try { const { error } = await Auth.signInOAuth(provider); if (error) throw error; }
-  catch(e){ fail(e); }
+  catch (e) { fail(e); }
 }
 
-async function forgot(){
+async function forgot() {
   const email = $('email').value.trim();
-  if (!email) return setMsg('Enter your email first, then tap “Forgot password”.','err');
-  try { const { error } = await Auth.resetPassword(email); if (error) throw error; setMsg('Password reset link sent to your email.','ok'); }
-  catch(e){ fail(e); }
+  if (!validEmail(email)) { $('email').focus(); return setMsg('Enter your email above, then tap “Forgot password?”.', 'err'); }
+  try { const { error } = await Auth.resetPassword(email); if (error) throw error; setMsg('If that email has an account, a reset link is on its way.', 'ok'); }
+  catch (e) { fail(e); }
 }
+
+async function saveNewPassword() {
+  const pw = $('newpw').value, out = $('recover-msg');
+  if (pw.length < 8) { out.className = 'msg err'; out.textContent = 'Password must be at least 8 characters.'; return; }
+  const btn = $('recover-btn'); btn.disabled = true;
+  try {
+    const { error } = await Auth.updatePassword(pw); if (error) throw error;
+    out.className = 'msg ok'; out.textContent = 'Password saved. Signing you in…';
+    history.replaceState(null, '', 'login.html'); done();
+  } catch (e) { out.className = 'msg err'; out.textContent = explain(e).text; } finally { btn.disabled = false; }
+}
+
+$('form-email').addEventListener('submit', (e) => { e.preventDefault(); submitEmail(); });
+$('form-phone').addEventListener('submit', (e) => { e.preventDefault(); submitPhone(); });
+$('recover-view').addEventListener('submit', (e) => { e.preventDefault(); saveNewPassword(); });
 
 // Boot
-(async function(){
-  if (!Auth.isConfigured()){
-    // Device-account mode: email + password only (SMS and password-reset email
-    // need the cloud backend). The account wall still applies.
-    $('tog').style.display='none';
-    $('forgot-row').style.display='none';
-    $('legal-line').innerHTML='Your account and data are stored on this device. By signing in you agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.';
+(async function () {
+  // A password-reset link lands here signed in: ask for the new password instead of opening the app.
+  const recovering = /type=recovery/.test(location.hash) || /type=recovery/.test(location.search);
+  if (recovering && Auth.isConfigured()) {
+    $('title').innerHTML = 'New<br><em>password.</em>'; $('lede').textContent = 'Choose a new password for your account.';
+    show('recover-view'); $('newpw').focus();
+    await Auth.getSession(); // lets the SDK read the reset link
+    return;
+  }
+  if (!Auth.isConfigured()) {
+    $('legal-line').innerHTML = 'Your account and data are stored on this device. By signing in you agree to the <a href="terms.html" target="_blank" rel="noopener">Terms</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.';
   }
   setMode(mode);
+  Auth.providers().then((p) => { enabled = p; renderSocial(); });
   const s = await Auth.sessionAny();
   if (s) location.replace('index.html');     // already signed in
 })();

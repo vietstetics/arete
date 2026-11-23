@@ -58,7 +58,18 @@ window.Auth = (() => {
   }
 
   // ── Email (create account first, then password sign-in) ──────────────────
-  async function signUpEmail(email, password) { const c = await getClient(); return c.auth.signUp({ email, password }); }
+  async function signUpEmail(email, password) { const c = await getClient(); return c.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + '/login.html' } }); }
+  async function resendConfirmation(email) { const c = await getClient(); return c.auth.resend({ type: 'signup', email, options: { emailRedirectTo: location.origin + '/login.html' } }); }
+  async function updatePassword(password) { const c = await getClient(); return c.auth.updateUser({ password }); }
+  // Which sign-in methods the project has switched on, read from Supabase itself, so the page never
+  // offers a button that can only fail. null when it can't be read.
+  let providersCache = null;
+  function providers() {
+    if (!isConfigured()) return Promise.resolve(null);
+    if (!providersCache) providersCache = fetch(CFG.url + '/auth/v1/settings', { headers: { apikey: CFG.anonKey } })
+      .then((r) => (r.ok ? r.json() : null)).then((s) => (s && s.external ? s.external : null)).catch(() => null);
+    return providersCache;
+  }
   async function signInEmail(email, password) { const c = await getClient(); return c.auth.signInWithPassword({ email, password }); }
   async function resetPassword(email) { const c = await getClient(); return c.auth.resetPasswordForEmail(email, { redirectTo: location.origin + '/login.html' }); }
 
@@ -235,7 +246,7 @@ window.Auth = (() => {
 
   return {
     CFG, isConfigured, getClient, getUser, getSession,
-    signUpEmail, signInEmail, resetPassword, sendPhoneCode, verifyPhoneCode, signOut, signInOAuth,
+    signUpEmail, signInEmail, resetPassword, resendConfirmation, updatePassword, providers, sendPhoneCode, verifyPhoneCode, signOut, signInOAuth,
     localSignUp, localSignIn, localSession, localSignOut, sessionAny, signOutAny,
     pull, push, watch, authHeaders, deleteAccount,
   };
