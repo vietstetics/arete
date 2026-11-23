@@ -178,3 +178,22 @@ body { background: #F2F2F7 !important; }
 .ts-v { font-family: 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif; font-size: 36px; letter-spacing: 0; line-height: 1; margin-top: 4px; }
 .ts-v small { font-family: var(--font, 'Inter', sans-serif); text-transform: none; }
 .td-sec { font-size: 18px; letter-spacing: .02em; color: var(--t2); margin: 26px 4px 10px; }
+
+/* History: training-day heatmap. Weeks are columns (Sun → Sat), newest on the right. */
+.hm { padding: 16px 16px 14px; margin-bottom: 14px; }
+.hm-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.hm-hd b { font: 800 22px/1 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif; text-transform: uppercase; color: var(--t1); }
+.hm-hd span { font-size: 12.5px; color: var(--t2); font-variant-numeric: tabular-nums; }
+.hm-body { display: flex; gap: 6px; }
+.hm-days { display: grid; grid-template-rows: 16px repeat(7, 12px); row-gap: 3px; font-size: 9.5px; font-weight: 600; color: var(--t3); line-height: 12px; flex-shrink: 0; }
+.hm-scroll { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.hm-scroll::-webkit-scrollbar { display: none; }
+.hm-months { display: grid; grid-template-columns: repeat(53, 12px); column-gap: 3px; height: 16px; font-size: 9.5px; font-weight: 600; color: var(--t3); white-space: nowrap; }
+.hm-grid { display: flex; gap: 3px; }
+.hm-w { display: grid; grid-template-rows: repeat(7, 12px); row-gap: 3px; }
+.hm-c, .hm-x { display: block; width: 12px; height: 12px; border-radius: 3px; border: 0; padding: 0; }
+.hm-c { background: rgba(17,17,20,.07); }
+.hm-c.l1 { background: #C3E8CF; } .hm-c.l2 { background: #86D19F; } .hm-c.l3 { background: #3BAF68; } .hm-c.l4 { background: #1E7F36; }
+button.hm-c { cursor: pointer; } button.hm-c:focus-visible { outline: 2px solid var(--t1); outline-offset: 1px; }
+.hm-key { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 12px; font-size: 11px; color: var(--t2); }
+.hm-key span { margin: 0 4px; }

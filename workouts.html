@@ -2564,6 +2564,43 @@ const PHYSIQUE_HTML = `
       </div>
       <div class="phy-grid" id="phy-grid"></div>
     </div>`;
+// A year of training days, GitHub style: green on days you trained (darker for a bigger session,
+// judged against your own sessions), grey on days you didn't.
+function heatmapHtml(){
+  const days={};
+  for(const w of realHistory()){
+    const k=w.date||todayKey(new Date(w.completedAt));
+    const sets=(w.exercises||[]).reduce((n,e)=>n+(e.sets||[]).filter(x=>x.type!=='warmup'&&x.completed).length,0);
+    const d=days[k]||(days[k]={sets:0,names:[],id:w.id}); d.sets+=sets; d.names.push(w.name||'Workout');
+  }
+  const vals=[...new Set(Object.values(days).map(d=>d.sets))].sort((a,b)=>a-b);
+  const q=(p)=>vals.length?vals[Math.min(vals.length-1,Math.floor(p*vals.length))]:0;
+  const cut=[q(.25),q(.5),q(.75)];
+  const level=(n)=>n<=cut[0]?1:n<=cut[1]?2:n<=cut[2]?3:4;
+  const today=new Date(); today.setHours(12,0,0,0);
+  const start=new Date(today); start.setDate(start.getDate()-start.getDay()-52*7);
+  let cols='', months='', lastMonth=-1, trained=0;
+  for(let w=0;w<53;w++){
+    let col='';
+    const top=new Date(start); top.setDate(start.getDate()+w*7);
+    if(top.getMonth()!==lastMonth && top.getDate()<=7){ months+=`<span style="grid-column:${w+1}">${top.toLocaleDateString(undefined,{month:'short'})}</span>`; lastMonth=top.getMonth(); }
+    for(let r=0;r<7;r++){
+      const d=new Date(top); d.setDate(top.getDate()+r);
+      if(d>today){ col+='<i class="hm-x"></i>'; continue; }
+      const k=todayKey(d), hit=days[k], when=d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
+      if(hit){ trained++; col+=`<button class="hm-c l${level(hit.sets)}" title="${esc(when)}: ${esc(hit.names.join(', '))} · ${hit.sets} set${hit.sets===1?'':'s'}" aria-label="${esc(when)}: trained, ${hit.sets} sets" onclick="openSession('${hit.id}')"></button>`; }
+      else col+=`<i class="hm-c" title="${esc(when)}: rest"></i>`;
+    }
+    cols+=`<div class="hm-w">${col}</div>`;
+  }
+  const wd=(i)=>{ const d=new Date(2026,10,1+i); return d.toLocaleDateString(undefined,{weekday:'short'}); }; // 1 Nov 2026 is a Sunday
+  return `<section class="card hm" aria-label="Training days, last 12 months">
+    <div class="hm-hd"><b>Training days</b><span>${trained} in the last 12 months</span></div>
+    <div class="hm-body"><div class="hm-days"><span></span><span></span><span>${wd(1)}</span><span></span><span>${wd(3)}</span><span></span><span>${wd(5)}</span><span></span></div>
+      <div class="hm-scroll" id="hm-scroll"><div class="hm-months">${months}</div><div class="hm-grid">${cols}</div></div></div>
+    <div class="hm-key"><span>Rest</span><i class="hm-c"></i><i class="hm-c l1"></i><i class="hm-c l2"></i><i class="hm-c l3"></i><i class="hm-c l4"></i><span>Bigger session</span></div>
+  </section>`;
+}
 function renderHistory(){
   const host=document.getElementById('view-history');
   const list=completed();
@@ -2571,7 +2608,7 @@ function renderHistory(){
   // 7-day volume
   const wk = list.filter(w=>w.completedAt > Date.now()-7*864e5);
   const wkSets = wk.reduce((n,w)=>n+w.exercises.reduce((m,e)=>m+e.sets.filter(s=>s.type==='working'&&s.completed).length,0),0);
-  host.innerHTML = `
+  host.innerHTML = `${heatmapHtml()}
     <div class="card" style="padding:16px;margin-bottom:14px;display:flex;gap:24px;flex-wrap:wrap">
       <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${wk.length}</div><div style="font-size:11px;color:var(--t3)">Workouts this week</div></div>
       <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${wkSets}</div><div style="font-size:11px;color:var(--t3)">Working sets (7d)</div></div>
@@ -2579,6 +2616,7 @@ function renderHistory(){
     </div>
     <div class="card">${list.map(hrow).join('')}</div>
     ${PHYSIQUE_HTML}`;
+  const hm=document.getElementById('hm-scroll'); if(hm) hm.scrollLeft=hm.scrollWidth;
   renderPhysique();
 }
 function hrow(w){
