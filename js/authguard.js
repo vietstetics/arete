@@ -29,7 +29,9 @@
   if (!window.Auth) return;
 
   if (!window.Auth.isConfigured()) {
-    if (!window.Auth.localSession()) location.replace('login.html');
+    var session = window.Auth.localSession();
+    window.__areteAuthReady = Promise.resolve(!!session);
+    if (!session) location.replace('login.html');
     return;
   }
 
@@ -39,12 +41,13 @@
   (document.head || document.documentElement).appendChild(hide);
   function reveal() { var s = document.getElementById('__authhide'); if (s) s.remove(); }
 
-  window.Auth.getSession().then(function (session) {
-    if (!session) { location.replace('login.html'); return; }
+  window.__areteAuthReady = window.Auth.getSession().then(function (session) {
+    if (!session) { location.replace('login.html'); return false; }
     reveal();
     window.Auth.watch();
     window.Auth.pull().catch(function () {});
-  }).catch(reveal);
+    return true;
+  }).catch(function () { reveal(); return false; });
 
   setTimeout(reveal, 4000); // never leave the page hidden if something stalls
 })();

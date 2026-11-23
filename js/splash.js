@@ -1,78 +1,193 @@
-/* ============================================================================
- *  Launch screen: the Arete mark eases in and its green line draws itself while
- *  the app gets ready, then the whole thing lifts away. Only when the app is
- *  opened (not when moving between its screens), and it can never get stuck:
- *  it leaves when the page has loaded and the checks are done, after at least
- *  the animation's length, and always within MAX_MS whatever happens (an error,
- *  a slow network, a script that never loads). A tap skips it.
- *
- *  While it plays it makes sure the app can start cleanly:
- *    1. storage works (private browsing can block it: the app then runs without saving);
- *    2. no saved record is corrupt: anything that should be JSON and isn't would crash the
- *       page that reads it, so it is set aside (kept under arete_recovered_<key>) and the app
- *       starts without it;
- *    3. the app's own scripts loaded (logged if not; the page still shows).
- *  The markup is in index.html (#arete-splash), drawn in the first frame.
- * ==========================================================================*/
+﻿/* Home startup checks saved data, the live dashboard, and app routes.
+ * Route checks load documents without running their scripts or opening devices.
+ */
 (function () {
-  var el = document.getElementById('arete-splash');
-  var MIN_MS = 1150, MAX_MS = 3000;
-  var t0 = window.__splashT0 || Date.now();
-  var root = document.documentElement;
-  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.documentElement;
+  const overlay = document.getElementById('arete-splash');
+  const status = document.getElementById('arete-splash-status');
+  const visible = root.classList.contains('splash-on');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const started = window.__splashT0 || Date.now();
+  const controller = new AbortController();
+  const routes = [
+    'workouts.html', 'nutrition.html', 'recovery.html', 'steps.html',
+    'exercises.html', 'programs.html', 'analytics.html', 'consistency.html',
+    'connected-health.html', 'connections.html', 'settings.html', 'goals.html',
+    'tasks.html', 'habits.html', 'finance.html', 'curl-lab.html', 'velocity-lab.html',
+    'login.html',
+  ];
+  const pending = new Set();
+  const assets = new Map();
+  const report = { storage:true, recovered:[], missing:[], unavailableRoutes:[], unavailableAssets:[], timedOut:false };
+  let finished = false;
+  let dismissed = false;
 
-  var done = false;
-  function leave() {
-    if (done) return; done = true;
+  function dismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    clearTimeout(window.__splashFallback);
     try { sessionStorage.setItem('arete_splash', '1'); } catch (_) {}
-    if (!el) return;
-    el.classList.add('out');
-    setTimeout(function () { el.remove(); root.classList.remove('splash-on'); }, reduce ? 150 : 420);
-  }
-  // Shown only on opening the app (decided in index.html's <head>, before the first frame: the
-  // html gets .splash-on). Otherwise the checks still run, with nothing on screen.
-  if (el && !root.classList.contains('splash-on')) { el.remove(); el = null; }
-  if (el) {
-    // Never stuck: leave by MAX_MS no matter what.
-    setTimeout(leave, MAX_MS);
-    el.addEventListener('pointerdown', leave);
-    window.addEventListener('pageshow', function (e) { if (e.persisted) leave(); });
+    overlay.classList.add('out');
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+      overlay.remove();
+      root.classList.remove('splash-on');
+    }, reduceMotion ? 0 : 420);
   }
 
-  // ── The checks ──────────────────────────────────────────────────────────
-  var report = { storage: true, recovered: [], missing: [] };
-  function checkStorage() {
-    try { localStorage.setItem('__arete_probe', '1'); localStorage.removeItem('__arete_probe'); }
-    catch (_) { report.storage = false; }
+  if (visible) {
+    overlay.addEventListener('pointerdown', dismiss);
+    window.addEventListener('pageshow', event => { if (event.persisted) dismiss(); });
+  } else {
+    overlay.remove();
   }
-  function repairSaved() {
-    if (!report.storage) return;
-    var keys = [];
-    try { for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i)); } catch (_) { return; }
-    keys.forEach(function (k) {
-      if (!k || !/^(jarvis_|arete_)/.test(k) || /^arete_recovered_/.test(k)) return;
-      var v; try { v = localStorage.getItem(k); } catch (_) { return; }
-      if (typeof v !== 'string') return;
-      var s = v.trim();
-      if (!(s[0] === '{' || s[0] === '[')) return; // plain values aren't JSON and are fine
-      try { JSON.parse(s); } catch (_) {
-        try { localStorage.setItem('arete_recovered_' + k, v); localStorage.removeItem(k); report.recovered.push(k); } catch (__) {}
+
+  function checkSavedData() {
+    const probe = '__arete_probe';
+    try {
+      localStorage.setItem(probe, '1');
+      report.storage = localStorage.getItem(probe) === '1';
+      localStorage.removeItem(probe);
+      const keys = Object.keys(localStorage).filter(key => /^(jarvis_|arete_)/.test(key) && !key.startsWith('arete_recovered_'));
+      for (const key of keys) {
+        const value = localStorage.getItem(key);
+        if (!value || !/^[\[{]/.test(value.trim())) continue;
+        try { JSON.parse(value); } catch (_) {
+          const backup = 'arete_recovered_' + key;
+          const destination = localStorage.getItem(backup) === null ? backup : backup + '_' + Date.now();
+          try {
+            localStorage.setItem(destination, value);
+            if (localStorage.getItem(destination) !== value) continue;
+            localStorage.removeItem(key);
+            report.recovered.push(key);
+          } catch (_) {
+            report.missing.push('Saved data recovery');
+          }
+        }
       }
-    });
+    } catch (_) { report.storage = false; }
   }
-  function checkScripts() {
-    [['Fitness', 'js/fitness.js'], ['Auth', 'js/auth.js'], ['Feel', 'js/feel.js']].forEach(function (p) { if (!window[p[0]]) report.missing.push(p[1]); });
+
+  async function check(name, test, failures) {
+    pending.add(name);
+    try {
+      if (!await test() && !finished) failures.push(name);
+    } catch (_) {
+      if (!finished) failures.push(name);
+    } finally {
+      pending.delete(name);
+    }
   }
-  // Storage and saved data are checked now, before the app's scripts read them.
-  try { checkStorage(); repairSaved(); } catch (_) {}
+
+  async function readLocalFile(url) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(url, { signal:controller.signal });
+        if (response.ok) {
+          // The offline worker can return Home as a navigation fallback.
+          if (new URL(response.url).pathname !== url.pathname) return null;
+          return { type:response.headers.get('Content-Type') || '', text:await response.text() };
+        }
+        if (response.status < 500) return null;
+      } catch (_) {
+        if (controller.signal.aborted) return null;
+      }
+    }
+    return null;
+  }
+
+  async function loadRoute(route) {
+    const url = new URL(route, location.href);
+    const file = await readLocalFile(url);
+    if (!file?.text || !file.type.includes('text/html')) return false;
+    // Warm the page's directly linked first-party scripts and styles once per startup.
+    const links = file.text.matchAll(/\b(?:src|href)=["'](?:\.\/)?((?:js|css|features)\/[\w/.-]+\.(?:js|css))["']/g);
+    for (const [, path] of links) {
+      if (assets.has(path)) continue;
+      assets.set(path, check(path, async () => {
+        const asset = await readLocalFile(new URL(path, url));
+        return !!asset?.text && !asset.type.includes('text/html');
+      }, report.unavailableAssets));
+    }
+    return true;
+  }
+
+  function announceProblems() {
+    const unavailable = report.unavailableRoutes.length || report.unavailableAssets.length;
+    if (!report.recovered.length && report.storage && !report.missing.length && !unavailable && !report.timedOut) return;
+    const main = document.querySelector('main');
+    if (!main) return;
+    const notice = document.createElement('div');
+    notice.className = 'startup-notice';
+    notice.setAttribute('role', 'status');
+    const message = !report.storage
+      ? 'Device storage is unavailable. Changes may not save.'
+      : report.missing.length || report.timedOut
+        ? 'Some features didn’t finish loading.'
+        : unavailable
+          ? 'Some screens couldn’t be checked. They’ll try to load when opened.'
+          : 'Some unreadable saved data was backed up.';
+    notice.textContent = message;
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.textContent = 'Retry startup';
+    retry.onclick = () => {
+      try { sessionStorage.removeItem('arete_splash'); } catch (_) {}
+      location.reload();
+    };
+    notice.append(retry);
+    main.prepend(notice);
+  }
+
+  function finish(timedOut) {
+    if (finished) return;
+    finished = true;
+    clearTimeout(deadline);
+    report.timedOut = timedOut;
+    report.pending = [...pending];
+    controller.abort();
+    window.__areteStartup = report;
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', announceProblems, { once:true });
+    else announceProblems();
+    const minimum = reduceMotion ? 0 : Math.max(0, 1150 - (Date.now() - started));
+    if (visible && !dismissed) setTimeout(dismiss, minimum);
+  }
+
+  checkSavedData();
+  const deadline = setTimeout(() => finish(true), Math.max(0, 6000 - (Date.now() - started)));
+  // A visit back to Home still checks its runtime without re-fetching every screen.
+  const requestedRetry = visible || !sessionStorageHasSplash();
+  const routeChecks = requestedRetry
+    ? Promise.all(routes.map(route => check(route, () => loadRoute(route), report.unavailableRoutes)))
+    : Promise.resolve();
+
+  function sessionStorageHasSplash() {
+    try { return sessionStorage.getItem('arete_splash') === '1'; } catch (_) { return false; }
+  }
 
   function ready() {
-    try { checkScripts(); } catch (_) {}
-    window.__areteStartup = report;
-    if (report.recovered.length || report.missing.length || !report.storage) console.warn('Arete startup:', report);
-    var wait = Math.max(0, MIN_MS - (Date.now() - t0));
-    setTimeout(leave, reduce ? 0 : wait);
+    if (finished) return;
+    if (status) status.textContent = 'Starting app features…';
+    const checks = [
+      ['Account session', () => window.__areteAuthReady],
+      ['Nutrition summary', () => typeof window.syncNutritionWidget === 'function' && !!document.querySelector('#kc-goal')],
+      ['Training plans', () => !!window.Training],
+      ['Steps dashboard', () => window.__areteStepsReady],
+      ['Connected Health', () => window.__areteHealthReady],
+      ['Fitness and recovery', () => !!window.Fitness],
+      ['Wearable connections', () => !!window.Wearables],
+      ['Habits', () => !!window.Habits],
+      ['Interaction controls', () => !!window.Feel && !!document.querySelector('.mnav')],
+      ['App theme', () => !!document.querySelector('link[href="css/theme.css"]')?.sheet],
+    ];
+    Promise.all(checks.map(([name, test]) => check(name, test, report.missing))).then(() => {
+      if (finished) return;
+      if (status) status.textContent = 'Checking app screens…';
+      return routeChecks.then(() => Promise.all(assets.values())).then(() => finish(false));
+    });
   }
-  // Usable as soon as the page's scripts have run (DOMContentLoaded), not when every font and image is in.
-  if (document.readyState !== 'loading') ready(); else document.addEventListener('DOMContentLoaded', ready);
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, { once:true });
+  else ready();
 })();

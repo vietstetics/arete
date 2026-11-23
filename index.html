@@ -692,13 +692,21 @@ textarea{font-family:inherit;resize:none}
 (function(){var r=document.documentElement,on=true;window.__splashT0=Date.now();
 try{if(document.referrer&&new URL(document.referrer).origin===location.origin)on=false;}catch(e){}
 try{if(sessionStorage.getItem('arete_splash')==='1')on=false;}catch(e){}
-if(on)r.classList.add('splash-on');})();
+if(performance.getEntriesByType('navigation')[0]?.type==='reload')on=true;
+if(on){
+  r.classList.add('splash-on');
+  window.__splashFallback=setTimeout(function(){r.classList.remove('splash-on');},7000);
+}})();
 </script>
 <style>
 #arete-splash{display:none}
 html.splash-on #arete-splash{display:grid;position:fixed;inset:0;z-index:2147483646;place-items:center;background:#F2F2F7;visibility:visible!important;
   transition:opacity .38s cubic-bezier(.32,.72,0,1)}
 html.splash-on body{overflow:hidden}
+#arete-splash .as-content{display:grid;justify-items:center;gap:18px}
+#arete-splash .as-status{font-size:13px;color:var(--t2,#6E6E73)}
+.startup-notice{margin:0 0 14px;padding:12px 14px;border-radius:var(--r-sm,14px);background:var(--s2);font-size:13px}
+.startup-notice button{margin-left:8px;color:var(--gr);font-weight:700}
 #arete-splash .as-mark{position:relative;width:96px;height:96px;opacity:0;transform:scale(.86);
   animation:as-in .62s cubic-bezier(.2,.9,.25,1.12) .08s forwards}
 #arete-splash .as-mark img{position:absolute;inset:0;width:100%;height:100%;border-radius:22px}
@@ -711,7 +719,7 @@ html.splash-on body{overflow:hidden}
 </style>
 </head>
 <body>
-<div id="arete-splash" role="presentation" aria-hidden="true"><div class="as-mark"><img src="brand-mark-base.png" alt=""><img class="as-line" src="brand-mark-line.png" alt=""></div></div>
+<div id="arete-splash"><div class="as-content"><div class="as-mark" aria-hidden="true"><img src="brand-mark-base.png" alt=""><img class="as-line" src="brand-mark-line.png" alt=""></div><p class="as-status" id="arete-splash-status" role="status">Checking saved data…</p></div></div>
 <script src="js/splash.js"></script>
 
 <div class="app">
@@ -1433,19 +1441,23 @@ window.addEventListener('DOMContentLoaded', () => {
 <!-- Phone-only step tracking (native via Capacitor; manual fallback on web) -->
 <script type="module">
   import { mountDashboard } from './features/steps/stepsApp.js';
-  mountDashboard({ card: '#step-card-mount', panel: '#step-panel-mount' });
+  window.__areteStepsReady = mountDashboard({ card: '#step-card-mount', panel: '#step-panel-mount' })
+    .then(() => true, () => false);
 </script>
 <!-- Connected Health: silent incremental sync on app open + foreground (native only) -->
 <script type="module">
   import { platform } from './features/health/native/healthPlugin.js';
-  if (platform() !== 'web') {
-    const [{ appleHealthAdapter }, { healthConnectAdapter }, { createSyncService, installAutoSync }] = await Promise.all([
-      import('./features/health/providers/appleHealthAdapter.js'),
-      import('./features/health/providers/healthConnectAdapter.js'),
-      import('./features/health/services/healthSyncService.js'),
-    ]);
-    installAutoSync(createSyncService([appleHealthAdapter, healthConnectAdapter]));
-  }
+  window.__areteHealthReady = (async () => {
+    if (platform() !== 'web') {
+      const [{ appleHealthAdapter }, { healthConnectAdapter }, { createSyncService, installAutoSync }] = await Promise.all([
+        import('./features/health/providers/appleHealthAdapter.js'),
+        import('./features/health/providers/healthConnectAdapter.js'),
+        import('./features/health/services/healthSyncService.js'),
+      ]);
+      installAutoSync(createSyncService([appleHealthAdapter, healthConnectAdapter]));
+    }
+    return true;
+  })().catch(() => false);
 </script>
 
 <script>
