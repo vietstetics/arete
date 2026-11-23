@@ -34,7 +34,7 @@ body { background: #F2F2F7 !important; }
 .td { max-width: 640px; }
 .td-hero { padding: 22px 20px 18px; }
 .td-h { font-size: 26px; }
-/* Arete's display face (as on the sign-in screen), for the no-plan call to action. */
+/* Arete's display face (as on the sign-in screen): Today's headings and numbers. */
 .td-big { font: 800 52px/.92 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif; text-transform: uppercase; letter-spacing: -.01em; margin: 6px 0 12px; color: var(--t1); }
 .td-big em { font-style: normal; color: var(--ac2); }
 .tr-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 12px; }
@@ -171,3 +171,10 @@ body { background: #F2F2F7 !important; }
 }
 #lockin:empty { display: none; }
 @media (max-width: 767px) { .wk-bar { top: 46px; } }
+
+.ts-empty .ts-h, .ts-l, .td-sec { font-family: 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif; font-weight: 800; text-transform: uppercase; }
+.ts-empty .ts-h { font-size: 26px; line-height: 1; letter-spacing: -.005em; color: var(--t1); margin-bottom: 6px; }
+.ts-l { font-size: 15px; letter-spacing: .02em; color: var(--t2); }
+.ts-v { font-family: 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif; font-size: 36px; letter-spacing: 0; line-height: 1; margin-top: 4px; }
+.ts-v small { font-family: var(--font, 'Inter', sans-serif); text-transform: none; }
+.td-sec { font-size: 18px; letter-spacing: .02em; color: var(--t2); margin: 26px 4px 10px; }
