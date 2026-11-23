@@ -18,8 +18,8 @@
  * ==========================================================================*/
 window.Auth = (() => {
   const CFG = {
-    url:     '',   // e.g. https://abcdxyz.supabase.co
-    anonKey: '',   // anon / public key (safe to expose)
+    url:     'https://infduomurmdldywucfof.supabase.co',
+    anonKey: 'sb_publishable_gRiexQ5sj1PS4elkbnMJcA_Nk9w96CD',   // publishable key (safe to expose)
   };
 
   let client = null, loadingPromise = null, watching = false;
