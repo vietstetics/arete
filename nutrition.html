@@ -140,6 +140,25 @@ input,select,textarea{font-family:inherit}
 .nutri-cov{display:flex;align-items:center;gap:11px;padding:14px 18px;margin-bottom:16px;border-radius:var(--r);background:linear-gradient(135deg,rgba(29,164,98,.08),rgba(94,92,230,.06));border:1px solid rgba(29,164,98,.14);font-size:12.5px;color:var(--t1);line-height:1.55;box-shadow:var(--sh0)}
 .nutri-cov svg{color:var(--gr);flex-shrink:0}
 .nutri-cov b{font-weight:700}
+.nutri-radar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);align-items:center;gap:16px;padding:20px 24px;margin-bottom:16px;--radar-ink:var(--vi);--radar-fill:var(--vid)}
+.nutri-radar[data-mode="micro"]{--radar-ink:var(--gr);--radar-fill:var(--grd)}
+.nutri-radar h2{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.nutri-radar .tabs{max-width:100%;margin:10px 0 8px}
+.nutri-radar .tab{padding-inline:12px;color:var(--t2)}
+.nutri-radar .tab[aria-pressed="true"]{background:#fff;color:var(--radar-ink);box-shadow:var(--sh0)}
+.nutri-radar p{font-size:12px;color:var(--t2)}
+.nutri-radar svg{display:block;width:100%;max-width:390px;margin-inline:auto;overflow:visible}
+.radar-grid{fill:none;stroke:var(--bd2)}
+.radar-spokes{stroke:var(--bd)}
+.radar-area{fill:var(--radar-fill);stroke:var(--radar-ink);stroke-width:1.75;stroke-linejoin:round}
+.radar-segment{stroke:var(--radar-ink);stroke-width:1.75}
+.radar-dot{fill:var(--radar-ink);stroke:#fff;stroke-width:1.25}
+.radar-label{fill:var(--t2);font-size:12.5px;font-weight:600}
+.radar-value{fill:var(--radar-ink);font-size:15.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.radar-value.missing{fill:var(--t2)}
+@media(max-width:860px){
+  .nutri-radar{grid-template-columns:1fr;gap:10px;padding:16px}
+}
 .ngroup{margin-bottom:16px;overflow:hidden;position:relative}
 .ngroup::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--gc,var(--gr));border-radius:0 4px 4px 0}
 .ngroup-hd{padding:15px 20px 14px 22px;display:flex;align-items:center;gap:11px;background:var(--gct,transparent)}
@@ -405,6 +424,17 @@ input,select,textarea{font-family:inherit}
   <!-- NUTRIENTS VIEW -->
   <div id="view-nutrients" style="display:none">
     <div class="nutri-cov" id="nutri-cov"></div>
+    <section class="card nutri-radar" id="nutri-radar" data-mode="macro" aria-labelledby="nutri-radar-title">
+      <div>
+        <h2 id="nutri-radar-title">Nutrient targets</h2>
+        <div class="tabs" role="group" aria-label="Nutrient chart view">
+          <button type="button" class="tab" aria-pressed="true" onclick="setNutrientRadarMode('macro')">Macros</button>
+          <button type="button" class="tab" aria-pressed="false" onclick="setNutrientRadarMode('micro')">Micros</button>
+        </div>
+        <p id="nutri-radar-note"></p>
+      </div>
+      <svg id="nutri-radar-chart" viewBox="0 0 344 228" role="img" aria-labelledby="nutri-radar-summary" aria-describedby="nutri-radar-note"></svg>
+    </section>
     <div id="nutrient-groups"></div>
   </div>
 </div>
@@ -1187,6 +1217,32 @@ const NGROUP_META = {
   vitamin: { color:'#D6409F', tint:'rgba(214,64,159,.09)' },
   other:   { color:'#0E9CC0', tint:'rgba(14,156,192,.10)' },
 };
+const NUTRIENT_RADAR = {
+  macro: {
+    name:'Macronutrients',
+    axes:[
+      { key:'protein', label:'Protein' },
+      { key:'carbs', label:'Carbs' },
+      { key:'fat', label:'Fat' },
+      { key:'kcal', label:'Calories' },
+      { key:'omega3', label:'Omega-3' },
+      { key:'fiber', label:'Fibre' },
+    ],
+    note:'Uses your calorie and macro goals, plus Daily Values for fibre and omega-3.',
+  },
+  micro: {
+    name:'Micronutrients',
+    axes:[
+      { key:'vitC', label:'Vitamin C' },
+      { key:'vitD', label:'Vitamin D' },
+      { key:'b12', label:'Vitamin B12' },
+      { key:'iron', label:'Iron' },
+      { key:'calcium', label:'Calcium' },
+      { key:'potassium', label:'Potassium' },
+    ],
+    note:'Uses Daily Values for the vitamins and minerals shown.',
+  },
+};
 
 // ══════════════════════════════════════════════════════════════
 //  STORAGE
@@ -1238,6 +1294,7 @@ function setWater(date, ml){ const all = readJSON(K_WATER, {}); const v = Math.m
 let curDate    = todayStr();
 let activeCat  = 'All';
 let activeTab  = 'diary';       // diary | nutrients
+let nutrientRadarMode = 'macro';
 let screen     = 'search';     // search | portion | custom
 let pendingMeal = 'breakfast';
 let selFood    = null;         // food being portioned
@@ -1266,6 +1323,7 @@ function totalsFor(entries){
 // Aggregate every nutrient (macros from the entry, micros from e.ext) × qty.
 function extTotalsFor(entries){
   const totals = {};
+  const logged = new Set();
   NUTRIENTS.forEach(n => totals[n.key] = 0);
   let kcal = 0, withExt = 0;
   entries.forEach(e => {
@@ -1277,11 +1335,14 @@ function extTotalsFor(entries){
     if (e.ext && typeof e.ext === 'object'){
       withExt++;
       for (const k in e.ext){
-        if (totals[k] != null && typeof e.ext[k] === 'number') totals[k] += e.ext[k] * q;
+        if (Object.prototype.hasOwnProperty.call(totals, k) && Number.isFinite(e.ext[k])){
+          totals[k] += e.ext[k] * q;
+          logged.add(k);
+        }
       }
     }
   });
-  return { totals, kcal, withExt, total: entries.length };
+  return { totals, kcal, withExt, total: entries.length, logged };
 }
 
 // Format a nutrient amount to its unit and decimals (drops trailing .0).
@@ -1404,10 +1465,78 @@ function setTab(t){
 
 const INFO_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
 
+function setNutrientRadarMode(mode){
+  nutrientRadarMode = mode;
+  const radar = document.getElementById('nutri-radar');
+  radar.dataset.mode = mode;
+  const [macros, micros] = radar.querySelectorAll('button');
+  macros.setAttribute('aria-pressed', mode === 'macro');
+  micros.setAttribute('aria-pressed', mode === 'micro');
+  renderNutrientRadar(extTotalsFor(getLog(curDate)));
+}
+
+function renderNutrientRadar({ totals, kcal, total, logged }){
+  const { name, axes, note } = NUTRIENT_RADAR[nutrientRadarMode];
+  const goals = getGoals();
+  const center = [172, 114];
+  const radius = 77;
+  const readings = axes.map(({ key, label }, index) => {
+    const nutrient = NUTRIENTS.find(n => n.key === key);
+    const personalised = key === 'kcal' || nutrient.group === 'macro';
+    const target = personalised ? goals[key] : nutrient.dv;
+    const amount = key === 'kcal' ? kcal : totals[key];
+    const available = personalised ? total > 0 : logged.has(key);
+    const percent = available && target > 0 && Number.isFinite(amount)
+      ? Math.max(0, amount / target * 100) : null;
+    const angle = index * Math.PI / 3 - Math.PI / 2;
+    const point = scale => [
+      (center[0] + Math.cos(angle) * radius * scale).toFixed(2),
+      (center[1] + Math.sin(angle) * radius * scale).toFixed(2),
+    ];
+    return { label, percent, point, value: percent === null ? '—' : `${Math.round(percent)}%` };
+  });
+  const rings = [.25, .5, .75, 1].map(scale =>
+    `<polygon points="${readings.map(axis => axis.point(scale).join(',')).join(' ')}"/>`
+  ).join('');
+  const spokes = readings.map(axis => {
+    const [x, y] = axis.point(1);
+    return `<line x1="${center[0]}" y1="${center[1]}" x2="${x}" y2="${y}"/>`;
+  }).join('');
+  const points = readings.map(axis => axis.percent === null ? null : axis.point(Math.min(100, axis.percent) / 100));
+  const plot = points.every(Boolean)
+    ? `<polygon class="radar-area" points="${points.map(point => point.join(',')).join(' ')}"/>`
+    : points.map((point, index) => {
+      const next = points[(index + 1) % points.length];
+      return point && next ? `<line class="radar-segment" x1="${point[0]}" y1="${point[1]}" x2="${next[0]}" y2="${next[1]}"/>` : '';
+    }).join('');
+  const dots = points.filter(Boolean).map(([x, y]) => `<circle class="radar-dot" cx="${x}" cy="${y}" r="3.6"/>`).join('');
+  const labelPositions = [
+    [172, 13, 'middle'], [249, 69, 'start'], [249, 146, 'start'],
+    [172, 205, 'middle'], [95, 146, 'end'], [95, 69, 'end'],
+  ];
+  const labels = readings.map(({ label, percent, value }, index) => {
+    const [x, y, anchor] = labelPositions[index];
+    return `<text x="${x}" y="${y}" text-anchor="${anchor}"><tspan class="radar-label">${label}</tspan><tspan class="radar-value${percent === null ? ' missing' : ''}" x="${x}" dy="17">${value}</tspan></text>`;
+  }).join('');
+  const summary = readings.map(({ label, percent, value }) => `${label} ${percent === null ? 'unavailable' : value}`).join(', ');
+  document.getElementById('nutri-radar-chart').innerHTML = `
+    <title id="nutri-radar-summary">${name}. ${summary}.</title>
+    <g aria-hidden="true">
+      <g class="radar-grid">${rings}</g>
+      <g class="radar-spokes">${spokes}</g>
+      ${plot}${dots}${labels}
+    </g>`;
+  document.getElementById('nutri-radar-note').textContent = !total
+    ? 'Log food to see progress for this day.'
+    : `${note} Outer ring = 100%.${points.some(point => point === null) ? ' A dash indicates missing data or a goal that is unset.' : ''}`;
+}
+
 // ── Full micronutrient breakdown for the selected day ──
 function renderNutrients(){
   const entries = getLog(curDate);
-  const { totals, kcal, withExt, total } = extTotalsFor(entries);
+  const day = extTotalsFor(entries);
+  const { totals, kcal, withExt, total } = day;
+  renderNutrientRadar(day);
 
   const cov = document.getElementById('nutri-cov');
   const groupsEl = document.getElementById('nutrient-groups');
