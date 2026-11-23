@@ -97,7 +97,7 @@ export function parseWorkoutContext(search = '') {
 }
 
 /** Prepare a launch; caller saves workout before navigating to the returned URL. */
-export function prepareWorkoutTracking(workout, exerciseId, setId, { captureId = `capture-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`, userId } = {}) {
+export function prepareWorkoutTracking(workout, exerciseId, setId, { captureId = `capture-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`, userId, chain = false } = {}) {
   const exercise = workout?.exercises?.find((e) => e.id === exerciseId);
   const set = exercise?.sets?.find((s) => s.id === setId);
   const mode = trackerModeFor(exercise);
@@ -108,6 +108,7 @@ export function prepareWorkoutTracking(workout, exerciseId, setId, { captureId =
   set.failureEndpoint = null;
   set.tested1RM = null;
   const params = new URLSearchParams({ ex: mode, workout: workout.id, exercise: exerciseId, set: setId, capture: captureId });
+  if (chain) { exercise.velocityChainId = captureId; delete exercise.velocityChainNextKg; params.set('chain', captureId); }
   params.set('exerciseName', exercise.name);
   const context = predictionContextFor(workout, exercise, { userId });
   if (context.userId) { params.set('userId', context.userId); workout.userId = context.userId; }
@@ -129,6 +130,38 @@ export function prepareWorkoutTracking(workout, exerciseId, setId, { captureId =
   return `curl-lab.html?${params}`;
 }
 
+// Writes a finished take into a set. Retakes keep earlier measurements; typed load is never replaced.
+function fillSet(workout, exercise, set, record, captureId, { duplicate = false, updateTypedRir = false } = {}) {
+  if (set.velocity && !duplicate) set.velocityHistory = [...(Array.isArray(set.velocityHistory) ? set.velocityHistory : []), set.velocity];
+  if (updateTypedRir) {
+    const rir = record.typedRir;
+    if (rir === null) { set.rir = ''; set.rpe = ''; }
+    else if (Number.isFinite(rir) && rir >= 0 && rir <= 10) { set.rir = rir; set.rpe = 10 - rir; }
+    if (record.reportedEffort) set.reportedEffort = record.reportedEffort;
+    if (record.reportedEffort) {
+      const effort = record.reportedEffort;
+      set.rir = Number.isFinite(effort.rir) ? effort.rir : Number.isFinite(effort.rpe) ? 10 - effort.rpe : '';
+      set.rpe = Number.isFinite(effort.rpe) ? effort.rpe : Number.isFinite(effort.rir) ? 10 - effort.rir : '';
+    }
+    for (const field of ['failureEndpoint','tested1RM','rirEndpoint','maximalIntent','epleySupported']) {
+      if (Object.hasOwn(record,field)) set[field] = record[field];
+    }
+  }
+  set.velocity = { ...record, exercise: exercise.name, workoutId: workout.id, exerciseId: canonicalExerciseId(exercise.name), workoutExerciseId: exercise.id, setId: set.id, captureId,
+    userId: record.userId || workout.userId || null, equipmentKey: record.equipmentKey || equipmentKeyFor(exercise), sessionId: workout.id,
+    reportedEffort: set.reportedEffort || record.reportedEffort || null,
+    failureEndpoint: set.failureEndpoint || record.failureEndpoint || null,
+    rirEndpoint: set.rirEndpoint || record.rirEndpoint || null,
+    tested1RM: set.tested1RM || record.tested1RM || null,
+    maximalIntent: set.maximalIntent ?? record.maximalIntent ?? false,
+    typedRir: set.rir !== '' && set.rir != null && Number.isFinite(+set.rir) ? +set.rir : record.typedRir };
+  set.velocity.profile = profileForRecord(set.velocity);
+  if (record.predictions) set.predictions = record.predictions;
+  if (record.evaluation || record.predictionEvaluation) set.evaluation = record.evaluation || record.predictionEvaluation;
+  set.reps = record.counted;
+  delete set.velocityCaptureId;
+}
+
 /**
  * Attach a finished take to the current stored draft. A failed handoff never
  * writes anything; the camera can still keep the standalone velocity record.
@@ -146,36 +179,84 @@ export function attachTrackedSet(storage, context, record, { updateTypedRir = fa
     const duplicate = set.velocity?.id === record.id && set.velocity.captureId === context.captureId;
     if (!duplicate && (!context.captureId || set.velocityCaptureId !== context.captureId)) return { ok: false, reason: 'A newer tracking attempt was opened for this set.' };
     if (duplicate && set.velocityCaptureId && set.velocityCaptureId !== context.captureId) return { ok: false, reason: 'A newer tracking attempt was opened for this set.' };
-    if (set.velocity && !duplicate) set.velocityHistory = [...(Array.isArray(set.velocityHistory) ? set.velocityHistory : []), set.velocity];
-    if (updateTypedRir) {
-      const rir = record.typedRir;
-      if (rir === null) { set.rir = ''; set.rpe = ''; }
-      else if (Number.isFinite(rir) && rir >= 0 && rir <= 10) { set.rir = rir; set.rpe = 10 - rir; }
-      if (record.reportedEffort) set.reportedEffort = record.reportedEffort;
-      if (record.reportedEffort) {
-        const effort = record.reportedEffort;
-        set.rir = Number.isFinite(effort.rir) ? effort.rir : Number.isFinite(effort.rpe) ? 10 - effort.rpe : '';
-        set.rpe = Number.isFinite(effort.rpe) ? effort.rpe : Number.isFinite(effort.rir) ? 10 - effort.rir : '';
-      }
-      for (const field of ['failureEndpoint','tested1RM','rirEndpoint','maximalIntent','epleySupported']) {
-        if (Object.hasOwn(record,field)) set[field] = record[field];
-      }
-    }
-    set.velocity = { ...record, exercise: exercise.name, workoutId: workout.id, exerciseId: canonicalExerciseId(exercise.name), workoutExerciseId: exercise.id, setId: set.id, captureId: context.captureId,
-      userId: record.userId || workout.userId || null, equipmentKey: record.equipmentKey || equipmentKeyFor(exercise), sessionId: workout.id,
-      reportedEffort: set.reportedEffort || record.reportedEffort || null,
-      failureEndpoint: set.failureEndpoint || record.failureEndpoint || null,
-      rirEndpoint: set.rirEndpoint || record.rirEndpoint || null,
-      tested1RM: set.tested1RM || record.tested1RM || null,
-      maximalIntent: set.maximalIntent ?? record.maximalIntent ?? false,
-      typedRir: set.rir !== '' && set.rir != null && Number.isFinite(+set.rir) ? +set.rir : record.typedRir };
-    set.velocity.profile = profileForRecord(set.velocity);
-    if (record.predictions) set.predictions = record.predictions;
-    if (record.evaluation || record.predictionEvaluation) set.evaluation = record.evaluation || record.predictionEvaluation;
-    set.reps = record.counted;
-    delete set.velocityCaptureId;
+    fillSet(workout, exercise, set, record, context.captureId, { duplicate, updateTypedRir });
     storage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(workout));
     return { ok: true, duplicate, workout, exercise, set };
+  } catch {
+    return { ok: false, reason: 'Workout storage is unavailable. Keep this result and try again.' };
+  }
+}
+
+// ── Chain mode: one camera session fills every set of an exercise ──
+function chainOpen(storage, context) {
+  if (!context?.chainId) return { ok: false, reason: 'No camera session was selected.' };
+  const workout = JSON.parse(storage.getItem(ACTIVE_WORKOUT_KEY) || 'null');
+  if (workout?.id !== context.workoutId || workout.completedAt) return { ok: false, reason: 'The original workout is no longer open.' };
+  const exercise = workout.exercises?.find((e) => e.id === context.exerciseId);
+  if (!exercise || !Array.isArray(exercise.sets)) return { ok: false, reason: 'The original exercise was removed.' };
+  if (exercise.velocityChainId !== context.chainId) return { ok: false, reason: 'A newer camera session was opened for this exercise.' };
+  return { ok: true, workout, exercise };
+}
+// The set the next take goes into: the first open set from the one the camera was opened on.
+function chainTarget(exercise, context) {
+  const from = Math.max(0, exercise.sets.findIndex((s) => s.id === context.setId));
+  const i = exercise.sets.findIndex((s, j) => j >= from && !s.velocity && !s.completed);
+  return i >= 0 ? { set: exercise.sets[i], n: i + 1 } : null;
+}
+function newChainSet(exercise) {
+  const last = exercise.sets[exercise.sets.length - 1] || {};
+  const weight = Number.isFinite(exercise.velocityChainNextKg) ? exercise.velocityChainNextKg : last.weight ?? '';
+  return { id: `s-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, type: last.type || 'working', weight,
+    ...(exercise.unilateral ? { weightL: last.weightL ?? '', weightR: last.weightR ?? '' } : {}), unit: last.unit || 'kg', reps: '', completed: false };
+}
+
+/** Next set number and weight, for the camera's rest screen. */
+export function peekChainTarget(storage, context) {
+  try {
+    const o = chainOpen(storage, context); if (!o.ok) return o;
+    const t = chainTarget(o.exercise, context);
+    const weight = t ? t.set.weight : Number.isFinite(o.exercise.velocityChainNextKg) ? o.exercise.velocityChainNextKg : o.exercise.sets.at(-1)?.weight ?? '';
+    return { ok: true, n: t ? t.n : o.exercise.sets.length + 1, weight: weight === '' || weight == null ? null : +weight, added: !t };
+  } catch { return { ok: false, reason: 'Workout storage is unavailable.' }; }
+}
+
+/** The lifter changed the weight for the next set on the rest screen. */
+export function setChainTargetWeight(storage, context, kg) {
+  try {
+    const o = chainOpen(storage, context); if (!o.ok) return o;
+    const v = Number.isFinite(kg) && kg >= 0 ? kg : '';
+    const t = chainTarget(o.exercise, context);
+    if (t) { t.set.weight = v; if (t.set.velocity) t.set.velocity.loadKg = v === '' ? null : v; }
+    else o.exercise.velocityChainNextKg = v === '' ? null : v;
+    storage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(o.workout));
+    return { ok: true };
+  } catch { return { ok: false, reason: 'Workout storage is unavailable.' }; }
+}
+
+/**
+ * Attach one chained set: the same take again updates its set; a new take fills the next open set, or a
+ * new set when the planned ones are used up. The set is ticked off; the logger runs the PR check
+ * (chainTicked) when you return.
+ */
+export function attachChainedSet(storage, context, record, { endedAt = Date.now(), restSec, updateTypedRir = false } = {}) {
+  if (!record?.id || !Array.isArray(record.reps) || !record.reps.length || !Number.isInteger(record.counted) || record.counted < 0) return { ok: false, reason: 'There are no completed reps to save.' };
+  try {
+    const o = chainOpen(storage, context); if (!o.ok) return o;
+    const { workout, exercise } = o;
+    let set = exercise.sets.find((s) => s.velocity?.id === record.id);
+    const duplicate = !!set;
+    if (!set) {
+      set = chainTarget(exercise, context)?.set;
+      if (!set) { set = newChainSet(exercise); exercise.sets.push(set); delete exercise.velocityChainNextKg; }
+    }
+    if ((set.weight === '' || set.weight == null) && Number.isFinite(record.loadKg)) set.weight = record.loadKg;
+    fillSet(workout, exercise, set, record, context.chainId, { duplicate, updateTypedRir });
+    if (!duplicate) {
+      set.completed = true; set.completedAt = endedAt; set.chainTicked = true;
+      if (Number.isFinite(restSec) && restSec >= 0) { set.restSec = restSec; set.restMethod = 'camera-chain'; }
+    }
+    storage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(workout));
+    return { ok: true, duplicate, workout, exercise, set, n: exercise.sets.indexOf(set) + 1 };
   } catch {
     return { ok: false, reason: 'Workout storage is unavailable. Keep this result and try again.' };
   }

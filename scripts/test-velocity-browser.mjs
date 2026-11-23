@@ -28,6 +28,8 @@ try {
     await page.setRequestInterception(true);
     page.on('request', (r) => r.url().startsWith(base) ? r.continue() : r.abort());
     await page.evaluateOnNewDocument(() => {
+      // Tests run on device accounts: never contact the real Supabase project.
+      let auth; Object.defineProperty(window, 'Auth', { configurable: true, get: () => auth, set: (v) => { auth = v; if (v?.CFG) { v.CFG.url = ''; v.CFG.anonKey = ''; } } });
       localStorage.setItem('arete_session', JSON.stringify({ email: 'velocity-test@example.test' }));
       const original = window.setTimeout;
       window.setTimeout = (fn, ms, ...args) => original(fn, ms > 30 && ms < 35 ? 0 : ms, ...args);
@@ -78,6 +80,7 @@ try {
   await lab.setViewport({ width: 390, height: 844 });
   await lab.setRequestInterception(true);
   lab.on('request', (r) => r.url().startsWith(base) ? r.continue() : r.abort());
+  await lab.evaluateOnNewDocument(() => { let auth; Object.defineProperty(window, 'Auth', { configurable: true, get: () => auth, set: (v) => { auth = v; if (v?.CFG) { v.CFG.url = ''; v.CFG.anonKey = ''; } } }); });
   await lab.evaluateOnNewDocument(() => localStorage.setItem('arete_session', JSON.stringify({ email: 'velocity-test@example.test' })));
   await lab.goto(`${base}/velocity-lab.html?demo=1`);
   await lab.click('#demo-btn');

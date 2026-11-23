@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import puppeteer from 'puppeteer-core';
 
 const root = resolve('.');
+const localStorage_restEnd = (v) => Number(v || 0);
 const candidates = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean);
 let executablePath;
 for (const path of candidates) { try { await access(path); executablePath = path; break; } catch {} }
@@ -34,6 +35,8 @@ try {
   // Remote fonts, model downloads and services are unnecessary for logger tests.
   await page.setRequestInterception(true);
   page.on('request', (request) => request.url().startsWith(origin) || request.url().startsWith('data:') ? request.continue() : request.abort());
+  // Tests run on device accounts: never contact the real Supabase project.
+  await page.evaluateOnNewDocument(() => { let auth; Object.defineProperty(window, 'Auth', { configurable: true, get: () => auth, set: (v) => { auth = v; if (v?.CFG) { v.CFG.url = ''; v.CFG.anonKey = ''; } } }); });
   await page.evaluateOnNewDocument(() => localStorage.setItem('arete_session', JSON.stringify({ email: 'smoke@example.invalid', at: Date.now() })));
   const errors = [];
   page.on('pageerror', (error) => { if (page.url().includes('workouts.html')) { errors.push(error.message); console.log('Workout browser error:', error.message); } });
@@ -49,9 +52,9 @@ try {
   });
   await page.reload({ waitUntil: 'networkidle0' });
   console.log('Checking camera launch...');
-  await page.waitForSelector('.tr-cam');
-  assert.equal(await page.$$eval('.tr-cam', (buttons) => buttons.length), 1, 'only supported exercise receives a camera launch');
-  await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.click('.tr-cam')]);
+  await page.waitForSelector('.ex-cam');
+  assert.equal(await page.$$eval('.ex-cam', (buttons) => buttons.length), 1, 'only supported exercise receives a camera launch');
+  await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.click('.ex-cam')]);
   const launched = new URL(page.url());
   console.log('Camera launch ready; simulating record handoff...');
   assert.equal(launched.pathname, '/curl-lab.html');
@@ -61,16 +64,17 @@ try {
   assert.equal(launched.searchParams.get('loadKg'), '80');
   assert.equal(launched.searchParams.get('typedRir'), '2');
   assert.ok(launched.searchParams.get('capture'));
+  assert.equal(launched.searchParams.get('chain'), launched.searchParams.get('capture'), 'the header camera stays on for every set');
   // Simulate only the already-tested camera record boundary, not camera inference.
   const attached = await page.evaluate(async () => {
     const { buildLiveSetRecord } = await import('./features/velocity/services/record.js');
-    const { parseWorkoutContext, attachTrackedSet } = await import('./features/velocity/services/workout.js');
+    const { parseWorkoutContext, attachChainedSet } = await import('./features/velocity/services/workout.js');
     const record = buildLiveSetRecord({ id: 'smoke-take', lift: 'bench', source: 'plate', scaled: true, loadKg: 80, reps: [
       { n: 1, isStandard: true, result: 'counted', vel: { mv: 0.5, pv: 0.8, dist: 0.5, T: 1 } },
       { n: 2, result: 'short', why: 'short finish' },
       { n: 3, result: 'counted', vel: { mv: 0.4, pv: 0.6, dist: 0.48, T: 1.25 } },
     ], standard: { start: 200, finish: 120 } });
-    return attachTrackedSet(localStorage, parseWorkoutContext(location.search), record).ok;
+    return attachChainedSet(localStorage, { ...parseWorkoutContext(location.search), chainId: new URLSearchParams(location.search).get('chain') }, record).ok;
   });
   assert.equal(attached, true);
   // Back navigation exercises pageshow/BFCache recovery of the updated draft.
@@ -79,6 +83,10 @@ try {
   await page.waitForSelector('.velocity-summary');
   assert.match(await page.$eval('.velocity-summary', (el) => el.textContent), /2 counted.*1 short.*23% loss/s);
   assert.equal(await page.$eval('input[aria-label="Reps"]', (el) => el.value), '2');
+  const ticked = await page.evaluate(() => JSON.parse(localStorage.getItem('jarvis_active_workout')).exercises[0].sets[0]);
+  assert.equal(ticked.completed, true, 'a camera set is ticked off');
+  assert.equal(ticked.chainTicked, undefined, 'the logger handled the ticked set on return');
+  assert.ok(+localStorage_restEnd(await page.evaluate(() => localStorage.getItem('arete_rest_end'))) > Date.now() - 1000, 'rest starts from the camera set');
   await page.$eval('#rir-smoke-s', (el) => { el.value = '3'; el.dispatchEvent(new Event('input', { bubbles: true })); });
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('jarvis_active_workout')).exercises[0].sets[0].velocity.typedRir), 3);
   await page.evaluate(() => {

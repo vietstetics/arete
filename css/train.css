@@ -90,6 +90,7 @@ body { background: #F2F2F7 !important; }
 .ex-count { font-size: 12px; font-weight: 700; color: var(--t2); background: rgba(17,17,20,.05); border-radius: 999px; padding: 4px 9px; font-variant-numeric: tabular-nums; }
 .ex.is-done .ex-count { color: var(--gr); background: var(--grd); }
 .ex-hd .icon-btn.ex-more { width: 36px; height: 36px; border-radius: 11px; color: var(--t2); background: rgba(17,17,20,.04); }
+.ex-hd .icon-btn.ex-cam { width: 36px; height: 36px; border-radius: 11px; color: #1DA462; background: rgba(29,164,98,.12); }
 .ex-meta { margin: 0 2px 8px; font-size: 12.5px; }
 
 /* previous sessions mini chart */

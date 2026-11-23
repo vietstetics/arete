@@ -89,6 +89,12 @@ button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
 .guide-n b{color:var(--ink)}
 #pre .acts{position:sticky;bottom:0;background:var(--paper);padding-top:10px}
 /* Live bar-speed panel: top right of the camera view, readable from the bar */
+.rest{position:absolute;top:calc(60px + env(safe-area-inset-top,0px));left:12px;right:12px;z-index:4;padding:14px 16px;border-radius:18px;background:rgba(14,17,12,.92);color:#fff}
+.rest-k{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.65}
+.rest-tm{display:flex;align-items:baseline;gap:10px}.rest-tm b{font-size:44px;font-weight:650;letter-spacing:-.03em;font-variant-numeric:tabular-nums}.rest-tm b.due{color:var(--lime,#C8F169)}.rest-tm span{font-size:13px;opacity:.65}
+.rest-last{font-size:14px;margin:2px 0 10px}
+.rest-next{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600}.rest-next input{width:84px;padding:8px 10px;border-radius:10px;border:0;background:rgba(255,255,255,.12);color:#fff;font:inherit;text-align:right}.rest-next span:last-child{opacity:.65;font-weight:500}
+.rest-h{font-size:12px;opacity:.65;margin-top:10px}
 .vp{position:absolute;top:calc(60px + env(safe-area-inset-top,0px));right:12px;z-index:3;width:min(46vw,240px);padding:12px 12px 10px;border-radius:18px;background:rgba(14,17,12,.92);color:#fff}
 .vp-k{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.62)}
 .vp-src{font-size:10.5px;font-weight:600;margin-top:2px;color:rgba(255,255,255,.62)}
@@ -267,6 +273,13 @@ body.clean .vp-sub{display:block;font-size:11.5px;font-weight:500;letter-spacing
       <div class="vp-bars" id="vp-bars" aria-hidden="true"></div>
       <div class="vp-verdict" id="vp-verdict" hidden></div>
     </aside>
+    <section class="rest" id="rest" hidden aria-live="polite" aria-label="Rest between sets">
+      <div class="rest-k">Rest</div>
+      <div class="rest-tm"><b id="rest-t">0:00</b><span id="rest-tg"></span></div>
+      <div class="rest-last" id="rest-last"></div>
+      <label class="rest-next"><span id="rest-next">Next set</span><input id="rest-kg" type="number" inputmode="decimal" min="0" step="0.5" placeholder="kg" aria-label="Weight for the next set (kg)"><span>kg</span></label>
+      <div class="rest-h">Start lifting when ready. The next set is picked up by itself.</div>
+    </section>
     <div class="flash" id="flash"></div>
     <div class="bigc" id="bigc" hidden aria-hidden="true"><b id="bigc-n">0</b><span id="bigc-s"></span></div>
     <div class="reason" id="reason" aria-hidden="true"></div>
@@ -307,6 +320,7 @@ body.clean .vp-sub{display:block;font-size:11.5px;font-weight:500;letter-spacing
       <div class="chips" id="chips" aria-label="Reps"></div>
       <div class="acts">
         <button class="btn s" id="relock-btn">Re-lock standard</button>
+        <button class="btn s" id="chain-done" hidden>Done with exercise</button>
         <button class="btn p" id="end-btn">End set</button>
       </div>
     </div>
@@ -397,7 +411,8 @@ import { playVideo } from './features/velocity/services/live/playVideo.js';
 import { createLiftDetector, countBarReps } from './features/velocity/services/sbd.js';
 import { createFrameClock } from './features/velocity/services/live/frameClock.js';
 import { buildLiveSetRecord, saveSetRecord } from './features/velocity/services/record.js';
-import { parseWorkoutContext, attachTrackedSet, canonicalExerciseId, gatherPredictionHistory } from './features/velocity/services/workout.js';
+import { parseWorkoutContext, attachTrackedSet, attachChainedSet, peekChainTarget, setChainTargetWeight, canonicalExerciseId, gatherPredictionHistory } from './features/velocity/services/workout.js';
+import { createSetEndDetector, CHAIN } from './features/velocity/services/setChain.js';
 import { coachMetrics, renderCoachMetrics } from './features/velocity/services/coachMetrics.js';
 import { predictionsForSet } from './features/velocity/services/predictions.js';
 import { LIFTS, createLiftTracker } from './features/standard/services/liftTrackers.js';
@@ -770,6 +785,11 @@ let barTrace = [], pendingVel = null;
 let diameterCm = null, setLoadKg = null, liveRecordId = null, liveRecordAt = Date.now(), savedTypedRir, sourceURL = null, starting = false, startGeneration = 0;
 const frameClock = createFrameClock();
 const workoutContext = parseWorkoutContext(location.search);
+// Chain mode: the camera stays on for every set of the exercise (features/velocity/services/setChain.js).
+const CHAIN_ID = (() => { const c = new URLSearchParams(location.search).get('chain'); return workoutContext && c && /^[\w-]{1,200}$/.test(c) ? c : null; })();
+const chainCtx = CHAIN_ID ? { ...workoutContext, chainId: CHAIN_ID } : null;
+const chainDet = chainCtx ? createSetEndDetector() : null;
+let chainRestAt = NaN, chainRestSec = null, chainEndedAt = null, chainEnding = false, chainBeeped = false, chainShownSec = -1;
 
 // ── The plate (squat, bench): the bar's own speed, measured in 3D ─────────
 // While you hold still before rep 1, the plate is found near the bar (your
@@ -1375,6 +1395,7 @@ function frame(poses, t, vw, vh, worlds = []) {
   curT = t;
   if (phase === 'idle' || phase === 'done') return;
   const idx = pickPerson(poses, center);
+  if (chainDet && chainTick(t, idx >= 0)) return;
   if (idx < 0) {
     lostSince = lostSince ?? t;
     if (phase === 'live' || phase === 'ready') { counter.push(t, NaN, false); trace.push({ t, a: NaN }); pushBar(t, NaN); }
@@ -1630,6 +1651,7 @@ function onEvent(ev) {
     counter.discard(r.n); updateCounts(); setStatus('Not a rep — the bar didn’t move', 'warn');
     return;
   }
+  if (chainDet) chainRep();
   $('relock-btn').disabled = true; // one ROM/velocity reference per set
   if (SPEED) { measureRep(r, barTrace.length ? barTrace[barTrace.length - 1].t : 0); renderPanel(); }
   addChip(r);
@@ -1686,10 +1708,70 @@ function endSet() {
   stopStream();
   if (motion) motion.stop();
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  if (chainCtx) { chainEndedAt = Date.now(); $('rest').hidden = true; $('chain-done').hidden = true; }
   persistTrackedSet();
   if (EX.pullup) sfx('end');
   $('legend').hidden = true; // the verdict takes that corner
   renderSummary(); show('done'); setStatus('Set complete', 'good');
+}
+
+// ── Chain mode: save the set, rest on camera, pick up the next set by itself ──
+function chainTick(t, visible) {
+  if (chainEnding) return true;
+  updateRest();
+  if (!counter?.reps.length && Number.isFinite(chainRestAt) && Date.now() - chainRestAt > CHAIN.maxRestSec * 1000) {
+    chainEnding = true; setStatus('Camera stopped after 10 minutes of rest. Your sets are saved.', 'warn');
+    stopStream(); motion?.stop(); phase = 'idle'; location.href = 'workouts.html?tab=log';
+    return true;
+  }
+  if (chainDet.push(t, { visible }) === 'end') { chainEnding = true; setTimeout(chainEnd, 0); return true; }
+  return false;
+}
+function chainRep() {
+  chainDet.push(curT, { rep: true });
+  if ($('rest').hidden) return;
+  if (Number.isFinite(chainRestAt)) chainRestSec = Math.round((Date.now() - chainRestAt) / 100) / 10;
+  $('rest').hidden = true; showPanel(SPEED);
+}
+function chainEnd() {
+  if (phase === 'idle' || phase === 'done') { chainEnding = false; return; }
+  if (pendingVel) settleVel(Infinity);
+  try { plateFinish(); } catch (err) { console.error('plate finish failed:', err); }
+  stopRecording();
+  chainEndedAt = Date.now();
+  const summary = counter?.reps.length ? counter.summary() : null;
+  const saved = summary ? persistTrackedSet() : null;
+  $('rpe-in').value = ''; $('rir-in').value = ''; // a reported effort belongs to one set only
+  chainRestSec = null; chainRestAt = Date.now(); chainBeeped = false; chainShownSec = -1;
+  chainDet.reset();
+  showRest(summary, saved);
+  chainEnding = false;
+  begin();
+  $('rest').hidden = false; showPanel(false);
+  setStatus('Resting — start your next set when ready', 'good');
+}
+const restTarget = () => { try { const v = +localStorage.getItem('jarvis_rest_secs'); return v > 0 ? v : 0; } catch { return 0; } };
+const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function showRest(summary, saved) {
+  const peek = peekChainTarget(localStorage, chainCtx);
+  if (peek.ok && Number.isFinite(peek.weight)) setKg(peek.weight);
+  $('rest-next').textContent = peek.ok ? `Next: set ${peek.n}${peek.added ? ' (extra)' : ''}` : peek.reason;
+  $('rest-kg').value = peek.ok && Number.isFinite(peek.weight) ? peek.weight : '';
+  const loss = saved?.record?.lossPct;
+  $('rest-last').textContent = !summary ? 'No reps in that set, so nothing was saved.'
+    : saved?.attached?.ok ? `Set ${saved.attached.n} saved: ${summary.counted} reps${Number.isFinite(loss) ? ` · ${Math.round(loss)}% speed loss` : ''}`
+    : (saved?.attached?.reason || 'This set could not be saved to the workout.');
+  $('rest-tg').textContent = restTarget() ? `rest ${clock(restTarget())}` : '';
+  $('rest-t').classList.remove('due'); $('rest-t').textContent = '0:00';
+  updateRest();
+}
+function updateRest() {
+  if (!Number.isFinite(chainRestAt) || $('rest').hidden) return;
+  const sec = Math.floor((Date.now() - chainRestAt) / 1000);
+  if (sec === chainShownSec) return;
+  chainShownSec = sec; $('rest-t').textContent = clock(sec);
+  const tg = restTarget();
+  if (tg && sec >= tg && !chainBeeped) { chainBeeped = true; beep(880, 0.15); buzz([60, 60, 60]); $('rest-t').classList.add('due'); }
 }
 
 // ── Drawing ──────────────────────────────────────────────
@@ -1901,6 +1983,7 @@ function currentLiveRecord() {
   const rest = params.get('restSec');
   if (rest !== null && Number.isFinite(+rest) && +rest>=0) record.restSec=+rest;
   if (params.get('restMethod')) record.restMethod=params.get('restMethod');
+  if (chainCtx && Number.isFinite(chainRestSec)) { record.restSec = chainRestSec; record.restMethod = 'camera-chain'; }
   // A small audit trace is separate from metrics; native pose/nominal-radius
   // coordinates are never labelled metres. Retain the full track in the lab
   // export when measurement debugging needs every frame.
@@ -1918,14 +2001,17 @@ function currentLiveRecord() {
   return record;
 }
 function persistTrackedSet(updateTypedRir = false) {
-  if (!counter?.reps.length || demo) return;
+  if (!counter?.reps.length || (demo && !chainCtx)) return null;
   const record = currentLiveRecord();
   let saved = false;
   try { saveSetRecord(localStorage, record); saved = true; } catch {}
-  const attached = workoutContext ? attachTrackedSet(localStorage, workoutContext, record, { updateTypedRir }) : null;
+  const attached = !workoutContext ? null
+    : chainCtx ? attachChainedSet(localStorage, chainCtx, record, { updateTypedRir, endedAt: chainEndedAt ?? Date.now(), restSec: chainRestSec ?? undefined })
+    : attachTrackedSet(localStorage, workoutContext, record, { updateTypedRir });
   $('workout-save').textContent = attached?.ok ? 'Saved to this workout set. Review load and effort in the logger.'
     : attached ? `${attached.reason} ${saved ? 'A separate copy is saved on this device.' : 'Storage is unavailable; keep this page open.'}`
     : saved ? 'Set measurements saved on this device.' : 'Storage is unavailable. Keep this page open to review your results.';
+  return { record, attached };
 }
 function renderSummary() {
   const s = counter.summary();
@@ -2175,7 +2261,17 @@ $('start-btn').onclick = () => {
 };
 $('file-btn').onclick = () => { audioInit(); $('file').click(); };
 $('file').onchange = (e) => { const f = e.target.files && e.target.files[0]; if (f) startFile(f); };
-$('end-btn').onclick = endSet;
+$('end-btn').onclick = () => {
+  if (!chainCtx) return endSet();
+  if (!counter?.reps.length) { setStatus('No reps in this set yet', 'warn'); return; }
+  if (!chainEnding) { chainEnding = true; chainEnd(); }
+};
+$('chain-done').onclick = endSet;
+$('rest-kg').oninput = (e) => {
+  const v = parseFloat(e.target.value);
+  setKg(v); if (!counter?.reps.length) setLoadKg = kg;
+  setChainTargetWeight(localStorage, chainCtx, v >= 0 ? v : NaN);
+};
 $('relock-btn').onclick = () => {
   if (!counter || (phase !== 'live' && phase !== 'ready')) return; // never skip the hold-still wait
   if (counter.reps.length) { setStatus('End this set and start a new set to change the standard.', 'warn'); return; }
@@ -2211,6 +2307,7 @@ if (launchReportedRpe !== null && launchReportedRpe!=='' && Number.isFinite(+lau
 if (['technical','momentary'].includes(launchParams.get('rirEndpoint'))) $('failure-endpoint').value = launchParams.get('rirEndpoint');
 $('maximal-intent').checked = ['true','1'].includes(launchParams.get('maximalIntent'));
 if (workoutContext) { $('workout-return').hidden = false; $('again-btn').textContent = 'Return to workout'; }
+if (chainCtx) $('chain-done').hidden = false;
 $('height-in').oninput = (e) => { const v = parseFloat(e.target.value); heightCm = v >= 120 && v <= 230 ? v : null; writeNum(HEIGHT_KEY, heightCm); };
 const setKg = (v) => { kg = v > 0 ? v : null; writeNum(KG_KEY, kg); $('kg-in').value = kg || ''; };
 $('kg-in').oninput = (e) => { kg = parseFloat(e.target.value) > 0 ? parseFloat(e.target.value) : null; writeNum(KG_KEY, kg); };
@@ -2291,7 +2388,10 @@ function startDemo() {
   const quick = new URLSearchParams(location.search).has('quick');
   hold(plan[0][0], quick ? (EX.auto ? 0.9 : 0.5) : EX.auto ? 3.4 : 2.4);
   // The lifting part slows down rep by rep, like a real set.
-  plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, H ? 1.1 : 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], H ? 0.8 + i * 0.14 : 1.1); });
+  for (let set = 0; set < (chainCtx ? 2 : 1); set++) {
+    if (set) hold(plan[0][0], CHAIN.idleSec + 3); // rest on camera: the set ends, the next one is picked up
+    plan.forEach(([b, top], i) => { hold(b, 0.25); move(b, top, H ? 1.1 : 0.9 + i * 0.15); hold(top, 0.2); move(top, plan[i + 1] ? plan[i + 1][0] : plan[0][0], H ? 0.8 + i * 0.14 : 1.1); });
+  }
   hold(plan[0][0], 1.5);
   let i = 0;
   const tick = () => {
