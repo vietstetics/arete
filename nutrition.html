@@ -140,6 +140,20 @@ input,select,textarea{font-family:inherit}
 .nutri-cov{display:flex;align-items:center;gap:11px;padding:14px 18px;margin-bottom:16px;border-radius:var(--r);background:linear-gradient(135deg,rgba(29,164,98,.08),rgba(94,92,230,.06));border:1px solid rgba(29,164,98,.14);font-size:12.5px;color:var(--t1);line-height:1.55;box-shadow:var(--sh0)}
 .nutri-cov svg{color:var(--gr);flex-shrink:0}
 .nutri-cov b{font-weight:700}
+.nutrition-tools{padding:16px;margin-bottom:16px}
+.nutrition-tools h2{font-size:16px;margin-bottom:10px}
+.nutrition-tools .grid2{margin-bottom:12px}
+.nutrition-tools textarea{resize:vertical}
+.recipe-action{padding:8px 16px;border-top:1px solid var(--bd)}
+.nutrition-tools summary{cursor:pointer;font-weight:600;margin:12px 0}
+.nutrition-report-summary{margin:12px 0;color:var(--t2)}
+.nutrition-report-chart{display:block;width:100%;height:120px;margin:8px 0}
+@media print{
+  body:has(#tab-report.on) .app,body:has(#tab-report.on) .main{display:block!important;height:auto!important;overflow:visible!important}
+  body:has(#tab-report.on) .sb,body:has(#tab-report.on) .pg>:not(#view-report),body:has(#tab-report.on) .nutrition-report-controls{display:none!important}
+  body:has(#tab-report.on) .pg{padding:0}
+  body:has(#tab-report.on) .nrow{break-inside:avoid}
+}
 .nutri-radar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);align-items:center;gap:16px;padding:20px 24px;margin-bottom:16px;--radar-ink:var(--vi);--radar-fill:var(--vid)}
 .nutri-radar[data-mode="micro"]{--radar-ink:var(--gr);--radar-fill:var(--grd)}
 .nutri-radar h2{font-size:16px;font-weight:700;letter-spacing:-.01em}
@@ -400,6 +414,7 @@ input,select,textarea{font-family:inherit}
   <div class="tabs">
     <button class="tab on" id="tab-diary" onclick="setTab('diary')">Diary</button>
     <button class="tab" id="tab-nutrients" onclick="setTab('nutrients')">Nutrients</button>
+    <button class="tab" id="tab-report" onclick="setTab('report')">Reports</button>
   </div>
 
   <!-- DIARY VIEW -->
@@ -419,6 +434,23 @@ input,select,textarea{font-family:inherit}
 
   <!-- Meals -->
   <div id="meals"></div>
+  <section class="card nutrition-tools">
+    <h2>Diary notes</h2>
+    <label class="form-label" for="diary-note">Notes for the selected day</label>
+    <textarea class="form-input" id="diary-note" rows="2" onchange="saveDiaryDetails()"></textarea>
+    <label><input type="checkbox" id="diary-complete" onchange="saveDiaryDetails()"> Mark day complete</label>
+  </section>
+  <details class="card nutrition-tools">
+    <summary>Fasting timer</summary>
+    <p class="nutrition-report-summary" id="fast-status"></p>
+    <div class="grid2">
+      <div><label class="form-label" for="fast-start">Start time</label><input class="form-input" type="datetime-local" id="fast-start"></div>
+      <div><label class="form-label" for="fast-end">End time</label><input class="form-input" type="datetime-local" id="fast-end"></div>
+    </div>
+    <button class="btn btn-s btn-sm" id="fast-save" type="button" onclick="saveFast()">Start fast</button>
+    <button class="btn btn-s btn-sm" id="fast-finish" type="button" onclick="finishFastNow()">End now</button>
+    <div id="fast-history"></div>
+  </details>
   </div><!-- /view-diary -->
 
   <!-- NUTRIENTS VIEW -->
@@ -435,8 +467,36 @@ input,select,textarea{font-family:inherit}
       </div>
       <svg id="nutri-radar-chart" viewBox="0 0 344 228" role="img" aria-labelledby="nutri-radar-summary" aria-describedby="nutri-radar-note"></svg>
     </section>
+    <details class="card nutrition-tools">
+      <summary>Find foods by nutrient</summary>
+      <label class="form-label" for="nutrient-search">Nutrient</label>
+      <select class="form-input" id="nutrient-search" onchange="renderNutrientSearch()"></select>
+      <p class="nutrition-report-summary" id="nutrient-search-note"></p>
+      <div id="nutrient-search-results"></div>
+    </details>
     <div id="nutrient-groups"></div>
   </div>
+  <section class="card nutrition-tools" id="view-report" style="display:none">
+    <h2>Nutrition report</h2>
+    <div class="nutrition-report-controls">
+      <div class="grid2">
+        <div><label class="form-label" for="report-from">From</label><input class="form-input" type="date" id="report-from" onchange="renderNutritionReport()"></div>
+        <div><label class="form-label" for="report-to">To</label><input class="form-input" type="date" id="report-to" onchange="renderNutritionReport()"></div>
+      </div>
+      <label><input type="checkbox" id="report-complete" onchange="renderNutritionReport()"> Completed days only</label>
+      <div class="form-row" style="margin-top:12px">
+        <label class="form-label" for="report-metric">Trend</label>
+        <select class="form-input" id="report-metric" onchange="renderNutritionReport()"></select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="button" class="btn btn-s btn-sm" id="report-csv" onclick="downloadNutritionReport()">Export CSV</button>
+        <button type="button" class="btn btn-s btn-sm" onclick="window.print()">Print report</button>
+      </div>
+    </div>
+    <p class="nutrition-report-summary" id="report-summary" aria-live="polite"></p>
+    <div id="report-trend"></div>
+    <div id="report-results"></div>
+  </section>
 </div>
 </main>
 </div>
@@ -492,6 +552,8 @@ input,select,textarea{font-family:inherit}
         <div id="ai-note" class="scan-status warn" style="text-align:left;margin:8px 0 0;min-height:0"></div>
         <label class="form-label" style="margin-top:12px">Meal</label>
         <div class="meal-select-row" id="ai-meal-picker"></div>
+        <label class="form-label" for="ai-food-time" style="margin-top:12px">Time (optional)</label>
+        <input class="form-input" type="time" id="ai-food-time">
         <div style="display:flex;gap:8px;margin-top:14px">
           <button class="btn btn-s btn-sm" style="flex:1;justify-content:center" onclick="openAiPhoto()">Retake</button>
           <button class="btn btn-p btn-sm" style="flex:2;justify-content:center" onclick="addAiToLog()">Add to diary</button>
@@ -504,6 +566,7 @@ input,select,textarea{font-family:inherit}
       <div class="portion-food">
         <div class="pf-name" id="portion-name">—</div>
         <div class="pf-serv" id="portion-serv">—</div>
+        <div class="pf-serv" id="portion-ingredients"></div>
       </div>
       <label class="form-label" id="qty-label">Quantity (servings)</label>
       <div class="unit-seg" id="unit-seg" style="display:none">
@@ -526,6 +589,8 @@ input,select,textarea{font-family:inherit}
       </div>
       <label class="form-label">Meal</label>
       <div class="meal-select-row" id="meal-picker"></div>
+      <label class="form-label" for="food-time" style="margin-top:12px">Time (optional)</label>
+      <input class="form-input" type="time" id="food-time">
     </div>
 
     <!-- SCREEN: custom -->
@@ -556,6 +621,11 @@ input,select,textarea{font-family:inherit}
           <input class="form-input" id="cf-f" type="number" min="0" step="0.1" placeholder="0" inputmode="decimal">
         </div>
       </div>
+      <details class="nutrition-tools" style="padding:0;margin:0">
+        <summary>Nutrients per serving</summary>
+        <p class="form-label">Leave unknown amounts blank.</p>
+        <div class="grid2" id="cf-nutrients"></div>
+      </details>
       <div class="error-msg" id="cf-err">Please enter a name and a calorie value.</div>
     </div>
 
@@ -601,13 +671,35 @@ input,select,textarea{font-family:inherit}
 </div>
 
 <!-- GOALS MODAL -->
+<div class="modal-backdrop" id="recipe-modal" onclick="if(event.target===this)closeRecipe()">
+  <form class="modal" onsubmit="event.preventDefault();saveRecipe()">
+    <div class="modal-head"><h2 class="modal-title">Save meal as a recipe</h2></div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-label" for="recipe-name">Recipe name</label><input class="form-input" id="recipe-name" maxlength="120" required></div>
+      <div class="form-row"><label class="form-label" for="recipe-servings">Servings made</label><input class="form-input" id="recipe-servings" type="number" inputmode="decimal" min="0.01" step="any" required></div>
+      <div class="form-label">Ingredients from the diary</div>
+      <ul id="recipe-ingredients" style="padding-left:18px"></ul>
+    </div>
+    <div class="modal-foot"><button class="btn btn-s btn-sm" type="button" onclick="closeRecipe()">Cancel</button><button class="btn btn-p btn-sm" type="submit">Save recipe</button></div>
+  </form>
+</div>
+
 <div class="modal-backdrop" id="goals-modal" onclick="if(event.target===this)closeGoals()">
   <div class="modal" style="width:440px">
     <div class="modal-head">
-      <div class="modal-title">Daily Goals</div>
+      <div class="modal-title">Nutrition goals</div>
       <button class="icon-btn" onclick="closeGoals()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label" for="goal-day">Goal schedule</label>
+        <select class="form-input" id="goal-day" onchange="loadGoalFields()">
+          <option value="">Every day</option>
+          <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+          <option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option>
+        </select>
+        <button type="button" class="btn btn-s btn-sm" id="goal-inherit" onclick="inheritDailyGoals()" hidden>Use everyday goals</button>
+      </div>
       <div class="form-row">
         <label class="form-label" for="g-kcal">Calorie target (kcal)</label>
         <input class="form-input" id="g-kcal" type="number" min="0" step="10" inputmode="numeric">
@@ -633,6 +725,11 @@ input,select,textarea{font-family:inherit}
         </div>
       </div>
       <div style="font-size:11.5px;color:var(--t3);margin-top:6px;line-height:1.5">Tip: a common split is ~30% protein, ~40% carbs, ~30% fat. Macros don't need to sum exactly to your calorie target.</div>
+      <details class="nutrition-tools" style="padding:0;margin:0">
+        <summary>Nutrient targets and limits</summary>
+        <p class="form-label">Applies every day. Leave blank to use the default.</p>
+        <div class="grid2" id="goal-nutrients"></div>
+      </details>
     </div>
     <div class="modal-foot">
       <button class="btn btn-s btn-sm" onclick="resetGoals()" style="margin-right:auto">Reset</button>
@@ -1228,7 +1325,7 @@ const NUTRIENT_RADAR = {
       { key:'omega3', label:'Omega-3' },
       { key:'fiber', label:'Fibre' },
     ],
-    note:'Uses your calorie and macro goals, plus Daily Values for fibre and omega-3.',
+    note:'Uses your calorie and macro goals, plus the targets for fibre and omega-3.',
   },
   micro: {
     name:'Micronutrients',
@@ -1240,7 +1337,7 @@ const NUTRIENT_RADAR = {
       { key:'calcium', label:'Calcium' },
       { key:'potassium', label:'Potassium' },
     ],
-    note:'Uses Daily Values for the vitamins and minerals shown.',
+    note:'Uses your nutrient targets or the default Daily Values.',
   },
 };
 
@@ -1249,6 +1346,10 @@ const NUTRIENT_RADAR = {
 // ══════════════════════════════════════════════════════════════
 const K_LOG     = 'jarvis_nutrition_log';
 const K_GOALS   = 'jarvis_nutrition_goals';
+const K_GOAL_SCHEDULE = 'jarvis_nutrition_goal_schedule';
+const K_NUTRIENT_GOALS = 'jarvis_nutrition_nutrient_goals';
+const K_DIARY_DETAILS = 'jarvis_nutrition_diary_details';
+const K_FASTS = 'jarvis_nutrition_fasts';
 const K_CUSTOM  = 'jarvis_custom_foods';
 const K_SCANNED = 'jarvis_scanned_foods';
 const K_WATER   = 'jarvis_water';
@@ -1269,6 +1370,10 @@ function todayStr(d){
 }
 
 function getGoals(){ return { ...DEFAULT_GOALS, ...readJSON(K_GOALS, {}) }; }
+function goalsForDate(date){
+  const weekday = new Date(date + 'T12:00:00').getDay();
+  return { ...getGoals(), ...readJSON(K_GOAL_SCHEDULE, {})[weekday] };
+}
 function getCustomFoods(){ return readJSON(K_CUSTOM, []).map(x => ({ ...x, isCustom:true })); }
 function getScannedFoods(){ return readJSON(K_SCANNED, []).map(x => ({ ...x, isScanned:true })); }
 function getAllFoods(){ return [ ...getCustomFoods(), ...getScannedFoods(), ...FOOD_DB ]; }
@@ -1295,6 +1400,7 @@ let curDate    = todayStr();
 let activeCat  = 'All';
 let activeTab  = 'diary';       // diary | nutrients
 let nutrientRadarMode = 'macro';
+let recipeIngredients = [];
 let screen     = 'search';     // search | portion | custom
 let pendingMeal = 'breakfast';
 let selFood    = null;         // food being portioned
@@ -1354,7 +1460,10 @@ function fmtAmt(v, dec, unit){
 
 function render(){
   const entries = getLog(curDate);
-  const goals   = getGoals();
+  const goals   = goalsForDate(curDate);
+  const details = readJSON(K_DIARY_DETAILS, {})[curDate];
+  document.getElementById('diary-note').value = details?.note || '';
+  document.getElementById('diary-complete').checked = details?.complete === true;
   const tot     = totalsFor(entries);
 
   // ── Day label ──
@@ -1412,7 +1521,7 @@ function render(){
       return `<div class="food-row" onclick="editEntry('${e.id}')">
         <div class="food-info">
           <div class="food-name">${esc(e.name)}</div>
-          <div class="food-meta">${qLabel}</div>
+          <div class="food-meta">${e.time ? esc(e.time) + ' · ' : ''}${qLabel}</div>
         </div>
         <div class="food-macros">
           <span><b>${nf(e.protein*q)}</b>P</span>
@@ -1441,11 +1550,13 @@ function render(){
         </button>
       </div>
       ${rows}
+      ${items.length ? `<div class="recipe-action"><button class="btn btn-s btn-sm" type="button" onclick="openRecipe('${m.id}')">Save as recipe</button></div>` : ''}
     </div>`;
   }).join('');
 
-  syncDashboard(tot, goals, water);
+  syncDashboard();
   if (activeTab === 'nutrients') renderNutrients();
+  if (activeTab === 'report') renderNutritionReport();
 }
 
 function setMacro(key, val, goal){
@@ -1456,11 +1567,12 @@ function setMacro(key, val, goal){
 // ── Tabs: Diary ⇆ Nutrients ──
 function setTab(t){
   activeTab = t;
-  document.getElementById('tab-diary').classList.toggle('on', t === 'diary');
-  document.getElementById('tab-nutrients').classList.toggle('on', t === 'nutrients');
-  document.getElementById('view-diary').style.display     = t === 'diary' ? '' : 'none';
-  document.getElementById('view-nutrients').style.display = t === 'nutrients' ? '' : 'none';
+  for (const tab of ['diary', 'nutrients', 'report']){
+    document.getElementById('tab-' + tab).classList.toggle('on', t === tab);
+    document.getElementById('view-' + tab).style.display = t === tab ? '' : 'none';
+  }
   if (t === 'nutrients') renderNutrients();
+  if (t === 'report') renderNutritionReport();
 }
 
 const INFO_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
@@ -1477,13 +1589,14 @@ function setNutrientRadarMode(mode){
 
 function renderNutrientRadar({ totals, kcal, total, logged }){
   const { name, axes, note } = NUTRIENT_RADAR[nutrientRadarMode];
-  const goals = getGoals();
+  const goals = goalsForDate(curDate);
+  const nutrientGoals = readJSON(K_NUTRIENT_GOALS, {});
   const center = [172, 114];
   const radius = 77;
   const readings = axes.map(({ key, label }, index) => {
     const nutrient = NUTRIENTS.find(n => n.key === key);
     const personalised = key === 'kcal' || nutrient.group === 'macro';
-    const target = personalised ? goals[key] : nutrient.dv;
+    const target = personalised ? goals[key] : nutrientGoals[key] ?? nutrient.dv;
     const amount = key === 'kcal' ? kcal : totals[key];
     const available = personalised ? total > 0 : logged.has(key);
     const percent = available && target > 0 && Number.isFinite(amount)
@@ -1537,9 +1650,12 @@ function renderNutrients(){
   const day = extTotalsFor(entries);
   const { totals, kcal, withExt, total } = day;
   renderNutrientRadar(day);
+  renderNutrientSearch(totals);
 
   const cov = document.getElementById('nutri-cov');
   const groupsEl = document.getElementById('nutrient-groups');
+  const goals = goalsForDate(curDate);
+  const nutrientGoals = readJSON(K_NUTRIENT_GOALS, {});
 
   if (!total){
     cov.innerHTML = `${INFO_SVG}<span>Log foods to see a full vitamin &amp; mineral breakdown for the day.</span>`;
@@ -1561,8 +1677,9 @@ function renderNutrients(){
       const v = totals[n.key] || 0;
       const amt = fmtAmt(v, n.dec, n.unit);
       let bar, dv;
-      if (n.dv){
-        const pct = v / n.dv * 100;
+      const target = n.group === 'macro' ? goals[n.key] : nutrientGoals[n.key] ?? n.dv;
+      if (target > 0){
+        const pct = v / target * 100;
         const color = n.limit
           ? (pct >= 100 ? 'var(--re)' : pct >= 66 ? 'var(--ye)' : 'var(--gr)')
           : meta.color;
@@ -1588,17 +1705,197 @@ function renderNutrients(){
   }).join('');
 }
 
+function renderNutrientSearch(totals = extTotalsFor(getLog(curDate)).totals){
+  const picker = document.getElementById('nutrient-search');
+  if (!picker.options.length){
+    picker.innerHTML = NUTRIENTS.filter(n => !n.limit).map(n =>
+      `<option value="${n.key}">${n.label}</option>`
+    ).join('');
+  }
+  const nutrient = NUTRIENTS.find(n => n.key === picker.value);
+  const { key, unit, dec, group, dv } = nutrient;
+  const target = group === 'macro' ? goalsForDate(curDate)[key] : readJSON(K_NUTRIENT_GOALS, {})[key] ?? dv;
+  const amount = totals[key];
+  const note = target > 0 ? ` · ${fmtAmt(Math.max(0, target - amount), dec, unit)} left based on logged data` : '';
+  document.getElementById('nutrient-search-note').textContent = 'Largest amount per listed serving' + note;
+  const results = getAllFoods().map(food => ({ food, amount:group === 'macro' ? food[key] : food.ext?.[key] }))
+    .filter(row => Number.isFinite(row.amount) && row.amount > 0)
+    .sort((a,b) => b.amount - a.amount)
+    .slice(0, 8);
+  const list = document.getElementById('nutrient-search-results');
+  list.replaceChildren();
+  for (const { food, amount } of results){
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-s btn-sm';
+    button.style.cssText = 'display:flex;width:100%;justify-content:space-between;gap:8px;margin-top:6px;text-align:left';
+    button.textContent = `${food.name} · ${fmtAmt(amount, dec, unit)} (${food.serving})`;
+    button.addEventListener('click', () => portionFood(food, pendingMeal));
+    list.append(button);
+  }
+  if (!results.length) list.textContent = 'No foods with this nutrient in your current database.';
+}
+
+function saveDiaryDetails(){
+  const days = readJSON(K_DIARY_DETAILS, {});
+  const note = document.getElementById('diary-note').value.trim();
+  const complete = document.getElementById('diary-complete').checked;
+  if (note || complete) days[curDate] = { note, complete };
+  else delete days[curDate];
+  writeJSON(K_DIARY_DETAILS, days);
+}
+
+function localTimeInput(timestamp){
+  const date = new Date(timestamp);
+  return todayStr(date) + 'T' + date.toTimeString().slice(0, 5);
+}
+
+function formatFastDuration(start, end){
+  const minutes = Math.floor(Math.max(0, end - start) / 60000);
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+function refreshFast(){
+  const { active, history = [] } = readJSON(K_FASTS, {});
+  const startInput = document.getElementById('fast-start');
+  startInput.value = localTimeInput(active?.start ?? Date.now());
+  document.getElementById('fast-end').value = '';
+  document.getElementById('fast-save').textContent = active ? 'Save fast' : 'Start fast';
+  document.getElementById('fast-finish').disabled = !active;
+  document.getElementById('fast-history').innerHTML = history.slice(0, 10).map(item =>
+    `<p class="nutrition-report-summary">${new Date(item.start).toLocaleString()} – ${new Date(item.end).toLocaleString()} · ${formatFastDuration(item.start, item.end)}</p>`
+  ).join('');
+  tickFast();
+}
+
+function tickFast(){
+  const { active } = readJSON(K_FASTS, {});
+  document.getElementById('fast-status').textContent = active
+    ? 'Elapsed: ' + formatFastDuration(active.start, Date.now())
+    : 'No fast in progress.';
+}
+
+function saveFast(){
+  const data = readJSON(K_FASTS, {});
+  const start = +new Date(document.getElementById('fast-start').value);
+  const endField = document.getElementById('fast-end').value;
+  const end = endField ? +new Date(endField) : null;
+  const now = Date.now();
+  if (!Number.isFinite(start) || start > now || (end !== null && (!Number.isFinite(end) || end <= start || end > now))){
+    document.getElementById('fast-status').textContent = 'Enter a start time in the past and an end time after it.';
+    return;
+  }
+  const record = end === null
+    ? { ...data, active:{ start } }
+    : { active:null, history:[{ start, end }, ...(data.history || [])] };
+  writeJSON(K_FASTS, record);
+  refreshFast();
+}
+
+function finishFastNow(){
+  const data = readJSON(K_FASTS, {});
+  if (!data.active) return;
+  writeJSON(K_FASTS, { active:null, history:[{ start:data.active.start, end:Date.now() }, ...(data.history || [])] });
+  refreshFast();
+}
+
+function nutritionReportData(){
+  const from = document.getElementById('report-from');
+  const to = document.getElementById('report-to');
+  if (!from.value && !to.value){
+    const weekStart = new Date(curDate + 'T12:00:00');
+    weekStart.setDate(weekStart.getDate() - 6);
+    from.value = todayStr(weekStart);
+    to.value = curDate;
+  }
+  const completeOnly = document.getElementById('report-complete').checked;
+  const logs = readJSON(K_LOG, {});
+  const details = readJSON(K_DIARY_DETAILS, {});
+  const days = !from.value || !to.value || from.value > to.value ? [] : Object.keys(logs).sort()
+    .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= from.value && date <= to.value &&
+      Array.isArray(logs[date]) && logs[date].length && (!completeOnly || details[date]?.complete))
+    .map(date => ({ date, ...extTotalsFor(logs[date]) }));
+  return { from:from.value, to:to.value, days };
+}
+
+function renderNutritionReport(){
+  const { from, to, days } = nutritionReportData();
+  const metrics = [{ key:'kcal', label:'Calories', unit:'kcal', dec:0 }, ...NUTRIENTS];
+  const metricPicker = document.getElementById('report-metric');
+  if (!metricPicker.options.length) metricPicker.innerHTML = metrics
+    .map(metric => `<option value="${metric.key}">${metric.label}</option>`).join('');
+  renderReportTrend(days, metrics.find(metric => metric.key === metricPicker.value) || metrics[0]);
+  document.getElementById('report-summary').textContent = !from || !to || from > to
+    ? 'Choose a valid date range.'
+    : `${from} to ${to} · ${days.length} logged day${days.length === 1 ? '' : 's'}`;
+  document.getElementById('report-csv').disabled = !days.length;
+  document.getElementById('report-results').innerHTML = days.length ? metrics.map(metric => {
+    const readings = days.map(day => reportAmount(day, metric)).filter(Number.isFinite);
+    const total = readings.reduce((sum, value) => sum + value, 0);
+    const average = readings.length ? fmtAmt(total / readings.length, metric.dec, metric.unit) : '—';
+    return `<div class="nrow" style="grid-template-columns:minmax(0,1fr) auto auto">
+      <div class="nrow-l">${metric.label}</div>
+      <div class="nrow-amt">${average}</div>
+      <div class="nrow-dv">${readings.length}/${days.length} days</div>
+    </div>`;
+  }).join('') : '';
+  if (days.length) document.getElementById('report-results').insertAdjacentHTML('afterbegin',
+    '<p class="nutrition-report-summary">Daily averages use days with data for each nutrient.</p>');
+}
+
+function renderReportTrend(days, metric){
+  const display = document.getElementById('report-trend');
+  const points = days.map(day => ({ date:day.date, value:reportAmount(day, metric) })).filter(day => Number.isFinite(day.value));
+  if (!points.length){ display.innerHTML = ''; return; }
+  const max = points.reduce((highest, point) => Math.max(highest, point.value), 0);
+  const start = Date.parse(points[0].date);
+  const span = Date.parse(points[points.length - 1].date) - start;
+  const coords = points.map(point => [
+    span ? 4 + 312 * (Date.parse(point.date) - start) / span : 160,
+    92 - 82 * (max ? point.value / max : 0),
+  ]);
+  const dots = coords.map(([x, y], index) => `<circle cx="${x}" cy="${y}" r="3" fill="currentColor"><title>${points[index].date} · ${fmtAmt(points[index].value, metric.dec, metric.unit)}</title></circle>`).join('');
+  display.innerHTML = `<svg class="nutrition-report-chart" viewBox="0 0 320 100" role="img" aria-label="${metric.label} trend" style="color:var(--gr)">
+    <line x1="4" y1="92" x2="316" y2="92" stroke="var(--bd2)"/>
+    <polyline points="${coords.map(point => point.join(',')).join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    ${dots}
+  </svg><p class="nutrition-report-summary">${metric.label} · ${fmtAmt(points[0].value, metric.dec, metric.unit)} on ${points[0].date}${points.length > 1 ? ` · ${fmtAmt(points[points.length - 1].value, metric.dec, metric.unit)} on ${points[points.length - 1].date}` : ''}</p>`;
+}
+
+function reportAmount(day, metric){
+  if (metric.key === 'kcal') return day.kcal;
+  return metric.group === 'macro' || day.logged.has(metric.key) ? day.totals[metric.key] : null;
+}
+
+function downloadNutritionReport(){
+  const { from, to, days } = nutritionReportData();
+  if (!days.length) return;
+  const metrics = [{ key:'kcal', label:'Calories', unit:'kcal' }, ...NUTRIENTS];
+  const headers = ['Date', ...metrics.map(metric => `${metric.label} (${metric.unit})`)];
+  const rows = days.map(day => [day.date, ...metrics.map(metric => reportAmount(day, metric))]);
+  const csv = [headers, ...rows].map(row => row.join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `arete-nutrition-${from}-to-${to}.csv`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // Persist a compact summary the dashboard widget can read
-function syncDashboard(tot, goals, water){
+function syncDashboard(){
+  const today = todayStr();
+  const goals = goalsForDate(today);
+  const totals = totalsFor(getLog(today));
   writeJSON('jarvis_nutrition_today', {
-    date: todayStr(),
-    kcal: Math.round(totalsFor(getLog(todayStr())).kcal),
+    date: today,
+    kcal: Math.round(totals.kcal),
     goalKcal: goals.kcal,
-    protein: Math.round(totalsFor(getLog(todayStr())).protein),
-    carbs: Math.round(totalsFor(getLog(todayStr())).carbs),
-    fat: Math.round(totalsFor(getLog(todayStr())).fat),
+    protein: Math.round(totals.protein),
+    carbs: Math.round(totals.carbs),
+    fat: Math.round(totals.fat),
     goalProtein: goals.protein, goalCarbs: goals.carbs, goalFat: goals.fat,
-    water: getWater(todayStr()), goalWater:(goals.water||3)*1000,
+    water: getWater(today), goalWater:(goals.water||3)*1000,
   });
 }
 
@@ -1703,6 +2000,7 @@ function resizeImage(file, max, quality){
   });
 }
 function renderAiReview(d){
+  document.getElementById('ai-food-time').value = '';
   document.getElementById('ai-status').style.display = 'none';
   document.getElementById('ai-result').style.display = '';
   document.getElementById('ai-name').textContent = d.name || 'Estimated meal';
@@ -1725,12 +2023,13 @@ function renderAiMealPicker(){
 function addAiToLog(){
   if (!aiData) return;
   const entries = getLog(curDate);
+  const time = document.getElementById('ai-food-time').value;
   const items = (aiData.items && aiData.items.length) ? aiData.items
     : [{ name: aiData.name, kcal: aiData.kcal, protein: aiData.protein, carbs: aiData.carbs, fat: aiData.fat, ext: aiData.ext }];
   items.forEach(it => {
     const entry = {
       id: 'e-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      foodId: 'ai', name: it.name || aiData.name || 'Photo estimate', meal: pendingMeal, qty: 1,
+      foodId: 'ai', name: it.name || aiData.name || 'Photo estimate', meal: pendingMeal, qty: 1, time,
       serving: it.grams ? '≈' + Math.round(it.grams) + ' g (photo)' : 'photo estimate',
       kcal: Math.round(it.kcal || 0), protein: r1(it.protein || 0), carbs: r1(it.carbs || 0), fat: r1(it.fat || 0), source: 'ai',
     };
@@ -1792,6 +2091,9 @@ function servingGrams(serving){
 let portionUnit = 'serving';   // 'serving' | 'grams'
 
 function openPortion(){
+  document.getElementById('food-time').value = editingId ? getLog(curDate).find(e => e.id === editingId)?.time || '' : '';
+  document.getElementById('portion-ingredients').textContent = selFood.ingredients
+    ? 'Ingredients: ' + selFood.ingredients.map(item => item.name).join(', ') : '';
   document.getElementById('portion-name').textContent = selFood.name;
   document.getElementById('portion-serv').textContent = '1 serving = ' + selFood.serving + ' · ' + nf(selFood.kcal) + ' Calories';
   // Reset to servings; only offer the Grams toggle when the serving has a weight.
@@ -1872,15 +2174,17 @@ function confirmFood(){
   const q = getQty();
   if (q <= 0){ closeFood(); return; }
   const entries = getLog(curDate);
+  const time = document.getElementById('food-time').value;
   if (editingId){
     const idx = entries.findIndex(e => e.id === editingId);
-    if (idx >= 0){ entries[idx].qty = q; entries[idx].meal = pendingMeal; }
+    if (idx >= 0) Object.assign(entries[idx], { qty:q, meal:pendingMeal, time });
   } else {
     const entry = {
       id: 'e-' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
       foodId: selFood.id,
       name: selFood.name,
       meal: pendingMeal,
+      time,
       qty: q,
       serving: selFood.serving,
       kcal: selFood.kcal, protein: selFood.protein, carbs: selFood.carbs, fat: selFood.fat,
@@ -1912,8 +2216,55 @@ function removeEntry(id){
 }
 
 // ── Custom food ──
+function openRecipe(mealId){
+  recipeIngredients = getLog(curDate).filter(entry => entry.meal === mealId);
+  if (!recipeIngredients.length) return;
+  document.getElementById('recipe-name').value = '';
+  document.getElementById('recipe-servings').value = 1;
+  document.getElementById('recipe-ingredients').innerHTML = recipeIngredients.map(item =>
+    `<li>${esc(item.name)} · ${esc(item.qty || 1)} × ${esc(item.serving)}</li>`
+  ).join('');
+  document.getElementById('recipe-modal').classList.add('open');
+  document.getElementById('recipe-name').focus();
+}
+
+function closeRecipe(){
+  recipeIngredients = [];
+  document.getElementById('recipe-modal').classList.remove('open');
+}
+
+function saveRecipe(){
+  const nameInput = document.getElementById('recipe-name');
+  const name = nameInput.value.trim();
+  const servings = document.getElementById('recipe-servings').valueAsNumber;
+  if (!name){ nameInput.focus(); return; }
+  if (!recipeIngredients.length || !Number.isFinite(servings) || servings <= 0) return;
+  const { kcal, totals, logged } = extTotalsFor(recipeIngredients);
+  const ext = {};
+  for (const key of logged){
+    if (NUTRIENTS.some(n => n.group !== 'macro' && n.key === key)) ext[key] = totals[key] / servings;
+  }
+  const food = {
+    id:'recipe-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name, cat:'Meals', serving:'1 recipe serving',
+    kcal:kcal / servings, protein:totals.protein / servings, carbs:totals.carbs / servings, fat:totals.fat / servings,
+    ingredients:recipeIngredients.map(({ name, serving, qty }) => ({ name, serving, qty })),
+    ext,
+  };
+  writeJSON(K_CUSTOM, [food, ...readJSON(K_CUSTOM, [])]);
+  const meal = recipeIngredients[0].meal;
+  closeRecipe();
+  const search = document.getElementById('food-search');
+  openFood(meal);
+  search.value = name;
+  renderResults();
+}
+
 function openCustomForm(){
   ['cf-name','cf-serv','cf-kcal','cf-p','cf-c','cf-f'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cf-nutrients').innerHTML = NUTRIENTS.filter(n => n.group !== 'macro').map(n =>
+    `<div class="form-row"><label class="form-label" for="cf-nutrient-${n.key}">${n.label} (${n.unit})</label><input class="form-input" type="number" min="0" step="any" inputmode="decimal" id="cf-nutrient-${n.key}" data-nutrient="${n.key}"></div>`
+  ).join('');
   document.getElementById('cf-err').classList.remove('show');
   showScreen('custom');
   setTimeout(()=>document.getElementById('cf-name').focus(), 60);
@@ -1932,6 +2283,11 @@ function saveCustomFood(){
     carbs:   Math.max(0, parseFloat(document.getElementById('cf-c').value) || 0),
     fat:     Math.max(0, parseFloat(document.getElementById('cf-f').value) || 0),
   };
+  const ext = {};
+  for (const input of document.querySelectorAll('#cf-nutrients input')){
+    if (Number.isFinite(input.valueAsNumber) && input.valueAsNumber >= 0) ext[input.dataset.nutrient] = input.valueAsNumber;
+  }
+  if (Object.keys(ext).length) food.ext = ext;
   const list = readJSON(K_CUSTOM, []);
   list.unshift(food);
   writeJSON(K_CUSTOM, list);
@@ -1946,13 +2302,32 @@ function saveCustomFood(){
 //  GOALS MODAL
 // ══════════════════════════════════════════════════════════════
 function openGoals(){
-  const g = getGoals();
+  document.getElementById('goal-day').value = '';
+  const overrides = readJSON(K_NUTRIENT_GOALS, {});
+  document.getElementById('goal-nutrients').innerHTML = NUTRIENTS.filter(n => n.group !== 'macro' && n.dv).map(n =>
+    `<div class="form-row"><label class="form-label" for="goal-${n.key}">${n.label} (${n.unit})${n.limit ? ' limit' : ''}</label><input class="form-input" type="number" min="0" step="any" inputmode="decimal" id="goal-${n.key}" placeholder="${n.dv}" value="${esc(overrides[n.key])}"></div>`
+  ).join('');
+  loadGoalFields();
+  document.getElementById('goals-modal').classList.add('open');
+}
+function loadGoalFields(){
+  const day = document.getElementById('goal-day').value;
+  const g = { ...getGoals(), ...readJSON(K_GOAL_SCHEDULE, {})[day] };
+  document.getElementById('goal-inherit').hidden = day === '';
   document.getElementById('g-kcal').value  = g.kcal;
   document.getElementById('g-p').value     = g.protein;
   document.getElementById('g-c').value     = g.carbs;
   document.getElementById('g-f').value     = g.fat;
   document.getElementById('g-water').value = g.water;
-  document.getElementById('goals-modal').classList.add('open');
+}
+function inheritDailyGoals(){
+  const day = document.getElementById('goal-day').value;
+  if (day === '') return;
+  const schedule = readJSON(K_GOAL_SCHEDULE, {});
+  delete schedule[day];
+  writeJSON(K_GOAL_SCHEDULE, schedule);
+  loadGoalFields();
+  render();
 }
 function closeGoals(){ document.getElementById('goals-modal').classList.remove('open'); }
 function saveGoals(){
@@ -1963,7 +2338,14 @@ function saveGoals(){
     fat:     Math.max(0, parseFloat(document.getElementById('g-f').value)     || 0),
     water:   Math.max(0.1, parseFloat(document.getElementById('g-water').value) || DEFAULT_GOALS.water),
   };
-  writeJSON(K_GOALS, g);
+  const day = document.getElementById('goal-day').value;
+  if (day === '') writeJSON(K_GOALS, g);
+  else writeJSON(K_GOAL_SCHEDULE, { ...readJSON(K_GOAL_SCHEDULE, {}), [day]:g });
+  const overrides = {};
+  for (const input of document.querySelectorAll('#goal-nutrients input')){
+    if (Number.isFinite(input.valueAsNumber) && input.valueAsNumber > 0) overrides[input.id.slice(5)] = input.valueAsNumber;
+  }
+  writeJSON(K_NUTRIENT_GOALS, overrides);
   closeGoals();
   render();
 }
@@ -1973,6 +2355,9 @@ function resetGoals(){
   document.getElementById('g-c').value     = DEFAULT_GOALS.carbs;
   document.getElementById('g-f').value     = DEFAULT_GOALS.fat;
   document.getElementById('g-water').value = DEFAULT_GOALS.water;
+  if (document.getElementById('goal-day').value === ''){
+    document.querySelectorAll('#goal-nutrients input').forEach(input => input.value = '');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1983,6 +2368,7 @@ document.addEventListener('keydown', e => {
     if (document.getElementById('food-modal').classList.contains('open')) closeFood();
     if (document.getElementById('goals-modal').classList.contains('open')) closeGoals();
     if (document.getElementById('scan-modal').classList.contains('open')) closeScanner();
+    if (document.getElementById('recipe-modal').classList.contains('open')) closeRecipe();
   }
   if (e.key === 'Enter'){
     const foodOpen = document.getElementById('food-modal').classList.contains('open');
@@ -2568,6 +2954,8 @@ function portionFood(food, meal){
 
 // ── INIT ──
 render();
+refreshFast();
+setInterval(tickFast, 60000);
 </script>
 <script src="js/mobilenav.js" defer></script>
 </body>
