@@ -612,7 +612,11 @@ function newActive(name){
   return { id:'w-'+F.uid(), name:name||'New Workout', startedAt:Date.now(), userId:trainingUserId(), exercises:[], notes:'' };
 }
 function trainingUserId(){ try{ const session=window.Auth?.localSession?.(); return session?.user?.id || session?.id || session?.email || null; }catch{ return null; } }
-function saveActive(){ wj(K_ACTIVE, active); syncLock(); }
+function saveActive(){
+  try{ wj(K_ACTIVE, active); }
+  catch(e){ toast('Couldn’t save: this phone’s storage is full. Free some space, then keep logging.'); }
+  syncLock();
+}
 // Lock-in (iPhone app): the picked apps stay blocked while a workout is open (js/focuslock.js).
 function syncLock(){ if(window.FocusLock) FocusLock.sync(active); }
 function unlockEarly(){ if(!active) return; active.unlockedEarly=Date.now(); saveActive(); renderLog(); toast('Apps unlocked for this workout'); }

@@ -94,7 +94,7 @@ window.Auth = (() => {
   // belong to this phone only (the user's own Anthropic key, Oura/Strava/WHOOP/Fitbit tokens), plus
   // large scratch data. A user's row is only readable/writable by that user (Row-Level Security,
   // supabase/schema.sql).
-  const NOT_DATA = new Set(['arete_session', 'arete_accounts', 'arete_owner', 'arete_anthropic_key', 'arete_splash']);
+  const NOT_DATA = new Set(['arete_session', 'arete_accounts', 'arete_owner', 'arete_anthropic_key', 'arete_splash', 'arete_sync_pending']);
   const SECRETISH = /(token|secret|password|api_?key|_key$)/i;
   const isDataKey = (k) => typeof k === 'string'
     && (k.indexOf('jarvis_') === 0 || k.indexOf('arete_') === 0)
@@ -106,11 +106,15 @@ window.Auth = (() => {
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (isDataKey(k) || k === 'arete_anthropic_key' || ((k || '').match(/^(jarvis|arete)_/) && SECRETISH.test(k))) keys.push(k);
+      if (isDataKey(k) || k === 'arete_anthropic_key' || k === 'arete_sync_pending' || ((k || '').match(/^(jarvis|arete)_/) && SECRETISH.test(k))) keys.push(k);
     }
     keys.forEach(k => { try { origRemove(k); } catch {} });
   }
   const OWNER_KEY = 'arete_owner';
+  // Set on every local data write, cleared only once that write is in the cloud. While it's set the
+  // phone holds the newest copy, so opening a page uploads it instead of downloading over it.
+  const PENDING_KEY = 'arete_sync_pending';
+  const pendingSince = () => { const v = +(localStorage.getItem(PENDING_KEY) || 0); return v > 0 ? v : 0; };
   // Nothing is uploaded until this device has read the user's cloud copy once: otherwise an empty
   // or half-loaded phone (offline at sign-in) would overwrite the account's data.
   let pulledFor = null;
@@ -118,7 +122,9 @@ window.Auth = (() => {
     const c = await getClient(); const u = await getUser(); if (!u) return false;
     // Another account used this device last: clear its data so it never lands in this account.
     const owner = localStorage.getItem(OWNER_KEY);
-    if (owner && owner !== u.id) wipeLocalData();
+    if (owner && owner !== u.id) { wipeLocalData(); try { origRemove(PENDING_KEY); } catch {} }
+    // Unsent changes from this account on this phone are newer than the cloud copy: keep them, send them.
+    if (owner === u.id && pendingSince()) { pulledFor = u.id; schedulePush(0); return true; }
     const { data, error } = await c.from('user_data').select('data').eq('user_id', u.id).maybeSingle();
     if (error) return false;                                  // try again later; uploads stay paused
     const remote = (data && data.data) || {};
@@ -128,24 +134,39 @@ window.Auth = (() => {
     if (!data) schedulePush();                                // new account: upload this device's data
     return true;
   }
-  let pushTimer = null, pushing = false;
+  let pushTimer = null, pushing = false, again = false;
   async function push() {
-    if (pushing) return false; pushing = true;
+    if (pushing) { again = true; return false; }
+    pushing = true; again = false;
+    let ok = false;
     try {
       const c = await getClient(); const u = await getUser();
       if (!u) return false;
       if (pulledFor !== u.id && !(await pull())) return false;
+      const sent = pendingSince();
       const { error } = await c.from('user_data').upsert({ user_id: u.id, data: snapshot(), updated_at: new Date().toISOString() });
-      return !error;
-    } catch { return false; } finally { pushing = false; }
+      ok = !error;
+      // Only clear the marker if nothing was typed while this upload was on its way.
+      if (ok && pendingSince() === sent) { try { origRemove(PENDING_KEY); } catch {} }
+      return ok;
+    } catch { return false; } finally {
+      pushing = false;
+      if (again) schedulePush(0);
+      else if (!ok && pendingSince()) schedulePush(30000);   // offline or a failed upload: try again
+    }
   }
-  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(() => push(), 2500); }
-  // Mirror data writes up to the cloud (debounced) once signed in.
+  function schedulePush(ms = 2500) { clearTimeout(pushTimer); pushTimer = setTimeout(() => push(), ms); }
+  function markPending() { try { origSet(PENDING_KEY, String(Date.now())); } catch {} }
+  // Mirror data writes up to the cloud (debounced) once signed in; leaving or backgrounding the app
+  // sends them at once, and coming back online retries.
   const origSet = localStorage.setItem.bind(localStorage), origRemove = localStorage.removeItem.bind(localStorage);
   function watch() {
     if (watching) return; watching = true;
-    localStorage.setItem = function (k, v) { origSet(k, v); if (isDataKey(k)) schedulePush(); };
-    localStorage.removeItem = function (k) { origRemove(k); if (isDataKey(k)) schedulePush(); };
+    localStorage.setItem = function (k, v) { origSet(k, v); if (isDataKey(k)) { markPending(); schedulePush(); } };
+    localStorage.removeItem = function (k) { origRemove(k); if (isDataKey(k)) { markPending(); schedulePush(); } };
+    const flush = () => { if (pendingSince()) { clearTimeout(pushTimer); push(); } };
+    if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+    if (typeof window !== 'undefined' && window.addEventListener) { window.addEventListener('pagehide', flush); window.addEventListener('online', flush); }
   }
   /** Headers for the app's own API (/api/*): the signed-in user's access token, checked server-side. */
   async function authHeaders() {
