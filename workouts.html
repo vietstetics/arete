@@ -1759,9 +1759,9 @@ function exHistory(name, src){
     })
     .filter(Boolean).sort((a, b) => a.t - b.t);
 }
-function progChart(h, pick, loads){
+function progChart(h, pick, loads, H=170){
   const canPick=(kg)=>pick && (!loads || loads.some(l=>Math.abs(l-kg)<=Math.max(1,0.025*l)));
-  const W=460, H=170, P={l:36, r:16, t:16, b:22};
+  const W=460, P={l:36, r:16, t:16, b:22};
   const xs = i => P.l + (W-P.l-P.r) * (h.length === 1 ? 0.5 : i/(h.length-1));
   let lo = Math.min(...h.map(x=>x.top)), hi = Math.max(...h.map(x=>x.top));
   if (lo === hi){ lo -= 2.5; hi += 2.5; }
@@ -2641,9 +2641,9 @@ function anGo(level,val){
   else if(level==='ex'){ _an.ex=val; _an.load=null; _an.rec=null; }
   else if(level==='load'){ _an.load=val; _an.rec=null; }
   else if(level==='rec'){ _an.rec=_an.rec===val?null:val; }
-  else if(level==='back'){ if(_an.load!=null){ _an.load=null; _an.rec=null; } else if(_an.ex){ _an.ex=null; } else _an.plan=null; }
+  else if(level==='back'){ if(_an.ex){ _an.ex=null; _an.load=null; _an.rec=null; } else _an.plan=null; }
   renderAnalytics();
-  if(level!=='rec') scrollMainTop();
+  if(level!=='rec' && level!=='load') scrollMainTop();
 }
 function anPickLoad(kg){ anGo('load', kg); }
 // Analytics preview: made-up training, built in memory only (never stored, never synced) and labelled
@@ -2706,46 +2706,43 @@ function renderAnalytics(){
   const banner=sample?`<div class="an-sample"><span><b>Sample data</b> to preview Analytics. Made up, never saved.</span><button onclick="anSample(false)">Exit</button></div>`:'';
   const back=(label)=>`<button class="an-back" onclick="anGo('back')">‹ ${esc(label)}</button>`;
 
-  // Level 4: speed at one weight
-  if(_an.ex && _an.load!=null){
-    const r=A.speedAtWeight(_an.ex,_an.load,workouts,records);
-    const kg=Math.round(_an.load*100)/100;
-    let body='';
-    if(r.change){
-      const pct=Math.round(r.change.pct), up=pct>0;
-      body+=`<section class="card an-card">
-        <div class="an-big"><b class="${pct===0?'':up?'up':'down'}">${pct===0?'Same':(up?'+':'−')+Math.abs(pct)+'%'}</b><span>${pct===0?'speed':up?'faster':'slower'} at ${esc(kg)} kg since ${esc(F.fmtDate(r.change.since))}</span></div>
-        <div class="an-note">${r.change.from.toFixed(2)} → ${r.change.to.toFixed(2)} m/s. ${up?'The same weight moves faster: it has got easier for you.':pct<0?'The same weight moves slower than it did. One slow day can be fatigue; watch the trend.':'No change yet.'}</div>
-      </section>`;
-    }
-    if(r.points.length) body+=`<section class="card an-card"><div class="an-k">Bar speed at ${esc(kg)} kg · camera estimate</div>${speedChart(r.points)}
-      ${r.points.slice().reverse().map(p=>`<button class="an-sess${_an.rec===p.recordId?' on':''}" onclick="anGo('rec','${jsName(p.recordId)}')"><span>${esc(F.fmtDate(p.at))}</span><span>${p.speed.toFixed(2)} m/s</span></button>${_an.rec===p.recordId?renderVelocityResult(p.record):''}`).join('')}
-      <div class="an-note">Each point is that day's first set at this weight: the fastest of its first three reps.</div></section>`;
-    if(r.reason) body+=`<section class="card an-card"><div class="an-note" style="margin:0">${esc(r.reason)}</div></section>`;
-    if(r.relative.length) body+=`<section class="card an-card"><div class="an-k">Tracked without your height</div>${r.relative.slice().reverse().map(x=>`<div class="an-sess"><span>${esc(F.fmtDate(x.at))}</span><span>${Number.isFinite(x.record.lossPct)?Math.round(x.record.lossPct)+'% speed loss':x.record.counted+' reps'}</span></div>`).join('')}</section>`;
-    host.innerHTML=`${banner}${back(_an.ex)}<h2 class="an-h">${esc(kg)} kg<em>.</em></h2><div class="an-sub">${esc(_an.ex)}: how this weight moved over time.</div>${body}`;
-    return;
-  }
-
-  // Level 3: weight progression for one exercise
+  // Exercise: a compact weight progression on top, bar speed at one weight underneath (pick the weight with
+  // the chips; the one tracked in most sessions is shown first).
   if(_an.ex){
     const h=exHistory(_an.ex, workouts);
     const weights=A.trackedWeights(_an.ex,workouts,records);
+    if(_an.load==null && weights.length) _an.load=weights.slice().sort((x,y)=>(y.sessions-x.sessions)||(y.loadKg-x.loadKg))[0].loadKg;
     let chart='';
     if(h.length>=2){
-      const first=h[0], last=h[h.length-1], best=h.reduce((a,b)=>b.top>a.top?b:a,h[0]);
+      const first=h[0], last=h[h.length-1], best=h.reduce((x,y)=>y.top>x.top?y:x,h[0]);
       const d=Math.round((last.top-first.top)*10)/10;
       chart=`<section class="card an-card">
-        <div class="an-big"><b class="${d>0?'up':d<0?'down':''}">${d>0?'+':''}${d} kg</b><span>top set since ${esc(F.fmtDate(first.t))} · best ${esc(best.top)} kg</span></div>
-        ${progChart(h, weights.length?'anPickLoad':'', weights.map(w=>w.loadKg))}
-        <div class="an-note">Top working-set weight each session, from every session of this exercise.${weights.length?' Tap a weight below, or a point at a filmed weight, for its bar speed.':''}</div></section>`;
+        <div class="an-k">Weight</div>
+        <div class="an-big sm"><b class="${d>0?'up':d<0?'down':''}">${d>0?'+':''}${d} kg</b><span>top set since ${esc(F.fmtDate(first.t))} · best ${esc(best.top)} kg</span></div>
+        ${progChart(h, weights.length?'anPickLoad':'', weights.map(w=>w.loadKg), 110)}</section>`;
     } else {
-      chart=`<section class="card an-card"><div class="an-note" style="margin:0">${h.length?'One session logged with a weight. After the next one, the progression graph shows here.':'No sessions with a weight logged yet.'}</div></section>`;
+      chart=`<section class="card an-card"><div class="an-k">Weight</div><div class="an-note" style="margin:0">${h.length?'One session logged with a weight. After the next one, the progression graph shows here.':'No sessions with a weight logged yet.'}</div></section>`;
     }
-    const chips=weights.length
-      ? `<section class="card an-card"><div class="an-k">Bar speed by weight</div><div class="an-chips">${weights.map(w=>`<button class="an-chip" onclick="anPickLoad(${w.loadKg})"><b>${esc(w.loadKg)} kg</b><span>${w.sessions} session${w.sessions===1?'':'s'} · ${w.sets} set${w.sets===1?'':'s'}</span></button>`).join('')}</div></section>`
-      : `<section class="card an-card"><div class="an-k">Bar speed by weight</div><div class="an-note" style="margin:0">Track a set of this exercise with the camera and its speed shows here, by weight.</div></section>`;
-    host.innerHTML=`${banner}${back(_an.plan&&_an.plan.name||'Exercises')}<h2 class="an-h">${esc(_an.ex)}<em>.</em></h2><div class="an-sub">${h.length} session${h.length===1?'':'s'} logged</div>${chart}${chips}`;
+    let speed;
+    if(!weights.length){
+      speed=`<section class="card an-card"><div class="an-k">Bar speed</div><div class="an-note" style="margin:0">Track a set of this exercise with the camera and its bar speed shows here, by weight.</div></section>`;
+    } else {
+      const r=A.speedAtWeight(_an.ex,_an.load,workouts,records), kg=Math.round(_an.load*100)/100;
+      const chips=`<div class="an-chips">${weights.map(w=>`<button class="an-chip${Math.abs(w.loadKg-_an.load)<1e-9?' on':''}" onclick="anPickLoad(${w.loadKg})"><b>${esc(w.loadKg)} kg</b><span>${w.sessions} session${w.sessions===1?'':'s'}</span></button>`).join('')}</div>`;
+      let body='';
+      if(r.change){
+        const pct=Math.round(r.change.pct), up=pct>0;
+        body+=`<div class="an-big sm" style="margin-top:14px"><b class="${pct===0?'':up?'up':'down'}">${pct===0?'Same':(up?'+':'−')+Math.abs(pct)+'%'}</b><span>${pct===0?'speed':up?'faster':'slower'} at ${esc(kg)} kg since ${esc(F.fmtDate(r.change.since))}</span></div>
+          <div class="an-note" style="margin-top:0">${r.change.from.toFixed(2)} → ${r.change.to.toFixed(2)} m/s. ${up?'The same weight moves faster: it has got easier for you.':pct<0?'The same weight moves slower than it did. One slow day can be fatigue; watch the trend.':'No change yet.'}</div>`;
+      }
+      if(r.points.length) body+=`${speedChart(r.points,130)}
+        ${r.points.slice().reverse().map(p=>`<button class="an-sess${_an.rec===p.recordId?' on':''}" onclick="anGo('rec','${jsName(p.recordId)}')"><span>${esc(F.fmtDate(p.at))}</span><span>${p.speed.toFixed(2)} m/s</span></button>${_an.rec===p.recordId?renderVelocityResult(p.record):''}`).join('')}
+        <div class="an-note">Each point is that day's first set at ${esc(kg)} kg: the fastest of its first three reps. Camera estimate.</div>`;
+      if(r.reason) body+=`<div class="an-note">${esc(r.reason)}</div>`;
+      if(r.relative.length) body+=`<div class="an-k" style="margin-top:14px">Tracked without your height</div>${r.relative.slice().reverse().map(x=>`<div class="an-sess"><span>${esc(F.fmtDate(x.at))}</span><span>${Number.isFinite(x.record.lossPct)?Math.round(x.record.lossPct)+'% speed loss':x.record.counted+' reps'}</span></div>`).join('')}`;
+      speed=`<section class="card an-card" id="an-speed"><div class="an-k">Bar speed by weight</div>${chips}${body}</section>`;
+    }
+    host.innerHTML=`${banner}${back(_an.plan&&_an.plan.name||'Exercises')}<h2 class="an-h">${esc(_an.ex)}<em>.</em></h2><div class="an-sub">${h.length} session${h.length===1?'':'s'} logged</div>${chart}${speed}`;
     return;
   }
 
@@ -2770,8 +2767,8 @@ function renderAnalytics(){
   const hm=document.getElementById('hm-scroll'); if(hm) hm.scrollLeft=hm.scrollWidth;
 }
 // Bar speed over time at one weight: a point per session and the line through them.
-function speedChart(points){
-  const W=460,H=170,P={l:40,r:16,t:16,b:22};
+function speedChart(points, H=170){
+  const W=460,P={l:40,r:16,t:16,b:22};
   const t0=points[0].at, t1=points[points.length-1].at;
   const xs=(t)=>P.l+(W-P.l-P.r)*(t1===t0?.5:(t-t0)/(t1-t0));
   let lo=Math.min(...points.map(p=>p.speed)), hi=Math.max(...points.map(p=>p.speed));
