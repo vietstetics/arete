@@ -773,7 +773,7 @@ let candidates = null; // ?ex=auto: each lift's tracker, calibrating while the l
 const pu = EX.pullup ? createPullupTracker({ minVis: MIN_VIS }) : null;
 let gate = createStillGate({ secs: EX.pullup ? 0.3 : EX.height || EX.auto ? 1 : STILL_SECS, bands: STILL_BANDS[EXK] }); // pull-ups: a short still hang (people start pulling almost at once)
 let armed = false; // pull-ups: hanging still on a locked bar, counting
-let phase = 'idle'; // idle → finding → settle → ready → live → done
+let phase = 'idle'; // idle → finding → ready → live → done
 let steadySince = null, lostSince = null, trace = [], lastVideoT = -1, raf = 0;
 let audio = null, wakeLock = null, current = NaN;
 
@@ -856,7 +856,7 @@ function plateStep(t, poses) {
   if (!plateSess || EX.auto) return; // until the lift is recognised, where the bar sits isn't known
   const vw = video.videoWidth, vh = video.videoHeight;
   // Until rep 1 is in (counting can start at once), a plate lost for a moment is looked for again.
-  const before = phase === 'finding' || phase === 'settle' || (phase === 'ready' && !(counter && counter.reps.length));
+  const before = phase === 'finding' || (phase === 'ready' && !(counter && counter.reps.length));
   const i = pickPerson(poses, center);
   if (i >= 0) platePrior = barPrior(poses[i], vw, vh);
   if (before) plateGravity();
@@ -1193,8 +1193,7 @@ function renderToggles() {
 }
 const shortReasons = (r) => [r.shortFinish && 'Didn’t reach your top', r.shortStart && 'Didn’t reach your hang', r.shortSwing && 'Kipping'].filter(Boolean).join(' · ');
 
-// Before rep 1: hold still in your start position, then counting starts.
-function settle() { phase = 'settle'; gate.reset(); setStatus(EX.still, 'good'); }
+// Counting starts as soon as you're seen; the first rep sets the standard.
 function arm(msg) {
   phase = 'ready'; beep(880, 0.05); buzz(30); setStatus(msg, 'good'); armT = curT;
   if (PLATE_ON) {
@@ -1433,12 +1432,9 @@ function frame(poses, t, vw, vh, worlds = []) {
     if (ok) {
       steadySince = steadySince ?? t;
       const held = t - steadySince;
-      setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
-      if (held >= CALIB_SECS) { side = side || useSide; settle(); }
+      setStatus(held < CALIB_SECS ? 'Got you…' : 'Ready', 'good');
+      if (held >= CALIB_SECS) { side = side || useSide; arm(`${EX.rep1} (${side} ${EX.part})`); }
     } else { steadySince = null; setStatus(EX.show); }
-  } else if (phase === 'settle') {
-    if (gate.push(t, [a])) arm(`${EX.rep1} (${side} ${EX.part})`);
-    else setStatus(ok ? EX.still : EX.show, ok ? 'good' : '');
   } else {
     trace.push({ t, a });
     // Pose still judges ROM at the elbow. Hand-mode curls measure the wrist
@@ -1468,20 +1464,14 @@ function rowFrame(p, t, vw, vh, world) {
     if (ok) {
       steadySince = steadySince ?? t;
       const held = t - steadySince;
-      setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
-      if (held >= CALIB_SECS) settle();
+      setStatus(held < CALIB_SECS ? 'Got you…' : 'Ready', 'good');
+      if (held >= CALIB_SECS) arm(EX.rep1);
     } else { steadySince = null; setStatus(EX.show); }
     draw({ p, ok }, vw, vh);
     return;
   }
   const a = ok ? euro.filter(x.ratio * 100, t) : NaN;
   current = a;
-  if (phase === 'settle') {
-    if (gate.push(t, [a])) arm(EX.rep1);
-    else setStatus(ok ? EX.still : EX.lost, ok ? 'good' : 'warn');
-    updateMeter(); draw({ p, ok, a }, vw, vh);
-    return;
-  }
   trace.push({ t, a });
   pushBar(t, ok ? -x.ratio : NaN); // up = pulling in, in arm lengths
   const ev = counter.push(t, a, ok);
@@ -1517,20 +1507,14 @@ function liftFrame(p, t, vw, vh, world, poses, worlds) {
     if (ok) {
       steadySince = steadySince ?? t;
       const held = t - steadySince;
-      setStatus(held < CALIB_SECS ? 'Got you — hold still…' : 'Ready', 'good');
-      if (held >= CALIB_SECS) settle();
+      setStatus(held < CALIB_SECS ? 'Got you…' : 'Ready', 'good');
+      if (held >= CALIB_SECS) arm(EX.rep1);
     } else { steadySince = null; setStatus(EX.show || EX.finding); }
     draw({ p, ok }, vw, vh);
     return;
   }
   const a = ok ? m.value : NaN;
   current = a;
-  if (phase === 'settle') {
-    if (gate.push(t, [a])) arm(EX.rep1);
-    else setStatus(ok ? EX.still : EX.lost, ok ? 'good' : 'warn');
-    updateMeter(); draw({ p, ok, a }, vw, vh);
-    return;
-  }
   trace.push({ t, a });
   pushBar(t, ok ? m.path : NaN);
   const ev = counter.push(t, a, ok);
@@ -1561,12 +1545,6 @@ function heightFrame(p, t, vw, vh) {
   const m = tracker.measure(p, vw, vh);
   const a = m.ok ? euro.filter(m.value, t) : NaN;
   current = a;
-  if (phase === 'settle') {
-    if (gate.push(t, [a])) arm(EX.rep1);
-    else setStatus(m.ok ? EX.still : EX.lost, m.ok ? 'good' : 'warn');
-    updateMeter(); draw({ p, ok: m.ok, a, point: m.point }, vw, vh);
-    return;
-  }
   trace.push({ t, a });
   pushBar(t, barSource === 'plate' ? (plateRes && plateRes.ok ? plateRes.h : NaN) : Number.isFinite(m.bar) ? m.bar : NaN);
   const ev = counter.push(t, a, m.ok);
@@ -1837,7 +1815,7 @@ function draw(d, vw, vh) {
 function drawHeight(d, m, lm, sc, oy, cw, dpr) {
   if (plateRes && plateRes.e) {
     const e = plateRes.e, c = Math.cos(e.phi), sn = Math.sin(e.phi);
-    ctx.strokeStyle = barSource === 'plate' || phase === 'finding' || phase === 'settle' ? '#58DB3D' : 'rgba(255,255,255,.6)'; ctx.lineWidth = 3 * dpr;
+    ctx.strokeStyle = barSource === 'plate' || phase === 'finding' ? '#58DB3D' : 'rgba(255,255,255,.6)'; ctx.lineWidth = 3 * dpr;
     ctx.beginPath();
     for (let k = 0; k <= 48; k++) { const al = (k / 48) * Math.PI * 2, X = e.a * Math.cos(al), Y = e.b * Math.sin(al), P = m({ x: e.cx + X * c - Y * sn, y: e.cy + X * sn + Y * c }); k ? ctx.lineTo(P.x, P.y) : ctx.moveTo(P.x, P.y); }
     ctx.stroke();
@@ -2328,7 +2306,7 @@ $('flip-btn').onclick = async () => {
 };
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'hidden' && starting) startGeneration++;
-  if (document.visibilityState === 'hidden' && (phase === 'live' || phase === 'ready' || phase === 'settle' || phase === 'finding')) { endSet(); setStatus('Set ended when the app went into the background. Completed reps were kept.', 'warn'); }
+  if (document.visibilityState === 'hidden' && (phase === 'live' || phase === 'ready' || phase === 'finding')) { endSet(); setStatus('Set ended when the app went into the background. Completed reps were kept.', 'warn'); }
   if (document.visibilityState === 'visible' && stream) { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} }
 });
 window.addEventListener('pagehide', () => {
