@@ -1619,7 +1619,7 @@ function onEvent(ev) {
     phase = 'live'; $('legend').hidden = !!EX.pullup;
     if (EX.pullup) { sfx('locked'); buzz(35); flash('good'); }
     else { beep(988, 0.12); buzz([40, 40, 40]); }
-    setStatus(`Standard locked: ${EX.fmt(ev.standard.start)} → ${EX.fmt(ev.standard.finish)}`, 'good');
+    setStatus(`Rep 1 counted · standard set: ${EX.fmt(ev.standard.start)} → ${EX.fmt(ev.standard.finish)}`, 'good');
     try { localStorage.setItem(LAST_KEY, JSON.stringify({ start: ev.standard.start, finish: ev.standard.finish, at: Date.now(), ...(EX.height ? { v: 2 } : {}) })); } catch {}
   }
   const r = ev.rep;
