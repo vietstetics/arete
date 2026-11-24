@@ -1779,7 +1779,7 @@ function progChart(h, pick, loads){
     const [cx,cy]=pts[i];
     const lbl = i===h.length-1
       ? `<text x="${cx}" y="${cy-9}" text-anchor="end" font-size="10" font-weight="700" fill="#1D1D1F">${x.top}</text>`
-      : (i===bestI ? `<text x="${cx}" y="${cy-9}" text-anchor="middle" font-size="9" font-weight="600" fill="#6E6E73">${x.top}</text>` : '');
+      : (i===bestI && x.top!==h[h.length-1].top ? `<text x="${cx}" y="${cy-9}" text-anchor="middle" font-size="9" font-weight="600" fill="#6E6E73">${x.top}</text>` : '');
     return `<g>${lbl}<circle cx="${cx}" cy="${cy}" r="4" fill="#5E5CE6" stroke="#fff" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="13" fill="transparent"${canPick(x.top)?` style="cursor:pointer" onclick="${pick}(${x.top})"`:''}><title>${fmtD(x.date)} — ${x.top}kg × ${x.reps}\n${x.setsTxt}</title></circle></g>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Top set weight per session">
@@ -2596,9 +2596,9 @@ const PHYSIQUE_HTML = `
     </div>`;
 // A year of training days, GitHub style: green on days you trained (darker for a bigger session,
 // judged against your own sessions), grey on days you didn't.
-function heatmapHtml(){
+function heatmapHtml(list=realHistory()){
   const days={};
-  for(const w of realHistory()){
+  for(const w of list){
     const k=w.date||todayKey(new Date(w.completedAt));
     const sets=(w.exercises||[]).reduce((n,e)=>n+(e.sets||[]).filter(x=>x.type!=='warmup'&&x.completed).length,0);
     const d=days[k]||(days[k]={sets:0,names:[],id:w.id}); d.sets+=sets; d.names.push(w.name||'Workout');
@@ -2646,11 +2646,64 @@ function anGo(level,val){
   if(level!=='rec') scrollMainTop();
 }
 function anPickLoad(kg){ anGo('load', kg); }
+// Analytics preview: made-up training, built in memory only (never stored, never synced) and labelled
+// as sample data wherever it shows. Deterministic, so the preview looks the same each time.
+let _anSample=false, _anSampleCache=null;
+function anSample(on){ _anSample=on; _an={ plan:null, ex:null, load:null, rec:null }; renderAnalytics(); scrollMainTop(); }
+function anSampleData(){
+  if(_anSampleCache) return _anSampleCache;
+  let seed=7; const rnd=()=>{ seed=(seed*16807)%2147483647; return (seed-1)/2147483646; };
+  const DAY=864e5, now=new Date(); now.setHours(18,0,0,0);
+  const round=(v,step)=>Math.round(v/step)*step;
+  const lifts={
+    A:[['Back Squat',100,2.5,[100,80]],['Romanian Deadlift',80,2.5,[80]],['Leg Press',160,5,null],['Leg Curl',45,2.5,[45]],['Calf Raise',60,5,null]],
+    B:[['Bench Press',80,2.5,[80,60]],['Overhead Press',50,1.25,[50]],['Incline Dumbbell Press',28,2,null],['Lateral Raise',10,1,[10]],['Triceps Pushdown',30,2.5,null]],
+    C:[['Deadlift',140,5,[140,120]],['Lat Pulldown',65,2.5,[65]],['Barbell Row',70,2.5,[70]],['Dumbbell Curl',14,1,[14]],['Face Pull',25,2.5,null]],
+  };
+  const store={ versions:[
+    { planId:'sample-plan', id:'sample-v1', name:'Push / Pull / Legs', effectiveFrom:todayKey(new Date(now-90*DAY)), createdAt:1, routines:Object.keys(lifts).map(k=>({ id:'sample-'+k, name:{A:'Legs',B:'Push',C:'Pull'}[k], exercises:lifts[k].map(([name])=>({ name })) })) },
+    { planId:'sample-old', id:'sample-v0', name:'Beginner full body', effectiveFrom:todayKey(new Date(now-200*DAY)), createdAt:0, endsOn:todayKey(new Date(now-91*DAY)), routines:[{ id:'sample-fb', name:'Full body', exercises:[{ name:'Back Squat' },{ name:'Bench Press' },{ name:'Barbell Row' }] }] },
+  ] };
+  const workouts=[], records=[];
+  let n=0;
+  for(let d=196; d>=1; d--){
+    const at=new Date(now-d*DAY), wd=at.getDay();
+    const inPlan=d<=90;
+    if(inPlan ? ![1,3,5].includes(wd) : ![2,5].includes(wd)) continue;
+    if(rnd()<0.12) continue;                                  // the odd missed day
+    n++;
+    const key=inPlan?['A','B','C'][n%3]:null;
+    const progress=(196-d)/196;                               // stronger as the weeks go by
+    const ex=(key?lifts[key]:[['Back Squat',90,2.5,[80]],['Bench Press',70,2.5,[60]],['Barbell Row',60,2.5,null]]).map(([name,base,step,filmed],ei)=>{
+      const top=round(base*(0.86+0.2*progress),step);
+      const sets=Array.from({length:3},(_,si)=>{
+        const weight=si===0?top:round(top*0.95,step), reps=Math.max(3,Math.round(6+rnd()*3-si));
+        const set={ id:`smp-${d}-${ei}-${si}`, type:'working', weight, reps, rir:Math.round(rnd()*2+1), unit:'kg', completed:true, completedAt:at.getTime()+ei*6e5+si*2e5 };
+        if(filmed && si===1 && rnd()<0.75){
+          for(const load of filmed){
+            const mcv=Math.max(0.15,(0.62-load/400)*(0.9+0.22*progress)*(0.96+rnd()*0.08));
+            const rec={ id:`smp-v-${d}-${ei}-${load}`, at:set.completedAt, units:'m/s', loadKg:load, exercise:name, counted:5, lossPct:18+rnd()*10,
+              reps:Array.from({length:5},(_,r)=>({ n:r+1, result:'counted', velocity:'ok', mcv:+(mcv*(1-r*0.05)).toFixed(3), peak:+(mcv*1.7).toFixed(3), rel:+(1-r*0.05).toFixed(3) })) };
+            if(load===filmed[0]) set.velocity=rec; else records.push(rec);
+          }
+        }
+        return set;
+      });
+      return { id:`smp-e-${d}-${ei}`, name, sets };
+    });
+    workouts.push({ id:'sample-w-'+d, name:key?{A:'Legs',B:'Push',C:'Pull'}[key]:'Full body', planId:key?'sample-plan':'sample-old', routineId:key?'sample-'+key:'sample-fb',
+      date:todayKey(at), startedAt:at.getTime()-36e5, completedAt:at.getTime()+36e5, exercises:ex });
+  }
+  workouts.sort((a,b)=>b.completedAt-a.completedAt);
+  return (_anSampleCache={ workouts, records, store });
+}
 function renderAnalytics(){
   const host=document.getElementById('view-analytics'); if(!host) return;
   const A=window.TrainAnalytics, T=window.Training;
   if(!A||!T){ host.innerHTML='<div class="card"><div class="empty"><p>Loading…</p></div></div>'; return; }
-  const workouts=realHistory(), records=anRecords();
+  const sample=_anSample?anSampleData():null;
+  const workouts=sample?sample.workouts:realHistory(), records=sample?sample.records:anRecords();
+  const banner=sample?`<div class="an-sample"><span><b>Sample data</b> to preview Analytics. Made up, never saved.</span><button onclick="anSample(false)">Exit</button></div>`:'';
   const back=(label)=>`<button class="an-back" onclick="anGo('back')">‹ ${esc(label)}</button>`;
 
   // Level 4: speed at one weight
@@ -2670,7 +2723,7 @@ function renderAnalytics(){
       <div class="an-note">Each point is that day's first set at this weight: the fastest of its first three reps.</div></section>`;
     if(r.reason) body+=`<section class="card an-card"><div class="an-note" style="margin:0">${esc(r.reason)}</div></section>`;
     if(r.relative.length) body+=`<section class="card an-card"><div class="an-k">Tracked without your height</div>${r.relative.slice().reverse().map(x=>`<div class="an-sess"><span>${esc(F.fmtDate(x.at))}</span><span>${Number.isFinite(x.record.lossPct)?Math.round(x.record.lossPct)+'% speed loss':x.record.counted+' reps'}</span></div>`).join('')}</section>`;
-    host.innerHTML=`${back(_an.ex)}<h2 class="an-h">${esc(kg)} kg<em>.</em></h2><div class="an-sub">${esc(_an.ex)}: how this weight moved over time.</div>${body}`;
+    host.innerHTML=`${banner}${back(_an.ex)}<h2 class="an-h">${esc(kg)} kg<em>.</em></h2><div class="an-sub">${esc(_an.ex)}: how this weight moved over time.</div>${body}`;
     return;
   }
 
@@ -2692,7 +2745,7 @@ function renderAnalytics(){
     const chips=weights.length
       ? `<section class="card an-card"><div class="an-k">Bar speed by weight</div><div class="an-chips">${weights.map(w=>`<button class="an-chip" onclick="anPickLoad(${w.loadKg})"><b>${esc(w.loadKg)} kg</b><span>${w.sessions} session${w.sessions===1?'':'s'} · ${w.sets} set${w.sets===1?'':'s'}</span></button>`).join('')}</div></section>`
       : `<section class="card an-card"><div class="an-k">Bar speed by weight</div><div class="an-note" style="margin:0">Track a set of this exercise with the camera and its speed shows here, by weight.</div></section>`;
-    host.innerHTML=`${back(_an.plan&&_an.plan.name||'Exercises')}<h2 class="an-h">${esc(_an.ex)}<em>.</em></h2><div class="an-sub">${h.length} session${h.length===1?'':'s'} logged</div>${chart}${chips}`;
+    host.innerHTML=`${banner}${back(_an.plan&&_an.plan.name||'Exercises')}<h2 class="an-h">${esc(_an.ex)}<em>.</em></h2><div class="an-sub">${h.length} session${h.length===1?'':'s'} logged</div>${chart}${chips}`;
     return;
   }
 
@@ -2702,18 +2755,18 @@ function renderAnalytics(){
     const rows=p.exercises.map(n=>{ const sm=A.exerciseSummary(n,workouts);
       const last=sm.last&&sm.last.weight!=null?`Last ${sm.last.weight} kg${sm.last.reps!=null?' × '+sm.last.reps:''} · ${sm.sessions} session${sm.sessions===1?'':'s'}`:'Not logged yet';
       return `<button class="an-row" onclick="anGo('ex','${jsName(n)}')"><div class="t"><b>${esc(n)}</b><span>${esc(last)}</span></div>${AN_CHEV}</button>`; }).join('');
-    host.innerHTML=`${back('Plans')}<h2 class="an-h">${esc(p.name)}<em>.</em></h2><div class="an-sub">${p.exercises.length} exercise${p.exercises.length===1?'':'s'}. Tap one for its weight progression.</div>
+    host.innerHTML=`${banner}${back('Plans')}<h2 class="an-h">${esc(p.name)}<em>.</em></h2><div class="an-sub">${p.exercises.length} exercise${p.exercises.length===1?'':'s'}. Tap one for its weight progression.</div>
       <section class="card an-list">${rows||'<div class="an-row"><div class="t"><span>No exercises in this plan.</span></div></div>'}</section>`;
     return;
   }
 
   // Level 1: plans
-  const plans=A.plansFromStore(T.loadStore(),workouts,T.localKey());
+  const plans=A.plansFromStore(sample?sample.store:T.loadStore(),workouts,T.localKey());
   window._anPlans=plans;
   const list=plans.length
     ? `<section class="card an-list">${plans.map((p,i)=>`<button class="an-row" onclick="anGo('plan',window._anPlans[${i}])"><div class="t"><b>${esc(p.name)}${p.current?'<i class="an-tag">Current</i>':''}</b><span>${p.from?'From '+esc(fmtDay(p.from))+' · ':''}${p.sessions} session${p.sessions===1?'':'s'} · ${p.exercises.length} exercise${p.exercises.length===1?'':'s'}</span></div>${AN_CHEV}</button>`).join('')}</section>`
     : `<section class="card an-card"><div class="an-note" style="margin:0">No plans or workouts yet. Create a plan or log a workout and your analytics build up here.</div><button class="btn btn-p td-cta" style="margin-top:12px" onclick="setTab('plan')">Create your plan</button></section>`;
-  host.innerHTML=`${workouts.length?heatmapHtml():''}<h2 class="an-h">Your plans<em>.</em></h2><div class="an-sub">Pick a plan, then an exercise, to see your weight progression and how each weight got easier.</div>${list}`;
+  host.innerHTML=`${banner}${workouts.length?heatmapHtml(workouts):''}<h2 class="an-h">Your plans<em>.</em></h2><div class="an-sub">Pick a plan, then an exercise, to see your weight progression and how each weight got easier.</div>${list}${sample?'':`<button class="an-try" onclick="anSample(true)">Preview with sample data</button>`}`;
   const hm=document.getElementById('hm-scroll'); if(hm) hm.scrollLeft=hm.scrollWidth;
 }
 // Bar speed over time at one weight: a point per session and the line through them.
