@@ -574,7 +574,15 @@
     },
     /** @param {string} id */
     deleteWorkout(id) {
-      const list = storageAdapter.getWorkouts().filter(w => w.id !== id);
+      const all = storageAdapter.getWorkouts(), gone = all.find(w => w.id === id);
+      const list = all.filter(w => w.id !== id);
+      // A finished workout's rows in the account database go too (js/setSync.js reads this marker).
+      if (gone && gone.completedAt && !String(id).startsWith('mock-')) {
+        try {
+          const t = JSON.parse(localStorage.getItem('arete_sets_deleted') || '[]');
+          if (!t.includes(id)) { t.push(String(id)); localStorage.setItem('arete_sets_deleted', JSON.stringify(t)); }
+        } catch {}
+      }
       localStorage.setItem('jarvis_workouts', JSON.stringify(list));
     },
     /** @returns {MorningCheckIn|null} */

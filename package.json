@@ -22,7 +22,7 @@
     "recognise": "node scripts/recognise-videos.mjs",
     "test:velocity": "node --test \"features/velocity/__tests__/*.test.js\"",
     "dev": "node scripts/dev-server.mjs",
-    "test:security": "node --test scripts/test-api-security.mjs scripts/test-sync-security.mjs",
+    "test:security": "node --test --test-force-exit scripts/test-api-security.mjs scripts/test-sync-security.mjs scripts/test-set-sync.mjs",
     "test:nutrition": "node --test \"features/nutrition/__tests__/*.test.js\""
   },
   "dependencies": {

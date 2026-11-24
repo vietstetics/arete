@@ -45,7 +45,7 @@
     if (!session) { location.replace('login.html'); return false; }
     reveal();
     window.Auth.watch();
-    window.Auth.pull().catch(function () {});
+    window.Auth.pull().then(function (ok) { if (ok && window.SetSync) window.SetSync.start(); }).catch(function () {});
     return true;
   }).catch(function () { reveal(); return false; });
 

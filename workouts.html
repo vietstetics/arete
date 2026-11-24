@@ -11,6 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="css/touch.css">
 <script src="js/auth.js"></script>
+<script src="js/setSync.js"></script>
 <script src="js/authguard.js"></script>
 <title>Arete — Training</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -423,6 +424,7 @@ input,select,textarea{font-family:inherit}
   <div class="wtabs" role="tablist" aria-label="Training">
     <button class="wtab on" role="tab" data-tab="log"      onclick="setTab('log')">Today</button>
     <button class="wtab"    role="tab" data-tab="plan"     onclick="setTab('plan')">Plan</button>
+    <button class="wtab"    role="tab" data-tab="analytics" onclick="setTab('analytics')">Analytics</button>
     <button class="wtab"    role="tab" data-tab="history"  onclick="setTab('history')">History</button>
   </div>
 
@@ -457,6 +459,7 @@ input,select,textarea{font-family:inherit}
       <div id="view-coaching" class="pl-body"></div>
     </details>
   </div>
+  <div id="view-analytics" style="display:none"></div>
   <div id="view-history" style="display:none"></div>
   <div id="view-machines" style="display:none">
     <button class="td-text" style="margin:0 0 10px;padding:6px 2px;font-weight:600" onclick="setTab('plan')">‹ Plan</button>
@@ -624,7 +627,7 @@ function renderLockIn(){ if(window.FocusLock) FocusLock.render(document.getEleme
 if(window.FocusLock){ FocusLock.onChange(()=>renderLockIn()); syncLock(); }
 
 let tab = 'log';
-const TABS=['log','plan','history','machines'];
+const TABS=['log','plan','analytics','history','machines'];
 // 'programs' and 'coaching' are sections of the Plan tab now; older links
 // and calls that name them open Plan with that section expanded.
 function setTab(t){
@@ -638,6 +641,7 @@ function setTab(t){
   TABS.forEach(v=>{ document.getElementById('view-'+v).style.display = t===v?'':'none'; });
   if(t==='log') renderLog(); else document.querySelector('.pg').classList.remove('in-workout');
   if(t==='plan') renderPlanTab(section);
+  if(t==='analytics') renderAnalytics();
   if(t==='history') renderHistory();
   if(t==='machines') renderMachines();
 }
@@ -1755,7 +1759,8 @@ function exHistory(name, src){
     })
     .filter(Boolean).sort((a, b) => a.t - b.t);
 }
-function progChart(h){
+function progChart(h, pick, loads){
+  const canPick=(kg)=>pick && (!loads || loads.some(l=>Math.abs(l-kg)<=Math.max(1,0.025*l)));
   const W=460, H=170, P={l:36, r:16, t:16, b:22};
   const xs = i => P.l + (W-P.l-P.r) * (h.length === 1 ? 0.5 : i/(h.length-1));
   let lo = Math.min(...h.map(x=>x.top)), hi = Math.max(...h.map(x=>x.top));
@@ -1775,7 +1780,7 @@ function progChart(h){
     const lbl = i===h.length-1
       ? `<text x="${cx}" y="${cy-9}" text-anchor="end" font-size="10" font-weight="700" fill="#1D1D1F">${x.top}</text>`
       : (i===bestI ? `<text x="${cx}" y="${cy-9}" text-anchor="middle" font-size="9" font-weight="600" fill="#6E6E73">${x.top}</text>` : '');
-    return `<g>${lbl}<circle cx="${cx}" cy="${cy}" r="4" fill="#5E5CE6" stroke="#fff" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="13" fill="transparent"><title>${fmtD(x.date)} — ${x.top}kg × ${x.reps}\n${x.setsTxt}</title></circle></g>`;
+    return `<g>${lbl}<circle cx="${cx}" cy="${cy}" r="4" fill="#5E5CE6" stroke="#fff" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="13" fill="transparent"${canPick(x.top)?` style="cursor:pointer" onclick="${pick}(${x.top})"`:''}><title>${fmtD(x.date)} — ${x.top}kg × ${x.reps}\n${x.setsTxt}</title></circle></g>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Top set weight per session">
     ${grid}
@@ -2626,6 +2631,110 @@ function heatmapHtml(){
     <div class="hm-key"><span>Rest</span><i class="hm-c"></i><i class="hm-c l1"></i><i class="hm-c l2"></i><i class="hm-c l3"></i><i class="hm-c l4"></i><span>Bigger session</span></div>
   </section>`;
 }
+// ── Analytics: plans → exercises → weight progression → bar speed at one weight ──
+// Calculations in features/training/services/analytics.js; this only draws them.
+let _an={ plan:null, ex:null, load:null, rec:null };
+const AN_CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+function anRecords(){ try{ const r=JSON.parse(localStorage.getItem('arete_velocity_sets')||'[]'); return Array.isArray(r)?r:[]; }catch(e){ return []; } }
+function anGo(level,val){
+  if(level==='plan'){ _an={ plan:val, ex:null, load:null, rec:null }; }
+  else if(level==='ex'){ _an.ex=val; _an.load=null; _an.rec=null; }
+  else if(level==='load'){ _an.load=val; _an.rec=null; }
+  else if(level==='rec'){ _an.rec=_an.rec===val?null:val; }
+  else if(level==='back'){ if(_an.load!=null){ _an.load=null; _an.rec=null; } else if(_an.ex){ _an.ex=null; } else _an.plan=null; }
+  renderAnalytics();
+  if(level!=='rec') scrollMainTop();
+}
+function anPickLoad(kg){ anGo('load', kg); }
+function renderAnalytics(){
+  const host=document.getElementById('view-analytics'); if(!host) return;
+  const A=window.TrainAnalytics, T=window.Training;
+  if(!A||!T){ host.innerHTML='<div class="card"><div class="empty"><p>Loading…</p></div></div>'; return; }
+  const workouts=realHistory(), records=anRecords();
+  const back=(label)=>`<button class="an-back" onclick="anGo('back')">‹ ${esc(label)}</button>`;
+
+  // Level 4: speed at one weight
+  if(_an.ex && _an.load!=null){
+    const r=A.speedAtWeight(_an.ex,_an.load,workouts,records);
+    const kg=Math.round(_an.load*100)/100;
+    let body='';
+    if(r.change){
+      const pct=Math.round(r.change.pct), up=pct>0;
+      body+=`<section class="card an-card">
+        <div class="an-big"><b class="${pct===0?'':up?'up':'down'}">${pct===0?'Same':(up?'+':'−')+Math.abs(pct)+'%'}</b><span>${pct===0?'speed':up?'faster':'slower'} at ${esc(kg)} kg since ${esc(F.fmtDate(r.change.since))}</span></div>
+        <div class="an-note">${r.change.from.toFixed(2)} → ${r.change.to.toFixed(2)} m/s. ${up?'The same weight moves faster: it has got easier for you.':pct<0?'The same weight moves slower than it did. One slow day can be fatigue; watch the trend.':'No change yet.'}</div>
+      </section>`;
+    }
+    if(r.points.length) body+=`<section class="card an-card"><div class="an-k">Bar speed at ${esc(kg)} kg · camera estimate</div>${speedChart(r.points)}
+      ${r.points.slice().reverse().map(p=>`<button class="an-sess${_an.rec===p.recordId?' on':''}" onclick="anGo('rec','${jsName(p.recordId)}')"><span>${esc(F.fmtDate(p.at))}</span><span>${p.speed.toFixed(2)} m/s</span></button>${_an.rec===p.recordId?renderVelocityResult(p.record):''}`).join('')}
+      <div class="an-note">Each point is that day's first set at this weight: the fastest of its first three reps.</div></section>`;
+    if(r.reason) body+=`<section class="card an-card"><div class="an-note" style="margin:0">${esc(r.reason)}</div></section>`;
+    if(r.relative.length) body+=`<section class="card an-card"><div class="an-k">Tracked without your height</div>${r.relative.slice().reverse().map(x=>`<div class="an-sess"><span>${esc(F.fmtDate(x.at))}</span><span>${Number.isFinite(x.record.lossPct)?Math.round(x.record.lossPct)+'% speed loss':x.record.counted+' reps'}</span></div>`).join('')}</section>`;
+    host.innerHTML=`${back(_an.ex)}<h2 class="an-h">${esc(kg)} kg<em>.</em></h2><div class="an-sub">${esc(_an.ex)}: how this weight moved over time.</div>${body}`;
+    return;
+  }
+
+  // Level 3: weight progression for one exercise
+  if(_an.ex){
+    const h=exHistory(_an.ex, workouts);
+    const weights=A.trackedWeights(_an.ex,workouts,records);
+    let chart='';
+    if(h.length>=2){
+      const first=h[0], last=h[h.length-1], best=h.reduce((a,b)=>b.top>a.top?b:a,h[0]);
+      const d=Math.round((last.top-first.top)*10)/10;
+      chart=`<section class="card an-card">
+        <div class="an-big"><b class="${d>0?'up':d<0?'down':''}">${d>0?'+':''}${d} kg</b><span>top set since ${esc(F.fmtDate(first.t))} · best ${esc(best.top)} kg</span></div>
+        ${progChart(h, weights.length?'anPickLoad':'', weights.map(w=>w.loadKg))}
+        <div class="an-note">Top working-set weight each session, from every session of this exercise.${weights.length?' Tap a weight below, or a point at a filmed weight, for its bar speed.':''}</div></section>`;
+    } else {
+      chart=`<section class="card an-card"><div class="an-note" style="margin:0">${h.length?'One session logged with a weight. After the next one, the progression graph shows here.':'No sessions with a weight logged yet.'}</div></section>`;
+    }
+    const chips=weights.length
+      ? `<section class="card an-card"><div class="an-k">Bar speed by weight</div><div class="an-chips">${weights.map(w=>`<button class="an-chip" onclick="anPickLoad(${w.loadKg})"><b>${esc(w.loadKg)} kg</b><span>${w.sessions} session${w.sessions===1?'':'s'} · ${w.sets} set${w.sets===1?'':'s'}</span></button>`).join('')}</div></section>`
+      : `<section class="card an-card"><div class="an-k">Bar speed by weight</div><div class="an-note" style="margin:0">Track a set of this exercise with the camera and its speed shows here, by weight.</div></section>`;
+    host.innerHTML=`${back(_an.plan&&_an.plan.name||'Exercises')}<h2 class="an-h">${esc(_an.ex)}<em>.</em></h2><div class="an-sub">${h.length} session${h.length===1?'':'s'} logged</div>${chart}${chips}`;
+    return;
+  }
+
+  // Level 2: exercises in a plan
+  if(_an.plan){
+    const p=_an.plan;
+    const rows=p.exercises.map(n=>{ const sm=A.exerciseSummary(n,workouts);
+      const last=sm.last&&sm.last.weight!=null?`Last ${sm.last.weight} kg${sm.last.reps!=null?' × '+sm.last.reps:''} · ${sm.sessions} session${sm.sessions===1?'':'s'}`:'Not logged yet';
+      return `<button class="an-row" onclick="anGo('ex','${jsName(n)}')"><div class="t"><b>${esc(n)}</b><span>${esc(last)}</span></div>${AN_CHEV}</button>`; }).join('');
+    host.innerHTML=`${back('Plans')}<h2 class="an-h">${esc(p.name)}<em>.</em></h2><div class="an-sub">${p.exercises.length} exercise${p.exercises.length===1?'':'s'}. Tap one for its weight progression.</div>
+      <section class="card an-list">${rows||'<div class="an-row"><div class="t"><span>No exercises in this plan.</span></div></div>'}</section>`;
+    return;
+  }
+
+  // Level 1: plans
+  const plans=A.plansFromStore(T.loadStore(),workouts,T.localKey());
+  window._anPlans=plans;
+  const list=plans.length
+    ? `<section class="card an-list">${plans.map((p,i)=>`<button class="an-row" onclick="anGo('plan',window._anPlans[${i}])"><div class="t"><b>${esc(p.name)}${p.current?'<i class="an-tag">Current</i>':''}</b><span>${p.from?'From '+esc(fmtDay(p.from))+' · ':''}${p.sessions} session${p.sessions===1?'':'s'} · ${p.exercises.length} exercise${p.exercises.length===1?'':'s'}</span></div>${AN_CHEV}</button>`).join('')}</section>`
+    : `<section class="card an-card"><div class="an-note" style="margin:0">No plans or workouts yet. Create a plan or log a workout and your analytics build up here.</div><button class="btn btn-p td-cta" style="margin-top:12px" onclick="setTab('plan')">Create your plan</button></section>`;
+  host.innerHTML=`${workouts.length?heatmapHtml():''}<h2 class="an-h">Your plans<em>.</em></h2><div class="an-sub">Pick a plan, then an exercise, to see your weight progression and how each weight got easier.</div>${list}`;
+  const hm=document.getElementById('hm-scroll'); if(hm) hm.scrollLeft=hm.scrollWidth;
+}
+// Bar speed over time at one weight: a point per session and the line through them.
+function speedChart(points){
+  const W=460,H=170,P={l:40,r:16,t:16,b:22};
+  const t0=points[0].at, t1=points[points.length-1].at;
+  const xs=(t)=>P.l+(W-P.l-P.r)*(t1===t0?.5:(t-t0)/(t1-t0));
+  let lo=Math.min(...points.map(p=>p.speed)), hi=Math.max(...points.map(p=>p.speed));
+  if(hi-lo<0.05){ lo-=0.05; hi+=0.05; }
+  const pad=(hi-lo)*.15; lo-=pad; hi+=pad;
+  const ys=(v)=>P.t+(H-P.t-P.b)*(1-(v-lo)/(hi-lo));
+  const pts=points.map(p=>[xs(p.at),ys(p.speed)]);
+  const grid=[0,.5,1].map(f=>{ const v=lo+(hi-lo)*f, y=ys(v); return `<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="rgba(0,0,0,.06)"/><text x="${P.l-6}" y="${y+3.5}" text-anchor="end" font-size="9" font-weight="600" fill="#AEAEB2">${v.toFixed(2)}</text>`; }).join('');
+  const fmtD=(t)=>new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Bar speed in metres per second at this weight, by date">
+    ${grid}<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#1E7F36" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="4.5" fill="#1E7F36" stroke="#fff" stroke-width="2"><title>${fmtD(points[i].at)}: ${points[i].speed.toFixed(2)} m/s</title></circle>`).join('')}
+    <text x="${P.l}" y="${H-6}" font-size="9" font-weight="600" fill="#AEAEB2">${fmtD(t0)}</text>
+    <text x="${W-P.r}" y="${H-6}" text-anchor="end" font-size="9" font-weight="600" fill="#AEAEB2">${fmtD(t1)}</text>
+  </svg>`;
+}
 function renderHistory(){
   const host=document.getElementById('view-history');
   const list=completed();
@@ -2633,7 +2742,7 @@ function renderHistory(){
   // 7-day volume
   const wk = list.filter(w=>w.completedAt > Date.now()-7*864e5);
   const wkSets = wk.reduce((n,w)=>n+w.exercises.reduce((m,e)=>m+e.sets.filter(s=>s.type==='working'&&s.completed).length,0),0);
-  host.innerHTML = `${heatmapHtml()}
+  host.innerHTML = `
     <div class="card" style="padding:16px;margin-bottom:14px;display:flex;gap:24px;flex-wrap:wrap">
       <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${wk.length}</div><div style="font-size:11px;color:var(--t3)">Workouts this week</div></div>
       <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${wkSets}</div><div style="font-size:11px;color:var(--t3)">Working sets (7d)</div></div>
@@ -2641,7 +2750,6 @@ function renderHistory(){
     </div>
     <div class="card">${list.map(hrow).join('')}</div>
     ${PHYSIQUE_HTML}`;
-  const hm=document.getElementById('hm-scroll'); if(hm) hm.scrollLeft=hm.scrollWidth;
   renderPhysique();
 }
 function hrow(w){
@@ -3095,7 +3203,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCatalog
     return;
   }
   const h = (location.hash || '').replace('#','');
-  setTab(['log','plan','programs','coaching','history','machines'].includes(h) ? h : 'log');
+  setTab(['log','plan','programs','coaching','analytics','history','machines'].includes(h) ? h : 'log');
 })();
 // The plan module loads after this script; refresh the Workout home once it's in.
 onTraining(()=>{ if(tab==='log' && (!active || active.paused)) renderLog(); });
@@ -3125,10 +3233,14 @@ import * as predictions from './features/velocity/services/predictions.js';
 import * as metrics from './features/velocity/services/coachMetrics.js';
 import * as readiness from './features/velocity/services/readiness.js';
 import * as setChain from './features/velocity/services/setChain.js';
+import * as trainAnalytics from './features/training/services/analytics.js';
 import * as progression from './features/training/services/progression.js';
 window.VelocityWorkout=tracking;
 window.VelocityReadiness=readiness;
 window.VelocityChain=setChain;
+window.TrainAnalytics=trainAnalytics;
+if(tab==='analytics') renderAnalytics();
+window.addEventListener('training-ready',()=>{ if(tab==='analytics') renderAnalytics(); });
 window.Progression=progression;
 window.VelocityPredictions=predictions;
 window.VelocityCoachMetrics=metrics;

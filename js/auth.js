@@ -94,7 +94,8 @@ window.Auth = (() => {
   // belong to this phone only (the user's own Anthropic key, Oura/Strava/WHOOP/Fitbit tokens), plus
   // large scratch data. A user's row is only readable/writable by that user (Row-Level Security,
   // supabase/schema.sql).
-  const NOT_DATA = new Set(['arete_session', 'arete_accounts', 'arete_owner', 'arete_anthropic_key', 'arete_splash', 'arete_sync_pending']);
+  const NOT_DATA = new Set(['arete_session', 'arete_accounts', 'arete_owner', 'arete_anthropic_key', 'arete_splash', 'arete_sync_pending',
+    'arete_sets_sent', 'arete_sets_deleted', 'arete_sets_status']);   // per-device bookkeeping for js/setSync.js
   const SECRETISH = /(token|secret|password|api_?key|_key$)/i;
   const isDataKey = (k) => typeof k === 'string'
     && (k.indexOf('jarvis_') === 0 || k.indexOf('arete_') === 0)
@@ -106,7 +107,7 @@ window.Auth = (() => {
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (isDataKey(k) || k === 'arete_anthropic_key' || k === 'arete_sync_pending' || ((k || '').match(/^(jarvis|arete)_/) && SECRETISH.test(k))) keys.push(k);
+      if (isDataKey(k) || k === 'arete_anthropic_key' || k === 'arete_sync_pending' || /^arete_sets_/.test(k || '') || ((k || '').match(/^(jarvis|arete)_/) && SECRETISH.test(k))) keys.push(k);
     }
     keys.forEach(k => { try { origRemove(k); } catch {} });
   }
@@ -162,7 +163,11 @@ window.Auth = (() => {
   const origSet = localStorage.setItem.bind(localStorage), origRemove = localStorage.removeItem.bind(localStorage);
   function watch() {
     if (watching) return; watching = true;
-    localStorage.setItem = function (k, v) { origSet(k, v); if (isDataKey(k)) { markPending(); schedulePush(); } };
+    localStorage.setItem = function (k, v) {
+      origSet(k, v);
+      if (isDataKey(k)) { markPending(); schedulePush(); }
+      if ((k === 'jarvis_workouts' || k === 'arete_velocity_sets') && typeof window !== 'undefined' && window.SetSync) window.SetSync.schedule();
+    };
     localStorage.removeItem = function (k) { origRemove(k); if (isDataKey(k)) { markPending(); schedulePush(); } };
     const flush = () => { if (pendingSince()) { clearTimeout(pushTimer); push(); } };
     if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
@@ -269,6 +274,6 @@ window.Auth = (() => {
     CFG, isConfigured, getClient, getUser, getSession,
     signUpEmail, signInEmail, resetPassword, resendConfirmation, updatePassword, providers, sendPhoneCode, verifyPhoneCode, signOut, signInOAuth,
     localSignUp, localSignIn, localSession, localSignOut, sessionAny, signOutAny,
-    pull, push, watch, authHeaders, deleteAccount,
+    pull, push, watch, authHeaders, deleteAccount, isPulled: () => !!pulledFor,
   };
 })();
