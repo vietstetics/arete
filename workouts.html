@@ -1759,8 +1759,8 @@ function exHistory(name, src){
     })
     .filter(Boolean).sort((a, b) => a.t - b.t);
 }
-function progChart(h, pick, loads, H=170){
-  const canPick=(kg)=>pick && (!loads || loads.some(l=>Math.abs(l-kg)<=Math.max(1,0.025*l)));
+function progChart(h, pick, sel, H=170){
+  const isSel=(kg)=>sel!=null && Math.abs(kg-sel)<=Math.max(1,0.025*sel);
   const W=460, P={l:36, r:16, t:16, b:22};
   const xs = i => P.l + (W-P.l-P.r) * (h.length === 1 ? 0.5 : i/(h.length-1));
   let lo = Math.min(...h.map(x=>x.top)), hi = Math.max(...h.map(x=>x.top));
@@ -1780,7 +1780,7 @@ function progChart(h, pick, loads, H=170){
     const lbl = i===h.length-1
       ? `<text x="${cx}" y="${cy-9}" text-anchor="end" font-size="10" font-weight="700" fill="#1D1D1F">${x.top}</text>`
       : (i===bestI && x.top!==h[h.length-1].top ? `<text x="${cx}" y="${cy-9}" text-anchor="middle" font-size="9" font-weight="600" fill="#6E6E73">${x.top}</text>` : '');
-    return `<g>${lbl}<circle cx="${cx}" cy="${cy}" r="4" fill="#5E5CE6" stroke="#fff" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="13" fill="transparent"${canPick(x.top)?` style="cursor:pointer" onclick="${pick}(${x.top})"`:''}><title>${fmtD(x.date)} — ${x.top}kg × ${x.reps}\n${x.setsTxt}</title></circle></g>`;
+    return `<g>${lbl}${isSel(x.top)?`<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="#1E7F36" stroke-width="2.5"/>`:''}<circle cx="${cx}" cy="${cy}" r="4" fill="${isSel(x.top)?'#1E7F36':'#5E5CE6'}" stroke="#fff" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="13" fill="transparent"${pick?` style="cursor:pointer" role="button" aria-label="Bar speed at ${x.top} kg" onclick="${pick}(${x.top})"`:''}><title>${fmtD(x.date)} — ${x.top}kg × ${x.reps}\n${x.setsTxt}</title></circle></g>`;
   }).join('');
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Top set weight per session">
     ${grid}
@@ -2645,7 +2645,7 @@ function anGo(level,val){
   renderAnalytics();
   if(level!=='rec' && level!=='load') scrollMainTop();
 }
-function anPickLoad(kg){ anGo('load', kg); }
+function anPickLoad(kg){ anGo('load', kg); const el=document.getElementById('an-speed'); if(el) el.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
 // Analytics preview: made-up training, built in memory only (never stored, never synced) and labelled
 // as sample data wherever it shows. Deterministic, so the preview looks the same each time.
 let _anSample=false, _anSampleCache=null;
@@ -2719,16 +2719,16 @@ function renderAnalytics(){
       chart=`<section class="card an-card">
         <div class="an-k">Weight</div>
         <div class="an-big sm"><b class="${d>0?'up':d<0?'down':''}">${d>0?'+':''}${d} kg</b><span>top set since ${esc(F.fmtDate(first.t))} · best ${esc(best.top)} kg</span></div>
-        ${progChart(h, weights.length?'anPickLoad':'', weights.map(w=>w.loadKg), 110)}</section>`;
+        ${progChart(h, 'anPickLoad', _an.load, 110)}<div class="an-note" style="margin-top:4px">Tap a point to see its bar speed below.</div></section>`;
     } else {
       chart=`<section class="card an-card"><div class="an-k">Weight</div><div class="an-note" style="margin:0">${h.length?'One session logged with a weight. After the next one, the progression graph shows here.':'No sessions with a weight logged yet.'}</div></section>`;
     }
     let speed;
-    if(!weights.length){
+    if(!weights.length && _an.load==null){
       speed=`<section class="card an-card"><div class="an-k">Bar speed</div><div class="an-note" style="margin:0">Track a set of this exercise with the camera and its bar speed shows here, by weight.</div></section>`;
     } else {
       const r=A.speedAtWeight(_an.ex,_an.load,workouts,records), kg=Math.round(_an.load*100)/100;
-      const chips=`<div class="an-chips">${weights.map(w=>`<button class="an-chip${Math.abs(w.loadKg-_an.load)<1e-9?' on':''}" onclick="anPickLoad(${w.loadKg})"><b>${esc(w.loadKg)} kg</b><span>${w.sessions} session${w.sessions===1?'':'s'}</span></button>`).join('')}</div>`;
+      const chips=!weights.length?'':`<div class="an-chips">${weights.map(w=>`<button class="an-chip${Math.abs(w.loadKg-_an.load)<1e-9?' on':''}" onclick="anPickLoad(${w.loadKg})"><b>${esc(w.loadKg)} kg</b><span>${w.sessions} session${w.sessions===1?'':'s'}</span></button>`).join('')}</div>`;
       let body='';
       if(r.change){
         const pct=Math.round(r.change.pct), up=pct>0;
@@ -2738,9 +2738,9 @@ function renderAnalytics(){
       if(r.points.length) body+=`${speedChart(r.points,130)}
         ${r.points.slice().reverse().map(p=>`<button class="an-sess${_an.rec===p.recordId?' on':''}" onclick="anGo('rec','${jsName(p.recordId)}')"><span>${esc(F.fmtDate(p.at))}</span><span>${p.speed.toFixed(2)} m/s</span></button>${_an.rec===p.recordId?renderVelocityResult(p.record):''}`).join('')}
         <div class="an-note">Each point is that day's first set at ${esc(kg)} kg: the fastest of its first three reps. Camera estimate.</div>`;
-      if(r.reason) body+=`<div class="an-note">${esc(r.reason)}</div>`;
+      if(r.reason) body+=`<div class="an-note">${!r.points.length&&!r.relative.length?`No camera-tracked sets at ${esc(kg)} kg yet. Film a set at this weight and its speed shows here.`:esc(r.reason)}</div>`;
       if(r.relative.length) body+=`<div class="an-k" style="margin-top:14px">Tracked without your height</div>${r.relative.slice().reverse().map(x=>`<div class="an-sess"><span>${esc(F.fmtDate(x.at))}</span><span>${Number.isFinite(x.record.lossPct)?Math.round(x.record.lossPct)+'% speed loss':x.record.counted+' reps'}</span></div>`).join('')}`;
-      speed=`<section class="card an-card" id="an-speed"><div class="an-k">Bar speed by weight</div>${chips}${body}</section>`;
+      speed=`<section class="card an-card" id="an-speed"><div class="an-k">Bar speed at ${esc(kg)} kg</div>${chips}${body}</section>`;
     }
     host.innerHTML=`${banner}${back(_an.plan&&_an.plan.name||'Exercises')}<h2 class="an-h">${esc(_an.ex)}<em>.</em></h2><div class="an-sub">${h.length} session${h.length===1?'':'s'} logged</div>${chart}${speed}`;
     return;
