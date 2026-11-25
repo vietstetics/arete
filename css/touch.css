@@ -51,7 +51,7 @@ a:focus-visible,
 .ni:focus-visible,
 .tab:focus-visible,
 .chip:focus-visible {
-  outline: 2px solid var(--vi, #5E5CE6);
+  outline: 2px solid var(--vi, #1C1C1E);
   outline-offset: 2px;
 }
 

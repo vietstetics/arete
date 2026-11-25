@@ -77,7 +77,7 @@ body { background: #F2F2F7 !important; color: var(--t1); }
 .btn-p, .btn-gr {
   background: var(--gr);
   color: #FFFFFF;
-  box-shadow: 0 6px 16px -6px rgba(30,127,54,.45);
+  box-shadow: none;
 }
 .btn-p:hover, .btn-gr:hover { background: #186A2D; }
 .btn-s { background: #FFFFFF; border-color: rgba(17,17,20,.12); }

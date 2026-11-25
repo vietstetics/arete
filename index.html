@@ -38,8 +38,8 @@
   --ord: rgba(192,85,42,0.10);
   --re:  #C0403A;
   --red: rgba(192,64,58,0.10);
-  --vi:  #5E5CE6;
-  --vid: rgba(94,92,230,0.10);
+  --vi:  #1C1C1E;
+  --vid: rgba(60,60,67,0.10);
   --gm:  rgba(0,0,0,0.04);
   --r:   18px;
   --r-sm: 12px;
@@ -141,14 +141,14 @@ textarea{font-family:inherit;resize:none}
 /* Today's training: the plan's call for today in Arete's display face, and the week it sits in. */
 .tw{background:#fff;border-radius:var(--r);box-shadow:var(--sh0);padding:20px 22px 18px;margin-bottom:12px}
 .tw:empty{display:none}
-.tw-k{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gr)}
+.tw-k{font-size:12px;font-weight:700;color:var(--gr)}
 .tw-h{font:800 46px/.95 'Barlow Condensed',Impact,'Arial Narrow',sans-serif;text-transform:uppercase;letter-spacing:-.005em;margin:6px 0 8px;color:var(--t1);overflow-wrap:anywhere}
 .tw-h em{font-style:normal;color:var(--gr)}
 .tw-p{font-size:14px;color:var(--t2);line-height:1.5}
 .tw-p b{color:var(--t1);font-weight:600}
 .tw-x{font-size:14px;color:var(--t1);line-height:1.5;margin-bottom:4px}
 .tw-m{font-size:13px;color:var(--t2);font-variant-numeric:tabular-nums}
-.tw-go{display:flex;align-items:center;justify-content:center;gap:9px;height:54px;margin-top:16px;border-radius:14px;background:var(--gr);color:#fff;text-decoration:none;font:800 24px/1 'Barlow Condensed',Impact,sans-serif;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 8px 20px -8px rgba(29,164,98,.7)}
+.tw-go{display:flex;align-items:center;justify-content:center;gap:9px;height:54px;margin-top:16px;border-radius:14px;background:var(--gr);color:#fff;text-decoration:none;font-size:16px;font-weight:600;line-height:1}
 .tw-go svg{width:15px;height:15px}
 .tw-go:active{transform:scale(.99)}
 .tw-a{display:inline-block;margin-top:12px;font-size:13.5px;font-weight:600;color:var(--t1);text-decoration:underline;text-underline-offset:3px}
@@ -253,7 +253,7 @@ textarea{font-family:inherit;resize:none}
 .task-meta{display:flex;align-items:center;gap:5px;margin-top:2px;flex-wrap:wrap}
 .task-time{font-size:10.5px;color:var(--t3)}
 .tc{padding:2px 7px;border-radius:5px;font-size:10px;font-weight:500}
-.tc-s{background:rgba(99,102,241,.15);color:#818CF8}
+.tc-s{background:rgba(60,60,67,.08);color:var(--t2)}
 .tc-f{background:var(--grd);color:var(--gr)}
 .tc-h{background:var(--vid);color:var(--vi)}
 .tc-p{background:var(--yed);color:var(--ye)}
@@ -346,7 +346,7 @@ textarea{font-family:inherit;resize:none}
 
 /* ─── JARVIS ─── */
 .jarvis-wrap{background:#FFFFFF;border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh0);transition:border-color 180ms,box-shadow 180ms;margin-bottom:6px}
-.jarvis-wrap:focus-within{border-color:var(--vi);box-shadow:0 0 0 3px rgba(94,92,230,.08),var(--sh1)}
+.jarvis-wrap:focus-within{border-color:var(--vi);box-shadow:0 0 0 3px rgba(60,60,67,.08),var(--sh1)}
 .jarvis-hd{display:flex;align-items:center;gap:6px;margin-bottom:10px}
 .jarvis-hd-t{font-size:11px;font-weight:500;color:var(--vi)}
 .jarvis-in{width:100%;background:transparent;border:none;outline:none;color:var(--t1);font-size:14px;line-height:1.5;min-height:20px;max-height:100px;overflow-y:auto}
@@ -465,7 +465,7 @@ textarea{font-family:inherit;resize:none}
 .ci-src-tx small{font-size:11.5px;color:#9DA9A2;margin-top:1px}
 .ci-src-go{color:#C7C7CC;font-size:22px;font-weight:300;line-height:1}
 .ci-src-status{font-size:12.5px;color:#6E6E73;min-height:18px;margin-bottom:10px;text-align:center;max-width:380px;line-height:1.5}
-.ci-src-status.busy{color:var(--vi,#5E5CE6)}
+.ci-src-status.busy{color:var(--vi,#1C1C1E)}
 .ci-src-status.warn{color:var(--ye,#B07D28)}
 
 /* SKIP BANNER (on dashboard) */
@@ -770,7 +770,7 @@ html.splash-on body{overflow:hidden}
     <div class="av">J</div>
     <div class="av-info">
       <div class="av-name">Joseph N.</div>
-      <div class="av-plan">Arete Pro</div>
+      <div class="av-plan">Account</div>
     </div>
   </a>
 </aside>
@@ -1529,7 +1529,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(!T){ host.innerHTML=''; return; }
     var tk=T.localKey(), store=T.loadStore(), plan=T.currentPlan(store,tk);
     if(!plan){
-      host.innerHTML='<div class="tw-k">Today · '+esc(today)+'</div>'+title('No plan yet')
+      host.innerHTML='<div class="tw-k">Today</div>'+title('No plan yet')
         +'<p class="tw-p">Create a plan and your workout for each day shows up here.</p>'
         +'<a class="tw-go" href="workouts.html#plan">Create your plan</a>';
       return;
@@ -1540,15 +1540,15 @@ window.addEventListener('DOMContentLoaded', () => {
     if(s&&!done){
       var ex=s.routine.exercises||[], sets=ex.reduce(function(a,e){ return a+(+e.sets||0); },0);
       var names=ex.slice(0,4).map(function(e){ return esc(e.name); }).join(' · ')+(ex.length>4?' · +'+(ex.length-4)+' more':'');
-      host.innerHTML='<div class="tw-k">Today · '+esc(today)+'</div>'+title(s.routine.name)
+      host.innerHTML='<div class="tw-k">Today</div>'+title(s.routine.name)
         +(names?'<div class="tw-x">'+names+'</div>':'')
         +'<div class="tw-m">'+ex.length+' exercise'+(ex.length===1?'':'s')+' · '+sets+' sets · about '+(Math.round((sets*2.5+8)/5)*5)+' min</div>'
         +'<a class="tw-go" href="workouts.html?start=today">'+PLAY+'Train</a>'+week(T,store,tk);
     } else if(s){
-      host.innerHTML='<div class="tw-k">Today · '+esc(today)+'</div>'+title('Done')
+      host.innerHTML='<div class="tw-k">Today</div>'+title('Done')
         +'<p class="tw-p"><b>'+esc(s.routine.name)+'</b> is logged. '+nextTxt+'</p>'+week(T,store,tk);
     } else {
-      host.innerHTML='<div class="tw-k">Today · '+esc(today)+'</div>'+title('Rest')
+      host.innerHTML='<div class="tw-k">Today</div>'+title('Rest')
         +'<p class="tw-p">No training on your plan today. '+nextTxt+'</p>'
         +'<a class="tw-a" href="workouts.html">Train anyway</a>'+week(T,store,tk);
     }
@@ -1601,13 +1601,13 @@ window.addEventListener('DOMContentLoaded', () => {
 <script>
 // Header: today's date, and workouts finished since Monday (from your log; sample data excluded).
 (function () {
-  // Greeting from the phone's own clock: morning before 12, afternoon until 5 pm, evening after.
+  // Title: the date from the phone's own clock.
   const paint = () => {
-    const now = new Date(), h = now.getHours();
+    const now = new Date();
     const hi = document.getElementById('hdr-hi');
-    if (hi) hi.textContent = h >= 5 && h < 12 ? 'Good morning' : h >= 12 && h < 17 ? 'Good afternoon' : 'Good evening';
+    if (hi) hi.textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
     const d = document.getElementById('hdr-date');
-    if (d) d.textContent = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    if (d) d.textContent = '';
   };
   paint();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) paint(); });

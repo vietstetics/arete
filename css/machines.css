@@ -35,7 +35,7 @@
 
 /* ── Lists ─────────────────────────────────────────────────────────────── */
 .mc-sec + .mc-sec { margin-top: 12px; }
-.mc-sec-h { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; padding: 4px 4px 6px; }
+.mc-sec-h { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--t3); padding: 4px 4px 6px; }
 .mc-sec-h span { font-variant-numeric: tabular-nums; }
 .mc-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 8px; border-radius: 11px; color: var(--t1); }
 .mc-row:hover { background: var(--s2); }
@@ -89,7 +89,7 @@
 .mc-d-n { font-size: 18px; font-weight: 750; letter-spacing: -.02em; line-height: 1.25; margin: 2px 0; }
 .mc-dl > div { display: grid; grid-template-columns: 132px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--bd); }
 .mc-dl > div:last-child { border-bottom: 0; }
-.mc-dl dt { font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; padding-top: 2px; }
+.mc-dl dt { font-size: 11px; font-weight: 700; color: var(--t3); padding-top: 2px; }
 .mc-dl dd { font-size: 13px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
 .mc-dl dd small { color: var(--t3); font-size: 11.5px; }
 .mc-src { font-size: 11.5px; color: var(--t3); margin-top: 4px; }
@@ -103,7 +103,7 @@
 .mc-tl li span { font-size: 11.5px; color: var(--t3); }
 .mc-ul { padding-left: 16px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--t2); }
 .mc-flags { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--yed, rgba(168,123,31,.12)); }
-.mc-flags-h { font-size: 11px; font-weight: 700; color: var(--ye); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.mc-flags-h { font-size: 11px; font-weight: 700; color: var(--ye); margin-bottom: 4px; }
 .mc-flags ul { padding-left: 16px; font-size: 12.5px; line-height: 1.5; color: var(--t1); display: flex; flex-direction: column; gap: 3px; }
 @media (max-width: 520px) { .mc-dl > div { grid-template-columns: 1fr; gap: 3px; } }
 
@@ -114,7 +114,7 @@
 .mc-bs { font-size: 12.5px; color: var(--t2); margin-top: 2px; max-width: 62ch; }
 .mc-filters { padding: 12px 18px 10px; border-bottom: 1px solid var(--bd); }
 .mc-fr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.mc-fr label { display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; min-width: 0; }
+.mc-fr label { display: flex; flex-direction: column; gap: 4px; font-size:11px; font-weight: 700; color: var(--t3); min-width: 0; }
 .mc-fr .mc-select { width: 100%; text-transform: none; letter-spacing: 0; font-weight: 500; }
 .mc-count { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--t3); font-variant-numeric: tabular-nums; }
 .mc-list { padding: 6px 10px 12px; }

@@ -30,7 +30,7 @@ html.tw-lock, html.tw-lock body { overflow: hidden; }
 .tw-h { font-size: 24px; font-weight: 800; letter-spacing: -.03em; line-height: 1.2; margin-bottom: 16px; text-wrap: balance; }
 .tw-p { font-size: 13.5px; color: var(--t2); line-height: 1.55; margin: -6px 0 16px; max-width: 52ch; }
 .tw-p.small { font-size: 12px; margin: 8px 2px 0; }
-.tw-lbl { display: block; font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .06em; margin: 22px 2px 8px; }
+.tw-lbl { display: block; font-size: 11px; font-weight: 700; color: var(--t3); margin: 22px 2px 8px; }
 .tw-lbl-row { display: flex; align-items: center; justify-content: space-between; }
 
 .tw-foot { background: #fff; border-top: 1px solid var(--bd); padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
@@ -104,7 +104,7 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .tw-cal-h, .tw-cal-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .tw-cal-h span { text-align: center; font-size: 11px; font-weight: 700; color: var(--t3); padding-bottom: 6px; }
 .tw-cal-c { position: relative; aspect-ratio: 1; border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--t3); font-variant-numeric: tabular-nums; }
-.tw-cal-c em { position: absolute; top: 2px; left: 4px; font-style: normal; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: var(--t2); }
+.tw-cal-c em { position: absolute; top: 2px; left: 4px; font-style: normal; font-size:10px; font-weight: 800; color: var(--t2); }
 .tw-cal-c.train { background: var(--lime); color: var(--t1); font-weight: 800; }
 .tw-cal-c.train em { color: rgba(23,27,18,.7); }
 .tw-cal-c b { font-size: 8.5px; font-weight: 800; line-height: 1; }
@@ -139,7 +139,7 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .tw-sides button { flex: 1; min-height: 40px; border-radius: 9px; font-size: 13px; font-weight: 700; color: var(--t2); }
 .tw-sides button[aria-pressed="true"] { background: var(--s1); color: var(--t1); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
 .tw-x-note { font-size: 12px; color: var(--t2); margin-top: 6px; }
-.tw-x-f label { display: flex; flex-direction: column; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; min-width: 0; }
+.tw-x-f label { display: flex; flex-direction: column; gap: 4px; font-size:11px; font-weight: 700; color: var(--t3); min-width: 0; }
 .tw-range { display: flex; align-items: center; gap: 4px; }
 .tw-range i { font-style: normal; color: var(--t3); }
 /* Plan-wide rep range, above the workouts it fills in. */
@@ -180,7 +180,7 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .tp-head { display: flex; align-items: center; gap: 12px; }
 .tp-badge { width: 40px; height: 40px; border-radius: 50%; background: var(--gr); color: #fff; display: grid; place-items: center; flex-shrink: 0; }
 .tp-badge svg { width: 18px; height: 18px; }
-.tp-when { font-size: 12px; font-weight: 700; color: var(--gr); text-transform: uppercase; letter-spacing: .06em; }
+.tp-when { font-size: 12px; font-weight: 700; color: var(--gr); }
 .tp-h { font-size: 24px; font-weight: 800; letter-spacing: -.03em; line-height: 1.15; margin-top: 2px; text-wrap: balance; }
 .tp-sub { font-size: 13px; color: var(--t2); margin-top: 2px; }
 .tp-empty .tp-h { font-size: 18px; margin: 4px 0 14px; max-width: 30ch; }
@@ -236,7 +236,7 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .ov { margin-top: 14px; padding: 12px 12px 10px; border-radius: 14px; background: var(--s2); }
 .ov-h { font-size: 12px; font-weight: 800; letter-spacing: .02em; color: var(--t1); margin-bottom: 4px; }
 .ov-empty .tw-p.small { margin: 4px 0 0; }
-.ov-sub { font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .06em; margin: 12px 0 6px; }
+.ov-sub { font-size: 11px; font-weight: 700; color: var(--t3); margin: 12px 0 6px; }
 .ov-sub:first-child { margin-top: 2px; }
 .ov-unl { font-size: 12px; color: var(--t2); line-height: 1.45; margin: 4px 0 8px; }
 .ov-t { background: #fff; border: 1px solid var(--bd); border-radius: 12px; padding: 9px 10px; margin-top: 8px; }
@@ -268,13 +268,13 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .ov-sess li span { color: var(--t2); }
 .ov-wk { overflow-x: auto; background: #fff; border: 1px solid var(--bd); border-radius: 12px; }
 .ov-wk table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.ov-wk th { text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t3); padding: 8px 10px 6px; }
+.ov-wk th { text-align: left; font-size:11px; font-weight: 700; color: var(--t3); padding: 8px 10px 6px; }
 .ov-wk td { padding: 7px 10px; border-top: 1px solid var(--bd); vertical-align: top; }
 .ov-wk td small { display: block; font-size: 11px; color: var(--t3); }
 .ov-wk .st-covered { color: var(--gr); font-weight: 700; }
 .ov-wk .st-missing { color: var(--t2); font-weight: 700; }
 .ov-wk .st-undetermined, .ov-wk .st-observed { color: var(--t3); }
-.ov-rec { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 10.5px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; }
+.ov-rec { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size:11px; font-weight: 700; color: var(--t3); }
 .ov-rec select { text-transform: none; letter-spacing: 0; font-weight: 600; }
 .ov-det { margin-top: 8px; font-size: 12px; }
 .ov-det-eq { font-weight: 700; color: var(--t2); margin-bottom: 4px; }
@@ -286,7 +286,7 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .ov-tp summary { cursor: pointer; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
 .ov-tp summary span { font-size: 12px; font-weight: 600; color: var(--t3); }
 .ov-tp fieldset { border: 0; padding: 0; margin: 10px 0 0; }
-.ov-tp legend { font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.ov-tp legend { font-size: 11px; font-weight: 700; color: var(--t3); margin-bottom: 4px; }
 .ov-tp label { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 13px; cursor: pointer; }
 .ov-tp label input { margin-top: 3px; accent-color: var(--gr); }
 .ov-tp label small { display: block; font-size: 11.5px; color: var(--t3); }
@@ -305,7 +305,7 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .pg.in-workout .ph { display: none; }            /* training: just the session */
 .td { max-width: 720px; }
 .td-hero { padding: 20px 18px 18px; margin-bottom: 14px; }
-.td-eye { font-size: 12px; font-weight: 700; color: var(--gr); text-transform: uppercase; letter-spacing: .06em; }
+.td-eye { font-size: 12px; font-weight: 700; color: var(--gr); }
 .td-h { font-size: 24px; font-weight: 800; letter-spacing: -.03em; line-height: 1.15; margin-top: 3px; text-wrap: balance; }
 .td-sub, .td-p { font-size: 13.5px; color: var(--t2); margin-top: 4px; line-height: 1.5; }
 .td-cta { width: 100%; justify-content: center; min-height: 52px; margin-top: 16px; font-size: 15px; font-weight: 700; border-radius: 15px; }
@@ -317,7 +317,7 @@ select.tw-in { appearance: none; background-image: linear-gradient(45deg, transp
 .td-setup-b b { font-size: 14px; }
 .td-setup-b span { font-size: 12.5px; color: var(--t2); line-height: 1.45; }
 .td-setup .btn { flex-shrink: 0; }
-.td-sec { font-size: 12px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .06em; margin: 22px 4px 8px; }
+.td-sec { font-size: 12px; font-weight: 700; color: var(--t3); margin: 22px 4px 8px; }
 .td-list { overflow: hidden; }
 .td-row { display: flex; align-items: center; border-bottom: 1px solid var(--bd); }
 .td-row:last-child { border-bottom: 0; }
@@ -367,13 +367,13 @@ button.ex-name:hover { color: var(--gr); }
 #view-plan { max-width: 880px; }
 .po { padding: 18px 18px 16px; margin-bottom: 14px; }
 .po-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.po-eye { font-size: 12px; font-weight: 700; color: var(--gr); text-transform: uppercase; letter-spacing: .06em; }
+.po-eye { font-size: 12px; font-weight: 700; color: var(--gr); }
 .po-h { font-size: 22px; font-weight: 800; letter-spacing: -.03em; line-height: 1.2; margin-top: 2px; }
 .po-sub { font-size: 13px; color: var(--t2); margin-top: 2px; }
 .po-sub b { color: var(--t1); font-variant-numeric: tabular-nums; }
 .po-p { font-size: 13.5px; color: var(--t2); line-height: 1.55; margin-top: 6px; max-width: 58ch; }
 .po-cta { width: 100%; justify-content: center; min-height: 52px; margin-top: 16px; font-size: 15px; font-weight: 700; border-radius: 15px; }
-.po-lbl { font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase; letter-spacing: .06em; margin: 18px 2px 8px; }
+.po-lbl { font-size: 11px; font-weight: 700; color: var(--t3); margin: 18px 2px 8px; }
 .po-week { border: 1px solid var(--bd); border-radius: 14px; overflow: hidden; }
 .po-day { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 10px; min-height: 46px; padding: 0 12px; border-bottom: 1px solid var(--bd); font-size: 13.5px; }
 .po-day:last-child { border-bottom: 0; }

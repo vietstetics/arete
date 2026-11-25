@@ -93,7 +93,7 @@ function card(a, status, caps, available) {
   const badge = connected
     ? '<span style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(29,164,98,.1);color:#1DA462">Connected</span>'
     : soon ? '<span style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(0,0,0,.05);color:#AEAEB2">Coming soon</span>'
-    : available ? '<span style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(94,92,230,.1);color:#5E5CE6">Ready</span>'
+    : available ? '<span style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(60,60,67,.1);color:#1C1C1E">Ready</span>'
     : '<span style="font-size:11px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(0,0,0,.05);color:#AEAEB2">' + (via ? 'Via Connections' : 'In the app') + '</span>';
 
   const last = status.lastSyncAt
