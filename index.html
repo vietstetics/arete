@@ -13,6 +13,7 @@
 <script src="js/auth.js"></script>
 <script src="js/setSync.js"></script>
 <script src="js/authguard.js"></script>
+<script>/* A new account closed mid-way through the first-run questions: finish them first. */ if (window.Auth && Auth.needsOnboarding && Auth.needsOnboarding()) location.replace('onboarding.html');</script>
 <title>Arete</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

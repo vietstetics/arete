@@ -95,7 +95,14 @@ window.Auth = (() => {
   // large scratch data. A user's row is only readable/writable by that user (Row-Level Security,
   // supabase/schema.sql).
   const NOT_DATA = new Set(['arete_session', 'arete_accounts', 'arete_owner', 'arete_anthropic_key', 'arete_splash', 'arete_sync_pending',
-    'arete_sets_sent', 'arete_sets_deleted', 'arete_sets_status']);   // per-device bookkeeping for js/setSync.js
+    'arete_sets_sent', 'arete_sets_deleted', 'arete_sets_status',   // per-device bookkeeping for js/setSync.js
+    'arete_onboarding']);                                            // this phone still owes the first-run questions
+  // First-run questions (onboarding.html) are owed only by a brand-new account: one with no cloud row
+  // yet, or a device account created just now. Answers live in jarvis_profile, which syncs, so a
+  // second phone never asks again.
+  const ONBOARD_KEY = 'arete_onboarding', PROFILE_KEY = 'jarvis_profile';
+  const needsOnboarding = () => { try { return localStorage.getItem(ONBOARD_KEY) === '1' && !localStorage.getItem(PROFILE_KEY); } catch { return false; } };
+  const clearOnboarding = () => { try { localStorage.removeItem(ONBOARD_KEY); } catch {} };
   const SECRETISH = /(token|secret|password|api_?key|_key$)/i;
   const isDataKey = (k) => typeof k === 'string'
     && (k.indexOf('jarvis_') === 0 || k.indexOf('arete_') === 0)
@@ -123,7 +130,7 @@ window.Auth = (() => {
     const c = await getClient(); const u = await getUser(); if (!u) return false;
     // Another account used this device last: clear its data so it never lands in this account.
     const owner = localStorage.getItem(OWNER_KEY);
-    if (owner && owner !== u.id) { wipeLocalData(); try { origRemove(PENDING_KEY); } catch {} }
+    if (owner && owner !== u.id) { wipeLocalData(); try { origRemove(PENDING_KEY); origRemove(ONBOARD_KEY); } catch {} }
     // Unsent changes from this account on this phone are newer than the cloud copy: keep them, send them.
     if (owner === u.id && pendingSince()) { pulledFor = u.id; schedulePush(0); return true; }
     const { data, error } = await c.from('user_data').select('data').eq('user_id', u.id).maybeSingle();
@@ -132,7 +139,10 @@ window.Auth = (() => {
     for (const k in remote) { if (isDataKey(k) && typeof remote[k] === 'string') { try { origSet(k, remote[k]); } catch {} } }
     localStorage.setItem(OWNER_KEY, u.id);
     pulledFor = u.id;
-    if (!data) schedulePush();                                // new account: upload this device's data
+    if (!data) {                                              // new account: upload this device's data
+      if (!localStorage.getItem(PROFILE_KEY)) { try { origSet(ONBOARD_KEY, '1'); } catch {} }
+      schedulePush();
+    }
     return true;
   }
   let pushTimer = null, pushing = false, again = false;
@@ -228,6 +238,7 @@ window.Auth = (() => {
     acc[email] = { salt, hash: await _hash(pw, salt), createdAt: Date.now() };
     localStorage.setItem(ACC_KEY, JSON.stringify(acc));
     localStorage.setItem(SES_KEY, JSON.stringify({ email, at: Date.now() }));
+    if (!localStorage.getItem(PROFILE_KEY)) localStorage.setItem(ONBOARD_KEY, '1');
     return { email };
   }
   async function localSignIn(email, pw) {
@@ -239,7 +250,7 @@ window.Auth = (() => {
     return { email };
   }
   function localSession() { try { return JSON.parse(localStorage.getItem(SES_KEY)); } catch { return null; } }
-  function localSignOut() { localStorage.removeItem(SES_KEY); }
+  function localSignOut() { localStorage.removeItem(SES_KEY); clearOnboarding(); }
   async function sessionAny() { return isConfigured() ? getSession() : localSession(); }
   // Cloud accounts: upload the latest first, then clear this phone so the next person who signs in
   // on it never sees this account's data. If the upload fails the data stays (and is cleared later if
@@ -275,5 +286,6 @@ window.Auth = (() => {
     signUpEmail, signInEmail, resetPassword, resendConfirmation, updatePassword, providers, sendPhoneCode, verifyPhoneCode, signOut, signInOAuth,
     localSignUp, localSignIn, localSession, localSignOut, sessionAny, signOutAny,
     pull, push, watch, authHeaders, deleteAccount, isPulled: () => !!pulledFor,
+    needsOnboarding, clearOnboarding,
   };
 })();

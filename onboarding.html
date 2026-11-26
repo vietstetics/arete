@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0B110E">
+<title>Arete — About you</title>
+<link rel="manifest" href="manifest.webmanifest">
+<script src="js/auth.js"></script>
+<script src="js/authguard.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  First-run questions, shown once to a brand-new account straight after sign-up (see Auth.needsOnboarding
+  in js/auth.js). Same look as the sign-in screen it follows. Answers are saved to jarvis_profile:
+  { heightCm, heightUnit, bodyFatPct|null, age, ageAt, activity, activityFactor, savedAt }.
+-->
+<style>
+:root{
+  --ink:#0B110E; --ink2:#131B16; --paper:#ECF3EE; --mut:#93A69B; --dim:#5D6F65;
+  --line:rgba(236,243,238,.13); --line2:rgba(236,243,238,.26);
+  --go:#1DA462; --lime:#C8F169; --err:#FF8A80;
+  --display:'Barlow Condensed',Impact,'Arial Narrow',sans-serif;
+  --body:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--ink)}
+body{min-height:100dvh;background:var(--ink);color:var(--paper);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased;
+  padding:calc(20px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
+.wrap{width:100%;max-width:420px;min-height:calc(100dvh - 44px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));display:flex;flex-direction:column}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+.top{display:flex;align-items:center;justify-content:space-between;height:40px}
+.link{height:40px;padding:0 4px;color:var(--mut);font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:4px}
+.link:hover{color:var(--paper)}
+.link svg{width:18px;height:18px}
+.link[hidden]{visibility:hidden;display:inline-flex}
+
+/* Progress as a set of reps: answered questions are done reps, this one is lime, the rest are still to come. */
+.bars{display:flex;align-items:flex-end;gap:6px;height:40px;margin:28px 0 20px}
+.bars i{width:10px;border-radius:3px 3px 1px 1px;background:transparent;border:1.5px dashed var(--line2);transition:background-color .3s var(--ease),border-color .3s var(--ease)}
+.bars i.done{background:var(--go);border-color:var(--go)}
+.bars i.now{background:var(--lime);border-color:var(--lime)}
+
+.eye{font-size:13px;font-weight:600;color:var(--mut);font-variant-numeric:tabular-nums}
+h1{font:800 52px/.92 var(--display);letter-spacing:-.01em;text-transform:uppercase;margin-top:8px}
+h1 em{font-style:normal;color:var(--lime)}
+.lede{color:var(--mut);margin:12px 0 28px;max-width:34ch}
+
+.step{display:none}
+.step.on{display:block;animation:rise .4s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.step.on{animation:none}.bars i{transition:none}}
+
+/* Unit switch, as on the sign-in screen's Email / Phone choice. */
+.method{display:flex;gap:20px;margin-bottom:16px;font-size:14px}
+.method button{color:var(--mut);font-weight:600;padding:4px 0;border-bottom:2px solid transparent}
+.method button[aria-pressed="true"]{color:var(--paper);border-bottom-color:var(--go)}
+
+form{flex:1;display:flex;flex-direction:column}
+.row{display:flex;gap:12px}
+.row[hidden]{display:none}
+.num{position:relative;flex:1}
+.num input{width:100%;height:76px;padding:0 72px 0 20px;border-radius:14px;border:1px solid var(--line);background:var(--ink2);color:var(--paper);
+  font:600 34px var(--body);font-variant-numeric:tabular-nums;letter-spacing:-.01em;outline:none;transition:border-color .15s;-moz-appearance:textfield}
+.num input::-webkit-outer-spin-button,.num input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.num input::placeholder{color:var(--dim)}
+.num input:focus{border-color:var(--go)}
+.num input[aria-invalid="true"]{border-color:var(--err)}
+.num span{position:absolute;right:20px;top:50%;transform:translateY(-50%);color:var(--mut);font-weight:600;font-size:16px;pointer-events:none}
+.msg{min-height:20px;margin-top:10px;font-size:13px;color:var(--mut)}
+.msg.err{color:var(--err)}
+.alt{margin-top:8px;color:var(--paper);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px;padding:8px 0}
+
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:14px;width:100%;min-height:68px;padding:12px 16px;border-radius:14px;border:1px solid var(--line);background:var(--ink2);text-align:left;transition:border-color .15s}
+.opt:hover{border-color:var(--line2)}
+.opt b{display:block;font-size:15px;font-weight:600}
+.opt small{display:block;font-size:13px;color:var(--mut);margin-top:2px;line-height:1.4}
+.opt .t{flex:1;min-width:0}
+.opt .dot{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line2);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.opt[aria-checked="true"]{border-color:var(--go)}
+.opt[aria-checked="true"] .dot{background:var(--go);border-color:var(--go)}
+.opt .dot svg{width:12px;height:12px;opacity:0;color:#fff}
+.opt[aria-checked="true"] .dot svg{opacity:1}
+
+.fill{flex:1;min-height:24px}
+.go{width:100%;height:54px;border-radius:12px;background:var(--go);color:#fff;font-weight:700;font-size:16px;transition:filter .15s,transform .1s,opacity .15s}
+.go:hover{filter:brightness(1.08)}.go:active{transform:scale(.99)}
+.go:disabled{opacity:.45;cursor:default;filter:none;transform:none}
+.fine{font-size:12px;color:var(--dim);text-align:center;margin-top:12px}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+</style>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <button class="link" id="back" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back</button>
+    <button class="link" id="skip" type="button">Skip</button>
+  </div>
+
+  <div class="bars" aria-hidden="true"><i style="height:100%"></i><i style="height:94%"></i><i style="height:88%"></i><i style="height:82%"></i></div>
+  <div class="eye" id="count" aria-live="polite">1 of 4</div>
+
+  <form id="form" novalidate>
+    <section class="step" data-step="height">
+      <h1>How<br><em>tall?</em></h1>
+      <p class="lede">Your height without shoes.</p>
+      <div class="method" role="group" aria-label="Height unit">
+        <button type="button" data-unit="cm" aria-pressed="true">cm</button>
+        <button type="button" data-unit="ftin" aria-pressed="false">ft and in</button>
+      </div>
+      <div class="row" id="h-cm">
+        <label class="num"><input id="cm" type="number" inputmode="decimal" min="120" max="230" step="0.5" placeholder="178" aria-label="Height in centimetres" aria-describedby="m-height"><span>cm</span></label>
+      </div>
+      <div class="row" id="h-ftin" hidden>
+        <label class="num"><input id="ft" type="number" inputmode="numeric" min="4" max="7" step="1" placeholder="5" aria-label="Feet" aria-describedby="m-height"><span>ft</span></label>
+        <label class="num"><input id="in" type="number" inputmode="decimal" min="0" max="11.5" step="0.5" placeholder="10" aria-label="Inches" aria-describedby="m-height"><span>in</span></label>
+      </div>
+      <p class="msg" id="m-height"></p>
+    </section>
+
+    <section class="step" data-step="bodyfat">
+      <h1>Body<br><em>fat?</em></h1>
+      <p class="lede">From a smart scale, a DEXA scan or your best guess.</p>
+      <div class="row">
+        <label class="num"><input id="bf" type="number" inputmode="decimal" min="3" max="60" step="0.5" placeholder="18" aria-label="Body fat percentage" aria-describedby="m-bodyfat"><span>%</span></label>
+      </div>
+      <p class="msg" id="m-bodyfat"></p>
+      <button class="alt" type="button" id="bf-skip">I don’t know mine</button>
+    </section>
+
+    <section class="step" data-step="age">
+      <h1>How<br><em>old?</em></h1>
+      <p class="lede">Your age in years.</p>
+      <div class="row">
+        <label class="num"><input id="age" type="number" inputmode="numeric" min="16" max="100" step="1" placeholder="28" aria-label="Age in years" aria-describedby="m-age"><span>years</span></label>
+      </div>
+      <p class="msg" id="m-age"></p>
+    </section>
+
+    <section class="step" data-step="activity">
+      <h1>How<br><em>active?</em></h1>
+      <p class="lede">A normal week, training included.</p>
+      <div class="opts" role="radiogroup" aria-label="Activity level" id="opts"></div>
+    </section>
+
+    <div class="fill"></div>
+  </form>
+
+  <button class="go" id="go" type="submit" form="form">Continue</button>
+</main>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const STEPS = ['height', 'bodyfat', 'age', 'activity'];
+  // Standard activity multipliers on resting energy, so calorie targets can use them later.
+  const ACTIVITY = [
+    { id: 'sedentary', factor: 1.2,   title: 'Mostly sitting', text: 'Desk job, little walking' },
+    { id: 'light',     factor: 1.375, title: 'Lightly active', text: 'On your feet some of the day, or training 1–2 days a week' },
+    { id: 'moderate',  factor: 1.55,  title: 'Active',         text: 'Training 3–5 days a week' },
+    { id: 'very',      factor: 1.725, title: 'Very active',    text: 'Hard training most days, or a physical job' },
+  ];
+  const TICK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  const answers = { heightCm: null, heightUnit: 'cm', bodyFatPct: null, age: null, activity: null };
+  let at = 0;
+
+  // Somebody who already answered (on another phone, or in another tab) goes straight to Home.
+  if (window.Auth && !Auth.needsOnboarding()) { location.replace('index.html'); return; }
+
+  $('opts').innerHTML = ACTIVITY.map(a =>
+    `<button type="button" class="opt" role="radio" aria-checked="false" data-id="${a.id}"><span class="t"><b>${a.title}</b><small>${a.text}</small></span><span class="dot">${TICK}</span></button>`).join('');
+
+  const num = (el) => { const v = parseFloat(String(el.value).replace(',', '.')); return Number.isFinite(v) ? v : null; };
+  const say = (step, text) => { const m = $('m-' + step); if (m) { m.textContent = text || ''; m.classList.toggle('err', !!text); } };
+  const bad = (els, on) => els.forEach(el => on ? el.setAttribute('aria-invalid', 'true') : el.removeAttribute('aria-invalid'));
+
+  function show(i) {
+    at = i;
+    document.querySelectorAll('.step').forEach((s, k) => s.classList.toggle('on', k === i));
+    document.querySelectorAll('.bars i').forEach((b, k) => { b.className = k < i ? 'done' : k === i ? 'now' : ''; });
+    $('count').textContent = (i + 1) + ' of ' + STEPS.length;
+    $('back').hidden = i === 0;
+    $('go').textContent = i === STEPS.length - 1 ? 'Finish' : 'Continue';
+    refresh();
+    const first = document.querySelector('.step.on input:not([hidden])');
+    const box = first && first.closest('[hidden]');
+    if (first && !box) first.focus({ preventScroll: true });
+  }
+  // The button is live once the step has something in it; checks with a reason happen on Continue.
+  function refresh() {
+    const s = STEPS[at];
+    const filled = s === 'height' ? (answers.heightUnit === 'cm' ? $('cm').value !== '' : $('ft').value !== '')
+      : s === 'bodyfat' ? $('bf').value !== ''
+      : s === 'age' ? $('age').value !== ''
+      : !!answers.activity;
+    $('go').disabled = !filled;
+  }
+
+  function check() {
+    const s = STEPS[at];
+    if (s === 'height') {
+      let cm;
+      if (answers.heightUnit === 'cm') cm = num($('cm'));
+      else { const ft = num($('ft')), inch = num($('in')) || 0; cm = ft == null ? null : (ft * 12 + inch) * 2.54; }
+      const ok = cm != null && cm >= 120 && cm <= 230;
+      bad(answers.heightUnit === 'cm' ? [$('cm')] : [$('ft'), $('in')], !ok);
+      if (!ok) return say('height', answers.heightUnit === 'cm' ? 'Enter a height between 120 and 230 cm' : 'Enter a height between 4 ft and 7 ft 6 in'), false;
+      answers.heightCm = Math.round(cm * 10) / 10; say('height');
+    }
+    if (s === 'bodyfat') {
+      const v = num($('bf')), ok = v != null && v >= 3 && v <= 60;
+      bad([$('bf')], !ok);
+      if (!ok) return say('bodyfat', 'Enter a body fat between 3 and 60%'), false;
+      answers.bodyFatPct = Math.round(v * 10) / 10; say('bodyfat');
+    }
+    if (s === 'age') {
+      const v = num($('age'));
+      const ok = v != null && Number.isInteger(v) && v >= 16 && v <= 100;
+      bad([$('age')], !ok);
+      if (!ok) return say('age', v != null && v < 16 ? 'Arete is for people 16 and older' : 'Enter your age in whole years'), false;
+      answers.age = v; say('age');
+    }
+    return true;
+  }
+
+  function save(skipped) {
+    const a = ACTIVITY.find(x => x.id === answers.activity);
+    const profile = {
+      heightCm: answers.heightCm, heightUnit: answers.heightUnit, bodyFatPct: answers.bodyFatPct,
+      age: answers.age, ageAt: answers.age != null ? new Date().toISOString().slice(0, 10) : null,
+      activity: a ? a.id : null, activityFactor: a ? a.factor : null,
+      savedAt: new Date().toISOString(),
+    };
+    if (skipped) profile.skipped = true;
+    try { localStorage.setItem('jarvis_profile', JSON.stringify(profile)); } catch {}
+    if (window.Auth && Auth.clearOnboarding) Auth.clearOnboarding();
+    location.replace('index.html');
+  }
+
+  $('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if ($('go').disabled || !check()) return;
+    if (at < STEPS.length - 1) show(at + 1); else save(false);
+  });
+  $('form').addEventListener('input', (e) => { if (e.target.matches('input')) { e.target.removeAttribute('aria-invalid'); say(STEPS[at]); } refresh(); });
+  $('back').addEventListener('click', () => { if (at > 0) show(at - 1); });
+  $('skip').addEventListener('click', () => save(true));
+  $('bf-skip').addEventListener('click', () => { answers.bodyFatPct = null; $('bf').value = ''; say('bodyfat'); bad([$('bf')], false); show(at + 1); });
+
+  document.querySelectorAll('.method button').forEach(b => b.addEventListener('click', () => {
+    answers.heightUnit = b.dataset.unit;
+    document.querySelectorAll('.method button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('h-cm').hidden = answers.heightUnit !== 'cm'; $('h-ftin').hidden = answers.heightUnit === 'cm';
+    say('height'); bad([$('cm'), $('ft'), $('in')], false); refresh();
+    (answers.heightUnit === 'cm' ? $('cm') : $('ft')).focus({ preventScroll: true });
+  }));
+
+  $('opts').addEventListener('click', (e) => {
+    const o = e.target.closest('.opt'); if (!o) return;
+    answers.activity = o.dataset.id;
+    document.querySelectorAll('.opt').forEach(x => x.setAttribute('aria-checked', String(x === o)));
+    refresh();
+  });
+  // Arrow keys move between activity choices, as in any radio group.
+  $('opts').addEventListener('keydown', (e) => {
+    if (!/^Arrow(Up|Down|Left|Right)$/.test(e.key)) return;
+    const all = [...document.querySelectorAll('.opt')], i = all.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    const next = all[(i + (/Up|Left/.test(e.key) ? -1 : 1) + all.length) % all.length];
+    next.focus(); next.click();
+  });
+
+  show(0);
+})();
+</script>
+</body>
+</html>

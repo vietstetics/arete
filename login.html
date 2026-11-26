@@ -278,10 +278,12 @@ function explain(e) {
 }
 function fail(e) { const x = explain(e); setMsg(x.text, 'err', x.action); }
 
+// A brand-new account answers the first-run questions; everyone else goes straight to Home.
+const enter = () => location.replace(Auth.needsOnboarding() ? 'onboarding.html' : 'index.html');
 function done() {
-  if (!Auth.isConfigured()) { setMsg('Account ready.', 'ok'); setTimeout(() => location.replace('index.html'), 350); return; }
+  if (!Auth.isConfigured()) { setMsg('Account ready.', 'ok'); setTimeout(enter, 350); return; }
   setMsg('Signed in. Loading your data…', 'ok');
-  Auth.pull().catch(() => {}).finally(() => { setTimeout(() => location.replace('index.html'), 400); });
+  Auth.pull().catch(() => {}).finally(() => { setTimeout(enter, 400); });
 }
 
 async function submitEmail() {
@@ -383,7 +385,9 @@ $('recover-view').addEventListener('submit', (e) => { e.preventDefault(); saveNe
   setMode(mode);
   Auth.providers().then((p) => { enabled = p; renderSocial(); });
   const s = await Auth.sessionAny();
-  if (s) location.replace('index.html');     // already signed in
+  // Already signed in, or back from an email link, Google/Apple or a phone code: read the account's
+  // cloud copy first so a brand-new account is told apart from an existing one.
+  if (s) { if (Auth.isConfigured()) await Auth.pull().catch(() => {}); enter(); }
 })();
 </script>
 </body>
