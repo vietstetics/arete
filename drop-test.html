@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F5F5F7">
+<script src="js/auth.js"></script>
+<script src="js/authguard.js"></script>
+<title>Arete — Drop test</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!--
+  Drop test: checks the camera's clock and the speed maths against gravity, no speed device needed.
+  Maths in features/velocity/services/dropTest.js; the ball is followed by colour (vision/marker.js).
+  Same look as velocity-lab.html, the validation lab it belongs to.
+-->
+<style>
+:root{
+  --canvas:#F5F5F7;--surface:#FFFFFF;--muted:#F0F0F3;--line:#E8E8EC;
+  --ink:#111113;--ink2:#52525B;--ink3:#6B6B74;
+  --ok:#178F4A;--ok-ink:#11733A;--ok-tint:#E5F5EB;--bad-ink:#B42328;--bad-tint:#FCEBEB;--warn-ink:#8A4B00;--warn-tint:#FFF1DE;
+  --r:24px;--r-md:12px;--r-lg:16px;--ease:cubic-bezier(.22,1,.36,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(48px + env(safe-area-inset-bottom,0px))}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+[hidden]{display:none!important}
+.wrap{max-width:640px;margin:0 auto}
+.back{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;font-weight:600;color:var(--ink2);text-decoration:none}
+.back svg{width:16px;height:16px}
+h1{font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.02em;margin-top:4px}
+.sub{font-size:14px;line-height:20px;color:var(--ink2);margin-top:4px}
+.card{background:var(--surface);border-radius:var(--r);box-shadow:0 2px 8px rgba(17,17,19,.04);padding:20px;margin-top:12px}
+.card h2{font-size:17px;line-height:24px;font-weight:600}
+.note{font-size:14px;line-height:20px;color:var(--ink2);margin-top:8px}
+.note b{color:var(--ink);font-weight:600}
+.cap{font-size:12px;line-height:16px;color:var(--ink3)}
+ol.how{margin-top:12px;padding-left:20px;display:grid;gap:8px;font-size:14px;line-height:20px;color:var(--ink2)}
+ol.how b{color:var(--ink);font-weight:600}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.field{display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--ink2);min-width:0}
+.field input{width:100%;min-height:48px;padding:0 12px;border-radius:var(--r-md);border:0;background:var(--muted);font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums}
+.field input:focus-visible,button:focus-visible,a:focus-visible,label.btn:focus-within{outline:2px solid var(--ink);outline-offset:2px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.btn{min-height:44px;padding:0 20px;border-radius:12px;font-size:16px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background-color .15s var(--ease),transform .12s var(--ease)}
+.btn.p{background:var(--ink);color:#fff}.btn.p:active{background:#2B2B30}
+.btn.s{background:var(--muted);color:var(--ink)}.btn.s:active{background:#E6E6EA}
+.btn:disabled{background:var(--muted);color:#A1A1AA;cursor:default}
+.btn:active:not(:disabled){transform:scale(.98)}
+label.btn input{position:absolute;width:1px;height:1px;opacity:0}
+.stage{position:relative;margin:16px auto 0;border-radius:var(--r-lg);overflow:hidden;background:#0E110C;max-height:480px}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.stage canvas{cursor:crosshair;touch-action:manipulation}
+.scrub{width:100%;margin-top:12px;accent-color:var(--ink)}
+.prog{height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:12px}
+.prog i{display:block;height:100%;width:0;background:var(--ink);transition:width .2s}
+.tag{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600}
+.tag.pass{background:var(--ok-tint);color:var(--ok-ink)}.tag.close{background:var(--warn-tint);color:var(--warn-ink)}.tag.fail{background:var(--bad-tint);color:var(--bad-ink)}
+.big{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:12px}
+.big b{font-size:40px;line-height:1;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.big span{font-size:14px;color:var(--ink2)}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-weight:500;color:var(--ink3);font-size:12px;padding:0 0 8px}
+th:not(:first-child),td:not(:first-child){text-align:right}
+td{padding:10px 0;border-top:1px solid var(--line)}
+td:not(:first-child){white-space:nowrap;padding-left:12px}
+td:first-child{color:var(--ink2)}
+.warns{margin-top:12px;display:grid;gap:8px}
+.warns p{font-size:14px;line-height:20px;color:var(--warn-ink);background:var(--warn-tint);border-radius:var(--r-md);padding:10px 12px}
+.chart{margin-top:16px;width:100%;height:auto;display:block}
+.msg{font-size:14px;line-height:20px;margin-top:12px;color:var(--ink2)}
+.msg.err{color:var(--bad-ink)}
+</style>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+</head>
+<body>
+<main class="wrap">
+  <a class="back" href="velocity-lab.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Velocity lab</a>
+  <h1>Drop test</h1>
+  <p class="sub">Checks the camera’s timing and the speed maths against gravity, with no speed device</p>
+
+  <section class="card">
+    <h2>How to film it</h2>
+    <ol class="how">
+      <li><b>A bright, single-colour ball.</b> A lacrosse ball is best; a tennis ball works. A plain wall behind it in a different colour.</li>
+      <li><b>Measure the height.</b> Hold the ball still with its bottom 1–1.5 m above the floor and measure from the floor to the bottom of the ball.</li>
+      <li><b>Phone steady and level,</b> 1.5–2 m away, side-on to the drop, with your hand, the whole fall and the floor in the picture.</li>
+      <li><b>Normal Video, not Slo-mo,</b> at 60 fps if you can (Settings → Camera → Record Video → 1080p at 60 fps).</li>
+      <li><b>Let go, don’t throw,</b> and let it bounce in view. Film 3–5 drops.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Your drop</h2>
+    <div class="grid">
+      <label class="field">Drop height (cm)<input id="h" type="number" inputmode="decimal" min="20" max="500" step="0.5" placeholder="120"></label>
+      <label class="field">Ball diameter (cm)<input id="d" type="number" inputmode="decimal" min="1" max="40" step="0.1" placeholder="6.3"></label>
+    </div>
+    <p class="cap" style="margin-top:8px">Optional. Lacrosse ball 6.3 cm, tennis ball 6.7 cm. With it, the drop is also measured from the ball’s size.</p>
+    <div class="acts">
+      <label class="btn p" id="pick-btn">Choose video<input id="file" type="file" accept="video/*"></label>
+    </div>
+
+    <div id="setup" hidden>
+      <div class="stage" id="stage"><video id="video" playsinline muted preload="auto"></video><canvas id="overlay"></canvas></div>
+      <input class="scrub" id="scrub" type="range" min="0" max="1" step="0.001" value="0" aria-label="Frame">
+      <p class="note" id="tap-note">Move to a frame where the ball is still in your hand, then <b>tap the ball</b></p>
+      <div class="acts">
+        <button class="btn p" id="measure" type="button" disabled>Measure the drop</button>
+      </div>
+      <div class="prog" id="prog" hidden><i></i></div>
+    </div>
+    <p class="msg" id="msg" role="status"></p>
+  </section>
+
+  <section class="card" id="result" hidden aria-live="polite">
+    <h2>Result <span class="tag" id="verdict"></span></h2>
+    <div class="big"><b id="err"></b><span id="err-sub"></span></div>
+    <table>
+      <thead><tr><th></th><th>Measured</th><th>Physics</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <p class="cap" id="frames" style="margin-top:8px"></p>
+    <svg class="chart" id="chart" viewBox="0 0 600 240" role="img" aria-label="Distance fallen over time, with the fitted fall"></svg>
+    <div class="warns" id="warns"></div>
+    <p class="note">Pass is within 2% of physics: about the precision a speed device clipped to the bar needs. This checks the phone’s clock, its frames and the speed maths. It doesn’t test finding a plate in a gym.</p>
+    <div class="acts"><button class="btn s" id="copy" type="button">Copy result</button></div>
+  </section>
+</main>
+
+<script type="module">
+import { sampleColour, findMarker, createMarkerTracker } from './features/velocity/services/vision/marker.js';
+import { playVideo } from './features/velocity/services/live/playVideo.js';
+import { analyseDrop, G } from './features/velocity/services/dropTest.js';
+
+const $ = (id) => document.getElementById(id);
+const video = $('video'), overlay = $('overlay');
+let url = null, colour = null, tapped = null, last = null;
+
+const say = (text, err = false) => { $('msg').textContent = text || ''; $('msg').classList.toggle('err', !!err); };
+const num = (id) => { const v = parseFloat(String($(id).value).replace(',', '.')); return Number.isFinite(v) ? v : null; };
+const ready = () => { $('measure').disabled = !(tapped && colour && num('h') > 0); };
+
+// A crop of the current frame as RGBA, in full-frame pixel coordinates.
+let cv = null;
+function grab(win) {
+  const ox = Math.max(0, Math.floor(win.x0)), oy = Math.max(0, Math.floor(win.y0));
+  const w = Math.max(1, Math.min(video.videoWidth, Math.ceil(win.x1)) - ox), h = Math.max(1, Math.min(video.videoHeight, Math.ceil(win.y1)) - oy);
+  cv = cv || document.createElement('canvas');
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  c.drawImage(video, ox, oy, w, h, 0, 0, w, h);
+  return { w, h, data: c.getImageData(0, 0, w, h).data, ox, oy };
+}
+// Seek and wait until that frame is on screen.
+const seek = (t) => new Promise((resolve) => {
+  const done = () => { video.onseeked = null; resolve(); };
+  video.onseeked = () => { if (!video.requestVideoFrameCallback) return done(); const s = setTimeout(done, 250); video.requestVideoFrameCallback(() => { clearTimeout(s); done(); }); };
+  try { video.currentTime = t; } catch { done(); }
+});
+
+// Where the video sits inside the stage (object-fit: contain), to map taps and draw the ball.
+function box() {
+  const W = overlay.clientWidth, H = overlay.clientHeight, s = Math.min(W / video.videoWidth, H / video.videoHeight);
+  return { s, x: (W - video.videoWidth * s) / 2, y: (H - video.videoHeight * s) / 2, W, H };
+}
+function draw(m) {
+  const b = box(), dpr = window.devicePixelRatio || 1;
+  overlay.width = Math.round(b.W * dpr); overlay.height = Math.round(b.H * dpr);
+  const c = overlay.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, b.W, b.H);
+  if (!m) return;
+  c.strokeStyle = '#34C759'; c.lineWidth = 2.5;
+  c.beginPath(); c.arc(b.x + m.cx * b.s, b.y + m.cy * b.s, Math.max(6, m.r * b.s + 4), 0, Math.PI * 2); c.stroke();
+}
+
+$('file').addEventListener('change', async () => {
+  const f = $('file').files[0]; if (!f) return;
+  if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) { say('This browser can’t read frame times. Use Safari on iPhone, or Chrome.', true); return; }
+  if (url) URL.revokeObjectURL(url);
+  url = URL.createObjectURL(f); colour = null; tapped = null; $('result').hidden = true; ready();
+  say('Loading the video…');
+  video.src = url;
+  const ok = await new Promise((res) => { video.onloadeddata = () => res(true); video.onerror = () => res(false); });
+  if (!ok || !video.videoWidth) { say('This video can’t be opened here. On a computer, iPhone videos may need Settings → Camera → Formats → Most Compatible.', true); return; }
+  // Some recorders don't write the length into the file: seeking far past the end makes the browser find it.
+  if (!Number.isFinite(video.duration)) {
+    await new Promise((res) => { const t = setTimeout(res, 3000); video.ondurationchange = () => { if (Number.isFinite(video.duration)) { clearTimeout(t); res(); } }; video.currentTime = 1e6; });
+    video.ondurationchange = null;
+  }
+  $('setup').hidden = false;
+  $('stage').style.aspectRatio = video.videoWidth + ' / ' + video.videoHeight;
+  $('scrub').max = String(Math.max(0, video.duration - 0.05));
+  await seek(0); draw(null); say('');
+});
+
+$('scrub').addEventListener('input', async () => { await seek(parseFloat($('scrub').value)); tapped = null; colour = null; draw(null); ready(); });
+['h', 'd'].forEach((id) => $(id).addEventListener('input', ready));
+
+overlay.addEventListener('click', async (e) => {
+  const b = box(), r = overlay.getBoundingClientRect();
+  const x = (e.clientX - r.left - b.x) / b.s, y = (e.clientY - r.top - b.y) / b.s;
+  if (x < 0 || y < 0 || x > video.videoWidth || y > video.videoHeight) return;
+  const crop = grab({ x0: x - 80, y0: y - 80, x1: x + 80, y1: y + 80 });
+  const col = sampleColour(crop, x, y), m = col ? findMarker(crop, col, { near: { x, y } }) : { ok: false };
+  if (!m.ok) { draw(null); colour = null; tapped = null; ready(); say('No clear colour there. Tap the middle of the ball; a bright, single-colour ball works best.', true); return; }
+  colour = col; tapped = { x: m.cx, y: m.cy, t: video.currentTime }; draw(m); ready();
+  say(num('h') > 0 ? 'Got the ball. Measure when ready.' : 'Got the ball. Enter the drop height.');
+});
+
+$('measure').addEventListener('click', async () => {
+  const heightM = num('h') / 100, dCm = num('d'), ballDiameterM = dCm > 0 ? dCm / 100 : null;
+  $('measure').disabled = true; $('result').hidden = true; $('prog').hidden = false; say('Following the ball…');
+  await seek(tapped.t);
+  const tr = createMarkerTracker(colour), first = tr.init(grab, tapped.x, tapped.y, video.currentTime);
+  const samples = [{ t: video.currentTime, ok: !!first.ok, cx: first.cx, cy: first.cy, r: first.r }];
+  const end = Math.min(video.duration, tapped.t + 8);
+  // Half speed, so no frame is skipped; each frame's own timestamp (mediaTime) is used, not the clock.
+  video.playbackRate = 0.5;
+  await new Promise((resolve) => {
+    let lastT = video.currentTime;
+    const step = (now, md) => {
+      if (md.mediaTime > lastT) {
+        lastT = md.mediaTime;
+        const m = tr.track(grab, md.mediaTime);
+        samples.push({ t: md.mediaTime, ok: !!m.ok, cx: m.cx, cy: m.cy, r: m.r });
+        if (m.ok) draw(m);
+        $('prog').firstElementChild.style.width = Math.min(100, ((md.mediaTime - tapped.t) / (end - tapped.t)) * 100) + '%';
+      }
+      if (video.ended || md.mediaTime >= end) { video.pause(); resolve(); } else video.requestVideoFrameCallback(step);
+    };
+    video.requestVideoFrameCallback(step);
+    video.onended = () => resolve();
+    playVideo(video, { label: 'Tap to measure the drop' }).catch(() => resolve());
+  });
+  video.pause(); video.playbackRate = 1; $('prog').hidden = true; $('measure').disabled = false;
+  const r = analyseDrop(samples, { heightM, ballDiameterM });
+  window.__dropTest = { samples, result: r };   // for checking a run from the browser console
+  if (!r.ok) { say(r.refused, true); return; }
+  say(''); show(r);
+});
+
+const f2 = (v) => v.toFixed(2), sign = (v, d = 1) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d);
+function show(r) {
+  last = r;
+  const label = { pass: 'Pass', close: 'Close', fail: 'Fail' }[r.verdict];
+  $('verdict').textContent = label; $('verdict').className = 'tag ' + r.verdict;
+  $('err').textContent = sign(r.speedErrPct) + '%';
+  $('err-sub').textContent = 'speed vs physics';
+  const rows = [
+    ['Fall time', Math.round(r.tFall * 1000) + ' ms', Math.round(r.tPhys * 1000) + ' ms'],
+    ['Mean speed', f2(r.meanMeas) + ' m/s', f2(r.meanPhys) + ' m/s'],
+    ['Speed at the floor', f2(r.impactMeas) + ' m/s', f2(r.impactPhys) + ' m/s'],
+    ['Gravity', f2(r.gMeas) + ' m/s²', G.toFixed(2) + ' m/s²'],
+  ];
+  if (r.size) rows.push(['Drop from the ball’s size', Math.round(r.size.distanceM * 100) + ' cm (' + sign(r.size.errPct) + '%)', Math.round(r.heightM * 100) + ' cm']);
+  $('frames').textContent = Math.round(r.fps) + ' fps, ' + r.framesInFall + ' frames in the fall, floor found from the ' + (r.floorFrom === 'bounce' ? 'bounce' : r.floorFrom === 'resting' ? 'ball at rest' : 'lowest frame');
+  $('rows').innerHTML = rows.map((x) => `<tr><td>${x[0]}</td><td>${x[1]}</td><td>${x[2]}</td></tr>`).join('');
+  $('warns').innerHTML = r.warnings.map((w) => `<p>${w}</p>`).join('');
+  chart(r);
+  $('result').hidden = false;
+  $('result').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+}
+
+// Distance fallen (pixels along the fall) over time: tracked points, and the fitted fall up to the floor.
+function chart(r) {
+  const W = 600, H = 240, P = { l: 8, r: 8, t: 12, b: 40 };
+  const pts = r.track.filter((p) => p.t >= r.tRelease - 0.15 && p.t <= r.tFloor + 0.25);
+  if (!pts.length) { $('chart').innerHTML = ''; return; }
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t, sMin = Math.min(r.fit.s0, ...pts.map((p) => p.s)), sMax = Math.max(r.fit.sFloor, ...pts.map((p) => p.s));
+  const X = (t) => P.l + ((t - t0) / (t1 - t0 || 1)) * (W - P.l - P.r), Y = (s) => P.t + ((s - sMin) / (sMax - sMin || 1)) * (H - P.t - P.b);
+  let path = '';
+  for (let k = 0; k <= 40; k++) {
+    const t = r.tRelease + (r.tFall * k) / 40, tau = t - r.fit.tm, s = r.fit.a + r.fit.b * tau + r.fit.c * tau * tau;
+    path += (k ? 'L' : 'M') + X(t).toFixed(1) + ' ' + Y(s).toFixed(1);
+  }
+  const dots = pts.map((p) => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.s).toFixed(1)}" r="4" fill="#6B6B74"/>`).join('');
+  $('chart').innerHTML =
+    `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(r.fit.sFloor)}" y2="${Y(r.fit.sFloor)}" stroke="#E8E8EC" stroke-width="1"/>` +
+    `<path d="${path}" fill="none" stroke="#178F4A" stroke-width="2.5" stroke-linecap="round"/>` + dots +
+    `<text x="${P.l}" y="${H - 6}" font-size="22" fill="#6B6B74">Let go</text>` +
+    `<text x="${W - P.r}" y="${H - 6}" font-size="22" fill="#6B6B74" text-anchor="end">Floor at ${Math.round(r.tFall * 1000)} ms</text>`;
+}
+
+$('copy').addEventListener('click', async () => {
+  if (!last) return;
+  const r = last, lines = [
+    `Drop test ${new Date().toISOString().slice(0, 16).replace('T', ' ')} — ${r.verdict}`,
+    `Height ${Math.round(r.heightM * 100)} cm, ${Math.round(r.fps)} fps, ${r.framesInFall} frames in the fall, floor from ${r.floorFrom}`,
+    `Fall time ${Math.round(r.tFall * 1000)} ms vs ${Math.round(r.tPhys * 1000)} ms physics`,
+    `Mean speed ${f2(r.meanMeas)} vs ${f2(r.meanPhys)} m/s (${sign(r.speedErrPct, 2)}%)`,
+    `Gravity ${f2(r.gMeas)} m/s²`,
+    r.size ? `From ball size: ${Math.round(r.size.distanceM * 100)} cm (${sign(r.size.errPct, 1)}%)` : '',
+    ...r.warnings,
+  ].filter(Boolean);
+  try { await navigator.clipboard.writeText(lines.join('\n')); $('copy').textContent = 'Copied'; setTimeout(() => { $('copy').textContent = 'Copy result'; }, 1500); }
+  catch { say('Couldn’t copy. Select the numbers above instead.', true); }
+});
+</script>
+</body>
+</html>
