@@ -301,7 +301,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 <script>
 // ── Init ──────────────────────────────────────────────────────
 const F = window.Fitness;
-F.seedMockData();
+F.removeSampleWorkouts();
 
 const workouts = F.storageAdapter.getWorkouts();
 const checkin  = F.storageAdapter.getLatestCheckin();

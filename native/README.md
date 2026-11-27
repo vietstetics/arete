@@ -20,6 +20,15 @@ npx cap add android        # Android Studio
 npm run sync               # build:web + cap sync
 ```
 
+## Portrait only
+
+The screens are laid out for a phone held upright, so the app doesn't rotate. After `npx cap add`:
+
+- `ios/App/App/Info.plist`: under `UISupportedInterfaceOrientations` keep only
+  `UIInterfaceOrientationPortrait` (leave the `~ipad` list as it is; iPad needs every orientation).
+- `android/app/src/main/AndroidManifest.xml`: add `android:screenOrientation="portrait"` to the
+  `.MainActivity` `<activity>`.
+
 ## iOS — `CMPedometer`
 
 1. Copy `native/ios/StepCounterPlugin.swift` into `ios/App/App/`.

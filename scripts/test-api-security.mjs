@@ -22,6 +22,7 @@ globalThis.fetch = async (input, init = {}) => {
 
 const { default: food } = await import('../api/analyze-food.js');
 const { default: parse } = await import('../api/parse-workout.js');
+const { default: oura } = await import('../api/oura.js');
 
 function run(handler, { body = {}, headers = {}, method = 'POST' } = {}) {
   return new Promise((resolve) => {
@@ -75,18 +76,32 @@ test('a signed-in user under the cap gets an estimate, on the cheaper model', as
   assert.ok(r.status === 200 || r.status === 502, 'reached the model');   // mock reply isn't a food schema
 });
 
+const SIGNED_IN = { authorization: 'Bearer ' + 'x'.repeat(40) };
+
+test('workout import and the Oura pass-through refuse anyone not signed in, and fetch nothing', async () => {
+  env(true); supa = { user: 401, credit: 3 };
+  for (const [h, req] of [[parse, { body: { url: 'https://www.instagram.com/p/abc/', apiKey: 'sk-ant-user' } }], [oura, { method: 'GET', body: null }]]) {
+    for (const headers of [{}, SIGNED_IN]) {
+      calls.length = 0;
+      const r = await run(h, { ...req, headers: { ...headers, 'x-oura-token': 't' } });
+      assert.equal(r.status, 401);
+      assert.equal(calls.filter((u) => !u.startsWith(SB)).length, 0);
+    }
+  }
+});
+
 test('workout import never fetches internal or non-video addresses (SSRF)', async () => {
   for (const url of ['http://169.254.169.254/latest/meta-data/', 'https://localhost/', 'https://127.0.0.1/', 'https://evil.example.com/x', 'https://youtube.com.evil.com/', 'https://user:pw@youtube.com/', 'file:///etc/passwd', 'https://youtube.com:8443/']) {
-    calls.length = 0;
-    const r = await run(parse, { body: { url, apiKey: 'sk-ant-user' } });
-    assert.equal(calls.length, 0, `fetched ${url}`);
+    calls.length = 0; env(true); supa = { user: 200, credit: 3 };
+    const r = await run(parse, { body: { url, apiKey: 'sk-ant-user' }, headers: SIGNED_IN });
+    assert.equal(calls.filter((u) => !u.startsWith(SB)).length, 0, `fetched ${url}`);
     assert.equal(r.status, 422);
   }
 });
 
 test('workout import still reads allowed video sites', async () => {
-  calls.length = 0;
-  await run(parse, { body: { url: 'https://www.instagram.com/p/abc/', apiKey: 'sk-ant-user' } });
+  calls.length = 0; env(true); supa = { user: 200, credit: 3 };
+  await run(parse, { body: { url: 'https://www.instagram.com/p/abc/', apiKey: 'sk-ant-user' }, headers: SIGNED_IN });
   assert.ok(calls.some((u) => u.startsWith('https://www.instagram.com/')));
 });
 

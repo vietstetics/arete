@@ -96,7 +96,7 @@ window.Auth = (() => {
   // supabase/schema.sql).
   const NOT_DATA = new Set(['arete_session', 'arete_accounts', 'arete_owner', 'arete_anthropic_key', 'arete_splash', 'arete_sync_pending',
     'arete_sets_sent', 'arete_sets_deleted', 'arete_sets_status',   // per-device bookkeeping for js/setSync.js
-    'arete_onboarding']);                                            // this phone still owes the first-run questions
+    'arete_onboarding', 'arete_sync_base', 'arete_sync_mtime']);   // + per-device merge bookkeeping (below)                                            // this phone still owes the first-run questions
   // First-run questions (onboarding.html) are owed only by a brand-new account: one with no cloud row
   // yet, or a device account created just now. Answers live in jarvis_profile, which syncs, so a
   // second phone never asks again.
@@ -114,35 +114,152 @@ window.Auth = (() => {
     const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (isDataKey(k) || k === 'arete_anthropic_key' || k === 'arete_sync_pending' || /^arete_sets_/.test(k || '') || ((k || '').match(/^(jarvis|arete)_/) && SECRETISH.test(k))) keys.push(k);
+      if (isDataKey(k) || k === 'arete_anthropic_key' || /^arete_(sync|sets)_/.test(k || '') || ((k || '').match(/^(jarvis|arete)_/) && SECRETISH.test(k))) keys.push(k);
     }
     keys.forEach(k => { try { origRemove(k); } catch {} });
   }
   const OWNER_KEY = 'arete_owner';
-  // Set on every local data write, cleared only once that write is in the cloud. While it's set the
-  // phone holds the newest copy, so opening a page uploads it instead of downloading over it.
+  // Set on every local data write, cleared only once that write is in the cloud.
   const PENDING_KEY = 'arete_sync_pending';
   const pendingSince = () => { const v = +(localStorage.getItem(PENDING_KEY) || 0); return v > 0 ? v : 0; };
+  const clearPendingIf = (sent) => { if (pendingSince() === sent) { try { origRemove(PENDING_KEY); } catch {} } };
+
+  // ── Merging two devices ──────────────────────────────────────────────────
+  // The cloud row is one JSON object of keys. Each device remembers a fingerprint of every key as it
+  // was at its last sync (BASE_KEY), so for each key it can tell who changed it since: only this phone
+  // (send it), only the cloud (take it), or both (merge: lists of items with ids are joined item by
+  // item, objects field by field, anything else goes to the newer change). The upload only lands if
+  // nobody saved in between (compare-and-swap on updated_at); otherwise it reads again and re-merges.
+  const BASE_KEY = 'arete_sync_base', MTIME_KEY = 'arete_sync_mtime', TIMES = '__t';
+  const fp = (v) => { if (v == null) return null; let h = 0x811c9dc5; for (let i = 0; i < v.length; i++) { h ^= v.charCodeAt(i); h = Math.imul(h, 0x01000193); } return v.length + ':' + (h >>> 0).toString(36); };
+  const readMap = (k) => { try { const o = JSON.parse(localStorage.getItem(k)); return o && typeof o === 'object' ? o : {}; } catch { return {}; } };
+  const writeMap = (k, o) => { try { origSet(k, JSON.stringify(o)); } catch {} };
+  function noteWrite(k) { const m = readMap(MTIME_KEY); m[k] = Date.now(); writeMap(MTIME_KEY, m); }
+  const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+  const TIME_FIELDS = ['date', 'startedAt', 'start', 'createdAt', 'at', 'ts', 'time'];
+  function mergeJSON(a, b, aNewer, depth) {          // a: this phone, b: the cloud
+    const older = aNewer ? b : a, newer = aNewer ? a : b;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const id = (x) => (x && typeof x === 'object' && x.id != null ? String(x.id) : null);
+      if (!a.concat(b).every((x) => id(x) != null)) return newer;
+      const rest = new Map(older.map((x) => [id(x), x]));
+      const out = newer.map((x) => {
+        const o = rest.get(id(x)); rest.delete(id(x));
+        return o && isObj(o) && isObj(x) && depth < 3 ? (aNewer ? mergeJSON(x, o, true, depth + 1) : mergeJSON(o, x, false, depth + 1)) : x;
+      });
+      for (const x of rest.values()) out.push(x);     // items only the older side has: added there
+      const f = TIME_FIELDS.find((k) => out.every((x) => x[k] != null && !isNaN(new Date(x[k]))));
+      return f ? out.map((x, i) => [x, i]).sort((p, q) => (new Date(p[0][f]) - new Date(q[0][f])) || p[1] - q[1]).map((p) => p[0]) : out;
+    }
+    if (isObj(a) && isObj(b) && depth < 3) {
+      const out = Object.assign({}, older, newer);
+      for (const k in a) {
+        if (k in b && a[k] && b[k] && typeof a[k] === 'object' && typeof b[k] === 'object' && JSON.stringify(a[k]) !== JSON.stringify(b[k])) out[k] = mergeJSON(a[k], b[k], aNewer, depth + 1);
+      }
+      return out;
+    }
+    return newer;
+  }
+  function mergeKey(L, R, lt, rt) {
+    if (L === R) return L;
+    if (L == null) return R;                          // deleted on one side, changed on the other: keep the change
+    if (R == null) return L;
+    let a, b; try { a = JSON.parse(L); b = JSON.parse(R); } catch { return lt >= rt ? L : R; }
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return lt >= rt ? L : R;
+    return JSON.stringify(mergeJSON(a, b, lt >= rt, 0));
+  }
+  function announce(keys) {
+    if (!keys || !keys.length || typeof window === 'undefined' || !window.dispatchEvent || typeof CustomEvent !== 'function') return;
+    try { window.dispatchEvent(new CustomEvent('arete:remote-change', { detail: keys })); } catch {}
+  }
+  /** Read the cloud row, merge it with this phone key by key, and write the result to both. */
+  async function exchange(c, u) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: row, error } = await c.from('user_data').select('data, updated_at').eq('user_id', u.id).maybeSingle();
+      if (error) return { ok: false };
+      const remote = (row && row.data) || {}, rTimes = isObj(remote[TIMES]) ? remote[TIMES] : {};
+      const base = readMap(BASE_KEY), mt = readMap(MTIME_KEY), now = Date.now();
+      const keys = new Set(dataKeys().concat(Object.keys(remote).filter(isDataKey), Object.keys(base).filter(isDataKey)));
+      const out = {}, times = {}, local = {};
+      let send = !row;
+      for (const k of keys) {
+        const L = localStorage.getItem(k), R = typeof remote[k] === 'string' ? remote[k] : null, B = base[k] == null ? null : base[k];
+        local[k] = L;
+        const lc = fp(L) !== B, rc = fp(R) !== B;
+        let v, t;
+        if (!lc) { v = R; t = rTimes[k] || 0; }
+        else if (!rc) { v = L; t = mt[k] || now; }
+        else { const lt = mt[k] || now, rt = rTimes[k] || 0; v = mergeKey(L, R, lt, rt); t = Math.max(lt, rt); }
+        if (v !== R) send = true;
+        if (v != null) { out[k] = v; if (t) times[k] = t; }
+      }
+      out[TIMES] = times;
+      if (send) {
+        const stamp = new Date().toISOString();
+        if (row && attempt < 2) {
+          const r = await c.from('user_data').update({ data: out, updated_at: stamp }).eq('user_id', u.id).eq('updated_at', row.updated_at).select('user_id');
+          if (r.error) return { ok: false };
+          if (!r.data || !r.data.length) continue;   // another device saved first: read again and re-merge
+        } else if (row) {                            // still racing after two tries: write the merge anyway
+          const r = await c.from('user_data').upsert({ user_id: u.id, data: out, updated_at: stamp });
+          if (r.error) return { ok: false };
+        } else {
+          const r = await c.from('user_data').insert({ user_id: u.id, data: out, updated_at: stamp });
+          if (r.error) { if (r.error.code === '23505' && attempt < 2) continue; return { ok: false }; }
+        }
+      }
+      // Bring this phone up to date, except keys typed into while the network was busy (sent next time).
+      const changed = [], newBase = {};
+      for (const k of keys) {
+        const v = k in out ? out[k] : null;
+        if (v != null) newBase[k] = fp(v);
+        if (v !== local[k] && localStorage.getItem(k) === local[k]) {
+          try { if (v == null) origRemove(k); else origSet(k, v); changed.push(k); } catch { delete newBase[k]; }
+        }
+      }
+      writeMap(BASE_KEY, newBase);
+      return { ok: true, changed };
+    }
+    return { ok: false };
+  }
+
   // Nothing is uploaded until this device has read the user's cloud copy once: otherwise an empty
   // or half-loaded phone (offline at sign-in) would overwrite the account's data.
   let pulledFor = null;
+  // Clears every trace of the previous account from this phone (data, secrets, sync bookkeeping).
+  function resetDevice() {
+    wipeLocalData();
+    try { origRemove(OWNER_KEY); origRemove(ONBOARD_KEY); } catch {}
+    pulledFor = null;
+  }
   async function pull() {
     const c = await getClient(); const u = await getUser(); if (!u) return false;
-    // Another account used this device last: clear its data so it never lands in this account.
     const owner = localStorage.getItem(OWNER_KEY);
-    if (owner && owner !== u.id) { wipeLocalData(); try { origRemove(PENDING_KEY); origRemove(ONBOARD_KEY); } catch {} }
-    // Unsent changes from this account on this phone are newer than the cloud copy: keep them, send them.
-    if (owner === u.id && pendingSince()) { pulledFor = u.id; schedulePush(0); return true; }
+    // Another account used this device last: clear its data so it never lands in this account.
+    if (owner && owner !== u.id) resetDevice();
+    if (owner === u.id) {                                   // synced with this account before: merge both ways
+      const sent = pendingSince();
+      const r = await exchange(c, u);
+      if (!r.ok) { if (sent) schedulePush(30000); return false; }
+      pulledFor = u.id;
+      clearPendingIf(sent);
+      announce(r.changed);
+      return true;
+    }
+    // First sync of this account on this phone: the account's copy replaces whatever is here.
     const { data, error } = await c.from('user_data').select('data').eq('user_id', u.id).maybeSingle();
-    if (error) return false;                                  // try again later; uploads stay paused
-    const remote = (data && data.data) || {};
-    for (const k in remote) { if (isDataKey(k) && typeof remote[k] === 'string') { try { origSet(k, remote[k]); } catch {} } }
+    if (error) return false;                                // try again later; uploads stay paused
+    const remote = (data && data.data) || {}, base = {};
+    for (const k in remote) {
+      if (isDataKey(k) && typeof remote[k] === 'string') { try { origSet(k, remote[k]); base[k] = fp(remote[k]); } catch {} }
+    }
+    writeMap(BASE_KEY, base);
     localStorage.setItem(OWNER_KEY, u.id);
     pulledFor = u.id;
-    if (!data) {                                              // new account: upload this device's data
+    if (!data) {                                            // new account: upload this device's data
       if (!localStorage.getItem(PROFILE_KEY)) { try { origSet(ONBOARD_KEY, '1'); } catch {} }
       schedulePush();
-    }
+    } else if (dataKeys().some((k) => !(k in base))) schedulePush();   // phone-only keys go up too
     return true;
   }
   let pushTimer = null, pushing = false, again = false;
@@ -155,10 +272,10 @@ window.Auth = (() => {
       if (!u) return false;
       if (pulledFor !== u.id && !(await pull())) return false;
       const sent = pendingSince();
-      const { error } = await c.from('user_data').upsert({ user_id: u.id, data: snapshot(), updated_at: new Date().toISOString() });
-      ok = !error;
+      const r = await exchange(c, u);
+      ok = r.ok;
       // Only clear the marker if nothing was typed while this upload was on its way.
-      if (ok && pendingSince() === sent) { try { origRemove(PENDING_KEY); } catch {} }
+      if (ok) { clearPendingIf(sent); announce(r.changed); }
       return ok;
     } catch { return false; } finally {
       pushing = false;
@@ -174,11 +291,17 @@ window.Auth = (() => {
   function watch() {
     if (watching) return; watching = true;
     localStorage.setItem = function (k, v) {
-      origSet(k, v);
-      if (isDataKey(k)) { markPending(); schedulePush(); }
+      try { origSet(k, v); } catch (e) {
+        // The phone's storage for the app is full: the change was NOT saved. Say so on screen.
+        if (e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) && typeof window !== 'undefined' && window.dispatchEvent && typeof CustomEvent === 'function') {
+          try { window.dispatchEvent(new CustomEvent('arete:storage-full', { detail: k })); } catch {}
+        }
+        throw e;
+      }
+      if (isDataKey(k)) { noteWrite(k); markPending(); schedulePush(); }
       if ((k === 'jarvis_workouts' || k === 'arete_velocity_sets') && typeof window !== 'undefined' && window.SetSync) window.SetSync.schedule();
     };
-    localStorage.removeItem = function (k) { origRemove(k); if (isDataKey(k)) { markPending(); schedulePush(); } };
+    localStorage.removeItem = function (k) { origRemove(k); if (isDataKey(k)) { noteWrite(k); markPending(); schedulePush(); } };
     const flush = () => { if (pendingSince()) { clearTimeout(pushTimer); push(); } };
     if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
     if (typeof window !== 'undefined' && window.addEventListener) { window.addEventListener('pagehide', flush); window.addEventListener('online', flush); }
@@ -232,6 +355,7 @@ window.Auth = (() => {
     email = String(email || '').trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Enter a valid email address.');
     if ((pw || '').length < 8) throw new Error('Password must be at least 8 characters.');
+    if (!pw.trim()) throw new Error('A password can’t be only spaces.');
     const acc = _accounts();
     if (acc[email]) throw new Error('An account with that email already exists on this device — sign in instead.');
     const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -260,7 +384,7 @@ window.Auth = (() => {
       clearTimeout(pushTimer);
       const saved = await push();
       await signOut();
-      if (saved) { wipeLocalData(); try { origRemove(OWNER_KEY); } catch {} }
+      if (saved) resetDevice();
     }
     localSignOut();
   }
@@ -271,13 +395,13 @@ window.Auth = (() => {
       const c = await getClient();
       const { error } = await c.rpc('delete_my_account');
       if (error) throw new Error('Couldn’t delete the account. Check your connection and try again.');
-      clearTimeout(pushTimer); pulledFor = null;
+      clearTimeout(pushTimer);
       try { await c.auth.signOut(); } catch {}
     } else {
       const s = localSession(), acc = _accounts();
       if (s && s.email) { delete acc[s.email]; origSet(ACC_KEY, JSON.stringify(acc)); }
     }
-    wipeLocalData(); try { origRemove(OWNER_KEY); } catch {}
+    resetDevice();
     localSignOut();
   }
 
@@ -285,7 +409,7 @@ window.Auth = (() => {
     CFG, isConfigured, getClient, getUser, getSession,
     signUpEmail, signInEmail, resetPassword, resendConfirmation, updatePassword, providers, sendPhoneCode, verifyPhoneCode, signOut, signInOAuth,
     localSignUp, localSignIn, localSession, localSignOut, sessionAny, signOutAny,
-    pull, push, watch, authHeaders, deleteAccount, isPulled: () => !!pulledFor,
+    pull, push, watch, authHeaders, deleteAccount, isPulled: () => !!pulledFor, resetDevice, OWNER_KEY,
     needsOnboarding, clearOnboarding,
   };
 })();

@@ -176,7 +176,7 @@ window.Wearables = (() => {
     const tok = (localStorage.getItem(OURA_KEY) || '').trim();
     if (!tok) throw new Error('no oura token');
     const qs = new URLSearchParams(Object.assign({ path }, params || {}));
-    const r = await fetch(CFG.oura.proxy + '?' + qs, { headers: { 'X-Oura-Token': tok } });
+    const r = await fetch(CFG.oura.proxy + '?' + qs, { headers: Object.assign({ 'X-Oura-Token': tok }, window.Auth ? await window.Auth.authHeaders() : {}) });
     if (!r.ok) throw new Error('oura ' + r.status);
     return r.json();
   }

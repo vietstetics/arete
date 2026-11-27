@@ -62,7 +62,7 @@ const SYSTEM =
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
-import { sendError } from './_lib/account.js';
+import { sendError, requireUser } from './_lib/account.js';
 
 // Only the video sites this feature is for. Anything else (an internal address, a cloud metadata IP,
 // a random server) is never fetched: the user pastes the caption instead.
@@ -140,6 +140,8 @@ async function captionFor(url) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST' }); return; }
+  // Signed-in users only: otherwise anyone could use this function to fetch pages and run up its bill.
+  try { await requireUser(req); } catch (e) { sendError(res, e); return; }
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }

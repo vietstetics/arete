@@ -5,7 +5,6 @@
  * All JSDoc types below map 1-to-1 to TypeScript interfaces —
  * add a build step and rename .js → .ts to migrate.
  *
- * MOCKED DATA: workout history in seedMockData() is placeholder.
  * Replace storageAdapter methods to connect a real backend.
  *
  * NOT medical advice. Recovery estimates are simplified heuristics only.
@@ -593,97 +592,16 @@
   };
 
   // ─────────────────────────────────────────────────────────────
-  //  MOCK DATA SEEDER
-  //  MOCKED: all workout history below is placeholder data.
-  //  Skipped automatically once real workouts exist.
+  //  SAMPLE WORKOUTS (removed)
+  //  Earlier versions filled a new account with sample workouts (ids 'mock-…'), so a
+  //  first-time user saw fatigued muscles they never trained, and the samples synced to
+  //  their account. Nothing is seeded any more; this clears samples already saved.
   // ─────────────────────────────────────────────────────────────
 
-  function seedMockData() {
-    if (storageAdapter.getWorkouts().length > 0) return;
-
-    const now = Date.now();
-    const daysAgo = d => now - d * 86_400_000;
-
-    /** @type {Workout[]} */
-    const mocks = [
-      {
-        id: 'mock-push-1', name: 'Push Day', startedAt: daysAgo(1) - 3_600_000, completedAt: daysAgo(1), notes: '',
-        exercises: [
-          { id: 'mp1e1', name: 'Bench Press',     primaryMuscles: ['chest-l','chest-r'],           secondaryMuscles: ['delt-front-l','delt-front-r','triceps-l','triceps-r'],
-            sets: [
-              { id: 's1',  type: 'warmup',  weight: 60,  unit: 'kg', reps: 10, completed: true },
-              { id: 's2',  type: 'working', weight: 85,  unit: 'kg', reps: 8,  completed: true },
-              { id: 's3',  type: 'working', weight: 85,  unit: 'kg', reps: 8,  completed: true },
-              { id: 's4',  type: 'working', weight: 85,  unit: 'kg', reps: 7,  completed: true },
-              { id: 's5',  type: 'working', weight: 80,  unit: 'kg', reps: 8,  completed: true },
-            ] },
-          { id: 'mp1e2', name: 'Overhead Press',  primaryMuscles: ['delt-front-l','delt-front-r'], secondaryMuscles: ['triceps-l','triceps-r','traps'],
-            sets: [
-              { id: 's6',  type: 'warmup',  weight: 40,  unit: 'kg', reps: 10, completed: true },
-              { id: 's7',  type: 'working', weight: 57,  unit: 'kg', reps: 8,  completed: true },
-              { id: 's8',  type: 'working', weight: 57,  unit: 'kg', reps: 7,  completed: true },
-              { id: 's9',  type: 'working', weight: 55,  unit: 'kg', reps: 7,  completed: true },
-            ] },
-          { id: 'mp1e3', name: 'Tricep Pushdown', primaryMuscles: ['triceps-l','triceps-r'],       secondaryMuscles: [],
-            sets: [
-              { id: 's10', type: 'working', weight: 35,  unit: 'kg', reps: 12, completed: true },
-              { id: 's11', type: 'working', weight: 35,  unit: 'kg', reps: 12, completed: true },
-              { id: 's12', type: 'working', weight: 35,  unit: 'kg', reps: 10, completed: true },
-            ] },
-        ],
-      },
-      {
-        id: 'mock-legs-1', name: 'Leg Day', startedAt: daysAgo(3) - 4_200_000, completedAt: daysAgo(3), notes: '',
-        exercises: [
-          { id: 'ml1e1', name: 'Squat',             primaryMuscles: ['quads-l','quads-r'],           secondaryMuscles: ['glutes-l','glutes-r','hamstrings-l','hamstrings-r'],
-            sets: [
-              { id: 's13', type: 'warmup',  weight: 60,  unit: 'kg', reps: 10, completed: true },
-              { id: 's14', type: 'working', weight: 105, unit: 'kg', reps: 5,  completed: true },
-              { id: 's15', type: 'working', weight: 105, unit: 'kg', reps: 5,  completed: true },
-              { id: 's16', type: 'working', weight: 105, unit: 'kg', reps: 4,  completed: true },
-              { id: 's17', type: 'working', weight: 100, unit: 'kg', reps: 5,  completed: true },
-            ] },
-          { id: 'ml1e2', name: 'Romanian Deadlift', primaryMuscles: ['hamstrings-l','hamstrings-r','glutes-l','glutes-r'], secondaryMuscles: ['lower-back'],
-            sets: [
-              { id: 's18', type: 'working', weight: 85,  unit: 'kg', reps: 10, completed: true },
-              { id: 's19', type: 'working', weight: 85,  unit: 'kg', reps: 10, completed: true },
-              { id: 's20', type: 'working', weight: 85,  unit: 'kg', reps: 9,  completed: true },
-            ] },
-          { id: 'ml1e3', name: 'Calf Raise',        primaryMuscles: ['calves-l','calves-r'],         secondaryMuscles: [],
-            sets: [
-              { id: 's21', type: 'working', weight: 50,  unit: 'kg', reps: 15, completed: true },
-              { id: 's22', type: 'working', weight: 50,  unit: 'kg', reps: 15, completed: true },
-              { id: 's23', type: 'working', weight: 50,  unit: 'kg', reps: 12, completed: true },
-            ] },
-        ],
-      },
-      {
-        id: 'mock-pull-1', name: 'Pull Day', startedAt: daysAgo(5) - 3_600_000, completedAt: daysAgo(5), notes: '',
-        exercises: [
-          { id: 'ml2e1', name: 'Pull-Up',     primaryMuscles: ['lats-l','lats-r'],                  secondaryMuscles: ['biceps-l','biceps-r','upper-back'],
-            sets: [
-              { id: 's24', type: 'working', weight: 0,   unit: 'kg', reps: 8,  completed: true },
-              { id: 's25', type: 'working', weight: 0,   unit: 'kg', reps: 8,  completed: true },
-              { id: 's26', type: 'working', weight: 0,   unit: 'kg', reps: 6,  completed: true },
-            ] },
-          { id: 'ml2e2', name: 'Barbell Row', primaryMuscles: ['lats-l','lats-r','upper-back'],      secondaryMuscles: ['delt-rear-l','delt-rear-r','biceps-l','biceps-r'],
-            sets: [
-              { id: 's27', type: 'warmup',  weight: 50,  unit: 'kg', reps: 10, completed: true },
-              { id: 's28', type: 'working', weight: 82,  unit: 'kg', reps: 8,  completed: true },
-              { id: 's29', type: 'working', weight: 82,  unit: 'kg', reps: 8,  completed: true },
-              { id: 's30', type: 'working', weight: 82,  unit: 'kg', reps: 7,  completed: true },
-            ] },
-          { id: 'ml2e3', name: 'Barbell Curl',primaryMuscles: ['biceps-l','biceps-r'],              secondaryMuscles: ['forearm-l','forearm-r'],
-            sets: [
-              { id: 's31', type: 'working', weight: 42,  unit: 'kg', reps: 10, completed: true },
-              { id: 's32', type: 'working', weight: 42,  unit: 'kg', reps: 10, completed: true },
-              { id: 's33', type: 'working', weight: 40,  unit: 'kg', reps: 9,  completed: true },
-            ] },
-        ],
-      },
-    ];
-
-    localStorage.setItem('jarvis_workouts', JSON.stringify(mocks));
+  function removeSampleWorkouts() {
+    const list = storageAdapter.getWorkouts();
+    const real = list.filter(w => !String(w && w.id).startsWith('mock-'));
+    if (real.length !== list.length) localStorage.setItem('jarvis_workouts', JSON.stringify(real));
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -740,8 +658,8 @@
     fatigueToColor,
     // Storage (swap to connect real backend)
     storageAdapter,
-    // Data seeding
-    seedMockData,
+    // Clears sample workouts saved by earlier versions
+    removeSampleWorkouts,
     // Utilities
     uid,
     fmtDate,

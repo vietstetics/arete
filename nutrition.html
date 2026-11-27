@@ -2105,7 +2105,7 @@ function renderAiMealPicker(){
   ).join('');
 }
 function addAiToLog(){
-  if (!aiData) return;
+  if (!aiData || !foodOpen()) return;
   const entries = getLog(curDate);
   const time = document.getElementById('ai-food-time').value;
   const items = (aiData.items && aiData.items.length) ? aiData.items
@@ -2252,7 +2252,10 @@ function recalc(){
   }
 }
 
+// A second tap while the sheet is closing must not log the food twice.
+const foodOpen = () => document.getElementById('food-modal').classList.contains('open');
 function confirmFood(){
+  if (!foodOpen()) return;
   if (screen === 'custom'){ saveCustomFood(); return; }
   if (!selFood) return;
   const q = getQty();
@@ -2553,7 +2556,8 @@ async function nativeScan(){
   setScanStatus('Opening camera scanner…');
   try {
     const Scanner = cap.registerPlugin('BarcodeScanner');
-    try { await Scanner.requestPermissions(); } catch(_) {}
+    let perm = null; try { perm = await Scanner.requestPermissions(); } catch(_) {}
+    if (perm && perm.camera === 'denied') { scanDenied(Scanner); return; }
     const result = await Scanner.scan();       // opens the native scanner UI
     if (scanHandled) return;
     const code = result && result.barcodes && result.barcodes[0] && result.barcodes[0].rawValue;
@@ -2715,10 +2719,24 @@ async function liveTick(myGen){
   } finally { liveTick._busy = false; }
 }
 
+// Camera permission turned off for the installed app: say where to turn it on, with a button that opens
+// the app's page in Settings, and keep typing the code as a way through.
+function scanDenied(Scanner){
+  const stage = document.getElementById('scan-stage'); if (stage) stage.style.display = 'none';
+  setScanStatus('Camera access is off for Arete. Turn it on in Settings, or type the barcode below.', 'warn');
+  if (Scanner && Scanner.openSettings){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn btn-s btn-sm'; b.textContent = 'Open Settings';
+    b.style.cssText = 'display:flex;margin:8px auto 0';
+    b.onclick = () => Scanner.openSettings().catch(() => {});
+    document.getElementById('scan-status').appendChild(b);
+  }
+}
+
 function cameraError(e){
   document.getElementById('scan-stage').style.display = 'none';
   setScanStatus(e && e.name === 'NotAllowedError'
-    ? 'Camera access was blocked. Take a photo of the barcode, or type it below.'
+    ? 'Camera access is blocked. Allow it in your browser’s settings for this site, take a photo of the barcode, or type it below.'
     : 'Live camera couldn’t start — tap “Take a photo of the barcode” above, or type it below.', 'warn');
 }
 

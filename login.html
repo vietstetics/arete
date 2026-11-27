@@ -279,7 +279,10 @@ function explain(e) {
 function fail(e) { const x = explain(e); setMsg(x.text, 'err', x.action); }
 
 // A brand-new account answers the first-run questions; everyone else goes straight to Home.
-const enter = () => location.replace(Auth.needsOnboarding() ? 'onboarding.html' : 'index.html');
+// After sign-in: the first-run questions if owed, else the page that sent you here (an app page on
+// this site only, never another address), else Home.
+const nextPage = (() => { const n = new URLSearchParams(location.search).get('next') || ''; return /^[a-z0-9-]+\.html(\?[^#]*)?$/.test(n) && !/^(login|onboarding)\.html/.test(n) ? n : 'index.html'; })();
+const enter = () => location.replace(Auth.needsOnboarding() ? 'onboarding.html' : nextPage);
 function done() {
   if (!Auth.isConfigured()) { setMsg('Account ready.', 'ok'); setTimeout(enter, 350); return; }
   setMsg('Signed in. Loading your data…', 'ok');
@@ -291,6 +294,7 @@ async function submitEmail() {
   if (!validEmail(email)) { $('email').setAttribute('aria-invalid', 'true'); $('email').focus(); return setMsg('Enter a valid email address.', 'err'); }
   if (!pw) { $('pw').focus(); return setMsg('Enter your password.', 'err'); }
   if (mode === 'signup' && pw.length < 8) { $('pw').focus(); return setMsg('Password must be at least 8 characters.', 'err'); }
+  if (mode === 'signup' && !pw.trim()) { $('pw').focus(); return setMsg('A password can’t be only spaces.', 'err'); }
   if (needConsent()) return;
   const btn = $('email-btn'); btn.disabled = true; setMsg(mode === 'signup' ? 'Creating your account…' : 'Signing in…');
   try {
@@ -357,6 +361,7 @@ async function forgot() {
 async function saveNewPassword() {
   const pw = $('newpw').value, out = $('recover-msg');
   if (pw.length < 8) { out.className = 'msg err'; out.textContent = 'Password must be at least 8 characters.'; return; }
+  if (!pw.trim()) { out.className = 'msg err'; out.textContent = 'A password can’t be only spaces.'; return; }
   const btn = $('recover-btn'); btn.disabled = true;
   try {
     const { error } = await Auth.updatePassword(pw); if (error) throw error;

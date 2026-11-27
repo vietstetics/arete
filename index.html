@@ -1154,7 +1154,7 @@ function buildMD() {
     Object.keys(MD_GROUPS).forEach(g => out[g] = { n: MD_NAMES[g], sets: 0, lastTrainedAt: null, tip: 'No training data logged.' });
     return out;
   }
-  try { F.seedMockData(); } catch (e) {}
+  try { F.removeSampleWorkouts(); } catch (e) {}
   const workouts = F.storageAdapter.getWorkouts();
   const checkin  = F.storageAdapter.getLatestCheckin();
   for (const g in MD_GROUPS) {
@@ -1167,7 +1167,7 @@ function buildMD() {
     out[g] = {
       n: MD_NAMES[g],
       sets: Math.round(sets),
-      lastTrainedAt: last ? new Date(last).toISOString().slice(0, 10) : null,
+      lastTrainedAt: last ? new Date(last).toISOString() : null,   // the moment, not a UTC day (which is a day off east of UTC)
       tip: last ? 'Based on your logged training. Train again once it returns to Ready.' : 'No training logged — train this group to start tracking recovery.',
     };
   }
@@ -1493,8 +1493,9 @@ window.addEventListener('DOMContentLoaded', () => {
   var done=qs.filter(function(q){return q.doneToday;}).length;
   var c=Habits.character();
   if(meta) meta.textContent=done+" of "+qs.length+" quests cleared · Lv "+c.level+" · "+c.xp.toLocaleString()+" XP"+(Habits.perfectToday()?" · perfect day":"");
+  var esc=function(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
   var chk='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0C0C0F" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  wrap.innerHTML=qs.map(function(q){return '<div class="task"><div class="chk '+(q.doneToday?"on":"")+'">'+(q.doneToday?chk:"")+'</div><div class="task-body"><div class="task-name '+(q.doneToday?"done":"")+'">'+String(q.skill.name).replace(/</g,"&lt;")+'</div><div class="task-meta"><span class="task-time">'+q.name+'</span><span class="tc tc-h">'+q.xp.toLocaleString()+' XP · '+(Math.round(q.mult*100)/100)+'&times;</span></div></div></div>';}).join("");
+  wrap.innerHTML=qs.map(function(q){return '<div class="task"><div class="chk '+(q.doneToday?"on":"")+'">'+(q.doneToday?chk:"")+'</div><div class="task-body"><div class="task-name '+(q.doneToday?"done":"")+'">'+esc(q.skill.name)+'</div><div class="task-meta"><span class="task-time">'+esc(q.name)+'</span><span class="tc tc-h">'+esc(Number(q.xp).toLocaleString())+' XP · '+esc(Math.round(q.mult*100)/100)+'&times;</span></div></div></div>';}).join("");
 })();
 </script>
 <script>

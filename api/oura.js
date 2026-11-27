@@ -7,8 +7,12 @@
  *  the X-Oura-Token header and is forwarded — never logged, never stored.
  *  Only /v2/usercollection/* paths are allowed through.
  * ==========================================================================*/
+import { requireUser, sendError } from './_lib/account.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') { res.status(405).json({ error: 'Use GET' }); return; }
+  // Signed-in users only, so the pass-through can't be used by anyone on the internet.
+  try { await requireUser(req); } catch (e) { sendError(res, e); return; }
 
   const token = String(req.headers['x-oura-token'] || '').trim();
   if (!token) { res.status(401).json({ error: 'Missing X-Oura-Token header.' }); return; }

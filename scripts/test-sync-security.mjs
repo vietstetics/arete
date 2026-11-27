@@ -12,16 +12,35 @@ function world({ user = { id: 'A' }, cloud = {}, selectError = false, upsertErro
     getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k),
   };
   const uploads = [];
-  const state = { user, selectError, upsertError, signedOut: false, deleted: false };
+  const state = { user, selectError, upsertError, signedOut: false, deleted: false, n: 0, beforeWrite: null };
+  if (!cloud.__v) Object.defineProperty(cloud, '__v', { value: {}, enumerable: false });
+  const versions = cloud.__v;
   const client = {
     auth: {
       getUser: async () => ({ data: { user: state.signedOut ? null : state.user } }),
       getSession: async () => ({ data: { session: state.signedOut ? null : { access_token: 'tok' } } }),
       signOut: async () => { state.signedOut = true; },
     },
+    // user_data with an updated_at version, like Postgres: a conditional update only lands if the
+    // version still matches.
     from: () => ({
-      select: () => ({ eq: (_c, id) => ({ maybeSingle: async () => (state.selectError ? { error: { message: 'offline' } } : { data: cloud[id] ? { data: cloud[id] } : null, error: null }) }) }),
-      upsert: async (row) => { if (state.upsertError) return { error: { message: 'offline' } }; uploads.push(row); cloud[row.user_id] = row.data; return { error: null }; },
+      select: () => ({ eq: (_c, id) => ({ maybeSingle: async () => {
+        if (state.selectError) return { error: { message: 'offline' } };
+        const d = cloud[id]; if (!d) return { data: null, error: null };
+        return { data: { data: JSON.parse(JSON.stringify(d)), updated_at: versions[id] || 'v0' }, error: null };
+      } }) }),
+      update: (row) => ({ eq: (_c, id) => ({ eq: (_c2, ver) => ({ select: async () => {
+        if (state.upsertError) return { error: { message: 'offline' } };
+        if (state.beforeWrite) { const f = state.beforeWrite; state.beforeWrite = null; await f(); }
+        if (!cloud[id] || (versions[id] || 'v0') !== ver) return { data: [], error: null };
+        uploads.push({ user_id: id, ...row }); cloud[id] = row.data; versions[id] = 'v' + (++state.n); return { data: [{ user_id: id }], error: null };
+      } }) }) }),
+      insert: async (row) => {
+        if (state.upsertError) return { error: { message: 'offline' } };
+        if (cloud[row.user_id]) return { error: { code: '23505', message: 'duplicate' } };
+        uploads.push(row); cloud[row.user_id] = row.data; versions[row.user_id] = 'v' + (++state.n); return { error: null };
+      },
+      upsert: async (row) => { if (state.upsertError) return { error: { message: 'offline' } }; uploads.push(row); cloud[row.user_id] = row.data; versions[row.user_id] = 'v' + (++state.n); return { error: null }; },
     }),
     rpc: async (name) => { if (name === 'delete_my_account') { state.deleted = true; return { error: null }; } return { error: { message: 'x' } }; },
   };
@@ -62,7 +81,7 @@ test('tokens, personal API keys and sign-in state are never uploaded', async () 
   const w = world();
   for (const [k, v] of [['jarvis_workouts', '[]'], ['arete_weighins', '[]'], ['jarvis_strava_token', 's'], ['jarvis_whoop_token', 'w'], ['jarvis_fitbit_token', 'f'], ['arete_anthropic_key', 'sk-ant-x'], ['arete_session', '{}'], ['arete_accounts', '{}']]) w.store.set(k, v);
   await w.Auth.pull(); await w.Auth.push();
-  assert.deepEqual(Object.keys(w.cloud.A).sort(), ['arete_weighins', 'jarvis_workouts']);
+  assert.deepEqual(Object.keys(w.cloud.A).filter((k) => k !== '__t').sort(), ['arete_weighins', 'jarvis_workouts']);
 });
 
 test('a tampered cloud row cannot plant sign-in state or secrets on the phone', async () => {
@@ -140,4 +159,72 @@ test('the unsent marker is never uploaded and is cleared with the phone data', a
   w.store.set('arete_sync_pending', '456');
   await w.Auth.deleteAccount();
   assert.equal(w.store.has('arete_sync_pending'), false);
+});
+
+// ── Two devices on one account (audit #12): neither may erase the other's changes. ──
+async function device(cloud) { const d = world({ cloud }); d.store.set('arete_owner', 'A'); await d.Auth.pull(); d.Auth.watch(); return d; }
+const ws = (id, date) => ({ id, date, sets: [] });
+
+test('two devices changing different things: both changes survive', async () => {
+  const cloud = { A: { jarvis_nutrition_log: '{}', jarvis_nutrition_goals: '{"kcal":2400}' } };
+  const phone = await device(cloud), laptop = await device(cloud);
+  phone.Auth.__ls.setItem('jarvis_nutrition_log', '{"2026-11-27":[{"id":"f1","name":"Oats"}]}');
+  laptop.Auth.__ls.setItem('jarvis_nutrition_goals', '{"kcal":2200}');
+  assert.equal(await phone.Auth.push(), true);
+  assert.equal(await laptop.Auth.push(), true);
+  assert.equal(cloud.A.jarvis_nutrition_log, '{"2026-11-27":[{"id":"f1","name":"Oats"}]}', 'the phone’s food log is kept');
+  assert.equal(cloud.A.jarvis_nutrition_goals, '{"kcal":2200}');
+  assert.equal(laptop.store.get('jarvis_nutrition_log'), cloud.A.jarvis_nutrition_log, 'and it reaches the laptop');
+  await phone.Auth.pull();
+  assert.equal(phone.store.get('jarvis_nutrition_goals'), '{"kcal":2200}', 'the laptop’s goal reaches the phone');
+});
+
+test('two devices each adding a workout: both workouts are kept, in date order', async () => {
+  const cloud = { A: { jarvis_workouts: JSON.stringify([ws('w1', '2026-11-20')]) } };
+  const phone = await device(cloud), laptop = await device(cloud);
+  phone.Auth.__ls.setItem('jarvis_workouts', JSON.stringify([ws('w1', '2026-11-20'), ws('w3', '2026-11-27')]));
+  laptop.Auth.__ls.setItem('jarvis_workouts', JSON.stringify([ws('w1', '2026-11-20'), ws('w2', '2026-11-25')]));
+  await phone.Auth.push(); await laptop.Auth.push();
+  assert.deepEqual(JSON.parse(cloud.A.jarvis_workouts).map((w) => w.id), ['w1', 'w2', 'w3']);
+  await phone.Auth.pull();
+  assert.equal(phone.store.get('jarvis_workouts'), cloud.A.jarvis_workouts);
+});
+
+test('another device saving between this one’s read and write: it reads again, nothing is lost', async () => {
+  const cloud = { A: { jarvis_tasks: '[]', jarvis_water: '0' } };
+  const phone = await device(cloud), laptop = await device(cloud);
+  phone.Auth.__ls.setItem('jarvis_water', '3');
+  laptop.Auth.__ls.setItem('jarvis_tasks', '[{"id":"t1","name":"Stretch"}]');
+  phone.state.beforeWrite = () => laptop.Auth.push();      // the laptop saves while the phone's upload is in flight
+  assert.equal(await phone.Auth.push(), true);
+  assert.equal(cloud.A.jarvis_water, '3');
+  assert.equal(cloud.A.jarvis_tasks, '[{"id":"t1","name":"Stretch"}]');
+});
+
+test('a key removed on one device is removed on the other', async () => {
+  const cloud = { A: { jarvis_active_workout: '{"id":"a"}', jarvis_workouts: '[]' } };
+  const phone = await device(cloud), laptop = await device(cloud);
+  phone.Auth.__ls.removeItem('jarvis_active_workout');
+  await phone.Auth.push();
+  assert.equal('jarvis_active_workout' in cloud.A, false);
+  await laptop.Auth.pull();
+  assert.equal(laptop.store.has('jarvis_active_workout'), false);
+});
+
+test('the same setting changed on both devices: the later change wins', async () => {
+  const cloud = { A: { jarvis_rest_secs: '90' } };
+  const phone = await device(cloud), laptop = await device(cloud);
+  laptop.Auth.__ls.setItem('jarvis_rest_secs', '120');
+  await new Promise((r) => setTimeout(r, 5));
+  phone.Auth.__ls.setItem('jarvis_rest_secs', '150');
+  await laptop.Auth.push(); await phone.Auth.push();
+  assert.equal(cloud.A.jarvis_rest_secs, '150');
+});
+
+test('opening a page with nothing new writes nothing to the cloud', async () => {
+  const cloud = { A: { jarvis_workouts: '[]' } };
+  const phone = await device(cloud);
+  const before = phone.uploads.length;
+  await phone.Auth.pull(); await phone.Auth.pull();
+  assert.equal(phone.uploads.length, before);
 });

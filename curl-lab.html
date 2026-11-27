@@ -1301,7 +1301,11 @@ async function startCamera() {
     begin();
   } catch (e) {
     stopStream();
-    setStatus(e && e.name === 'NotAllowedError' ? 'Camera blocked — allow camera access and try again' : 'Couldn’t start: ' + (e && e.message || e), 'warn');
+    const nativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    setStatus(e && e.name === 'NotAllowedError'
+      ? (nativeApp ? 'Camera access is off. Turn it on in Settings → Arete → Camera, then try again, or analyse a video instead'
+                   : 'Camera access is blocked. Allow it in your browser’s settings for this site, then try again, or analyse a video instead')
+      : 'Couldn’t start: ' + (e && e.message || e), 'warn');
   } finally {
     starting = false;
   }
