@@ -13,7 +13,7 @@
     'workouts.html', 'nutrition.html', 'recovery.html', 'steps.html',
     'exercises.html', 'programs.html', 'analytics.html', 'consistency.html',
     'connected-health.html', 'connections.html', 'settings.html', 'goals.html',
-    'tasks.html', 'habits.html', 'finance.html', 'curl-lab.html', 'velocity-lab.html',
+    'tasks.html', 'habits.html', 'finance.html', 'curl-lab.html', 'velocity-lab.html', 'isometric.html',
     'login.html',
   ];
   const pending = new Set();

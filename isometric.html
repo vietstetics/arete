@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0E110C">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="js/auth.js"></script>
+<script src="js/authguard.js"></script>
+<title>Arete — Isometric</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!--
+  Isometrics against something that doesn't move (pin press, pin squat, mid-thigh pull, towel curl).
+  A phone can't see force. It reads the push's time, the joint angle, whether the position stayed fixed,
+  and shake, compared only with your own earlier pushes. Maths in features/isometric/services/isometric.js;
+  hand-back to the workout in features/isometric/services/handoff.js. Same look as curl-lab.html: the
+  camera full screen, a white sheet below.
+-->
+<style>
+:root{
+  --ink:#171B12;--ink2:#5F6A55;--ink3:#8B957F;--paper:#FFFFFF;--wash:#F3F5F1;
+  --line:rgba(23,27,18,.10);--lime:#58DB3D;--lime-ink:#237A12;--amber:#E8A33A;--amber-ink:#8A5A12;--red:#C0403A;
+  --stage:#0E110C;--r:24px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--stage);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+button,select{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+
+.app{position:fixed;inset:0;display:flex;flex-direction:column}
+.stage{position:relative;flex:1;min-height:0;overflow:hidden;background:var(--stage)}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.stage video{object-fit:cover}
+.idle{position:absolute;inset:0;display:grid;place-items:center;padding:0 32px;text-align:center;color:rgba(255,255,255,.55);font-size:14px;font-weight:600;line-height:1.5}
+.top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;z-index:3;background:linear-gradient(rgba(14,17,12,.75),rgba(14,17,12,0))}
+.ibtn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.12)}
+.ibtn svg{width:18px;height:18px}
+.ttl{flex:1;color:#fff;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0}
+.ttl span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ttl em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(88,219,61,.2);color:#B9F5AA;padding:3px 7px;border-radius:999px}
+.status{position:absolute;left:50%;transform:translateX(-50%);top:calc(64px + env(safe-area-inset-top,0px));z-index:3;max-width:calc(100% - 32px);padding:9px 14px;border-radius:999px;background:rgba(14,17,12,.72);color:#fff;font-size:13.5px;font-weight:600;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.status.good{background:rgba(35,122,18,.85)}
+.status.warn{background:rgba(138,90,18,.88)}
+.count{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:800;letter-spacing:-.04em;color:#fff;text-shadow:0 2px 16px rgba(0,0,0,.4);font-variant-numeric:tabular-nums;pointer-events:none}
+
+.sheet{background:var(--paper);border-radius:var(--r) var(--r) 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 30px rgba(0,0,0,.25);z-index:4;max-height:62vh;overflow-y:auto}
+.h{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.hint{font-size:12.5px;color:var(--ink2);line-height:1.5;margin-top:10px}
+.hint b{color:var(--ink)}
+.guide{margin-top:14px;padding:14px;border-radius:16px;background:var(--wash)}
+.guide-h{font-size:15px;font-weight:700}
+.guide ol{list-style:none;display:grid;gap:10px;margin-top:8px}
+.guide li{display:grid;grid-template-columns:22px 1fr;gap:10px;font-size:12.5px;line-height:1.45;color:var(--ink2)}
+.guide li b{display:block;color:var(--ink);font-size:13.5px}
+.mk{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800;background:var(--lime-ink)}
+.lbl{font-size:12px;font-weight:600;color:var(--ink2);margin-top:14px}
+.opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.opt{min-width:48px;height:40px;padding:0 12px;border-radius:12px;background:var(--wash);font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.opt[aria-pressed="true"]{background:var(--ink);color:#F1F7E9}
+.rpe{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:12px}
+.rpe .opt{min-width:0;padding:0}
+select{width:100%;height:44px;border-radius:12px;background:var(--wash);padding:0 12px;font-size:16px;font-weight:600;color:var(--ink);margin-top:6px}
+.acts{display:flex;gap:8px;margin-top:14px}
+.btn{flex:1;min-height:50px;border-radius:15px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;position:relative}
+.btn.p{background:var(--ink);color:#F1F7E9}
+.btn.s{background:var(--wash);color:var(--ink)}
+.btn:active{transform:scale(.98)}
+label.btn input{position:absolute;width:1px;height:1px;opacity:0}
+#setup .acts{position:sticky;bottom:0;background:var(--paper);padding-top:10px}
+.read{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.big{display:flex;align-items:baseline;gap:8px}
+.big b{font-size:56px;font-weight:800;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.big span{font-size:14px;font-weight:600;color:var(--ink2)}
+.shk{text-align:right;font-size:13px;font-weight:600;color:var(--ink2);padding-bottom:6px;font-variant-numeric:tabular-nums}
+.shk b{display:block;font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+.meter{margin:14px 0 4px;position:relative;height:10px;border-radius:10px;background:var(--wash)}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:10px;background:var(--lime);width:0;transition:width 60ms linear}
+.meter-l{display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+.list{list-style:none;margin-top:12px;display:grid;gap:6px}
+.push{padding:10px 12px;border-radius:12px;background:var(--wash);font-size:13px}
+.push-t{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+.push-t b{font-weight:700}
+.push-m{color:var(--ink2);margin-top:2px;font-variant-numeric:tabular-nums}
+.warn{margin-top:6px;font-size:12px;font-weight:600;color:var(--amber-ink)}
+.usual{margin-top:12px;padding:14px;border-radius:16px;background:var(--wash);font-size:13px;line-height:1.5;color:var(--ink2)}
+.usual b{display:block;font-size:18px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.usual.has{background:rgba(88,219,61,.18)}
+.msg{font-size:13px;line-height:1.5;margin-top:10px;color:var(--ink2);font-weight:600}
+.msg:empty{display:none}
+.msg.err{color:var(--red)}
+.msg.ok{color:var(--lime-ink)}
+</style>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted></video><canvas id="overlay"></canvas>
+    <div class="idle" id="idle">Prop the phone up side-on, then start the camera</div>
+    <div class="count" id="count" hidden></div>
+    <div class="top">
+      <a class="ibtn" href="workouts.html" aria-label="Back to workout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></a>
+      <div class="ttl"><span id="title">Isometric</span><em>Estimate</em></div>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite" hidden></div>
+  </div>
+
+  <div class="sheet" id="sheet">
+    <section id="setup">
+      <div class="h">Isometric push</div>
+      <p class="hint">Push time, joint angle and shake, compared with your own earlier pushes. <b>A phone can’t measure force.</b></p>
+      <div class="guide">
+        <div class="guide-h">How to film it</div>
+        <ol>
+          <li><span class="mk">1</span><span><b>Side-on, 2–3 m away</b><span id="show-what">Your working joint in the picture</span></span></li>
+          <li><span class="mk">2</span><span><b>Prop the phone up</b>If the phone moves, shake can’t be read</span></li>
+          <li><span class="mk">3</span><span><b>Get in position and hold lightly</b>Once you’re still for 2 seconds, three beeps count you in</span></li>
+          <li><span class="mk">4</span><span><b>Push as hard as you can</b>Until the end beep</span></li>
+        </ol>
+      </div>
+      <div id="mode-pick" hidden>
+        <p class="lbl">Working joint</p>
+        <select id="mode" aria-label="Working joint">
+          <option value="arms">Elbow (presses, curls, pulls with the arms)</option>
+          <option value="legs">Knee (squats, split squats, leg presses)</option>
+          <option value="hinge">Hip (mid-thigh pulls, deadlifts, hip thrusts)</option>
+        </select>
+      </div>
+      <p class="lbl">Push for</p>
+      <div class="opts" id="targets" role="group" aria-label="Push length"></div>
+      <p class="hint">For a video: film 3 seconds holding lightly, then push until the clip ends.</p>
+      <p class="msg" id="setup-msg" role="status"></p>
+      <div class="acts">
+        <label class="btn s">Analyse a video<input id="file" type="file" accept="video/*"></label>
+        <button class="btn p" id="start" type="button">Start camera</button>
+      </div>
+    </section>
+
+    <section id="live" hidden>
+      <div class="read">
+        <div class="big"><b id="angle">—</b><span id="angle-lbl">Angle</span></div>
+        <div class="shk"><b id="shake">—</b>Shake vs relaxed</div>
+      </div>
+      <div class="meter"><i id="meter"></i></div>
+      <div class="meter-l"><span>Relaxed</span><span>4×</span></div>
+      <div class="acts">
+        <button class="btn s" id="end" type="button">End set</button>
+        <button class="btn p" id="stop" type="button" hidden>Stop push</button>
+        <button class="btn p" id="next" type="button" hidden>Next push</button>
+      </div>
+    </section>
+
+    <section id="finish" hidden>
+      <div class="h">How hard was that?</div>
+      <p class="hint">1 is easy, 10 is everything you had</p>
+      <div class="rpe" id="rpe" role="group" aria-label="Effort from 1 to 10"></div>
+      <p class="msg" id="save-msg" role="status"></p>
+      <div class="acts">
+        <a class="btn s" href="workouts.html" id="leave">Back to workout</a>
+        <button class="btn p" id="save" type="button">Save</button>
+      </div>
+    </section>
+
+    <section id="results" hidden>
+      <ul class="list" id="pushes"></ul>
+      <div class="usual" id="usual"></div>
+      <p class="hint">Estimate: compared with your own earlier pushes. Shake isn’t force. It rises as you push harder and drops as effort fades.</p>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+import { SETUPS, isoModeFor, pickSide, analyseBaseline, analysePush, liveShake, liveAngle, compareToUsual, FLAG_TEXT } from './features/isometric/services/isometric.js';
+import { parseIsoContext, attachIsoSet, saveIsoRecord, listIsoRecords, isoSummary } from './features/isometric/services/handoff.js';
+import { pickPerson } from './features/standard/services/repEngine.js';
+import { createFrameClock } from './features/velocity/services/live/frameClock.js';
+import { playVideo } from './features/velocity/services/live/playVideo.js';
+import { requestMotionPermission, createMotionWatch } from './features/velocity/services/live/motion.js';
+
+const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
+const TARGETS = [3, 6, 10, 30, 45];
+const RELAX_SEC = 2, COUNT_SEC = 3, FILE_MAX_SEC = 60;
+const JOINTS = { left: { shoulder: 11, elbow: 13, wrist: 15, hip: 23, knee: 25, ankle: 27 }, right: { shoulder: 12, elbow: 14, wrist: 16, hip: 24, knee: 26, ankle: 28 } };
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const params = new URLSearchParams(location.search);
+const context = parseIsoContext(params);
+const exerciseName = (params.get('exerciseName') || '').slice(0, 120);
+let mode = SETUPS[params.get('mode')] ? params.get('mode') : isoModeFor(exerciseName);
+if (!mode) { $('mode-pick').hidden = false; mode = 'arms'; }
+const video = $('video'), overlay = $('overlay');
+
+let targetSec = 6, rpe = null;
+let landmarker = null, stream = null, wakeLock = null, audio = null, source = 'camera', starting = false;
+let phase = 'idle';            // idle | relax | countdown | push | result | done
+let frames = [], side = null, baseline = null, phaseAt = 0, lastCheck = 0, prevCenter = null, lastLive = 0, beeped = -1;
+let pushStartMs = 0, rvfc = 0, raf = 0, lastTs = -1, tsShift = 0, setLastMs = -Infinity;
+const clock = createFrameClock(), motion = createMotionWatch();
+const pushes = [];
+
+// ── Setup ────────────────────────────────────────────────
+function showSetup() {
+  $('title').textContent = exerciseName || 'Isometric';
+  const w = SETUPS[mode].show.replace(/^Show /, '').replace(/ from the side$/, '');
+  $('show-what').textContent = w.charAt(0).toUpperCase() + w.slice(1) + ' in the picture';
+  $('angle-lbl').textContent = SETUPS[mode].label + ' angle';
+  $('targets').innerHTML = TARGETS.map((s) => `<button class="opt" type="button" data-s="${s}" aria-pressed="${s === targetSec}">${s} s</button>`).join('');
+}
+$('targets').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-s]'); if (!b) return;
+  targetSec = +b.dataset.s;
+  $('targets').querySelectorAll('.opt').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+});
+$('mode').addEventListener('change', () => { mode = $('mode').value; showSetup(); });
+$('rpe').innerHTML = Array.from({ length: 10 }, (_, i) => `<button class="opt" type="button" data-r="${i + 1}" aria-pressed="false">${i + 1}</button>`).join('');
+$('rpe').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-r]'); if (!b) return;
+  rpe = rpe === +b.dataset.r ? null : +b.dataset.r;
+  $('rpe').querySelectorAll('.opt').forEach((c) => c.setAttribute('aria-pressed', String(+c.dataset.r === rpe)));
+});
+showSetup();
+
+// ── Sound ────────────────────────────────────────────────
+function beep(freq = 660, dur = 0.12) {
+  try {
+    if (!audio) return;
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = freq; g.gain.value = 0.15;
+    o.connect(g); g.connect(audio.destination);
+    o.start(); o.stop(audio.currentTime + dur);
+  } catch {}
+}
+
+// ── Camera and tracker ───────────────────────────────────
+async function loadTracker() {
+  if (landmarker) return landmarker;
+  setStatus('Loading the tracker…');
+  const { PoseLandmarker, FilesetResolver } = await import(`${MP}/vision_bundle.mjs`);
+  const files = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+  const opts = (delegate) => ({ baseOptions: { modelAssetPath: MODEL, delegate }, runningMode: 'VIDEO', numPoses: 2, minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
+  try { landmarker = await PoseLandmarker.createFromOptions(files, opts('GPU')); }
+  catch { landmarker = await PoseLandmarker.createFromOptions(files, opts('CPU')); }
+  return landmarker;
+}
+
+function unlockAudio() { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume?.(); } catch {} }
+
+$('start').addEventListener('click', async () => {
+  if (starting) return;
+  starting = true; unlockAudio();
+  const motionOk = requestMotionPermission();   // iPhone: must be asked inside the tap, before anything is awaited
+  source = 'camera'; $('setup-msg').textContent = '';
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera unavailable. Use HTTPS and a supported browser, or analyse a video.');
+    showLive();
+    await loadTracker();
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }, audio: false });
+    video.srcObject = stream; video.removeAttribute('src');
+    await playVideo(video);
+    if (await motionOk) motion.start();
+    try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
+    begin();
+  } catch (e) {
+    stopCamera(); $('live').hidden = true; $('setup').hidden = false;
+    const nativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    $('idle').hidden = false; setStatus('');
+    $('setup-msg').className = 'msg err';
+    $('setup-msg').textContent = e && e.name === 'NotAllowedError'
+      ? (nativeApp ? 'Camera access is off. Turn it on in Settings → Arete → Camera, then try again, or analyse a video instead'
+                   : 'Camera access is blocked. Allow it in your browser’s settings for this site, then try again, or analyse a video instead')
+      : 'Couldn’t start: ' + (e && e.message || e);
+  } finally { starting = false; }
+});
+
+$('file').addEventListener('change', async () => {
+  const f = $('file').files[0]; if (!f || starting) return;
+  starting = true; unlockAudio(); source = 'file'; $('setup-msg').textContent = '';
+  try {
+    showLive();
+    await loadTracker();
+    stopCamera();
+    video.srcObject = null; video.src = URL.createObjectURL(f);
+    video.onended = () => { if (phase === 'push') finishPush(); else if (phase === 'relax') setStatus('The video ended before you held still for 2 seconds', true); };
+    await playVideo(video);
+    begin();
+  } catch (e) {
+    $('live').hidden = true; $('setup').hidden = false;
+    $('setup-msg').className = 'msg err'; $('setup-msg').textContent = 'Couldn’t analyse this video: ' + (e && e.message || e);
+  } finally { starting = false; $('file').value = ''; }
+});
+
+function showLive() { $('setup').hidden = true; $('live').hidden = false; $('finish').hidden = true; $('idle').hidden = true; }
+function stopCamera() {
+  if (rvfc && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(rvfc); rvfc = 0;
+  cancelAnimationFrame(raf);
+  if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+  motion.stop();
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+window.addEventListener('pagehide', stopCamera);
+
+function begin() {
+  clock.reset(); setLastMs = -Infinity;
+  startRelax();
+  const RVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
+  if (RVFC) rvfc = video.requestVideoFrameCallback(onVideoFrame);
+  else raf = requestAnimationFrame(loop);
+}
+function onVideoFrame(now, md) {
+  rvfc = 0;
+  if (phase === 'idle' || phase === 'done') return;
+  rvfc = video.requestVideoFrameCallback(onVideoFrame);
+  const t = clock.time(md.mediaTime, now, { file: source === 'file', captureTime: md.captureTime });
+  if (t !== null) processFrame(t);
+}
+let lastVideoT = -1;
+function loop() {
+  raf = requestAnimationFrame(loop);
+  if (phase === 'idle' || phase === 'done' || video.readyState < 2 || video.currentTime === lastVideoT) return;
+  lastVideoT = video.currentTime;
+  processFrame(source === 'file' ? video.currentTime * 1000 : performance.now());
+}
+
+// The pose model needs times that only ever increase, across a camera and then a file.
+function processFrame(tMs) {
+  if (!(tMs > setLastMs) || !landmarker) return;
+  setLastMs = tMs;
+  if (tMs + tsShift <= lastTs) tsShift = lastTs + 1 - tMs;
+  lastTs = tMs + tsShift;
+  let res;
+  try { res = landmarker.detectForVideo(video, lastTs); } catch { setStatus('Tracking stopped. Try again with better light.', true); return; }
+  const poses = res.landmarks || [], W = video.videoWidth, H = video.videoHeight;
+  let i = pickPerson(poses, prevCenter);
+  if (i < 0 && poses.length) { prevCenter = null; i = pickPerson(poses, null); }
+  let pose = [];
+  if (i >= 0) {
+    const p = poses[i];
+    prevCenter = { x: (p[11].x + p[12].x) / 2, y: (p[11].y + p[12].y) / 2 };
+    pose = p.map((l) => ({ x: l.x * W, y: l.y * H, visibility: l.visibility ?? 0 }));
+  }
+  step({ t: tMs / 1000, pose }, tMs);
+}
+
+// ── The push, phase by phase ─────────────────────────────
+function startRelax() {
+  phase = 'relax'; frames = []; baseline = null; lastCheck = 0;
+  $('count').hidden = true; $('stop').hidden = true; $('next').hidden = true; $('end').hidden = false;
+  $('shake').textContent = '—'; $('meter').style.width = '0';
+  setStatus('Get in position and hold lightly');
+}
+
+function step(f, tMs) {
+  if (phase === 'relax') {
+    frames.push(f);
+    while (frames.length && frames[0].t < f.t - RELAX_SEC) frames.shift();
+    const s = pickSide(frames, mode);
+    draw(f.pose, s, false); showAngle(f, s);
+    if (f.t - lastCheck < 0.25 || frames.length < 2 || f.t - frames[0].t < RELAX_SEC * 0.95) return;
+    lastCheck = f.t;
+    const b = analyseBaseline(frames, mode, s);
+    if (b.ok) {
+      side = s; baseline = b;
+      if (source === 'file') return startPush(f, tMs);
+      phase = 'countdown'; phaseAt = f.t; beeped = -1;
+      setStatus('Ready…');
+    } else setStatus(b.flags.includes('shortBaseline') ? SETUPS[mode].show : 'Hold still in position, lightly', 'warn');
+    return;
+  }
+  if (phase === 'countdown') {
+    draw(f.pose, side, false); showAngle(f, side);
+    const left = COUNT_SEC - (f.t - phaseAt);
+    const n = Math.ceil(left);
+    if (left <= 0) return startPush(f, tMs);
+    if (n !== beeped) { beeped = n; beep(660, 0.1); $('count').hidden = false; $('count').textContent = String(n); }
+    return;
+  }
+  if (phase === 'push') {
+    frames.push(f);
+    draw(f.pose, side, true); showAngle(f, side);
+    if (f.t - lastLive >= 0.1) {
+      lastLive = f.t;
+      const k = liveShake(frames, { mode, side, baseline });
+      if (Number.isFinite(k)) { $('shake').textContent = k.toFixed(1) + '×'; $('meter').style.width = Math.min(100, (k / 4) * 100).toFixed(0) + '%'; }
+    }
+    const done = f.t - frames[0].t;
+    const limit = source === 'file' ? FILE_MAX_SEC : targetSec;
+    if (source === 'camera') setStatus(`Push · ${Math.max(0, Math.ceil(targetSec - done))} s`, 'good');
+    if (done >= limit) finishPush();
+    return;
+  }
+  if (phase === 'result') { draw(f.pose, side, false); showAngle(f, side); }
+}
+
+function startPush(f, tMs) {
+  phase = 'push'; frames = [f]; lastLive = 0; pushStartMs = tMs;
+  $('count').hidden = false; $('count').textContent = 'Go';
+  setTimeout(() => { if (phase === 'push') $('count').hidden = true; }, 600);
+  beep(990, 0.25); motion.mark();
+  $('stop').hidden = false; $('end').hidden = true;
+  setStatus(source === 'file' ? 'Reading the push…' : `Push · ${targetSec} s`, 'good');
+}
+
+function finishPush() {
+  if (phase !== 'push') return;
+  const endMs = frames.length ? frames.at(-1).t * 1000 : pushStartMs;
+  const phoneMoved = source === 'camera' && motion.moved(pushStartMs, endMs).moved;
+  const p = analysePush(frames, { mode, side, baseline, targetSec: source === 'camera' ? targetSec : null, phoneMoved });
+  pushes.push(p);
+  beep(440, 0.35);
+  phase = 'result'; frames = [];
+  $('count').hidden = true; $('stop').hidden = true; $('end').hidden = false;
+  $('next').hidden = source === 'file';
+  if (source === 'file') video.pause();
+  setStatus(source === 'file' ? 'Done. End the set to save it' : 'Rest, then tap Next push');
+  renderPushes();
+}
+
+$('stop').addEventListener('click', finishPush);
+$('next').addEventListener('click', () => { unlockAudio(); startRelax(); });
+$('end').addEventListener('click', () => {
+  if (phase === 'push') finishPush();
+  phase = 'done'; stopCamera(); video.pause();
+  $('live').hidden = true;
+  if (!pushes.length) { $('setup').hidden = false; phase = 'idle'; return; }
+  $('finish').hidden = false; $('sheet').scrollTop = 0;
+  setStatus('Set finished');
+});
+
+// ── Readouts ─────────────────────────────────────────────
+// The pill over the camera, as on the bar-speed camera page: 'good' while pushing, 'warn' for problems.
+function setStatus(text, kind = '') { const el = $('status'); el.textContent = text; el.hidden = !text; el.className = 'status' + (kind === true ? ' warn' : kind ? ' ' + kind : ''); }
+function showAngle(f, s) {
+  const a = s ? liveAngle(f, { mode, side: s }) : null;
+  $('angle').textContent = Number.isFinite(a) ? Math.round(a) + '°' : '—';
+}
+function draw(pose, s, pushing) {
+  const W = overlay.clientWidth, H = overlay.clientHeight, dpr = window.devicePixelRatio || 1;
+  if (overlay.width !== Math.round(W * dpr)) { overlay.width = Math.round(W * dpr); overlay.height = Math.round(H * dpr); }
+  const c = overlay.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  if (!s || !pose.length || !video.videoWidth) return;
+  const k = Math.max(W / video.videoWidth, H / video.videoHeight), ox = (W - video.videoWidth * k) / 2, oy = (H - video.videoHeight * k) / 2;
+  const pts = SETUPS[mode].angle.map((n) => pose[JOINTS[s][n]]);
+  if (!pts.every((p) => p && (p.visibility ?? 0) >= 0.5)) return;
+  c.strokeStyle = pushing ? '#34C759' : 'rgba(255,255,255,.9)'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo : c.moveTo).call(c, ox + p.x * k, oy + p.y * k)); c.stroke();
+  c.fillStyle = '#fff';
+  pts.forEach((p) => { c.beginPath(); c.arc(ox + p.x * k, oy + p.y * k, 6, 0, Math.PI * 2); c.fill(); });
+}
+
+const history = () => listIsoRecords(localStorage);
+const median = (v) => { const a = v.filter(Number.isFinite).sort((x, y) => x - y); return a.length ? (a.length % 2 ? a[a.length >> 1] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null; };
+function setVsUsual() {
+  const ok = pushes.filter((p) => Number.isFinite(p.shakeRatio));
+  if (!ok.length) return null;
+  return compareToUsual({ shakeRatio: median(ok.map((p) => p.shakeRatio)), angleDeg: median(ok.map((p) => p.angleDeg)) }, history(), { exercise: exerciseName || 'isometric ' + mode });
+}
+function renderPushes() {
+  $('results').hidden = false;
+  const label = SETUPS[mode].label;
+  $('pushes').innerHTML = pushes.map((p, i) => {
+    const bits = [];
+    if (Number.isFinite(p.angleDeg)) bits.push(`${label} ${p.angleDeg}°`);
+    if (Number.isFinite(p.shakeRatio)) bits.push(`shake ${p.shakeRatio.toFixed(1)}× relaxed`);
+    if (Number.isFinite(p.fadePct)) bits.push(p.fadePct > 15 ? `faded ${p.fadePct}% by the end` : p.fadePct < -15 ? `shake rose ${-p.fadePct}% by the end` : 'held steady');
+    const warns = p.flags.map((f) => FLAG_TEXT[f]).filter(Boolean).map((t) => `<div class="warn">${esc(t)}</div>`).join('');
+    return `<li class="push"><div class="push-t"><b>Push ${i + 1}</b><span>${p.durationSec.toFixed(1)} s</span></div><div class="push-m">${esc(bits.join(' · ') || 'Time only')}</div>${warns}</li>`;
+  }).join('');
+  const u = setVsUsual();
+  $('usual').classList.toggle('has', !!u);
+  $('usual').innerHTML = u ? `<b>${u.ratio.toFixed(1)}× your usual shake</b>At this angle, from ${u.n} earlier pushes` : '<b>No usual yet</b>Your usual shake shows here after 3 pushes at a similar angle';
+}
+
+// ── Save ─────────────────────────────────────────────────
+let savedId = null;
+$('save').addEventListener('click', () => {
+  if (!pushes.length) return;
+  const record = {
+    v: 1, id: savedId || `iso-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, at: Date.now(),
+    exercise: exerciseName || 'isometric ' + mode, mode, side, source, targetSec: source === 'camera' ? targetSec : null,
+    pushes: pushes.slice(), rpe, vsUsual: setVsUsual(), label: 'estimate',
+  };
+  savedId = record.id;
+  const kept = saveIsoRecord(localStorage, record);
+  const msg = $('save-msg');
+  if (context) {
+    const r = attachIsoSet(localStorage, context, record);
+    msg.className = 'msg ' + (r.ok ? 'ok' : 'err');
+    msg.textContent = r.ok ? 'Saved to your set: ' + isoSummary(record) : r.reason + (kept ? ' The pushes are kept on this phone.' : '');
+    if (r.ok) setTimeout(() => location.replace('workouts.html'), 900);
+  } else {
+    msg.className = 'msg ' + (kept ? 'ok' : 'err');
+    msg.textContent = kept ? 'Saved on this phone: ' + isoSummary(record) : 'Couldn’t save. This phone’s storage may be full.';
+  }
+});
+
+window.__iso = { get pushes() { return pushes; }, get phase() { return phase; }, get baseline() { return baseline; } };
+</script>
+</body>
+</html>

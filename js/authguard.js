@@ -83,7 +83,7 @@
   var loadedAt = Date.now(), stale = false, lastSync = Date.now();
   function typing() { var a = document.activeElement; return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); }
   // Camera and lab pages hold work that isn't saved yet (a recording, an analysis): never reload those.
-  var keep = /(curl-lab|velocity-lab|drop-test|onboarding)\.html$/.test(location.pathname);
+  var keep = /(curl-lab|velocity-lab|drop-test|isometric|onboarding)\.html$/.test(location.pathname);
   function redraw() { if (stale && !keep && !typing()) { stale = false; location.reload(); } }
   window.addEventListener('arete:remote-change', function () { stale = true; if (Date.now() - loadedAt < 8000) redraw(); });
   document.addEventListener('visibilitychange', function () {

@@ -196,6 +196,12 @@
     "Farmer's Carry":    { primary: ['forearm-l','forearm-r','traps'], secondary: [] },
     'Sumo Squat':        { primary: ['quads-l','quads-r','adductors-l','adductors-r'], secondary: ['glutes-l','glutes-r'] },
     'Cable Adduction':   { primary: ['adductors-l','adductors-r'],   secondary: [] },
+    // Isometrics against a fixed object: the camera reads them on isometric.html (features/isometric/).
+    'Isometric Pin Press':      { primary: ['chest-l','chest-r','triceps-l','triceps-r'], secondary: ['delt-front-l','delt-front-r'] },
+    'Isometric Pin Squat':      { primary: ['quads-l','quads-r'],           secondary: ['glutes-l','glutes-r'] },
+    'Isometric Mid-Thigh Pull': { primary: ['glutes-l','glutes-r','hamstrings-l','hamstrings-r','lower-back'], secondary: ['quads-l','quads-r','traps'] },
+    'Isometric Towel Curl':     { primary: ['biceps-l','biceps-r'],         secondary: ['forearm-l','forearm-r'] },
+    'Isometric Split Squat':    { primary: ['quads-l','quads-r','glutes-l','glutes-r'], secondary: [] },
   };
 
   // ─────────────────────────────────────────────────────────────

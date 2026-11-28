@@ -1024,6 +1024,7 @@ function renderExercise(ex, nx){
       <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
     </div>
     ${s.velocity?`<div class="set-velo">${speedReadinessHtml(ex,s)}${renderVelocityResult(s.velocity)}</div>`:''}
+    ${s.isometric&&window.IsoTracking?`<div class="set-velo"><div class="velocity-summary">${esc(window.IsoTracking.isoSummary(s.isometric))}<div class="velocity-detail">Estimate: shake is compared with your own earlier pushes. It isn’t force</div></div></div>`:''}
     ${cur&&isCur?`<button class="btn tr-cta tr-log" onclick="logSet('${ex.id}','${s.id}')">Log ${s.type==='warmup'?'warm-up':'set '+n}</button>`:''}`; }).join('');
   const tgt = ex.targetReps
     ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
@@ -1033,7 +1034,8 @@ function renderExercise(ex, nx){
     last ? `<span>Last time${last.elsewhere?` (${last.elsewhere})`:''} <b>${last.sets.map(s=>`${s.weight!==''?esc(s.weight):'–'}×${s.reps!==''?esc(s.reps):'–'}`).join(', ')}</b> · ${esc(F.fmtDate(last.date))}</span>` : '',
   ].filter(Boolean).join('');
   const equip = [ex.machine ? machineLabel(ex.machine) : ex.equipmentKey, ex.unilateral ? 'Unilateral' : ''].filter(Boolean).join(' · ');
-  const camOk = window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex);
+  const isoOk = !!(window.IsoTracking && window.IsoTracking.isoModeFor(ex));
+  const camOk = isoOk || (window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex));
   const camSet = nextHere || ex.sets[ex.sets.length-1];
   const open = _exOpen.has(ex.id);
   return `<section class="card ex${isCur?' is-cur':''}${ws.length&&wDone===ws.length?' is-done':''}">
@@ -1043,7 +1045,7 @@ function renderExercise(ex, nx){
         ${equip?`<div class="ex-eq">${esc(equip)}</div>`:''}
       </div>
       <span class="ex-count" data-roll="exc-${ex.id}">${wDone}/${ws.length}</span>
-      ${camOk&&camSet?`<button class="icon-btn ex-cam" aria-label="Track sets with the camera" title="Track sets with the camera: reps, bar speed and speed loss for every set" onclick="trackWorkoutSet('${ex.id}','${camSet.id}',true)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>`:''}
+      ${camOk&&camSet?`<button class="icon-btn ex-cam" aria-label="Track sets with the camera" title="${isoOk?'Track pushes with the camera: time, joint angle and shake':'Track sets with the camera: reps, bar speed and speed loss for every set'}" onclick="trackWorkoutSet('${ex.id}','${camSet.id}',${!isoOk})"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>`:''}
       <button class="icon-btn ex-more" aria-label="Exercise settings" aria-expanded="${open}" onclick="toggleExSettings('${ex.id}')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
     </div>
     ${meta?`<div class="ex-meta">${meta}</div>`:''}
@@ -1302,6 +1304,14 @@ function removeExercise(eid){ active.exercises=active.exercises.filter(e=>e.id!=
 function findEx(eid){ return active.exercises.find(e=>e.id===eid); }
 async function trackWorkoutSet(eid,sid,chain=false){
   try{
+    // Isometrics (features/isometric/): their own camera page, one set at a time.
+    const iso=window.IsoTracking || { ...await import('./features/isometric/services/handoff.js'), isoModeFor:(await import('./features/isometric/services/isometric.js')).isoModeFor };
+    if(iso.isoModeFor(findEx(eid))){
+      const url=iso.prepareIsoTracking(active,eid,sid);
+      saveActive();
+      location.href=url;
+      return;
+    }
     const tracking=window.VelocityWorkout || await import('./features/velocity/services/workout.js');
     const previous=active.exercises.flatMap(e=>e.sets||[]).filter(s=>s.completedAt).sort((a,b)=>b.completedAt-a.completedAt)[0];
     const selected=findEx(eid).sets.find(s=>s.id===sid);
@@ -1312,9 +1322,11 @@ async function trackWorkoutSet(eid,sid,chain=false){
   }catch(err){ toast(err.message || 'Camera tracking could not open'); }
 }
 function renderTrackedSet(ex,s){
-  const supported=window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex);
+  const iso=!!(window.IsoTracking && window.IsoTracking.isoModeFor(ex));
+  const supported=iso || (window.VelocityWorkout && window.VelocityWorkout.trackerModeFor(ex));
   const endpoint=s.rirEndpoint || s.failureEndpoint?.type || '';
-  return `<div class="velocity-row">${supported?`<button class="btn btn-s btn-xs" onclick="trackWorkoutSet('${ex.id}','${s.id}')">${s.velocity?'Track again':'Track reps with camera'}</button>`:''}
+  const again=iso ? !!s.isometric : !!s.velocity;
+  return `<div class="velocity-row">${supported?`<button class="btn btn-s btn-xs" onclick="trackWorkoutSet('${ex.id}','${s.id}')">${again?'Track again':iso?'Track pushes with camera':'Track reps with camera'}</button>`:''}
     <details class="set-calibration"><summary>Reported effort &amp; optional calibration</summary>
       <label>Reported RPE <input id="rpe-${s.id}" type="number" min="1" max="10" step="0.5" inputmode="decimal" value="${s.reportedEffort?.rpe??''}" placeholder="Optional" oninput="setEffort('${ex.id}','${s.id}','rpe',this.value)"></label>
       <label>RIR endpoint <select onchange="setCalibrationField('${ex.id}','${s.id}','endpoint',this.value)"><option value="">Not specified</option><option value="technical"${endpoint==='technical'?' selected':''}>Technical: next rep breaks the standard</option><option value="momentary"${endpoint==='momentary'?' selected':''}>Momentary: no further full rep possible</option></select></label>
@@ -3285,6 +3297,9 @@ import * as readiness from './features/velocity/services/readiness.js';
 import * as setChain from './features/velocity/services/setChain.js';
 import * as trainAnalytics from './features/training/services/analytics.js';
 import * as progression from './features/training/services/progression.js';
+import * as isoHandoff from './features/isometric/services/handoff.js';
+import { isoModeFor } from './features/isometric/services/isometric.js';
+window.IsoTracking={...isoHandoff,isoModeFor};
 window.VelocityWorkout=tracking;
 window.VelocityReadiness=readiness;
 window.VelocityChain=setChain;

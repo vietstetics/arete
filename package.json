@@ -23,6 +23,7 @@
     "test:velocity": "node --test \"features/velocity/__tests__/*.test.js\"",
     "dev": "node scripts/dev-server.mjs",
     "test:security": "node --test --test-force-exit scripts/test-api-security.mjs scripts/test-sync-security.mjs scripts/test-set-sync.mjs",
+    "test:isometric": "node --test \"features/isometric/__tests__/*.test.js\"",
     "test:nutrition": "node --test \"features/nutrition/__tests__/*.test.js\""
   },
   "dependencies": {

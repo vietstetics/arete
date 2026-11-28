@@ -5,7 +5,7 @@
  *  - Never touches /api/ or cross-origin requests (Open Food Facts, fonts…)
  *  Bump VERSION to invalidate old caches on deploy.
  * ==========================================================================*/
-const VERSION = 'arete-v66';
+const VERSION = 'arete-v67';
 
 const CORE = [
   'index.html', 'workouts.html', 'nutrition.html', 'recovery.html',
@@ -42,7 +42,7 @@ const CORE = [
   'features/machines/ui/machineUI.js',
   'manifest.webmanifest',
   'icon-180.png', 'icon-192.png', 'icon-512.png',
-  'curl-lab.html', 'velocity-lab.html',
+  'curl-lab.html', 'velocity-lab.html', 'isometric.html',
   'features/standard/services/repEngine.js', 'features/standard/services/velocity.js',
   'features/standard/services/liftFeatures.js', 'features/standard/services/liftTrackers.js', 'features/standard/services/liftDemo.js',
   'features/velocity/index.js', 'features/velocity/services/record.js',
@@ -54,6 +54,7 @@ const CORE = [
   'features/velocity/services/live/plateSession.js', 'features/velocity/services/live/frameGrabber.js',
   'features/velocity/services/live/motion.js', 'features/velocity/services/sbd.js', 'features/velocity/services/vision/marker.js',
   'features/velocity/services/live/frameClock.js', 'features/velocity/services/live/playVideo.js',
+  'features/isometric/services/isometric.js', 'features/isometric/services/handoff.js',
   'features/velocity/services/vision/image.js', 'features/velocity/services/vision/geometry.js',
   'features/velocity/services/vision/ellipse.js', 'features/velocity/services/vision/plate.js',
   'features/velocity/services/vision/camera.js', 'features/velocity/services/vision/circle3d.js',
