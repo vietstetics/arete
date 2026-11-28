@@ -193,6 +193,11 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const params = new URLSearchParams(location.search);
 const context = parseIsoContext(params);
 const exerciseName = (params.get('exerciseName') || '').slice(0, 120);
+// Opened from Home's camera prototypes (no workout set): back goes Home.
+if (!context) {
+  const back = document.querySelector('.ibtn'); back.href = 'index.html'; back.setAttribute('aria-label', 'Back home');
+  $('leave').href = 'index.html'; $('leave').textContent = 'Back home';
+}
 let mode = SETUPS[params.get('mode')] ? params.get('mode') : isoModeFor(exerciseName);
 if (!mode) { $('mode-pick').hidden = false; mode = 'arms'; }
 const video = $('video'), overlay = $('overlay');

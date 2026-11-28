@@ -369,6 +369,17 @@ input,select,textarea{font-family:inherit}
 .velocity-bar.empty{height:12px;background:transparent;border:1px dashed var(--t3)}
 .velocity-detail{font-size:10.5px;color:var(--t3)}
 .fat .fat-loss{display:block;color:var(--t2);font-weight:600}
+/* Camera stats fold into one line under the set; tap to see the bars, readiness and coaching */
+.stat-fold{margin:4px 0 8px;border:1px solid var(--bd);border-radius:10px}
+.stat-fold>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:40px;padding:0 10px;cursor:pointer;font-size:12px;color:var(--t2)}
+.stat-fold>summary::-webkit-details-marker{display:none}
+.stat-fold>summary b{color:var(--t1);font-weight:600;margin-right:4px}
+.sf-l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sf-c{width:14px;height:14px;flex:none;color:var(--t3);transition:transform .2s}
+.stat-fold[open]>summary .sf-c{transform:rotate(90deg)}
+.sf-b{padding:0 10px 6px}
+.sf-b .velocity-summary{border:0;padding:0 0 6px;margin:0}
+@media(prefers-reduced-motion:reduce){.sf-c{transition:none}}
 .coach{margin:2px 0 10px;padding:9px 11px;border-radius:10px;background:var(--s2);font-size:12.5px;line-height:1.45}
 .coach b{font-weight:700}.coach-add{background:rgba(52,199,89,.12)}.coach-lighter{background:rgba(255,159,10,.12)}
 .coach-why{font-size:11.5px;color:var(--t2);margin-top:2px}.coach-why .lg-link,.coach-off .lg-link{font-size:11.5px;padding:0;margin-left:4px}
@@ -1023,8 +1034,8 @@ function renderExercise(ex, nx){
       <input class="set-in" id="rir-${s.id}" type="number" inputmode="decimal" min="0" max="9" step="0.5" placeholder="${s.type!=='warmup'&&hasRir?esc(ex.targetRir):'–'}" aria-label="Reps in reserve" title="Reps in reserve — how many more you could have done. 0 = to failure." value="${s.rir??''}" oninput="setEffort('${ex.id}','${s.id}','rir',this.value)">
       <button class="set-done ${s.completed?'on':''}${s.pr?' pr':''}" title="${s.pr?'Personal record':'Mark set done'}" aria-label="${s.completed?'Set '+n+' done':'Mark set '+n+' done'}" aria-pressed="${s.completed}" onclick="toggleDone('${ex.id}','${s.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
     </div>
-    ${s.velocity?`<div class="set-velo">${speedReadinessHtml(ex,s)}${renderVelocityResult(s.velocity)}</div>`:''}
-    ${s.isometric&&window.IsoTracking?`<div class="set-velo"><div class="velocity-summary">${esc(window.IsoTracking.isoSummary(s.isometric))}<div class="velocity-detail">Estimate: shake is compared with your own earlier pushes. It isn’t force</div></div></div>`:''}
+    ${s.velocity?`<div class="set-velo">${statFold('v-'+s.id,`<b>Camera</b>${esc(veloLine(s.velocity))}`,speedReadinessHtml(ex,s)+renderVelocityResult(s.velocity))}</div>`:''}
+    ${s.isometric&&window.IsoTracking?`<div class="set-velo">${statFold('i-'+s.id,`<b>Camera</b>${esc(window.IsoTracking.isoSummary(s.isometric))}`,'<div class="velocity-detail">Estimate: shake is compared with your own earlier pushes. It isn’t force</div>')}</div>`:''}
     ${cur&&isCur?`<button class="btn tr-cta tr-log" onclick="logSet('${ex.id}','${s.id}')">Log ${s.type==='warmup'?'warm-up':'set '+n}</button>`:''}`; }).join('');
   const tgt = ex.targetReps
     ? `${ex.targetSets?ex.targetSets+' × ':''}${ex.targetReps}${hasRir?' · '+ex.targetRir+' RIR':''}`
@@ -1389,6 +1400,18 @@ function renderVelocityResult(record, chartMax){
     ${window.VelocityCoachMetrics?window.VelocityCoachMetrics.renderCoachMetrics(record):''}
     </div>`;
 }
+// Camera stats stay folded to one line until tapped; what's open survives the log redrawing.
+const _statOpen=new Set();
+function statToggle(k,open){ if(open) _statOpen.add(k); else _statOpen.delete(k); }
+function statFold(key,summary,body){
+  return `<details class="stat-fold"${_statOpen.has(key)?' open':''} ontoggle="statToggle('${key}',this.open)"><summary><span class="sf-l">${summary}</span><svg class="sf-c" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></summary><div class="sf-b">${body}</div></details>`;
+}
+function veloLine(r){
+  const n=r.counted, bits=[`${n} rep${n===1?'':'s'}`];
+  if(r.units==='m/s'&&Number.isFinite(r.best)) bits.push(`best ${r.best.toFixed(2)} m/s`);
+  if(Number.isFinite(r.lossPct)) bits.push(`${Math.round(r.lossPct)}% loss`);
+  return bits.join(' · ');
+}
 // Speed set to set (features/velocity/services/setChain.js): each tracked set's first-rep speed and its own speed loss.
 function fatigueHtml(ex){
   const C=window.VelocityChain; if(!C) return '';
@@ -1397,10 +1420,11 @@ function fatigueHtml(ex){
   const top=Math.max(1,...abs.map(x=>x.first));
   const pct=f.drop?Math.round(f.drop.pct):0;
   const line=!f.drop?esc(f.reason):pct===0?`First-rep speed held steady from set ${f.drop.from} to set ${f.drop.to} at ${esc(f.drop.loadKg)} kg`:`First-rep speed ${pct>0?'fell':'rose'} ${Math.abs(pct)}% from set ${f.drop.from} to set ${f.drop.to} at ${esc(f.drop.loadKg)} kg`;
-  return `<div class="velocity-summary fat"><b>Speed set to set</b> <span class="velocity-detail">camera estimate</span>
+  const short=!f.drop?'':pct===0?'held steady':`first-rep speed ${pct>0?'down':'up'} ${Math.abs(pct)}%`;
+  return statFold('f-'+ex.id,`<b>Speed set to set</b>${esc(short)}`,`<div class="velocity-summary fat"><span class="velocity-detail">camera estimate</span>
     <div class="velocity-bars" role="img" aria-label="First-rep speed by set">${f.sets.map(x=>{ const ok=x.units==='m/s'&&Number.isFinite(x.first);
       return `<div class="velocity-slot"><span>${ok?x.first.toFixed(2):'—'}</span><div class="velocity-track"><i class="velocity-bar${ok?'':' empty'}" style="${ok?'height:'+Math.max(1,x.first/top*100).toFixed(1)+'%':''}"></i></div><span>Set ${x.n}</span><span class="fat-loss">${Number.isFinite(x.lossPct)?'−'+Math.round(x.lossPct)+'%':'–'}</span></div>`; }).join('')}</div>
-    <div class="velocity-detail">${line}. Bars: fastest of the first reps (m/s). Under each: that set's speed loss.</div></div>`;
+    <div class="velocity-detail">${line}. Bars: fastest of the first reps (m/s). Under each: that set's speed loss.</div></div>`);
 }
 function velocityHistoryHtml(name,srcWorkouts){
   const key=normExName(name), list=[];
