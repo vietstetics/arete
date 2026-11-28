@@ -112,16 +112,11 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
   <div class="sheet" id="sheet">
     <section id="setup">
       <div class="h">Isometric push</div>
-      <p class="hint">Push time, joint angle and shake, compared with your own earlier pushes. <b>A phone can’t measure force.</b></p>
+      <p class="hint">Hold time, joint angle and shake, compared with your own earlier efforts. <b>A phone can’t measure force.</b></p>
       <button class="link" id="demo" type="button">No camera to hand? Try the demo</button>
       <div class="guide">
         <div class="guide-h">How to film it</div>
-        <ol>
-          <li><span class="mk">1</span><span><b>Side-on, 2–3 m away</b><span id="show-what">Your working joint in the picture</span></span></li>
-          <li><span class="mk">2</span><span><b>Prop the phone up</b>If the phone moves, shake can’t be read</span></li>
-          <li><span class="mk">3</span><span><b>Get in position and hold lightly</b>Once you’re still for 2 seconds, three beeps count you in</span></li>
-          <li><span class="mk">4</span><span><b>Push as hard as you can</b>Until the end beep</span></li>
-        </ol>
+        <ol id="guide"></ol>
       </div>
       <div id="mode-pick" hidden>
         <p class="lbl">Working joint</p>
@@ -216,7 +211,22 @@ let demoRaf = 0, demoRelaxAt = 0;
 function showSetup() {
   $('title').textContent = exerciseName || 'Isometric';
   const w = SETUPS[mode].show.replace(/^Show /, '').replace(/ from the side$/, '');
-  $('show-what').textContent = w.charAt(0).toUpperCase() + w.slice(1) + ' in the picture';
+  const inView = w.charAt(0).toUpperCase() + w.slice(1) + ' in the picture';
+  // Curls get their own set-up: the elbow locked at 90° against a towel or the pins.
+  const curl = mode === 'arms' && /\bcurl/i.test(exerciseName);
+  const steps = curl ? [
+    ['Side-on, 2–3 m away', inView + ', working arm nearest the phone'],
+    ['Prop the phone up', 'If the phone moves, shake can’t be read'],
+    ['Lock the elbow at 90°', 'Upper arm by your side. Loop a towel under your foot, or curl a bar up into the pins'],
+    ['Hold lightly, then curl as hard as you can', 'Still for 2 seconds, three beeps, then pull until the end beep'],
+  ] : [
+    ['Side-on, 2–3 m away', inView],
+    ['Prop the phone up', 'If the phone moves, shake can’t be read'],
+    ['Get in position and hold lightly', 'Once you’re still for 2 seconds, three beeps count you in'],
+    ['Push as hard as you can', 'Until the end beep'],
+  ];
+  $('guide').innerHTML = steps.map(([b, t], i) => `<li><span class="mk">${i + 1}</span><span><b>${esc(b)}</b>${esc(t)}</span></li>`).join('');
+  $('setup').querySelector('.h').textContent = curl ? 'Isometric curl' : 'Isometric push';
   $('angle-lbl').textContent = SETUPS[mode].label + ' angle';
   $('targets').innerHTML = TARGETS.map((s) => `<button class="opt" type="button" data-s="${s}" aria-pressed="${s === targetSec}">${s} s</button>`).join('');
 }

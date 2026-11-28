@@ -201,6 +201,7 @@
     'Isometric Pin Squat':      { primary: ['quads-l','quads-r'],           secondary: ['glutes-l','glutes-r'] },
     'Isometric Mid-Thigh Pull': { primary: ['glutes-l','glutes-r','hamstrings-l','hamstrings-r','lower-back'], secondary: ['quads-l','quads-r','traps'] },
     'Isometric Towel Curl':     { primary: ['biceps-l','biceps-r'],         secondary: ['forearm-l','forearm-r'] },
+    'Isometric Curl':           { primary: ['biceps-l','biceps-r'],         secondary: ['forearm-l','forearm-r'] },
     'Isometric Split Squat':    { primary: ['quads-l','quads-r','glutes-l','glutes-r'], secondary: [] },
   };
 
