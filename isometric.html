@@ -92,6 +92,7 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
 .msg:empty{display:none}
 .msg.err{color:var(--red)}
 .msg.ok{color:var(--lime-ink)}
+.link{display:block;min-height:44px;margin-top:2px;font-size:13.5px;font-weight:700;color:var(--lime-ink);text-align:left}
 </style>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 </head>
@@ -112,6 +113,7 @@ label.btn input{position:absolute;width:1px;height:1px;opacity:0}
     <section id="setup">
       <div class="h">Isometric push</div>
       <p class="hint">Push time, joint angle and shake, compared with your own earlier pushes. <b>A phone can’t measure force.</b></p>
+      <button class="link" id="demo" type="button">No camera to hand? Try the demo</button>
       <div class="guide">
         <div class="guide-h">How to film it</div>
         <ol>
@@ -202,6 +204,8 @@ let frames = [], side = null, baseline = null, phaseAt = 0, lastCheck = 0, prevC
 let pushStartMs = 0, rvfc = 0, raf = 0, lastTs = -1, tsShift = 0, setLastMs = -Infinity;
 const clock = createFrameClock(), motion = createMotionWatch();
 const pushes = [];
+let frameW = 0, frameH = 0;      // the picture's size in pixels (the video's, or the demo's)
+let demoRaf = 0, demoRelaxAt = 0;
 
 // ── Setup ────────────────────────────────────────────────
 function showSetup() {
@@ -297,7 +301,7 @@ $('file').addEventListener('change', async () => {
 function showLive() { $('setup').hidden = true; $('live').hidden = false; $('finish').hidden = true; $('idle').hidden = true; }
 function stopCamera() {
   if (rvfc && video.cancelVideoFrameCallback) video.cancelVideoFrameCallback(rvfc); rvfc = 0;
-  cancelAnimationFrame(raf);
+  cancelAnimationFrame(raf); cancelAnimationFrame(demoRaf);
   if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
   motion.stop();
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
@@ -335,6 +339,7 @@ function processFrame(tMs) {
   let res;
   try { res = landmarker.detectForVideo(video, lastTs); } catch { setStatus('Tracking stopped. Try again with better light.', true); return; }
   const poses = res.landmarks || [], W = video.videoWidth, H = video.videoHeight;
+  frameW = W; frameH = H;
   let i = pickPerson(poses, prevCenter);
   if (i < 0 && poses.length) { prevCenter = null; i = pickPerson(poses, null); }
   let pose = [];
@@ -348,7 +353,7 @@ function processFrame(tMs) {
 
 // ── The push, phase by phase ─────────────────────────────
 function startRelax() {
-  phase = 'relax'; frames = []; baseline = null; lastCheck = 0;
+  phase = 'relax'; frames = []; baseline = null; lastCheck = 0; demoRelaxAt = performance.now() / 1000;
   $('count').hidden = true; $('stop').hidden = true; $('next').hidden = true; $('end').hidden = false;
   $('shake').textContent = '—'; $('meter').style.width = '0';
   setStatus('Get in position and hold lightly');
@@ -389,7 +394,7 @@ function step(f, tMs) {
     }
     const done = f.t - frames[0].t;
     const limit = source === 'file' ? FILE_MAX_SEC : targetSec;
-    if (source === 'camera') setStatus(`Push · ${Math.max(0, Math.ceil(targetSec - done))} s`, 'good');
+    if (source !== 'file') setStatus(`Push · ${Math.max(0, Math.ceil(targetSec - done))} s`, 'good');
     if (done >= limit) finishPush();
     return;
   }
@@ -409,14 +414,14 @@ function finishPush() {
   if (phase !== 'push') return;
   const endMs = frames.length ? frames.at(-1).t * 1000 : pushStartMs;
   const phoneMoved = source === 'camera' && motion.moved(pushStartMs, endMs).moved;
-  const p = analysePush(frames, { mode, side, baseline, targetSec: source === 'camera' ? targetSec : null, phoneMoved });
+  const p = analysePush(frames, { mode, side, baseline, targetSec: source !== 'file' ? targetSec : null, phoneMoved });
   pushes.push(p);
   beep(440, 0.35);
   phase = 'result'; frames = [];
   $('count').hidden = true; $('stop').hidden = true; $('end').hidden = false;
   $('next').hidden = source === 'file';
   if (source === 'file') video.pause();
-  setStatus(source === 'file' ? 'Done. End the set to save it' : 'Rest, then tap Next push');
+  setStatus(source === 'file' ? 'Done. End the set to save it' : source === 'demo' ? 'Demo: tap Next push for a weaker one' : 'Rest, then tap Next push');
   renderPushes();
 }
 
@@ -440,10 +445,11 @@ function showAngle(f, s) {
 }
 function draw(pose, s, pushing) {
   const W = overlay.clientWidth, H = overlay.clientHeight, dpr = window.devicePixelRatio || 1;
-  if (overlay.width !== Math.round(W * dpr)) { overlay.width = Math.round(W * dpr); overlay.height = Math.round(H * dpr); }
+  if (overlay.width !== Math.round(W * dpr) || overlay.height !== Math.round(H * dpr)) { overlay.width = Math.round(W * dpr); overlay.height = Math.round(H * dpr); }
   const c = overlay.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
-  if (!s || !pose.length || !video.videoWidth) return;
-  const k = Math.max(W / video.videoWidth, H / video.videoHeight), ox = (W - video.videoWidth * k) / 2, oy = (H - video.videoHeight * k) / 2;
+  if (!s || !pose.length || !frameW) return;
+  const k = Math.max(W / frameW, H / frameH), ox = (W - frameW * k) / 2, oy = (H - frameH * k) / 2;
+  if (source === 'demo') drawFigure(c, pose, (p) => [ox + p.x * k, oy + p.y * k]);
   const pts = SETUPS[mode].angle.map((n) => pose[JOINTS[s][n]]);
   if (!pts.every((p) => p && (p.visibility ?? 0) >= 0.5)) return;
   c.strokeStyle = pushing ? '#34C759' : 'rgba(255,255,255,.9)'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
@@ -479,6 +485,10 @@ function renderPushes() {
 let savedId = null;
 $('save').addEventListener('click', () => {
   if (!pushes.length) return;
+  if (source === 'demo') {
+    $('save-msg').className = 'msg'; $('save-msg').textContent = 'Demo: nothing was saved. Start the camera for a real set.';
+    return;
+  }
   const record = {
     v: 1, id: savedId || `iso-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, at: Date.now(),
     exercise: exerciseName || 'isometric ' + mode, mode, side, source, targetSec: source === 'camera' ? targetSec : null,
@@ -496,6 +506,54 @@ $('save').addEventListener('click', () => {
     msg.className = 'msg ' + (kept ? 'ok' : 'err');
     msg.textContent = kept ? 'Saved on this phone: ' + isoSummary(record) : 'Couldn’t save. This phone’s storage may be full.';
   }
+});
+
+// ── Demo ─────────────────────────────────────────────────
+// A made-up lifter, side-on, run through the same analysis as the camera: hold lightly, three beeps,
+// push. Each push is a little weaker than the one before, so the shake drops. Pixel noise like the pose
+// model's (0.8 px) and an 8 Hz tremor while pushing. Nothing here is saved or used as anyone's baseline.
+const DEMO_EFFORT = [1, 0.75, 0.55, 0.9];
+const DEMO_POSE = {
+  arms: { 0: [350, 420], 12: [330, 520], 14: [330, 700], 16: [510, 700], 24: [340, 840], 26: [350, 1040], 28: [350, 1230] },
+  legs: { 0: [330, 470], 12: [320, 560], 14: [330, 700], 16: [380, 800], 24: [300, 850], 26: [480, 860], 28: [470, 1060] },
+  hinge: { 0: [470, 560], 12: [430, 620], 14: [440, 760], 16: [450, 880], 24: [300, 800], 26: [330, 1000], 28: [320, 1200] },
+};
+const DEMO_SHAKE = { shoulder: 12, elbow: 14, wrist: 16, hip: 24, knee: 26, ankle: 28 };
+const gauss = () => Math.sqrt(-2 * Math.log(Math.random() || 1e-9)) * Math.cos(2 * Math.PI * Math.random());
+function demoFrame(t) {
+  let amp = 0;
+  if (phase === 'push' && frames.length) {
+    const e = t - frames[0].t, u = e / targetSec, eff = DEMO_EFFORT[Math.min(pushes.length, DEMO_EFFORT.length - 1)];
+    amp = eff * 6 * Math.min(1, e / 0.4) * (u > 0.6 ? 1 - ((u - 0.6) / 0.4) * 0.3 : 1);
+  }
+  const tremor = amp * (Math.sin(2 * Math.PI * 8 * t) + 0.4 * Math.sin(2 * Math.PI * 5.3 * t));
+  const shakeIdx = new Set(SETUPS[mode].shake.map((n) => DEMO_SHAKE[n]));
+  const pose = Array.from({ length: 33 }, () => ({ x: 0, y: 0, visibility: 0.05 }));
+  for (const [i, [x, y]] of Object.entries(DEMO_POSE[mode])) {
+    const sh = shakeIdx.has(+i) ? tremor : 0;
+    pose[i] = { x: x + 0.8 * gauss() + sh * 0.4, y: y + 0.8 * gauss() + sh, visibility: 0.95 };
+  }
+  return { t, pose };
+}
+function drawFigure(c, pose, at) {
+  const line = (a, b) => { c.beginPath(); c.moveTo(...at(pose[a])); c.lineTo(...at(pose[b])); c.stroke(); };
+  c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 10; c.lineCap = 'round';
+  line(12, 24); line(24, 26); line(26, 28); line(12, 14); line(14, 16);
+  const [hx, hy] = at(pose[0]); c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.arc(hx, hy, 22, 0, Math.PI * 2); c.fill();
+}
+function demoLoop() {
+  demoRaf = requestAnimationFrame(demoLoop);
+  if (phase === 'idle' || phase === 'done') return;
+  const tMs = performance.now();
+  step(demoFrame(tMs / 1000), tMs);
+}
+$('demo').addEventListener('click', () => {
+  unlockAudio(); source = 'demo'; frameW = 720; frameH = 1280;
+  stopCamera(); video.removeAttribute('src'); video.srcObject = null;
+  pushes.length = 0; $('results').hidden = true;
+  $('title').textContent = (exerciseName || 'Isometric') + ' · demo';
+  showLive(); startRelax();
+  demoRaf = requestAnimationFrame(demoLoop);
 });
 
 window.__iso = { get pushes() { return pushes; }, get phase() { return phase; }, get baseline() { return baseline; } };
